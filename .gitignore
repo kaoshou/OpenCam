@@ -1,0 +1,24 @@
+﻿## .NET & Visual Studio
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## Recordings & Test Output
+Recordings/
+TestResults/
+*.mkv
+*.mp4
+
+## OS files
+.DS_Store
+Thumbs.db
+
+## Build output
+installer/publish/
+installer/Output/

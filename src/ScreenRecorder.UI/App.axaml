@@ -1,0 +1,24 @@
+﻿<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ScreenRecorder.UI.App"
+             RequestedThemeVariant="Light">
+    <Application.Styles>
+        <FluentTheme />
+    </Application.Styles>
+
+    <TrayIcon.Icons>
+        <TrayIcons>
+            <TrayIcon Icon="/Assets/app_icon.png" ToolTipText="OpenCam" Clicked="OnTrayIconClicked">
+                <TrayIcon.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="顯示主視窗 (Show Window)" Click="OnShowMainWindowClicked" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="開啟資料夾 (Open Folder)" Click="OnOpenFolderClicked" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="結束程式 (Exit)" Click="OnExitClicked" />
+                    </NativeMenu>
+                </TrayIcon.Menu>
+            </TrayIcon>
+        </TrayIcons>
+    </TrayIcon.Icons>
+</Application>

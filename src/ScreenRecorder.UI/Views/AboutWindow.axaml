@@ -1,0 +1,92 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ScreenRecorder.UI.Views.AboutWindow"
+        Title="{Binding Strings[AboutTitle]}"
+        Icon="/Assets/app_icon.png"
+        Width="520" Height="420"
+        CanResize="False"
+        Background="#F8FAFC"
+        WindowStartupLocation="CenterOwner">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="20">
+        <!-- 標題、App 圖示與作者區 (純白精緻微光卡片) -->
+        <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" 
+                Padding="16,14" Margin="0,0,0,12" BoxShadow="0 4 16 #0F172A08">
+            <Grid ColumnDefinitions="Auto,*">
+                <Border Grid.Column="0" Width="64" Height="64" CornerRadius="14" ClipToBounds="True" Margin="0,0,16,0"
+                        BoxShadow="0 4 14 #0F172A15">
+                    <Image Source="/Assets/app_icon.png" Width="64" Height="64" />
+                </Border>
+
+                <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Strings[AppName]}" FontSize="19" FontWeight="Bold" Foreground="#0F172A" />
+                    <TextBlock Text="{Binding Strings[VersionLabel]}" FontSize="12" Foreground="#64748B" FontWeight="Medium" />
+                    
+                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
+                        <TextBlock Text="{Binding Strings[AuthorLabel]}" FontSize="12.5" FontWeight="SemiBold" Foreground="#334155" />
+                        <TextBlock Text="{Binding Strings[AuthorName]}" FontSize="12.5" Foreground="#059669" FontWeight="Bold" />
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,2,0,0">
+                        <TextBlock Text="GitHub:" FontSize="12" FontWeight="SemiBold" Foreground="#334155" VerticalAlignment="Center" />
+                        <Button Click="OnGitHubClicked" Background="Transparent" Padding="0" Cursor="Hand" BorderThickness="0">
+                            <TextBlock Text="https://github.com/kaoshou" Foreground="#2563EB" TextDecorations="Underline" FontSize="12" FontWeight="Medium" />
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 第三方開源函式庫授權清單 (精美純白卡片) -->
+        <Border Grid.Row="1" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="14,12"
+                BoxShadow="0 2 8 #0F172A06">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="{Binding Strings[ThirdPartyTitle]}" FontWeight="Bold" FontSize="12" Foreground="#0F172A" />
+
+                    <!-- FFmpeg -->
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="• FFmpeg &amp; ffprobe" FontWeight="SemiBold" FontSize="11" Foreground="#1E293B" />
+                        <TextBlock Text="{Binding Strings[LicenseFfmpegDesc]}" 
+                                   FontSize="10" Foreground="#64748B" TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <!-- Avalonia UI -->
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="• Avalonia UI" FontWeight="SemiBold" FontSize="11" Foreground="#1E293B" />
+                        <TextBlock Text="{Binding Strings[LicenseAvaloniaDesc]}" 
+                                   FontSize="10" Foreground="#64748B" TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <!-- CommunityToolkit.Mvvm -->
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="• CommunityToolkit.Mvvm" FontWeight="SemiBold" FontSize="11" Foreground="#1E293B" />
+                        <TextBlock Text="{Binding Strings[LicenseMvvmDesc]}" 
+                                   FontSize="10" Foreground="#64748B" TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <!-- Serilog -->
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="• Serilog" FontWeight="SemiBold" FontSize="11" Foreground="#1E293B" />
+                        <TextBlock Text="{Binding Strings[LicenseSerilogDesc]}" 
+                                   FontSize="10" Foreground="#64748B" TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <!-- xUnit -->
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="• xUnit.net" FontWeight="SemiBold" FontSize="11" Foreground="#1E293B" />
+                        <TextBlock Text="{Binding Strings[LicenseXunitDesc]}" 
+                                   FontSize="10" Foreground="#64748B" TextWrapping="Wrap" />
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <!-- 底部關閉按鈕 (曜石黑高質感按鈕) -->
+        <Border Grid.Row="2" Margin="0,12,0,0">
+            <Button Click="OnCloseClicked" HorizontalAlignment="Right" Background="#0F172A" Foreground="White" 
+                    Padding="18,7" CornerRadius="8" FontSize="12" FontWeight="SemiBold"
+                    Content="{Binding Strings[HotkeyCloseTip]}" />
+        </Border>
+    </Grid>
+</Window>

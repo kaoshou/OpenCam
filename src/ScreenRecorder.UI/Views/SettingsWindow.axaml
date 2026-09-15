@@ -1,0 +1,442 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ScreenRecorder.UI.ViewModels"
+        x:Class="ScreenRecorder.UI.Views.SettingsWindow"
+        x:DataType="vm:SettingsViewModel"
+        Title="{Binding Strings[SettingsTitle]}"
+        Icon="/Assets/app_icon.png"
+        Width="650" Height="820"
+        MinWidth="600" MinHeight="750"
+        Background="#F8FAFC"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="20,16">
+
+        <!-- 頂部高雅分頁導覽切換列 (Segmented Navigation Bar) -->
+        <Border Grid.Row="0" Background="#EDF2F7" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="9" 
+                Padding="4" Margin="0,0,0,14" HorizontalAlignment="Left">
+            <StackPanel Orientation="Horizontal" Spacing="4">
+                <!-- 偏好設定分頁按鈕 (選中時) -->
+                <Button Command="{Binding ShowPreferencesTabCommand}"
+                        IsVisible="{Binding IsPreferencesTab}"
+                        Background="#1E293B" Foreground="#FFFFFF" BorderThickness="0" CornerRadius="7" Padding="14,6.5" Cursor="Hand">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Path Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center" Fill="#38BDF8"
+                              Data="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
+                        <TextBlock Text="{Binding Strings[SettingsTabPreferencesNav]}" FontWeight="Bold" FontSize="12" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <!-- 偏好設定分頁按鈕 (未選中時) -->
+                <Button Command="{Binding ShowPreferencesTabCommand}"
+                        IsVisible="{Binding !IsPreferencesTab}"
+                        Background="Transparent" Foreground="#64748B" BorderThickness="0" CornerRadius="7" Padding="14,6.5" Cursor="Hand">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Path Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center" Fill="#64748B"
+                              Data="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
+                        <TextBlock Text="{Binding Strings[SettingsTabPreferencesNav]}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+
+                <!-- 關於本程式分頁按鈕 (未選中時) -->
+                <Button Command="{Binding ShowAboutTabCommand}"
+                        IsVisible="{Binding !IsAboutTab}"
+                        Background="Transparent" Foreground="#64748B" BorderThickness="0" CornerRadius="7" Padding="14,6.5" Cursor="Hand">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Path Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center" Fill="#64748B"
+                              Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
+                        <TextBlock Text="{Binding Strings[SettingsTabAboutNav]}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <!-- 關於本程式分頁按鈕 (選中時) -->
+                <Button Command="{Binding ShowAboutTabCommand}"
+                        IsVisible="{Binding IsAboutTab}"
+                        Background="#1E293B" Foreground="#FFFFFF" BorderThickness="0" CornerRadius="7" Padding="14,6.5" Cursor="Hand">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Path Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center" Fill="#38BDF8"
+                              Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
+                        <TextBlock Text="{Binding Strings[SettingsTabAboutNav]}" FontWeight="Bold" FontSize="12" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Border>
+
+        <!-- 內容容器 Grid (分頁 0：偏好設定，分頁 1：關於本程式) -->
+        <Grid Grid.Row="1">
+            <!-- ===================== 分頁 0：偏好設定內容 ===================== -->
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" Margin="0,0,0,14"
+                          IsVisible="{Binding IsPreferencesTab}">
+                <StackPanel Spacing="14">
+
+                    <!-- 錯誤與成功訊息提示橫幅 -->
+                    <Border Background="#FEF2F2" BorderBrush="#FECACA" BorderThickness="1" CornerRadius="8" Padding="12,8"
+                            IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Path Width="14" Height="14" Stretch="Uniform" Fill="#DC2626" VerticalAlignment="Center"
+                                  Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+                            <TextBlock Text="{Binding ErrorMessage}" Foreground="#B91C1C" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" CornerRadius="8" Padding="12,8"
+                            IsVisible="{Binding SuccessMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Path Width="14" Height="14" Stretch="Uniform" Fill="#059669" VerticalAlignment="Center"
+                                  Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                            <TextBlock Text="{Binding SuccessMessage}" Foreground="#047857" FontWeight="Bold" FontSize="12" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 分組 1：全域快捷鍵自訂 -->
+                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="16,13" BoxShadow="0 2 8 #0F172A05">
+                        <StackPanel Spacing="10">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Path Width="14" Height="14" Stretch="Uniform" Fill="#2563EB" VerticalAlignment="Center"
+                                      Data="M20 5H4c-1.1 0-1.99.9-1.99 2L2 17c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-9 3h2v2h-2V8zm0 3h2v2h-2v-2zM8 8h2v2H8V8zm0 3h2v2H8v-2zm-1 4H5v-2h2v2zm0-3H5v-2h2v2zm0-3H5V6h2v2zm9 7h-6v-2h6v2zm1-4h-2v-2h2v2zm0-3h-2V8h2v2zm3 7h-2v-2h2v2zm0-3h-2v-2h2v2zm0-3h-2V8h2v2z" />
+                                <TextBlock Text="{Binding Strings[SettingsTabHotkeys]}" FontWeight="Bold" FontSize="13" Foreground="#1E293B" VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <!-- 開始 / 停止快捷鍵 -->
+                            <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,2">
+                                <TextBlock Grid.Column="0" Text="{Binding Strings[HotkeyStartStopLabel]}" VerticalAlignment="Center" FontSize="12" Foreground="#334155" />
+                                <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableModifiers}" SelectedItem="{Binding SelectedStartStopModifier}"
+                                          Width="120" Margin="6,0" FontSize="11.5">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding DisplayName}" FontSize="11.5" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <ComboBox Grid.Column="2" ItemsSource="{Binding AvailableKeys}" SelectedItem="{Binding SelectedStartStopKey}"
+                                          Width="100" FontSize="11.5">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding KeyName}" FontSize="11.5" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </Grid>
+
+                            <!-- 暫停 / 繼續快捷鍵 -->
+                            <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,2">
+                                <TextBlock Grid.Column="0" Text="{Binding Strings[HotkeyPauseResumeLabel]}" VerticalAlignment="Center" FontSize="12" Foreground="#334155" />
+                                <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableModifiers}" SelectedItem="{Binding SelectedPauseResumeModifier}"
+                                          Width="120" Margin="6,0" FontSize="11.5">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding DisplayName}" FontSize="11.5" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <ComboBox Grid.Column="2" ItemsSource="{Binding AvailableKeys}" SelectedItem="{Binding SelectedPauseResumeKey}"
+                                          Width="100" FontSize="11.5">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding KeyName}" FontSize="11.5" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 分組 2：顯示語言 -->
+                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="16,13" BoxShadow="0 2 8 #0F172A05">
+                        <StackPanel Spacing="10">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Path Width="14" Height="14" Stretch="Uniform" Fill="#0284C7" VerticalAlignment="Center"
+                                      Data="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-15.93A8.006 8.006 0 0 0 4.07 11H6c.4-2.8 1.83-5.22 4-6.93zm2 0c2.17 1.71 3.6 4.13 4 6.93h1.93A8.006 8.006 0 0 0 13 4.07zM17.93 13H16c-.4 2.8-1.83 5.22-4 6.93 2.17-1.71 3.6-4.13 4-6.93zm-7.93 6.93C7.83 18.22 6.4 15.8 6 13H4.07A8.006 8.006 0 0 0 10 19.93zM6 12a10.02 10.02 0 0 1 .53-3h10.94A10.02 10.02 0 0 1 18 12a10.02 10.02 0 0 1-.53 3H6.53A10.02 10.02 0 0 1 6 12z" />
+                                <TextBlock Text="{Binding Strings[SettingsTabGeneral]}" FontWeight="Bold" FontSize="13" Foreground="#1E293B" VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                                <TextBlock Grid.Column="0" Text="{Binding Strings[LanguageLabel]}" VerticalAlignment="Center" FontSize="12" Foreground="#334155" />
+                                <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableLanguages}" SelectedItem="{Binding SelectedLanguage}"
+                                          Width="230" FontSize="11.5">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding DisplayName}" FontSize="11.5" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 分組 3：錄影畫質與行為 -->
+                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="16,13" BoxShadow="0 2 8 #0F172A05">
+                        <StackPanel Spacing="10">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Path Width="14" Height="14" Stretch="Uniform" Fill="#7C3AED" VerticalAlignment="Center"
+                                      Data="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z" />
+                                <TextBlock Text="{Binding Strings[SettingsTabQuality]}" FontWeight="Bold" FontSize="13" Foreground="#1E293B" VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                                <TextBlock Grid.Column="0" Text="{Binding Strings[VideoQualityLabel]}" VerticalAlignment="Center" FontSize="12" Foreground="#334155" />
+                                <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableQualities}" SelectedItem="{Binding SelectedQuality}"
+                                          Width="275" FontSize="11.5">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding DisplayName}" FontSize="11.5" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </Grid>
+
+                            <CheckBox IsChecked="{Binding OpenFolderOnFinished}" Margin="0,2">
+                                <TextBlock Text="{Binding Strings[OpenFolderOnFinishedLabel]}" FontSize="12" Foreground="#334155" TextWrapping="Wrap" />
+                            </CheckBox>
+
+                            <CheckBox IsChecked="{Binding DeleteWorkingFileAfterRemux}" Margin="0,2">
+                                <TextBlock Text="{Binding Strings[DeleteWorkingFileAfterRemuxLabel]}" FontSize="12" Foreground="#334155" TextWrapping="Wrap" />
+                            </CheckBox>
+
+                            <!-- 安全工作檔提示 (純向量安全盾牌圖示) -->
+                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="10,6" Margin="22,0,0,0">
+                                <Grid ColumnDefinitions="Auto,*" Margin="0">
+                                    <Path Grid.Column="0" Width="12" Height="12" Stretch="Uniform" Fill="#D97706" VerticalAlignment="Center" Margin="0,0,6,0"
+                                          Data="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-1 6h2v2h-2V7zm0 4h2v6h-2v-6z" />
+                                    <TextBlock Grid.Column="1" Text="{Binding Strings[DeleteWorkingFileNotice]}" Foreground="#64748B" FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                </Grid>
+                            </Border>
+
+                            <CheckBox IsChecked="{Binding MinimizeOnRecord}" Margin="0,2">
+                                <TextBlock Text="{Binding Strings[MinimizeOnRecord]}" FontSize="12" Foreground="#334155" TextWrapping="Wrap" />
+                            </CheckBox>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 分組 4：儲存與磁碟守護 -->
+                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="16,13" BoxShadow="0 2 8 #0F172A05">
+                        <StackPanel Spacing="10">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Path Width="14" Height="14" Stretch="Uniform" Fill="#059669" VerticalAlignment="Center"
+                                      Data="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z" />
+                                <TextBlock Text="{Binding Strings[SettingsTabStorage]}" FontWeight="Bold" FontSize="13" Foreground="#1E293B" VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                                <TextBlock Grid.Column="0" Text="{Binding Strings[DiskWarningThresholdLabel]}" VerticalAlignment="Center" FontSize="12" Foreground="#334155" />
+                                <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableWarningThresholds}" SelectedItem="{Binding SelectedWarningThreshold}"
+                                          Width="185" FontSize="11.5">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding DisplayName}" FontSize="11.5" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </Grid>
+
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                                <TextBlock Grid.Column="0" Text="{Binding Strings[DiskCriticalThresholdLabel]}" VerticalAlignment="Center" FontSize="12" Foreground="#334155" />
+                                <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableCriticalThresholds}" SelectedItem="{Binding SelectedCriticalThreshold}"
+                                          Width="185" FontSize="11.5">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding DisplayName}" FontSize="11.5" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </Grid>
+
+                            <!-- 磁碟守護提示 (純向量硬碟防護圖示) -->
+                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="10,6">
+                                <Grid ColumnDefinitions="Auto,*" Margin="0">
+                                    <Path Grid.Column="0" Width="12" Height="12" Stretch="Uniform" Fill="#059669" VerticalAlignment="Center" Margin="0,0,6,0"
+                                          Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
+                                    <TextBlock Grid.Column="1" Text="{Binding Strings[DiskThresholdNotice]}" Foreground="#64748B" FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ===================== 分頁 1：關於本程式內容 ===================== -->
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" Margin="0,0,0,14"
+                          IsVisible="{Binding IsAboutTab}">
+                <StackPanel Spacing="14">
+
+                    <!-- 標題、App 圖示與作者區 (純白精緻微光卡片) -->
+                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" 
+                            Padding="18,16" BoxShadow="0 4 16 #0F172A08">
+                        <Grid ColumnDefinitions="Auto,*">
+                            <Border Grid.Column="0" Width="68" Height="68" CornerRadius="16" ClipToBounds="True" Margin="0,0,18,0"
+                                    BoxShadow="0 4 14 #0F172A15">
+                                <Image Source="/Assets/app_icon.png" Width="68" Height="68" />
+                            </Border>
+
+                            <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="{Binding Strings[AppName]}" FontSize="20" FontWeight="Bold" Foreground="#0F172A" VerticalAlignment="Center" />
+                                    <Border Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" CornerRadius="6" Padding="6,2" VerticalAlignment="Center">
+                                        <TextBlock Text="v0.1.0 (Stable)" FontSize="10.5" FontWeight="Bold" Foreground="#059669" />
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock Text="{Binding Strings[VersionLabel]}" FontSize="12" Foreground="#64748B" FontWeight="Medium" />
+                                
+                                <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,3,0,0">
+                                    <TextBlock Text="{Binding Strings[AuthorLabel]}" FontSize="12.5" FontWeight="SemiBold" Foreground="#334155" />
+                                    <TextBlock Text="{Binding Strings[AuthorName]}" FontSize="12.5" Foreground="#0F172A" FontWeight="Bold" />
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,3,0,0">
+                                    <TextBlock Text="Email:" FontSize="12" FontWeight="SemiBold" Foreground="#334155" VerticalAlignment="Center" />
+                                    <TextBlock Text="kaoshou@gmail.com" FontSize="12" Foreground="#475569" FontWeight="Medium" VerticalAlignment="Center" />
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,2,0,0">
+                                    <TextBlock Text="GitHub:" FontSize="12" FontWeight="SemiBold" Foreground="#334155" VerticalAlignment="Center" />
+                                    <Button Command="{Binding OpenGitHubCommand}" Background="Transparent" Padding="0" Cursor="Hand" BorderThickness="0">
+                                        <TextBlock Text="https://github.com/kaoshou/OpenCam" Foreground="#2563EB" TextDecorations="Underline" FontSize="12" FontWeight="Medium" />
+                                    </Button>
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,3,0,0">
+                                    <TextBlock Text="License:" FontSize="12" FontWeight="SemiBold" Foreground="#334155" VerticalAlignment="Center" />
+                                    <TextBlock Text="Apache License 2.0" FontSize="12" Foreground="#475569" FontWeight="Medium" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- 核心可靠性架構說明卡片 -->
+                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="16,13" BoxShadow="0 2 8 #0F172A05">
+                        <StackPanel Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Path Width="14" Height="14" Stretch="Uniform" Fill="#059669" VerticalAlignment="Center"
+                                      Data="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z" />
+                                <TextBlock Text="{Binding Strings[AboutReliabilityTitle]}" FontWeight="Bold" FontSize="13" Foreground="#1E293B" VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <TextBlock Text="{Binding Strings[AppDescription]}" FontSize="11.5" Foreground="#475569" LineHeight="18" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 第三方開源函式庫授權清單 (精美純白卡片) -->
+                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="16,13" BoxShadow="0 2 8 #0F172A05">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="{Binding Strings[ThirdPartyTitle]}" FontWeight="Bold" FontSize="13" Foreground="#0F172A" />
+
+                            <!-- FFmpeg -->
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="• FFmpeg &amp; ffprobe" FontWeight="SemiBold" FontSize="11.5" Foreground="#1E293B" />
+                                <TextBlock Text="{Binding Strings[LicenseFfmpegDesc]}" 
+                                           FontSize="10.5" Foreground="#64748B" TextWrapping="Wrap" />
+                            </StackPanel>
+
+                            <!-- Avalonia UI -->
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="• Avalonia UI" FontWeight="SemiBold" FontSize="11.5" Foreground="#1E293B" />
+                                <TextBlock Text="{Binding Strings[LicenseAvaloniaDesc]}" 
+                                           FontSize="10.5" Foreground="#64748B" TextWrapping="Wrap" />
+                            </StackPanel>
+
+                            <!-- CommunityToolkit.Mvvm -->
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="• CommunityToolkit.Mvvm" FontWeight="SemiBold" FontSize="11.5" Foreground="#1E293B" />
+                                <TextBlock Text="{Binding Strings[LicenseMvvmDesc]}" 
+                                           FontSize="10.5" Foreground="#64748B" TextWrapping="Wrap" />
+                            </StackPanel>
+
+                            <!-- Serilog -->
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="• Serilog" FontWeight="SemiBold" FontSize="11.5" Foreground="#1E293B" />
+                                <TextBlock Text="{Binding Strings[LicenseSerilogDesc]}" 
+                                           FontSize="10.5" Foreground="#64748B" TextWrapping="Wrap" />
+                            </StackPanel>
+
+                            <!-- FFmpeg -->
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="• FFmpeg" FontWeight="SemiBold" FontSize="11.5" Foreground="#1E293B" />
+                                <TextBlock Text="{Binding Strings[LicenseFfmpegCodeDesc]}" 
+                                           FontSize="10.5" Foreground="#64748B" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 免責聲明與使用條款卡片 -->
+                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="16,13" BoxShadow="0 2 8 #0F172A05">
+                        <StackPanel Spacing="10">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Path Width="14" Height="14" Stretch="Uniform" Fill="#475569" VerticalAlignment="Center"
+                                      Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+                                <TextBlock Text="{Binding Strings[DisclaimerTitle]}" FontWeight="Bold" FontSize="13" Foreground="#0F172A" VerticalAlignment="Center" />
+                            </StackPanel>
+                            
+                            <StackPanel Spacing="6">
+                                <TextBlock FontSize="11" Foreground="#475569" LineHeight="18" TextWrapping="Wrap">
+                                    <Run FontWeight="SemiBold" Text="{Binding Strings[Disclaimer1Title]}" /><Run Text="{Binding Strings[Disclaimer1Text]}" />
+                                </TextBlock>
+                                <TextBlock FontSize="11" Foreground="#475569" LineHeight="18" TextWrapping="Wrap">
+                                    <Run FontWeight="SemiBold" Text="{Binding Strings[Disclaimer2Title]}" /><Run Text="{Binding Strings[Disclaimer2Text]}" />
+                                </TextBlock>
+                                <TextBlock FontSize="11" Foreground="#475569" LineHeight="18" TextWrapping="Wrap">
+                                    <Run FontWeight="SemiBold" Text="{Binding Strings[Disclaimer3Title]}" /><Run Text="{Binding Strings[Disclaimer3Text]}" />
+                                </TextBlock>
+                                <TextBlock FontSize="11" Foreground="#475569" LineHeight="18" TextWrapping="Wrap">
+                                    <Run FontWeight="SemiBold" Text="{Binding Strings[Disclaimer4Title]}" /><Run Text="{Binding Strings[Disclaimer4Text]}" />
+                                </TextBlock>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- 底部動作按鈕卡片 -->
+        <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="12,10" BoxShadow="0 -2 10 #0F172A04">
+            <Grid>
+                <!-- 偏好設定分頁專用按鈕列 -->
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto" IsVisible="{Binding IsPreferencesTab}">
+                    <!-- 還原預設值 -->
+                    <Button Grid.Column="0" Command="{Binding ResetToDefaultsCommand}"
+                            Background="#F1F5F9" Foreground="#475569" FontWeight="SemiBold" FontSize="12" Padding="12,7" CornerRadius="7">
+                        <TextBlock Text="{Binding Strings[ResetToDefaults]}" VerticalAlignment="Center" />
+                    </Button>
+
+                    <!-- 取消 -->
+                    <Button Grid.Column="2" Command="{Binding CancelCommand}"
+                            Background="Transparent" Foreground="#64748B" FontSize="12" Padding="14,7" Margin="0,0,8,0" CornerRadius="7">
+                        <TextBlock Text="{Binding Strings[Cancel]}" VerticalAlignment="Center" />
+                    </Button>
+
+                    <!-- 儲存設定 (翡翠綠漸層高雅按鈕) -->
+                    <Button Grid.Column="3" Command="{Binding SaveCommand}"
+                            Foreground="White" FontWeight="Bold" FontSize="12.5" Padding="18,7.5" CornerRadius="7">
+                        <Button.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Color="#059669" Offset="0.0"/>
+                                <GradientStop Color="#10B981" Offset="1.0"/>
+                            </LinearGradientBrush>
+                        </Button.Background>
+                        <TextBlock Text="{Binding Strings[SaveSettings]}" VerticalAlignment="Center" />
+                    </Button>
+                </Grid>
+
+                <!-- 關於本程式分頁專用按鈕列 -->
+                <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding IsAboutTab}">
+                    <!-- 返回偏好設定 -->
+                    <Button Grid.Column="0" Command="{Binding ShowPreferencesTabCommand}"
+                            Background="#F1F5F9" Foreground="#475569" FontWeight="SemiBold" FontSize="12" Padding="12,7" CornerRadius="7">
+                        <StackPanel Orientation="Horizontal" Spacing="5">
+                            <Path Width="11" Height="11" Stretch="Uniform" Fill="#64748B" VerticalAlignment="Center"
+                                  Data="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+                            <TextBlock Text="{Binding Strings[SettingsTabPreferencesNav]}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+
+                    <!-- 關閉按鈕 (曜石深灰高質感按鈕) -->
+                    <Button Grid.Column="2" Command="{Binding CancelCommand}"
+                            Background="#1E293B" Foreground="White" FontWeight="Bold" FontSize="12.5" Padding="20,7.5" CornerRadius="7">
+                        <TextBlock Text="{Binding Strings[CloseButton]}" VerticalAlignment="Center" />
+                    </Button>
+                </Grid>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
+

@@ -1,0 +1,117 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ScreenRecorder.UI.Views.RegionSelectWindow"
+        Title="{Binding Strings[RegionWindowTitle]}"
+        Icon="/Assets/app_icon.png"
+        SystemDecorations="None"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        Topmost="True"
+        Focusable="True"
+        WindowStartupLocation="Manual">
+
+    <!-- 外層主容器：包含半透明主選區與邊緣八方向手柄 -->
+    <Grid>
+        <!-- 綠色半透明選取主體 -->
+        <Border BorderBrush="#2ECC71" BorderThickness="4" Background="#182ECC71" CornerRadius="4">
+            <Grid RowDefinitions="Auto,*,Auto" Margin="4">
+                <!-- 頂部浮動控制工具列 -->
+                <Border Grid.Row="0" Background="#EE2C3E50" CornerRadius="6" Padding="10,6" 
+                        HorizontalAlignment="Left" PointerPressed="OnDragMovePointerPressed">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <!-- 當前尺寸 -->
+                        <TextBlock x:Name="SizeTextBlock" Text="1280 x 720" Foreground="#2ECC71" 
+                                   FontWeight="Bold" FontSize="14" VerticalAlignment="Center" FontFamily="Consolas" />
+
+                        <Separator Height="16" Background="#7F8C8D" />
+
+                        <!-- 滿版螢幕快捷按鈕 -->
+                        <Button Click="OnFitCurrentScreenClicked" Background="#2980B9" Foreground="White" FontWeight="Bold" FontSize="11" Padding="8,3" 
+                                Content="{Binding Strings[RegionFitScreen]}" 
+                                ToolTip.Tip="{Binding Strings[TooltipRegionFitScreen]}" />
+
+                        <Separator Height="16" Background="#7F8C8D" />
+
+                        <!-- 常用尺寸快速切換按鈕 -->
+                        <Button Click="OnPreset1080pClicked" Background="#34495E" Foreground="White" FontSize="11" Padding="6,2" Content="1080p" />
+                        <Button Click="OnPreset720pClicked" Background="#34495E" Foreground="White" FontSize="11" Padding="6,2" Content="720p" />
+                        <Button Click="OnPreset480pClicked" Background="#34495E" Foreground="White" FontSize="11" Padding="6,2" Content="480p" />
+
+                        <Separator Height="16" Background="#7F8C8D" />
+
+                        <!-- 確認與取消按鈕 -->
+                        <Button Click="OnConfirmClicked" Background="#2ECC71" Foreground="White" FontWeight="Bold" FontSize="12" Padding="12,4" Content="{Binding Strings[RegionConfirm]}" />
+                        <Button Click="OnCancelClicked" Background="#E74C3C" Foreground="White" FontWeight="Bold" FontSize="12" Padding="12,4" Content="{Binding Strings[RegionCancel]}" />
+                    </StackPanel>
+                </Border>
+
+                <!-- 中間平移拖曳區 (雙擊亦可確認) -->
+                <Border Grid.Row="1" Background="Transparent" 
+                        PointerPressed="OnDragMovePointerPressed" 
+                        DoubleTapped="OnClientDoubleTapped"
+                        Cursor="SizeAll">
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="6">
+                        <TextBlock Text="{Binding Strings[RegionDragTip]}" 
+                                   Foreground="#EEFFFFFF" 
+                                   HorizontalAlignment="Center" 
+                                   FontSize="15" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding Strings[RegionResizeTip]}" 
+                                   Foreground="#CCFFFFFF" 
+                                   HorizontalAlignment="Center" 
+                                   FontSize="12" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- 八個方向縮放互動手柄與可視錨點 -->
+
+        <!-- 上邊框手柄 -->
+        <Border Height="10" VerticalAlignment="Top" HorizontalAlignment="Stretch" 
+                Background="Transparent" Cursor="SizeNorthSouth" 
+                PointerPressed="OnResizeTopPressed">
+            <Border Width="50" Height="4" Background="#2ECC71" HorizontalAlignment="Center" VerticalAlignment="Top" CornerRadius="2" />
+        </Border>
+
+        <!-- 下邊框手柄 -->
+        <Border Height="10" VerticalAlignment="Bottom" HorizontalAlignment="Stretch" 
+                Background="Transparent" Cursor="SizeNorthSouth" 
+                PointerPressed="OnResizeBottomPressed">
+            <Border Width="50" Height="4" Background="#2ECC71" HorizontalAlignment="Center" VerticalAlignment="Bottom" CornerRadius="2" />
+        </Border>
+
+        <!-- 左邊框手柄 -->
+        <Border Width="10" HorizontalAlignment="Left" VerticalAlignment="Stretch" 
+                Background="Transparent" Cursor="SizeWestEast" 
+                PointerPressed="OnResizeLeftPressed">
+            <Border Width="4" Height="50" Background="#2ECC71" HorizontalAlignment="Left" VerticalAlignment="Center" CornerRadius="2" />
+        </Border>
+
+        <!-- 右邊框手柄 -->
+        <Border Width="10" HorizontalAlignment="Right" VerticalAlignment="Stretch" 
+                Background="Transparent" Cursor="SizeWestEast" 
+                PointerPressed="OnResizeRightPressed">
+            <Border Width="4" Height="50" Background="#2ECC71" HorizontalAlignment="Right" VerticalAlignment="Center" CornerRadius="2" />
+        </Border>
+
+        <!-- 左上角錨點手柄 -->
+        <Border Width="24" Height="24" HorizontalAlignment="Left" VerticalAlignment="Top" 
+                Background="#2ECC71" CornerRadius="3" Cursor="TopLeftCorner" 
+                PointerPressed="OnResizeTopLeftPressed" />
+
+        <!-- 右上角錨點手柄 -->
+        <Border Width="24" Height="24" HorizontalAlignment="Right" VerticalAlignment="Top" 
+                Background="#2ECC71" CornerRadius="3" Cursor="TopRightCorner" 
+                PointerPressed="OnResizeTopRightPressed" />
+
+        <!-- 左下角錨點手柄 -->
+        <Border Width="24" Height="24" HorizontalAlignment="Left" VerticalAlignment="Bottom" 
+                Background="#2ECC71" CornerRadius="3" Cursor="BottomLeftCorner" 
+                PointerPressed="OnResizeBottomLeftPressed" />
+
+        <!-- 右下角錨點手柄 -->
+        <Border Width="24" Height="24" HorizontalAlignment="Right" VerticalAlignment="Bottom" 
+                Background="#2ECC71" CornerRadius="3" Cursor="BottomRightCorner" 
+                PointerPressed="OnResizeBottomRightPressed" />
+    </Grid>
+</Window>

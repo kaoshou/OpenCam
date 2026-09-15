@@ -1,0 +1,149 @@
+name: Build and Release OpenCam
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'master'
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+    - name: Checkout Source Code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET 8
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore Dependencies
+      run: dotnet restore src/ScreenRecorder.UI/ScreenRecorder.UI.csproj
+
+    - name: Build and Publish Windows
+      run: |
+        dotnet publish src/ScreenRecorder.UI/ScreenRecorder.UI.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o installer/publish
+
+    - name: Download FFmpeg for Windows
+      run: |
+        Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip" -OutFile "ffmpeg.zip"
+        Expand-Archive -Path "ffmpeg.zip" -DestinationPath "ffmpeg_extracted" -Force
+        Copy-Item -Path "ffmpeg_extracted\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe" -Destination "installer/publish/"
+        Copy-Item -Path "ffmpeg_extracted\ffmpeg-master-latest-win64-gpl\bin\ffprobe.exe" -Destination "installer/publish/"
+        
+    - name: Create Windows Portable ZIP
+      run: |
+        Compress-Archive -Path "installer/publish/*" -DestinationPath "OpenCam_Windows_Portable.zip" -Force
+
+    - name: Compile Inno Setup Installer
+      run: |
+        & "C:\Program Files (x86)\Inno Setup 6\iscc.exe" installer\OpenCam.iss
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: OpenCam-Windows-Builds
+        path: |
+          installer/Output/OpenCam_*_Setup.exe
+          OpenCam_Windows_Portable.zip
+        
+    - name: Create GitHub Release (Windows)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          installer/Output/OpenCam_*_Setup.exe
+          OpenCam_Windows_Portable.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+    - name: Checkout Source Code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET 8
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Build and Publish macOS
+      run: |
+        dotnet publish src/ScreenRecorder.UI/ScreenRecorder.UI.csproj -c Release -r osx-arm64 --self-contained true -p:PublishSingleFile=true -o publish/osx-arm64
+
+    - name: Download FFmpeg for macOS
+      run: |
+        curl -L -o ffmpeg.zip "https://evermeet.cx/ffmpeg/ffmpeg-6.0.zip"
+        unzip -o ffmpeg.zip -d publish/osx-arm64/
+        curl -L -o ffprobe.zip "https://evermeet.cx/ffmpeg/ffprobe-6.0.zip"
+        unzip -o ffprobe.zip -d publish/osx-arm64/
+        
+    - name: Create macOS App Bundle
+      run: |
+        mkdir -p OpenCam.app/Contents/MacOS
+        mkdir -p OpenCam.app/Contents/Resources
+        cp publish/osx-arm64/OpenCam OpenCam.app/Contents/MacOS/OpenCam
+        cp publish/osx-arm64/ffmpeg OpenCam.app/Contents/MacOS/
+        cp publish/osx-arm64/ffprobe OpenCam.app/Contents/MacOS/
+        chmod +x OpenCam.app/Contents/MacOS/OpenCam
+        chmod +x OpenCam.app/Contents/MacOS/ffmpeg
+        chmod +x OpenCam.app/Contents/MacOS/ffprobe
+        
+        # Create minimal Info.plist
+        cat <<EOF > OpenCam.app/Contents/Info.plist
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>CFBundleExecutable</key>
+            <string>OpenCam</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.kaoshou.opencam</string>
+            <key>CFBundleName</key>
+            <string>OpenCam</string>
+            <key>CFBundleVersion</key>
+            <string>1.0.0</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>NSMicrophoneUsageDescription</key>
+            <string>OpenCam needs microphone access to record audio.</string>
+            <key>NSScreenCaptureUsageDescription</key>
+            <string>OpenCam needs screen capture access to record your screen.</string>
+            <key>LSMinimumSystemVersion</key>
+            <string>11.0</string>
+        </dict>
+        </plist>
+        EOF
+
+    - name: Create DMG
+      run: |
+        # Use an explicitly sized temporary DMG to avoid 'No space left on device' issues with self-contained .NET apps
+        hdiutil create -size 500m -volname "OpenCam" -fs HFS+ -ov OpenCam_temp.dmg
+        hdiutil attach OpenCam_temp.dmg -readwrite -mountpoint /Volumes/OpenCam
+        cp -R OpenCam.app /Volumes/OpenCam/
+        hdiutil detach /Volumes/OpenCam
+        hdiutil convert OpenCam_temp.dmg -format UDZO -o OpenCam_macOS_AppleSilicon.dmg
+
+    - name: Upload macOS DMG as Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: OpenCam-macOS-DMG
+        path: OpenCam_macOS_AppleSilicon.dmg
+        
+    - name: Create GitHub Release (macOS)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v2
+      with:
+        files: OpenCam_macOS_AppleSilicon.dmg
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
+

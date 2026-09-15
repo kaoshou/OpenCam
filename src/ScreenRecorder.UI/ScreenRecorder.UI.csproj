@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\ScreenRecorder.Core\ScreenRecorder.Core.csproj" />
+    <ProjectReference Include="..\ScreenRecorder.Infrastructure\ScreenRecorder.Infrastructure.csproj" />
+    <ProjectReference Include="..\ScreenRecorder.Media\ScreenRecorder.Media.csproj" />
+    <ProjectReference Include="..\ScreenRecorder.Platform.Windows\ScreenRecorder.Platform.Windows.csproj" />
+    <ProjectReference Include="..\ScreenRecorder.Platform.macOS\ScreenRecorder.Platform.macOS.csproj" />
+    <ProjectReference Include="..\ScreenRecorder.Recorder\ScreenRecorder.Recorder.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.2.5" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.2.5" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.5" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.5" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <AssemblyName>OpenCam</AssemblyName>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <ApplicationIcon>Assets\app_icon.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ScreenRecorder.Media.Tests" />
+  </ItemGroup>
+
+</Project>
+
+
