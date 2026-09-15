@@ -1,4 +1,4 @@
-﻿# OpenCam (螢幕錄影工具) 🎥
+# OpenCam (螢幕錄影工具) 🎥
 
 [![Build and Release](https://img.shields.io/github/actions/workflow/status/kaoshou/OpenCam/build-and-release.yml?logo=github&label=Build%20and%20Release)](https://github.com/kaoshou/OpenCam/actions/workflows/build-and-release.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -31,10 +31,14 @@ OpenCam 是一款強調「**極致可靠性 (High-Reliability)**」的跨平台�
 - 下載 OpenCam_*_Setup.exe (安裝版) 或 OpenCam_Windows_Portable.zip (免安裝版)。
 - 執行應用程式（內建所需的 .NET Runtime，無需額外安裝）。
 
-### macOS (Apple Silicon M1/M2/M3)
+### macOS (Apple Silicon M1/M2/M3/M4)
 - 前往 [Releases](https://github.com/kaoshou/OpenCam/releases) 頁面。
-- 下載 OpenCam_macOS_AppleSilicon.dmg。
-- 打開 DMG 檔案，將 OpenCam 拖曳至您的「應用程式」資料夾。
+- 下載 `OpenCam_macOS_AppleSilicon.dmg`。
+- 打開 DMG 檔案，將 `OpenCam` 拖曳至您的「應用程式 (Applications)」資料夾。
+- **macOS 安全性提示 (Gatekeeper)**：因本開源工具未購買 Apple 商業開發者證書公證，若系統開啟時提示「"OpenCam" 已毀損，無法打開」，請開啟終端機 (Terminal) 輸入以下指令解除隔離屬性即可正常啟動：
+  ```bash
+  xattr -cr /Applications/OpenCam.app
+  ```
 
 ## 🛠️ 技術架構
 - **UI 框架**: Avalonia UI, CommunityToolkit.Mvvm
@@ -81,10 +85,15 @@ Built with .NET 8, Avalonia UI, and FFmpeg, it supports both Windows and macOS.
 - Download OpenCam_*_Setup.exe (Installer) or OpenCam_Windows_Portable.zip (Portable).
 - Run the application (Self-Contained, no separate .NET runtime required).
 
-### macOS (Apple Silicon)
+### macOS (Apple Silicon M1/M2/M3/M4)
 - Go to the [Releases](https://github.com/kaoshou/OpenCam/releases) page.
-- Download OpenCam_macOS_AppleSilicon.dmg.
-- Mount the DMG and drag OpenCam to your Applications folder.
+- Download `OpenCam_macOS_AppleSilicon.dmg`.
+- Mount the DMG and drag `OpenCam.app` to your Applications folder.
+- **Note for macOS Gatekeeper**: Because OpenCam is an open-source tool and not notarized through Apple Developer ID, if macOS alerts `"OpenCam is damaged and can't be opened"`, simply open Terminal and run:
+  ```bash
+  xattr -cr /Applications/OpenCam.app
+  ```
+  Then launch OpenCam normally.
 
 ## ⚖️ License & Disclaimers
 

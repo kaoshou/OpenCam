@@ -76,10 +76,11 @@ jobs:
 
     - name: Build and Publish macOS
       run: |
-        dotnet publish src/ScreenRecorder.UI/ScreenRecorder.UI.csproj -c Release -r osx-arm64 --self-contained true -p:PublishSingleFile=true -o publish/osx-arm64
+        dotnet publish src/ScreenRecorder.UI/ScreenRecorder.UI.csproj -c Release -r osx-arm64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish/osx-arm64
 
-    - name: Download FFmpeg for macOS
+    - name: Download FFmpeg for macOS (Apple Silicon)
       run: |
+        # 獲取適合 macOS 的 FFmpeg 與 FFprobe
         curl -L -o ffmpeg.zip "https://evermeet.cx/ffmpeg/ffmpeg-6.0.zip"
         unzip -o ffmpeg.zip -d publish/osx-arm64/
         curl -L -o ffprobe.zip "https://evermeet.cx/ffmpeg/ffprobe-6.0.zip"
@@ -89,14 +90,21 @@ jobs:
       run: |
         mkdir -p OpenCam.app/Contents/MacOS
         mkdir -p OpenCam.app/Contents/Resources
-        cp publish/osx-arm64/OpenCam OpenCam.app/Contents/MacOS/OpenCam
-        cp publish/osx-arm64/ffmpeg OpenCam.app/Contents/MacOS/
-        cp publish/osx-arm64/ffprobe OpenCam.app/Contents/MacOS/
-        chmod +x OpenCam.app/Contents/MacOS/OpenCam
-        chmod +x OpenCam.app/Contents/MacOS/ffmpeg
-        chmod +x OpenCam.app/Contents/MacOS/ffprobe
         
-        # Create minimal Info.plist
+        # 複製所有發布檔 (包含 OpenCam、ffmpeg、ffprobe 以及 Avalonia 所需的所有原生 dylib)
+        cp -R publish/osx-arm64/* OpenCam.app/Contents/MacOS/
+        
+        # 確保二進位檔案具備執行權限
+        chmod +x OpenCam.app/Contents/MacOS/OpenCam
+        if [ -f OpenCam.app/Contents/MacOS/ffmpeg ]; then chmod +x OpenCam.app/Contents/MacOS/ffmpeg; fi
+        if [ -f OpenCam.app/Contents/MacOS/ffprobe ]; then chmod +x OpenCam.app/Contents/MacOS/ffprobe; fi
+        
+        # 複製 App 圖示資源
+        if [ -f src/ScreenRecorder.UI/Assets/app_icon.png ]; then
+          cp src/ScreenRecorder.UI/Assets/app_icon.png OpenCam.app/Contents/Resources/app_icon.png
+        fi
+        
+        # 建立標準 Info.plist
         cat <<EOF > OpenCam.app/Contents/Info.plist
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -109,27 +117,38 @@ jobs:
             <key>CFBundleName</key>
             <string>OpenCam</string>
             <key>CFBundleVersion</key>
-            <string>1.0.0</string>
+            <string>0.1.0</string>
+            <key>CFBundleShortVersionString</key>
+            <string>0.1.0</string>
             <key>CFBundlePackageType</key>
             <string>APPL</string>
+            <key>CFBundleSupportedPlatforms</key>
+            <array>
+                <string>MacOSX</string>
+            </array>
             <key>NSMicrophoneUsageDescription</key>
             <string>OpenCam needs microphone access to record audio.</string>
             <key>NSScreenCaptureUsageDescription</key>
             <string>OpenCam needs screen capture access to record your screen.</string>
             <key>LSMinimumSystemVersion</key>
             <string>11.0</string>
+            <key>NSHighResolutionCapable</key>
+            <true/>
         </dict>
         </plist>
         EOF
+        
+        # Apple Silicon 必備：使用 Ad-hoc 對整個 App Bundle 與所有內部函式庫進行深度代碼簽名
+        codesign --force --deep -s - OpenCam.app
 
     - name: Create DMG
       run: |
-        # Use an explicitly sized temporary DMG to avoid 'No space left on device' issues with self-contained .NET apps
-        hdiutil create -size 500m -volname "OpenCam" -fs HFS+ -ov OpenCam_temp.dmg
-        hdiutil attach OpenCam_temp.dmg -readwrite -mountpoint /Volumes/OpenCam
-        cp -R OpenCam.app /Volumes/OpenCam/
-        hdiutil detach /Volumes/OpenCam
-        hdiutil convert OpenCam_temp.dmg -format UDZO -o OpenCam_macOS_AppleSilicon.dmg
+        # 採用 Apple 官方推薦之 srcfolder 方式製作乾淨 UDZO 磁碟映像檔，絕無 attach/detach 快取未同步之壞檔問題
+        mkdir -p dmg_staging
+        cp -R OpenCam.app dmg_staging/
+        ln -s /Applications dmg_staging/Applications
+        hdiutil create -volname "OpenCam" -srcfolder dmg_staging -ov -format UDZO OpenCam_macOS_AppleSilicon.dmg
+        rm -rf dmg_staging
 
     - name: Upload macOS DMG as Artifact
       uses: actions/upload-artifact@v4
