@@ -1,6 +1,7 @@
 ﻿using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
+using Serilog;
 
 namespace ScreenRecorder.Infrastructure.IPC;
 
@@ -76,9 +77,10 @@ public class NamedPipeIpcServer : IAsyncDisposable
             {
                 break;
             }
-            catch
+            catch (Exception ex)
             {
                 if (cancellationToken.IsCancellationRequested) break;
+                Log.Error(ex, "IPC listener failed for pipe {PipeName}", _pipeName);
                 try
                 {
                     await Task.Delay(50, cancellationToken);

@@ -1,4 +1,5 @@
-﻿using ScreenRecorder.Infrastructure.IPC;
+﻿using System.Text;
+using ScreenRecorder.Infrastructure.IPC;
 using Xunit;
 
 namespace ScreenRecorder.Core.Tests;
@@ -6,9 +7,44 @@ namespace ScreenRecorder.Core.Tests;
 public class IpcTests
 {
     [Fact]
+    public void SessionPipeName_OnUnix_FitsMacOsUnixSocketPath()
+    {
+        var name = SessionPipeNameFactory.Create(isWindows: false);
+        var path = Path.Combine(Path.GetTempPath(), "CoreFxPipe_" + name);
+
+        Assert.StartsWith("oc_", name);
+        Assert.True(Encoding.UTF8.GetByteCount(path) <= 103, path);
+    }
+
+    [Fact]
+    public void SessionPipeName_OnWindows_PreservesExistingPrefix()
+    {
+        var name = SessionPipeNameFactory.Create(isWindows: true);
+
+        Assert.StartsWith(NamedPipeConstants.PipeBaseName + "_", name);
+    }
+
+    [Fact]
+    public async Task UnixSafeSessionPipe_Communicates()
+    {
+        var name = SessionPipeNameFactory.Create(isWindows: false);
+        await using var server = new NamedPipeIpcServer(
+            name,
+            _ => Task.FromResult(new IpcResponse { Success = true }));
+
+        server.Start();
+        await Task.Delay(100);
+
+        await using var client = new NamedPipeIpcClient(name);
+        var response = await client.SendCommandAsync("Ping", new { }, 2000);
+
+        Assert.True(response.Success, response.ErrorMessage);
+    }
+
+    [Fact]
     public async Task NamedPipe_ClientServerCommunication_ShouldSucceed()
     {
-        var pipeName = "TestPipe_" + Guid.NewGuid().ToString("N");
+        var pipeName = SessionPipeNameFactory.Create(OperatingSystem.IsWindows());
 
         await using var server = new NamedPipeIpcServer(pipeName, message =>
         {

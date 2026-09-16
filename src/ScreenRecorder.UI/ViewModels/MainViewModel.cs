@@ -1130,7 +1130,7 @@ public partial class MainViewModel : ObservableObject
         if (ping.Success) return;
 
         // Create a unique pipe name for this session to avoid zombie conflicts
-        _currentPipeName = $"ScreenRecorder_IPC_{Guid.NewGuid():N}";
+        _currentPipeName = SessionPipeNameFactory.Create(OperatingSystem.IsWindows());
         _ipcClient = new NamedPipeIpcClient(_currentPipeName);
 
         var recorderExe = Environment.ProcessPath;
