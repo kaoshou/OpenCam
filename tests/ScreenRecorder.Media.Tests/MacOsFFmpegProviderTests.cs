@@ -24,6 +24,7 @@ public class MacOsFFmpegProviderTests
 
         Assert.Contains("-i \"Capture screen 1:none\"", args);
         Assert.DoesNotContain("crop=", args);
+        Assert.DoesNotContain("aresample", args);
     }
 
     [Fact]
@@ -44,7 +45,7 @@ public class MacOsFFmpegProviderTests
     }
 
     [Fact]
-    public void Microphone_UsesConfiguredAudioDevice()
+    public void Microphone_UsesSeparateQueuedInputAndTimestampCorrection()
     {
         var provider = CreateProvider();
         var config = new RecordingConfiguration
@@ -57,7 +58,79 @@ public class MacOsFFmpegProviderTests
         var args = provider.BuildInputArguments(
             config, 0, 0, 1280, 720, false, true);
 
-        Assert.Contains("-i \"Capture screen 0:2\"", args);
+        Assert.Contains("-i \"Capture screen 0:none\"", args);
+        Assert.Contains(
+            "-thread_queue_size 1024 -f avfoundation -i \":2\"",
+            args);
+        Assert.Contains(
+            "[1:a]aresample=48000:async=1:first_pts=0[mic]",
+            args);
+        Assert.Contains("-map 0:v -map \"[mic]\"", args);
+    }
+
+    [Fact]
+    public void SystemAudio_UsesPipeAndExplicitMapping()
+    {
+        var provider = CreateProvider();
+        var config = new RecordingConfiguration
+        {
+            MonitorIndex = 0,
+            AudioSource = AudioSourceType.SystemOnly
+        };
+        const string pipeArgs =
+            "-thread_queue_size 1024 -f s16le -ar 48000 -ac 2 -i \"/tmp/system-audio.pcm\" ";
+
+        var args = provider.BuildInputArguments(
+            config, 0, 0, 1280, 720, false, false, pipeArgs);
+
+        Assert.Contains(pipeArgs.Trim(), args);
+        Assert.Contains(
+            "[1:a]aresample=48000:async=1:first_pts=0[sys]",
+            args);
+        Assert.Contains("-map 0:v -map \"[sys]\"", args);
+    }
+
+    [Fact]
+    public void SystemAndMicrophone_NormalizesAndMixesBothInputs()
+    {
+        var provider = CreateProvider();
+        var config = new RecordingConfiguration
+        {
+            MonitorIndex = 0,
+            AudioSource = AudioSourceType.SystemAndMicrophone,
+            MicrophoneDeviceId = "0"
+        };
+        const string pipeArgs =
+            "-thread_queue_size 1024 -f s16le -ar 48000 -ac 2 -i \"/tmp/system-audio.pcm\" ";
+
+        var args = provider.BuildInputArguments(
+            config, 0, 0, 1280, 720, false, true, pipeArgs);
+
+        Assert.Contains(
+            "[1:a]aresample=48000:async=1:first_pts=0[mic]",
+            args);
+        Assert.Contains(
+            "[2:a]aresample=48000:async=1:first_pts=0[sys]",
+            args);
+        Assert.Contains(
+            "[sys][mic]amix=inputs=2:duration=longest:dropout_transition=0[aout]",
+            args);
+        Assert.Contains("-map 0:v -map \"[aout]\"", args);
+    }
+
+    [Fact]
+    public void AudioOutput_Uses48kAac()
+    {
+        var args = CreateProvider().BuildOutputArguments(
+            new RecordingConfiguration
+            {
+                AudioSource = AudioSourceType.MicrophoneOnly,
+                AudioBitrateKbps = 192
+            },
+            HardwareEncoderType.AppleVideoToolbox,
+            "/tmp/output.mkv");
+
+        Assert.Contains("-c:a aac -ar 48000 -b:a 192k", args);
     }
 
     [Fact]

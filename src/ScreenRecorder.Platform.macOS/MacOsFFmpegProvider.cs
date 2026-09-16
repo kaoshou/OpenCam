@@ -35,6 +35,7 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider
 
         var args = new List<string>
         {
+            "-thread_queue_size 1024",
             "-f avfoundation",
             $"-framerate {config.Fps}"
         };
@@ -46,16 +47,41 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider
         var videoInput = "Capture screen " + (display?.Index ?? Math.Max(0, config.MonitorIndex));
         var requestsMicrophone = config.AudioSource is
             AudioSourceType.MicrophoneOnly or AudioSourceType.SystemAndMicrophone;
-        var audioInput = requestsMicrophone && hasDirectShowMic &&
-                         !string.IsNullOrWhiteSpace(config.MicrophoneDeviceId)
-            ? config.MicrophoneDeviceId
-            : "none";
+        var hasMicrophone =
+            requestsMicrophone &&
+            hasDirectShowMic &&
+            !config.IsRecoverySilenceMode &&
+            !string.IsNullOrWhiteSpace(config.MicrophoneDeviceId);
+        var requestsSystemAudio = config.AudioSource is
+            AudioSourceType.SystemOnly or AudioSourceType.SystemAndMicrophone;
+        var hasSystemAudio =
+            requestsSystemAudio &&
+            !config.IsRecoverySilenceMode &&
+            !string.IsNullOrWhiteSpace(systemAudioPipeArg);
 
-        args.Add($"-i \"{videoInput}:{audioInput}\"");
+        args.Add($"-i \"{videoInput}:none\"");
+
+        var nextInputIndex = 1;
+        int? microphoneInputIndex = null;
+        int? systemAudioInputIndex = null;
+
+        if (hasMicrophone)
+        {
+            microphoneInputIndex = nextInputIndex++;
+            args.Add("-thread_queue_size 1024");
+            args.Add("-f avfoundation");
+            args.Add($"-i \":{config.MicrophoneDeviceId}\"");
+        }
+
+        if (hasSystemAudio)
+        {
+            systemAudioInputIndex = nextInputIndex++;
+            args.Add(systemAudioPipeArg!.Trim());
+        }
 
         if (config.IsRecoverySilenceMode)
         {
-            args.Add("-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100");
+            args.Add("-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000");
         }
 
         if (config.CaptureSource == CaptureSourceType.CustomRegion)
@@ -63,6 +89,42 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider
             var localX = Math.Max(0, x - (display?.Bounds.X ?? 0));
             var localY = Math.Max(0, y - (display?.Bounds.Y ?? 0));
             args.Add($"-filter:v \"crop={width}:{height}:{localX}:{localY}\"");
+        }
+
+        if (config.AudioSource != AudioSourceType.None)
+        {
+            if (config.IsRecoverySilenceMode ||
+                (!microphoneInputIndex.HasValue && !systemAudioInputIndex.HasValue))
+            {
+                if (!config.IsRecoverySilenceMode)
+                {
+                    args.Add("-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000");
+                }
+
+                args.Add(
+                    "-filter_complex \"[1:a]aresample=48000:async=1:first_pts=0[silent]\" " +
+                    "-map 0:v -map \"[silent]\"");
+            }
+            else if (microphoneInputIndex.HasValue && systemAudioInputIndex.HasValue)
+            {
+                args.Add(
+                    $"-filter_complex \"[{microphoneInputIndex}:a]aresample=48000:async=1:first_pts=0[mic];" +
+                    $"[{systemAudioInputIndex}:a]aresample=48000:async=1:first_pts=0[sys];" +
+                    "[sys][mic]amix=inputs=2:duration=longest:dropout_transition=0[aout]\" " +
+                    "-map 0:v -map \"[aout]\"");
+            }
+            else if (microphoneInputIndex.HasValue)
+            {
+                args.Add(
+                    $"-filter_complex \"[{microphoneInputIndex}:a]aresample=48000:async=1:first_pts=0[mic]\" " +
+                    "-map 0:v -map \"[mic]\"");
+            }
+            else
+            {
+                args.Add(
+                    $"-filter_complex \"[{systemAudioInputIndex}:a]aresample=48000:async=1:first_pts=0[sys]\" " +
+                    "-map 0:v -map \"[sys]\"");
+            }
         }
 
         return string.Join(" ", args);
@@ -93,9 +155,9 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider
             args.Add($"-b:v {config.VideoBitrateKbps}k");
         }
 
-        if (config.AudioSource.ToString() != "None")
+        if (config.AudioSource != AudioSourceType.None)
         {
-            args.Add($"-c:a aac -b:a {config.AudioBitrateKbps}k");
+            args.Add($"-c:a aac -ar 48000 -b:a {config.AudioBitrateKbps}k");
         }
 
         args.Add($"\"{outputPath}\"");
