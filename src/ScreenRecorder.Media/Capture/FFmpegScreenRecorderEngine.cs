@@ -127,11 +127,13 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
         {
             try
             {
-                var sysAudioInfo = await _systemAudioLoopbackCapture.StartCaptureAsync(cancellationToken);
+                var sysAudioInfo = await _systemAudioLoopbackCapture.StartCaptureAsync(
+                    config.MonitorIndex,
+                    cancellationToken);
                 if (sysAudioInfo != null)
                 {
                     systemAudioPipeArg = sysAudioInfo.FfmpegInputArgs;
-                    Log.Information("系統聲音 WASAPI Loopback 擷取已啟動，傳遞參數: {Args}", systemAudioPipeArg);
+                    Log.Information("系統聲音 Loopback 擷取已啟動，傳遞參數: {Args}", systemAudioPipeArg);
                 }
             }
             catch (Exception ex)

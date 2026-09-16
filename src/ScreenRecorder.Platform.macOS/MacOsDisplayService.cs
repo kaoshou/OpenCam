@@ -60,6 +60,23 @@ public class MacOsDisplayService : IDisplayService
                monitors.FirstOrDefault();
     }
 
+    internal uint? GetNativeDisplayId(int monitorIndex)
+    {
+        var displays = _displayApi.GetActiveDisplays();
+        if (monitorIndex >= 0 && monitorIndex < displays.Count)
+        {
+            return displays[monitorIndex].Id;
+        }
+
+        var primary = displays.FirstOrDefault(display => display.IsPrimary);
+        if (primary.Id != 0)
+        {
+            return primary.Id;
+        }
+
+        return displays.Count > 0 ? displays[0].Id : null;
+    }
+
     public CaptureRegion GetVirtualScreenBounds()
     {
         var monitors = GetMonitors();

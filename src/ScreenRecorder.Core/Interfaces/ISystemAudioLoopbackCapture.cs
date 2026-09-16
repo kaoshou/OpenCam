@@ -20,7 +20,9 @@ public interface ISystemAudioLoopbackCapture : IAsyncDisposable
     /// <summary>
     /// 開始系統音訊擷取，並建立供 FFmpeg 即時讀取的 Named Pipe
     /// </summary>
-    Task<SystemAudioCaptureInfo?> StartCaptureAsync(CancellationToken cancellationToken = default);
+    Task<SystemAudioCaptureInfo?> StartCaptureAsync(
+        int monitorIndex,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 停止系統音訊擷取並安全釋放資源

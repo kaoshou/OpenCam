@@ -16,8 +16,11 @@ public class MacOsAudioLoopbackCapture : ISystemAudioLoopbackCapture
         remove { }
     }
 
-    public Task<SystemAudioCaptureInfo?> StartCaptureAsync(CancellationToken cancellationToken = default)
+    public Task<SystemAudioCaptureInfo?> StartCaptureAsync(
+        int monitorIndex,
+        CancellationToken cancellationToken = default)
     {
+        _ = monitorIndex;
         return Task.FromResult<SystemAudioCaptureInfo?>(null);
     }
 

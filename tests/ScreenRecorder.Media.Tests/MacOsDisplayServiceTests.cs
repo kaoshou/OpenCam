@@ -33,6 +33,20 @@ public class MacOsDisplayServiceTests
         Assert.Equal(1080, monitor.Bounds.Height);
     }
 
+    [Fact]
+    public void GetNativeDisplayId_UsesTheSameStableEnumerationIndex()
+    {
+        var api = new FakeDisplayApi(
+            new MacOsDisplaySnapshot(
+                91, 0, 0, 1120, 630, 2240, 1260, true),
+            new MacOsDisplaySnapshot(
+                42, 1120, 0, 1920, 1080, 1920, 1080, false));
+        var service = new MacOsDisplayService(api);
+
+        Assert.Equal((uint)42, service.GetNativeDisplayId(1));
+        Assert.Equal((uint)91, service.GetNativeDisplayId(99));
+    }
+
     private sealed class FakeDisplayApi(
         params MacOsDisplaySnapshot[] displays) : IMacOsDisplayApi
     {

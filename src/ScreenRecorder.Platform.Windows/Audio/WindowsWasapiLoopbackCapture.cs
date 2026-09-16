@@ -33,8 +33,11 @@ public class WindowsWasapiLoopbackCapture : ISystemAudioLoopbackCapture
 
     public event EventHandler<string>? AudioErrorOccurred;
 
-    public async Task<SystemAudioCaptureInfo?> StartCaptureAsync(CancellationToken cancellationToken = default)
+    public async Task<SystemAudioCaptureInfo?> StartCaptureAsync(
+        int monitorIndex,
+        CancellationToken cancellationToken = default)
     {
+        _ = monitorIndex;
         if (!IsSupported) return null;
 
         lock (_syncLock)
