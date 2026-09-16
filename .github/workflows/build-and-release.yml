@@ -90,11 +90,22 @@ jobs:
 
     - name: Create DMG
       run: |
-        # 採用 Apple 官方推薦之 srcfolder 方式製作乾淨 UDZO 磁碟映像檔，絕無 attach/detach 快取未同步之壞檔問題
+        # hdiutil can transiently report "Resource busy" on hosted runners
+        # immediately after signing a large app bundle. Retry the clean
+        # srcfolder build and verify the image before publishing it.
         mkdir -p dmg_staging
         cp -R OpenCam.app dmg_staging/
         ln -s /Applications dmg_staging/Applications
-        hdiutil create -volname "OpenCam" -srcfolder dmg_staging -ov -format UDZO OpenCam_macOS_AppleSilicon.dmg
+        for attempt in 1 2 3; do
+          if hdiutil create -volname "OpenCam" -srcfolder "$PWD/dmg_staging" -ov -format UDZO OpenCam_macOS_AppleSilicon.dmg; then
+            break
+          fi
+          if [ "$attempt" -eq 3 ]; then
+            exit 1
+          fi
+          sleep 5
+        done
+        hdiutil verify OpenCam_macOS_AppleSilicon.dmg
         rm -rf dmg_staging
 
     - name: Upload macOS DMG as Artifact
