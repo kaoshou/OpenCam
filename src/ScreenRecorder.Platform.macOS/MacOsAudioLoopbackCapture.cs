@@ -1,36 +1,285 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Diagnostics;
 using ScreenRecorder.Core.Interfaces;
 
 namespace ScreenRecorder.Platform.macOS;
 
-public class MacOsAudioLoopbackCapture : ISystemAudioLoopbackCapture
+public sealed class MacOsAudioLoopbackCapture : ISystemAudioLoopbackCapture
 {
-    public bool IsSupported => false;
-    public bool IsCapturing => false;
+    private const string ReadyLine =
+        "READY sample-rate=48000 channels=2 format=s16le";
 
-    public event EventHandler<string>? AudioErrorOccurred
+    private readonly string _helperPath;
+    private readonly Func<int, uint?> _resolveDisplayId;
+    private readonly Func<string> _createTempDirectory;
+    private readonly Action<string> _createFifo;
+    private readonly SemaphoreSlim _gate = new(1, 1);
+
+    private Process? _helperProcess;
+    private CancellationTokenSource? _monitorCts;
+    private Task? _stderrMonitorTask;
+    private string? _captureDirectory;
+    private bool _isCapturing;
+    private bool _isDisposed;
+
+    public MacOsAudioLoopbackCapture()
+        : this(
+            MacOsSystemAudioSupport.HelperPath(AppContext.BaseDirectory),
+            monitorIndex =>
+                new MacOsDisplayService().GetNativeDisplayId(monitorIndex),
+            CreateDefaultTempDirectory,
+            UnixFifo.CreatePrivate)
     {
-        add { }
-        remove { }
     }
 
-    public Task<SystemAudioCaptureInfo?> StartCaptureAsync(
+    internal MacOsAudioLoopbackCapture(
+        string helperPath,
+        Func<int, uint?> resolveDisplayId,
+        Func<string> createTempDirectory,
+        Action<string> createFifo)
+    {
+        _helperPath = helperPath;
+        _resolveDisplayId = resolveDisplayId;
+        _createTempDirectory = createTempDirectory;
+        _createFifo = createFifo;
+    }
+
+    public bool IsSupported =>
+        OperatingSystem.IsMacOS() &&
+        MacOsSystemAudioSupport.IsSupported(
+            Environment.OSVersion.Version,
+            Path.GetDirectoryName(_helperPath) ?? AppContext.BaseDirectory);
+
+    public bool IsCapturing => _isCapturing;
+
+    public event EventHandler<string>? AudioErrorOccurred;
+
+    public async Task<SystemAudioCaptureInfo?> StartCaptureAsync(
         int monitorIndex,
         CancellationToken cancellationToken = default)
     {
-        _ = monitorIndex;
-        return Task.FromResult<SystemAudioCaptureInfo?>(null);
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            if (_isCapturing)
+            {
+                throw new InvalidOperationException(
+                    "macOS system audio capture is already running.");
+            }
+
+            if (!OperatingSystem.IsMacOS() || !File.Exists(_helperPath))
+            {
+                return null;
+            }
+
+            var displayId = _resolveDisplayId(monitorIndex);
+            if (!displayId.HasValue)
+            {
+                throw new InvalidOperationException(
+                    "No active macOS display is available for system audio capture.");
+            }
+
+            _captureDirectory = _createTempDirectory();
+            Directory.CreateDirectory(_captureDirectory);
+            File.SetUnixFileMode(
+                _captureDirectory,
+                UnixFileMode.UserRead |
+                UnixFileMode.UserWrite |
+                UnixFileMode.UserExecute);
+            var fifoPath = Path.Combine(
+                _captureDirectory,
+                "system-audio.pcm");
+            _createFifo(fifoPath);
+
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = _helperPath,
+                UseShellExecute = false,
+                RedirectStandardError = true,
+                RedirectStandardOutput = false,
+                CreateNoWindow = true
+            };
+            startInfo.ArgumentList.Add("--fifo");
+            startInfo.ArgumentList.Add(fifoPath);
+            startInfo.ArgumentList.Add("--display-id");
+            startInfo.ArgumentList.Add(displayId.Value.ToString());
+
+            _helperProcess = Process.Start(startInfo) ??
+                throw new InvalidOperationException(
+                    "Unable to launch OpenCam.SystemAudio.");
+
+            using var timeoutCts = new CancellationTokenSource(
+                TimeSpan.FromSeconds(5));
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken,
+                timeoutCts.Token);
+
+            while (true)
+            {
+                var line = await _helperProcess.StandardError.ReadLineAsync(
+                    linkedCts.Token);
+                if (line is null)
+                {
+                    throw new InvalidOperationException(
+                        "OpenCam.SystemAudio exited before reporting readiness.");
+                }
+
+                if (line == ReadyLine)
+                {
+                    break;
+                }
+
+                if (line.StartsWith("ERROR ", StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException(line[6..]);
+                }
+            }
+
+            _monitorCts = new CancellationTokenSource();
+            _stderrMonitorTask = MonitorStderrAsync(
+                _helperProcess,
+                _monitorCts.Token);
+            _isCapturing = true;
+
+            var ffmpegInputArgs =
+                $"-thread_queue_size 1024 -f s16le -ar 48000 -ac 2 -i \"{fifoPath}\" ";
+            return new SystemAudioCaptureInfo(
+                fifoPath,
+                48000,
+                2,
+                ffmpegInputArgs);
+        }
+        catch (Exception ex)
+        {
+            await CleanupCoreAsync();
+            AudioErrorOccurred?.Invoke(this, ex.Message);
+            return null;
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
-    public Task StopCaptureAsync(CancellationToken cancellationToken = default)
+    public async Task StopCaptureAsync(
+        CancellationToken cancellationToken = default)
     {
-        return Task.CompletedTask;
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            await CleanupCoreAsync();
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
-    public ValueTask DisposeAsync()
+    private async Task MonitorStderrAsync(
+        Process process,
+        CancellationToken cancellationToken)
     {
-        return ValueTask.CompletedTask;
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                var line = await process.StandardError.ReadLineAsync(
+                    cancellationToken);
+                if (line is null)
+                {
+                    break;
+                }
+
+                if (line.StartsWith("ERROR ", StringComparison.Ordinal))
+                {
+                    AudioErrorOccurred?.Invoke(this, line[6..]);
+                }
+            }
+
+            if (!cancellationToken.IsCancellationRequested &&
+                process.HasExited &&
+                process.ExitCode != 0)
+            {
+                AudioErrorOccurred?.Invoke(
+                    this,
+                    $"OpenCam.SystemAudio exited with code {process.ExitCode}.");
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                AudioErrorOccurred?.Invoke(this, ex.Message);
+            }
+        }
+    }
+
+    private async Task CleanupCoreAsync()
+    {
+        _isCapturing = false;
+        try { _monitorCts?.Cancel(); } catch { }
+
+        if (_helperProcess is not null)
+        {
+            try
+            {
+                if (!_helperProcess.HasExited)
+                {
+                    _helperProcess.Kill(entireProcessTree: true);
+                }
+
+                using var timeoutCts = new CancellationTokenSource(
+                    TimeSpan.FromSeconds(3));
+                await _helperProcess.WaitForExitAsync(timeoutCts.Token);
+            }
+            catch
+            {
+            }
+        }
+
+        if (_stderrMonitorTask is not null)
+        {
+            try { await _stderrMonitorTask; } catch { }
+        }
+
+        _helperProcess?.Dispose();
+        _helperProcess = null;
+        _stderrMonitorTask = null;
+        _monitorCts?.Dispose();
+        _monitorCts = null;
+
+        if (!string.IsNullOrWhiteSpace(_captureDirectory) &&
+            Directory.Exists(_captureDirectory))
+        {
+            try
+            {
+                Directory.Delete(_captureDirectory, recursive: true);
+            }
+            catch
+            {
+            }
+        }
+
+        _captureDirectory = null;
+    }
+
+    private static string CreateDefaultTempDirectory() =>
+        Path.Combine(
+            Path.GetTempPath(),
+            "OpenCamAudio_" + Guid.NewGuid().ToString("N"));
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_isDisposed)
+        {
+            return;
+        }
+
+        _isDisposed = true;
+        await StopCaptureAsync();
+        _gate.Dispose();
+        GC.SuppressFinalize(this);
     }
 }
