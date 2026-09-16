@@ -23,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\ScreenRecorder.Core\ScreenRecorder.Core.csproj" />
     <ProjectReference Include="..\..\src\ScreenRecorder.Media\ScreenRecorder.Media.csproj" />
+    <ProjectReference Include="..\..\src\ScreenRecorder.Platform.macOS\ScreenRecorder.Platform.macOS.csproj" />
     <ProjectReference Include="..\..\src\ScreenRecorder.Platform.Windows\ScreenRecorder.Platform.Windows.csproj" />
     <ProjectReference Include="..\..\src\ScreenRecorder.Recorder\ScreenRecorder.Recorder.csproj" />
     <ProjectReference Include="..\..\src\ScreenRecorder.UI\ScreenRecorder.UI.csproj" />
