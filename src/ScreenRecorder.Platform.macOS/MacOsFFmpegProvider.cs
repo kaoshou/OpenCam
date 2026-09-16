@@ -6,6 +6,18 @@ namespace ScreenRecorder.Platform.macOS;
 
 public class MacOsFFmpegProvider : IFFmpegPlatformProvider
 {
+    private readonly IDisplayService _displayService;
+
+    public MacOsFFmpegProvider()
+        : this(new MacOsDisplayService())
+    {
+    }
+
+    public MacOsFFmpegProvider(IDisplayService displayService)
+    {
+        _displayService = displayService;
+    }
+
     public IEnumerable<(string EncoderName, string ExtraArgs, HardwareEncoderType Type)> GetHardwareEncoderProbes()
     {
         return new List<(string, string, HardwareEncoderType)>
@@ -27,15 +39,18 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider
             $"-framerate {config.Fps}"
         };
 
-        string videoInput = "1";
-        string audioInput = "none";
-        
-        // Use generic condition to check if mic is requested
-        if (config.AudioSource.ToString().Contains("Microphone"))
-        {
-            audioInput = "0"; 
-        }
-        
+        var monitors = _displayService.GetMonitors();
+        var display = monitors.FirstOrDefault(monitor => monitor.Index == config.MonitorIndex) ??
+                      monitors.FirstOrDefault(monitor => monitor.IsPrimary) ??
+                      monitors.FirstOrDefault();
+        var videoInput = "Capture screen " + (display?.Index ?? Math.Max(0, config.MonitorIndex));
+        var requestsMicrophone = config.AudioSource is
+            AudioSourceType.MicrophoneOnly or AudioSourceType.SystemAndMicrophone;
+        var audioInput = requestsMicrophone && hasDirectShowMic &&
+                         !string.IsNullOrWhiteSpace(config.MicrophoneDeviceId)
+            ? config.MicrophoneDeviceId
+            : "none";
+
         args.Add($"-i \"{videoInput}:{audioInput}\"");
 
         if (config.IsRecoverySilenceMode)
@@ -45,7 +60,9 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider
 
         if (config.CaptureSource == CaptureSourceType.CustomRegion)
         {
-            args.Add($"-filter:v \"crop={width}:{height}:{x}:{y}\"");
+            var localX = Math.Max(0, x - (display?.Bounds.X ?? 0));
+            var localY = Math.Max(0, y - (display?.Bounds.Y ?? 0));
+            args.Add($"-filter:v \"crop={width}:{height}:{localX}:{localY}\"");
         }
 
         return string.Join(" ", args);
