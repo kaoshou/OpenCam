@@ -20,4 +20,7 @@ internal static class RegionSelectorAppearance
         _ = isMacOS;
         return Colors.Transparent;
     }
+
+    internal static bool RequiresNativeWindowTransparency(bool isMacOS) =>
+        isMacOS;
 }

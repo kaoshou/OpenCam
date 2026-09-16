@@ -6,6 +6,7 @@
         SystemDecorations="None"
         Background="Transparent"
         TransparencyLevelHint="Transparent"
+        TransparencyBackgroundFallback="Transparent"
         Topmost="True"
         Focusable="True"
         WindowStartupLocation="Manual">

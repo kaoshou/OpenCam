@@ -8,7 +8,7 @@ namespace ScreenRecorder.Media.Tests;
 public class MacOsFFmpegProviderTests
 {
     [Fact]
-    public void FullDisplay_SelectsNamedScreenWithoutCrop()
+    public void FullDisplay_SelectsNamedScreenAndScalesRetinaFrames()
     {
         var provider = CreateProvider();
         var config = new RecordingConfiguration
@@ -23,6 +23,7 @@ public class MacOsFFmpegProviderTests
             config, 4480, 0, 1920, 1080, false, false);
 
         Assert.Contains("-i \"Capture screen 1:none\"", args);
+        Assert.Contains("scale=1920:1080", args);
         Assert.DoesNotContain("crop=", args);
         Assert.DoesNotContain("aresample", args);
     }

@@ -42,6 +42,37 @@ public class IpcTests
     }
 
     [Fact]
+    public async Task NamedPipe_BackToBackConnections_DoNotBreakBetweenCommands()
+    {
+        var name = SessionPipeNameFactory.Create(OperatingSystem.IsWindows());
+        await using var server = new NamedPipeIpcServer(
+            name,
+            message => Task.FromResult(new IpcResponse
+            {
+                Success = true,
+                ErrorMessage = message.MessageType
+            }));
+
+        server.Start();
+        await Task.Delay(100);
+
+        await using var client = new NamedPipeIpcClient(name);
+        for (var index = 0; index < 500; index++)
+        {
+            var command = "Command" + index;
+            var response = await client.SendCommandAsync(
+                command,
+                new { },
+                timeoutMs: 2000);
+
+            Assert.True(
+                response.Success,
+                $"{command} failed: {response.ErrorMessage}");
+            Assert.Equal(command, response.ErrorMessage);
+        }
+    }
+
+    [Fact]
     public async Task NamedPipe_ClientServerCommunication_ShouldSucceed()
     {
         var pipeName = SessionPipeNameFactory.Create(OperatingSystem.IsWindows());

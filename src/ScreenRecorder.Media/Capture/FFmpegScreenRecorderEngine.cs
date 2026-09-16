@@ -207,7 +207,10 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
 
             var inputArgs = _ffmpegPlatformProvider.BuildInputArguments(config, x, y, width, height, UseSyntheticCaptureSource, hasDirectShowMic, systemAudioPipeArg);
             var outputArgs = _ffmpegPlatformProvider.BuildOutputArguments(config, encoderType, workingFilePath);
-            var args = $"{inputArgs} {outputArgs}";
+            // A hardware encoder failure can leave an empty working file
+            // before the software fallback starts. Keep fallback launches
+            // non-interactive so FFmpeg never blocks on an overwrite prompt.
+            var args = $"-y {inputArgs} {outputArgs}";
 
             Log.Information("啟動 FFmpeg 錄影程序，完整引數: {Args}", args);
 

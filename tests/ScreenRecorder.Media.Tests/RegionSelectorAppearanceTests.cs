@@ -17,4 +17,17 @@ public class RegionSelectorAppearanceTests
             RegionSelectorAppearance.FallbackColor(isMacOS: true));
         Assert.DoesNotContain(WindowTransparencyLevel.Blur, levels);
     }
+
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    public void NativeWindowTransparency_IsAppliedOnlyOnMacOs(
+        bool isMacOS,
+        bool expected)
+    {
+        Assert.Equal(
+            expected,
+            RegionSelectorAppearance.RequiresNativeWindowTransparency(
+                isMacOS));
+    }
 }

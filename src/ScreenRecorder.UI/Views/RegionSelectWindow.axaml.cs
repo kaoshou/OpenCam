@@ -63,6 +63,16 @@ public partial class RegionSelectWindow : Window
 
         Opened += (s, e) =>
         {
+            if (RegionSelectorAppearance.RequiresNativeWindowTransparency(
+                    OperatingSystem.IsMacOS()))
+            {
+                var platformHandle = TryGetPlatformHandle();
+                if (platformHandle is not null)
+                {
+                    MacOsWindowTransparency.TryApply(platformHandle.Handle);
+                }
+            }
+
             Focus();
             if (RenderScaling > 0 && Math.Abs(RenderScaling - 1.0) > 0.001)
             {

@@ -90,6 +90,15 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider
             var localY = Math.Max(0, y - (display?.Bounds.Y ?? 0));
             args.Add($"-filter:v \"crop={width}:{height}:{localX}:{localY}\"");
         }
+        else
+        {
+            // AVFoundation reports Retina screen frames in backing pixels
+            // (for example 4480x2520) while the display service exposes the
+            // logical capture size (2240x1260). Normalize monitor captures so
+            // VideoToolbox receives the requested, encodable dimensions.
+            args.Add(
+                $"-filter:v \"scale={width}:{height}:flags=fast_bilinear\"");
+        }
 
         if (config.AudioSource != AudioSourceType.None)
         {

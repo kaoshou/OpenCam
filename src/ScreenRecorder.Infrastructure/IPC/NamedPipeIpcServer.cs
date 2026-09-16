@@ -12,6 +12,8 @@ public class NamedPipeIpcServer : IAsyncDisposable
     private CancellationTokenSource? _cts;
     private Task? _listenerTask;
     private NamedPipeServerStream? _currentServerStream;
+    private readonly HashSet<Task> _connectionTasks = new();
+    private readonly SemaphoreSlim _messageGate = new(1, 1);
     private readonly object _lock = new();
 
     public event EventHandler<bool>? ClientConnectionChanged;
@@ -30,71 +32,163 @@ public class NamedPipeIpcServer : IAsyncDisposable
 
     private async Task ListenLoopAsync(CancellationToken cancellationToken)
     {
-        while (!cancellationToken.IsCancellationRequested)
+        NamedPipeServerStream? acceptingServer = null;
+        Task? acceptTask = null;
+
+        try
         {
+            acceptingServer = CreateServer();
+            SetAcceptingServer(acceptingServer);
+            acceptTask = acceptingServer.WaitForConnectionAsync(cancellationToken);
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await acceptTask;
+
+                var connectedServer = acceptingServer;
+
+                // Start accepting the next client before replying to the
+                // current one. Without this overlap, a back-to-back command
+                // can connect while the previous server instance is closing
+                // and receive an empty response / broken pipe on Unix.
+                acceptingServer = CreateServer();
+                SetAcceptingServer(acceptingServer);
+                acceptTask = acceptingServer.WaitForConnectionAsync(
+                    cancellationToken);
+
+                TrackConnection(
+                    HandleConnectionAsync(
+                        connectedServer,
+                        cancellationToken));
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (ObjectDisposedException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                Log.Error(ex, "IPC listener failed for pipe {PipeName}", _pipeName);
+            }
+        }
+        finally
+        {
+            acceptingServer?.Dispose();
+            SetAcceptingServer(null);
+
+            Task[] activeConnections;
+            lock (_lock)
+            {
+                activeConnections = _connectionTasks.ToArray();
+            }
+
             try
             {
-                using var pipeServer = new NamedPipeServerStream(
-                    _pipeName,
-                    PipeDirection.InOut,
-                    NamedPipeServerStream.MaxAllowedServerInstances,
-                    PipeTransmissionMode.Byte,
-                    PipeOptions.Asynchronous);
+                await Task.WhenAll(activeConnections);
+            }
+            catch when (cancellationToken.IsCancellationRequested)
+            {
+            }
+        }
+    }
 
+    private NamedPipeServerStream CreateServer() =>
+        new(
+            _pipeName,
+            PipeDirection.InOut,
+            NamedPipeServerStream.MaxAllowedServerInstances,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
+
+    private void SetAcceptingServer(NamedPipeServerStream? server)
+    {
+        lock (_lock)
+        {
+            _currentServerStream = server;
+        }
+    }
+
+    private void TrackConnection(Task connectionTask)
+    {
+        lock (_lock)
+        {
+            _connectionTasks.Add(connectionTask);
+        }
+
+        _ = connectionTask.ContinueWith(
+            completedTask =>
+            {
                 lock (_lock)
                 {
-                    _currentServerStream = pipeServer;
+                    _connectionTasks.Remove(completedTask);
                 }
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
 
-                await pipeServer.WaitForConnectionAsync(cancellationToken);
+    private async Task HandleConnectionAsync(
+        NamedPipeServerStream pipeServer,
+        CancellationToken cancellationToken)
+    {
+        using (pipeServer)
+        {
+            var enteredMessageGate = false;
+            try
+            {
+                await _messageGate.WaitAsync(cancellationToken);
+                enteredMessageGate = true;
                 ClientConnectionChanged?.Invoke(this, true);
 
-                using (var reader = new StreamReader(pipeServer, Encoding.UTF8, leaveOpen: true))
-                using (var writer = new StreamWriter(pipeServer, Encoding.UTF8, leaveOpen: true))
+                using var reader = new StreamReader(
+                    pipeServer,
+                    Encoding.UTF8,
+                    leaveOpen: true);
+                using var writer = new StreamWriter(
+                    pipeServer,
+                    Encoding.UTF8,
+                    leaveOpen: true);
+
+                var line = await reader.ReadLineAsync(cancellationToken);
+                if (line is not null)
                 {
-                    var line = await reader.ReadLineAsync(cancellationToken);
-                    if (line != null)
+                    var message = JsonSerializer.Deserialize<IpcMessage>(line);
+                    if (message is not null)
                     {
-                        var msg = JsonSerializer.Deserialize<IpcMessage>(line);
-                        if (msg != null)
-                        {
-                            var response = await _messageHandler(msg);
-                            var responseJson = JsonSerializer.Serialize(response);
-                            await writer.WriteLineAsync(responseJson);
-                            await writer.FlushAsync(cancellationToken);
-                        }
+                        var response = await _messageHandler(message);
+                        await writer.WriteLineAsync(
+                            JsonSerializer.Serialize(response));
+                        await writer.FlushAsync(cancellationToken);
                     }
                 }
-
-                if (pipeServer.IsConnected)
-                {
-                    pipeServer.Disconnect();
-                }
-
-                ClientConnectionChanged?.Invoke(this, false);
             }
             catch (OperationCanceledException)
             {
-                break;
+            }
+            catch (ObjectDisposedException) when (cancellationToken.IsCancellationRequested)
+            {
             }
             catch (Exception ex)
             {
-                if (cancellationToken.IsCancellationRequested) break;
-                Log.Error(ex, "IPC listener failed for pipe {PipeName}", _pipeName);
-                try
+                if (!cancellationToken.IsCancellationRequested)
                 {
-                    await Task.Delay(50, cancellationToken);
-                }
-                catch (OperationCanceledException)
-                {
-                    break;
+                    Log.Error(
+                        ex,
+                        "IPC connection failed for pipe {PipeName}",
+                        _pipeName);
                 }
             }
             finally
             {
-                lock (_lock)
+                ClientConnectionChanged?.Invoke(this, false);
+                if (enteredMessageGate)
                 {
-                    _currentServerStream = null;
+                    _messageGate.Release();
                 }
             }
         }
@@ -123,6 +217,7 @@ public class NamedPipeIpcServer : IAsyncDisposable
                 catch { }
             }
             _cts.Dispose();
+            _messageGate.Dispose();
         }
     }
 }

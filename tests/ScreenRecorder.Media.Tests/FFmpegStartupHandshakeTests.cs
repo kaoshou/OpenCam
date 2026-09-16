@@ -56,6 +56,32 @@ public class FFmpegStartupHandshakeTests
         }
     }
 
+    [UnixOnlyFact]
+    public async Task Launch_UsesNonInteractiveOverwriteForEncoderFallback()
+    {
+        var executable = CreateExecutable(
+            "[ \"$1\" = '-y' ] || { echo 'missing -y' >&2; exit 1; }\n" +
+            "echo 'frame=    1 fps=0.0 time=00:00:00.03' >&2\n" +
+            "while IFS= read -r line; do [ \"$line\" = q ] && exit 0; done");
+        try
+        {
+            await using var engine = new FFmpegScreenRecorderEngine(
+                new StubProvider(), null, executable);
+
+            await engine.StartRecordingAsync(
+                Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".mkv"),
+                Config(),
+                new CaptureRegion(0, 0, 640, 480));
+
+            Assert.True(engine.IsRunning);
+            await engine.StopRecordingAsync();
+        }
+        finally
+        {
+            File.Delete(executable);
+        }
+    }
+
     private static RecordingConfiguration Config() => new()
     {
         EncoderType = HardwareEncoderType.SoftwareCpu,
