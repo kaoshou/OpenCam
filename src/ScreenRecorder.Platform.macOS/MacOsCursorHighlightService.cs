@@ -50,7 +50,17 @@ public sealed class MacOsCursorHighlightService : ICursorHighlightService
                 ? "ripple"
                 : "halo");
 
-        _helperProcess = Process.Start(startInfo);
+        try
+        {
+            _helperProcess = Process.Start(startInfo);
+        }
+        catch
+        {
+            // Cursor decoration is optional. A damaged or blocked helper must
+            // never abort a screen recording that is already running.
+            _helperProcess?.Dispose();
+            _helperProcess = null;
+        }
     }
 
     public void Stop()

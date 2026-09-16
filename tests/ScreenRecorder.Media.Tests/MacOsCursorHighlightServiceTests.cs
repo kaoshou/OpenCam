@@ -61,6 +61,30 @@ public class MacOsCursorHighlightServiceTests : IDisposable
         Assert.False(File.Exists(_helperPath + ".args"));
     }
 
+    [MacOsOnlyFact]
+    public void DamagedHelper_DoesNotAbortRecording()
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        var damagedHelper = Path.Combine(_fixtureDirectory, "damaged-helper");
+        File.WriteAllText(damagedHelper, "not an executable image");
+        File.SetUnixFileMode(
+            damagedHelper,
+            UnixFileMode.UserRead |
+            UnixFileMode.UserWrite |
+            UnixFileMode.UserExecute);
+        using var service = new MacOsCursorHighlightService(damagedHelper);
+
+        var exception = Record.Exception(
+            () => service.Start(CursorEffectMode.HighlightHalo));
+
+        Assert.Null(exception);
+        Assert.False(service.IsRunning);
+    }
+
     private static async Task WaitForFileAsync(string path)
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
