@@ -22,3 +22,6 @@ Thumbs.db
 ## Build output
 installer/publish/
 installer/Output/
+
+## Local isolated worktrees
+.worktrees/
