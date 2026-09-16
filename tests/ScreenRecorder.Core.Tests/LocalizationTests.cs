@@ -46,6 +46,21 @@ public class LocalizationTests
     }
 
     [Fact]
+    public void OpenFolderFailure_ShouldBeLocalized()
+    {
+        var service = new LocalizationService();
+        service.CurrentLanguage = AppLanguage.ZhTw;
+        Assert.Equal(
+            "無法開啟儲存位置：Finder error",
+            service.GetFormatted("StatusOpenFolderFailed", "Finder error"));
+
+        service.CurrentLanguage = AppLanguage.EnUs;
+        Assert.Equal(
+            "Unable to open the output location: Finder error",
+            service.GetFormatted("StatusOpenFolderFailed", "Finder error"));
+    }
+
+    [Fact]
     public void LanguageChangedEvent_ShouldFireOnSwitch()
     {
         var service = new LocalizationService();

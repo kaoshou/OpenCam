@@ -22,6 +22,7 @@ using ScreenRecorder.Infrastructure.Settings;
 using ScreenRecorder.Media.Encoders;
 using ScreenRecorder.Platform.macOS;
 using ScreenRecorder.UI.Localization;
+using ScreenRecorder.UI.Services;
 using ScreenRecorder.UI.Views;
 
 namespace ScreenRecorder.UI.ViewModels;
@@ -1018,18 +1019,15 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     public void OpenOutputFolder()
     {
-        try
+        var (success, error) = PlatformFolderOpener.TryOpen(
+            LastOutputFilePath,
+            OutputDirectory);
+        if (!success)
         {
-            if (!string.IsNullOrEmpty(LastOutputFilePath) && File.Exists(LastOutputFilePath))
-            {
-                Process.Start("explorer.exe", $"/select,\"{LastOutputFilePath}\"");
-            }
-            else if (Directory.Exists(OutputDirectory))
-            {
-                Process.Start("explorer.exe", OutputDirectory);
-            }
+            StatusMessage = Strings.GetFormatted(
+                "StatusOpenFolderFailed",
+                error ?? string.Empty);
         }
-        catch { }
     }
 
     public void UpdateCustomRegion(int x, int y, int width, int height)

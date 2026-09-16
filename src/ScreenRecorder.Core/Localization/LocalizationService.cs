@@ -138,6 +138,7 @@ public class LocalizationService : ILocalizationService
         ["StatusRecoverSuccess"] = "救援完成！成功救回 {0} 個工作階段並已無損轉為 MP4。",
         ["StatusLocationUpdated"] = "儲存位置已更新為: {0}",
         ["StatusSetLocationFailed"] = "設定儲存目錄失敗: {0}",
+        ["StatusOpenFolderFailed"] = "無法開啟儲存位置：{0}",
         ["StatusUnexpectedDisconnect"] = "錄影核心無預警中斷！已錄製內容已安全保留，可點擊「修復救援」轉出 MP4。",
         ["VersionAndAbout"] = "OpenCam v0.1.0 · 關於",
 
@@ -335,6 +336,7 @@ public class LocalizationService : ILocalizationService
         ["StatusRecoverSuccess"] = "Recovery completed! Successfully restored {0} session(s) to MP4.",
         ["StatusLocationUpdated"] = "Storage location updated to: {0}",
         ["StatusSetLocationFailed"] = "Failed to update storage directory: {0}",
+        ["StatusOpenFolderFailed"] = "Unable to open the output location: {0}",
         ["StatusUnexpectedDisconnect"] = "Recording core disconnected! Captured data safely preserved. Click 'Recovery' to export MP4.",
         ["VersionAndAbout"] = "OpenCam v0.1.0 · About",
 
