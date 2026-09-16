@@ -15,7 +15,7 @@ public class DisplayEnumerationTests
         _output = output;
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void WindowsDisplayService_ShouldEnumerateMonitors()
     {
         var service = new WindowsDisplayService();
@@ -36,7 +36,7 @@ public class DisplayEnumerationTests
         }
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void WindowsDisplayService_VirtualScreenBounds_ShouldEncloseAllMonitors()
     {
         var service = new WindowsDisplayService();
@@ -58,7 +58,7 @@ public class DisplayEnumerationTests
         _output.WriteLine($"[虛擬桌面邊界] {virtualBounds.X},{virtualBounds.Y} {virtualBounds.Width}x{virtualBounds.Height}");
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void WindowsAudioDeviceService_ShouldEnumerateRecordingDevices()
     {
         var service = new WindowsAudioDeviceService();

@@ -24,7 +24,7 @@ public class AudioRecordingModesTests : IDisposable
         Directory.CreateDirectory(_testRoot);
     }
 
-    [Theory]
+    [WindowsOnlyTheory]
     [InlineData(AudioSourceType.None, 0)]
     [InlineData(AudioSourceType.SystemOnly, 1)]
     [InlineData(AudioSourceType.MicrophoneOnly, 1)]
@@ -95,4 +95,3 @@ public class AudioRecordingModesTests : IDisposable
         catch { }
     }
 }
-

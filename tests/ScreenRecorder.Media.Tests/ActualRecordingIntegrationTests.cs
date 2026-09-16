@@ -26,7 +26,7 @@ public class ActualRecordingIntegrationTests : IDisposable
         Directory.CreateDirectory(_tempDir);
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public async Task RealScreenRecording_EndToEnd_ShouldRecordMkvAndRemuxToMp4()
     {
         var stateMachine = new RecordingStateMachine();
@@ -94,7 +94,7 @@ public class ActualRecordingIntegrationTests : IDisposable
         Assert.True(probeResult.Duration.TotalSeconds >= 1.5, $"錄影時長異常: {probeResult.Duration.TotalSeconds}s");
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public async Task SecondaryMonitorRecording_ShouldResolveBoundsAndRecord()
     {
         var stateMachine = new RecordingStateMachine();
@@ -141,7 +141,7 @@ public class ActualRecordingIntegrationTests : IDisposable
         Assert.True(File.Exists(finalMp4));
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public async Task HardwareAcceleratedRecording_ShouldRecordAndRemuxCleanly()
     {
         var stateMachine = new RecordingStateMachine();
@@ -190,7 +190,7 @@ public class ActualRecordingIntegrationTests : IDisposable
         Assert.Equal(720, probeResult.Height);
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public async Task ConsecutiveRecordings_ShouldWorkTwice()
     {
         var stateMachine = new RecordingStateMachine();
@@ -241,7 +241,7 @@ public class ActualRecordingIntegrationTests : IDisposable
         Assert.NotEqual(mp4_1, mp4_2);
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public async Task ConsecutiveRecordings_WithSystemAudio_ShouldWorkTwice()
     {
         var stateMachine = new RecordingStateMachine();
@@ -303,7 +303,7 @@ public class ActualRecordingIntegrationTests : IDisposable
         Assert.True(probe2.AudioStreamCount > 0, "第二次錄影亦應包含音訊軌");
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void WindowsAudioDeviceService_ShouldDetectMicrophonesWithValidEncodingAndAlternativeName()
     {
         var audioService = new WindowsAudioDeviceService();
@@ -333,4 +333,3 @@ public class ActualRecordingIntegrationTests : IDisposable
         catch { }
     }
 }
-
