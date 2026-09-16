@@ -57,3 +57,12 @@ Recordings/
      - 立即向編碼管線發送停止訊號，寫入 MKV 結尾。
      - 更新 `session.json` 狀態為 `Interrupted (Disk Space Critical)`。
      - 避免將磁碟榨乾至 0 Byte 導致作業系統崩潰或檔案截斷損壞。
+
+---
+
+## 5. macOS 麥克風擷取隔離
+
+- macOS 不直接使用 FFmpeg `avfoundation` 讀取麥克風，避免其已知的音訊樣本遺失與週期性斷音。
+- `OpenCam.Microphone` 使用 Apple `AVAudioEngine` 取得輸入，轉為 48 kHz、16-bit、單聲道 PCM，再經使用者專用 FIFO 串流給 FFmpeg。
+- helper 初始化或權限失敗時，錄影引擎保留畫面錄製並回退靜音軌；錯誤透過 structured log 與 `AudioDeviceLost` 通知上層。
+- Stop 與 Dispose 均會終止 helper、關閉 FIFO 並刪除暫存目錄，避免背景行程與管道殘留。

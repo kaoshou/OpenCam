@@ -82,6 +82,121 @@ public class FFmpegStartupHandshakeTests
         }
     }
 
+    [UnixOnlyFact]
+    public async Task MicrophoneRecording_StartsNativeCaptureAndPassesItsPipeToProvider()
+    {
+        var executable = CreateExecutable(
+            "echo 'frame=    1 fps=0.0 time=00:00:00.03' >&2\n" +
+            "while IFS= read -r line; do [ \"$line\" = q ] && exit 0; done");
+        var provider = new StubProvider();
+        var microphoneCapture = new StubMicrophoneCapture();
+        try
+        {
+            await using var engine = new FFmpegScreenRecorderEngine(
+                provider,
+                null,
+                executable,
+                microphoneCapture);
+
+            await engine.StartRecordingAsync(
+                Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".mkv"),
+                new RecordingConfiguration
+                {
+                    EncoderType = HardwareEncoderType.SoftwareCpu,
+                    AudioSource = AudioSourceType.MicrophoneOnly,
+                    MicrophoneDeviceId = "0",
+                    Fps = 30
+                },
+                new CaptureRegion(0, 0, 640, 480));
+
+            Assert.True(microphoneCapture.IsCapturing);
+            Assert.Equal(
+                StubMicrophoneCapture.PipeArguments,
+                provider.LastMicrophoneAudioPipeArg);
+
+            await engine.StopRecordingAsync();
+
+            Assert.False(microphoneCapture.IsCapturing);
+        }
+        finally
+        {
+            File.Delete(executable);
+        }
+    }
+
+    [UnixOnlyFact]
+    public async Task StopRecording_StopsMicrophoneProducerBeforeClosingFfmpegConsumer()
+    {
+        var markerPath = Path.Combine(
+            Path.GetTempPath(),
+            "opencam-microphone-stopped-" + Guid.NewGuid().ToString("N"));
+        var observationPath = markerPath + ".observed";
+        var executable = CreateExecutable(
+            "echo 'frame=    1 fps=0.0 time=00:00:00.03' >&2\n" +
+            "while IFS= read -r line; do\n" +
+            "  if [ \"$line\" = q ]; then\n" +
+            $"    if [ -f '{markerPath}' ]; then echo producer-stopped > '{observationPath}'; else echo consumer-closed-first > '{observationPath}'; fi\n" +
+            "    exit 0\n" +
+            "  fi\n" +
+            "done");
+        var microphoneCapture = new StubMicrophoneCapture(
+            () => File.WriteAllText(markerPath, "stopped"));
+        try
+        {
+            await using var engine = new FFmpegScreenRecorderEngine(
+                new StubProvider(),
+                null,
+                executable,
+                microphoneCapture);
+
+            await engine.StartRecordingAsync(
+                Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".mkv"),
+                new RecordingConfiguration
+                {
+                    EncoderType = HardwareEncoderType.SoftwareCpu,
+                    AudioSource = AudioSourceType.MicrophoneOnly,
+                    MicrophoneDeviceId = "0",
+                    Fps = 30
+                },
+                new CaptureRegion(0, 0, 640, 480));
+
+            await engine.StopRecordingAsync();
+
+            Assert.Equal(
+                "producer-stopped\n",
+                await File.ReadAllTextAsync(observationPath));
+        }
+        finally
+        {
+            File.Delete(executable);
+            File.Delete(markerPath);
+            File.Delete(observationPath);
+        }
+    }
+
+    [UnixOnlyFact]
+    public async Task Dispose_DoesNotDisposeInjectedMicrophoneCaptureOwnedByDependencyInjection()
+    {
+        var executable = CreateExecutable("exit 0");
+        var microphoneCapture = new StubMicrophoneCapture();
+        try
+        {
+            var engine = new FFmpegScreenRecorderEngine(
+                new StubProvider(),
+                null,
+                executable,
+                microphoneCapture);
+
+            await engine.DisposeAsync();
+
+            Assert.False(microphoneCapture.IsDisposed);
+        }
+        finally
+        {
+            File.Delete(executable);
+        }
+    }
+
     private static RecordingConfiguration Config() => new()
     {
         EncoderType = HardwareEncoderType.SoftwareCpu,
@@ -110,6 +225,8 @@ public class FFmpegStartupHandshakeTests
 
     private sealed class StubProvider : IFFmpegPlatformProvider
     {
+        public string? LastMicrophoneAudioPipeArg { get; private set; }
+
         public IEnumerable<(string EncoderName, string ExtraArgs, HardwareEncoderType Type)>
             GetHardwareEncoderProbes() => [];
 
@@ -121,11 +238,64 @@ public class FFmpegStartupHandshakeTests
             int height,
             bool useSynthetic,
             bool hasDirectShowMic,
-            string? systemAudioPipeArg = null) => string.Empty;
+            string? systemAudioPipeArg = null,
+            string? microphoneAudioPipeArg = null)
+        {
+            LastMicrophoneAudioPipeArg = microphoneAudioPipeArg;
+            return string.Empty;
+        }
 
         public string BuildOutputArguments(
             RecordingConfiguration config,
             HardwareEncoderType encoderType,
             string workingFilePath) => "-f null -";
+    }
+
+    private sealed class StubMicrophoneCapture : IMicrophoneCapture
+    {
+        public const string PipeArguments =
+            "-thread_queue_size 1024 -f s16le -ar 48000 -ac 1 -i \"/tmp/microphone.pcm\"";
+
+        public bool IsSupported => true;
+        public bool IsCapturing { get; private set; }
+        public bool IsDisposed { get; private set; }
+        private readonly Action? _onStop;
+
+        public StubMicrophoneCapture(Action? onStop = null)
+        {
+            _onStop = onStop;
+        }
+
+        public event EventHandler<string>? AudioErrorOccurred
+        {
+            add { }
+            remove { }
+        }
+
+        public Task<MicrophoneCaptureInfo?> StartCaptureAsync(
+            string? deviceId,
+            CancellationToken cancellationToken = default)
+        {
+            IsCapturing = true;
+            return Task.FromResult<MicrophoneCaptureInfo?>(new(
+                "/tmp/microphone.pcm",
+                48000,
+                1,
+                PipeArguments));
+        }
+
+        public Task StopCaptureAsync(
+            CancellationToken cancellationToken = default)
+        {
+            _onStop?.Invoke();
+            IsCapturing = false;
+            return Task.CompletedTask;
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            IsDisposed = true;
+            await StopCaptureAsync();
+        }
     }
 }

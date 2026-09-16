@@ -22,7 +22,8 @@ public interface IFFmpegPlatformProvider
         int x, int y, int width, int height,
         bool useSynthetic,
         bool hasDirectShowMic,
-        string? systemAudioPipeArg = null); // 若不依賴 DirectShow，這裡應改為 hasMicDevice，我們維持現有參數名以求平滑轉移
+        string? systemAudioPipeArg = null,
+        string? microphoneAudioPipeArg = null); // 若不依賴 DirectShow，這裡應改為 hasMicDevice，我們維持現有參數名以求平滑轉移
 
     /// <summary>
     /// 取得該平台特定硬體編碼器的輸出與影片編碼參數

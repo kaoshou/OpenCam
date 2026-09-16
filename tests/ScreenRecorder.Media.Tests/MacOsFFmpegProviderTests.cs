@@ -70,6 +70,38 @@ public class MacOsFFmpegProviderTests
     }
 
     [Fact]
+    public void NativeMicrophone_UsesPcmPipeInsteadOfAvFoundationAudioInput()
+    {
+        var provider = CreateProvider();
+        var config = new RecordingConfiguration
+        {
+            MonitorIndex = 0,
+            AudioSource = AudioSourceType.MicrophoneOnly,
+            MicrophoneDeviceId = "0"
+        };
+        const string microphonePipeArgs =
+            "-thread_queue_size 1024 -f s16le -ar 48000 -ac 1 -i \"/tmp/microphone.pcm\" ";
+
+        var args = provider.BuildInputArguments(
+            config,
+            0,
+            0,
+            1280,
+            720,
+            false,
+            false,
+            systemAudioPipeArg: null,
+            microphoneAudioPipeArg: microphonePipeArgs);
+
+        Assert.Contains(microphonePipeArgs.Trim(), args);
+        Assert.DoesNotContain("-f avfoundation -i \":0\"", args);
+        Assert.Contains(
+            "[1:a]aresample=48000:async=1:first_pts=0[mic]",
+            args);
+        Assert.Contains("-map 0:v -map \"[mic]\"", args);
+    }
+
+    [Fact]
     public void SystemAudio_UsesPipeAndExplicitMapping()
     {
         var provider = CreateProvider();

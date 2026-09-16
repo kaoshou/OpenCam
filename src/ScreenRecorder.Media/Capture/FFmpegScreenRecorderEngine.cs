@@ -32,6 +32,7 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
 {
     private readonly IFFmpegPlatformProvider _ffmpegPlatformProvider;
     private readonly ISystemAudioLoopbackCapture? _systemAudioLoopbackCapture;
+    private readonly IMicrophoneCapture? _microphoneCapture;
     private readonly string _ffmpegPath;
     private Process? _process;
     private Task? _stderrReadingTask;
@@ -62,12 +63,19 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
     public FFmpegScreenRecorderEngine(
         IFFmpegPlatformProvider ffmpegPlatformProvider, 
         ISystemAudioLoopbackCapture? systemAudioLoopbackCapture = null,
-        string? ffmpegPath = null)
+        string? ffmpegPath = null,
+        IMicrophoneCapture? microphoneCapture = null)
     {
         _ffmpegPlatformProvider = ffmpegPlatformProvider ?? throw new ArgumentNullException(nameof(ffmpegPlatformProvider));
         _systemAudioLoopbackCapture = systemAudioLoopbackCapture;
+        _microphoneCapture = microphoneCapture;
         _ffmpegPath = ffmpegPath ?? FFmpegDiscovery.FindFFmpegExecutable()
             ?? throw new FileNotFoundException("未在系統中探測到 FFmpeg 執行檔");
+
+        if (_microphoneCapture != null)
+        {
+            _microphoneCapture.AudioErrorOccurred += OnMicrophoneCaptureError;
+        }
     }
 
     public async Task StartRecordingAsync(
@@ -105,12 +113,55 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
             throw new ArgumentException($"錄影範圍尺寸無效: {actualBounds.Width}x{actualBounds.Height}");
         }
 
-        var hasDirectShowMic = (config.AudioSource == AudioSourceType.MicrophoneOnly || config.AudioSource == AudioSourceType.SystemAndMicrophone)
+        var requestsMicrophone =
+            config.AudioSource == AudioSourceType.MicrophoneOnly ||
+            config.AudioSource == AudioSourceType.SystemAndMicrophone;
+        var hasDirectShowMic = requestsMicrophone
                                && !string.IsNullOrWhiteSpace(config.MicrophoneDeviceId)
                                && config.MicrophoneDeviceId != "default_mic";
 
+        string? microphoneAudioPipeArg = null;
+        var useNativeMicrophone =
+            requestsMicrophone &&
+            !UseSyntheticCaptureSource &&
+            !config.IsRecoverySilenceMode &&
+            _microphoneCapture?.IsSupported == true;
+
+        if (useNativeMicrophone)
+        {
+            try
+            {
+                var microphoneInfo = await _microphoneCapture!.StartCaptureAsync(
+                    config.MicrophoneDeviceId,
+                    cancellationToken);
+                if (microphoneInfo != null)
+                {
+                    microphoneAudioPipeArg = microphoneInfo.FfmpegInputArgs;
+                    hasDirectShowMic = false;
+                    Log.Information(
+                        "原生麥克風擷取已啟動，傳遞參數: {Args}",
+                        microphoneAudioPipeArg);
+                }
+                else
+                {
+                    hasDirectShowMic = false;
+                    EngineWarningOccurred?.Invoke(
+                        this,
+                        "原生麥克風擷取初始化失敗，已回退至靜音軌以維持畫面錄製。");
+                }
+            }
+            catch (Exception ex)
+            {
+                hasDirectShowMic = false;
+                Log.Warning(ex, "啟動原生麥克風擷取失敗，回退至靜音軌以確保畫面錄影不受影響");
+                EngineWarningOccurred?.Invoke(
+                    this,
+                    $"麥克風擷取初始化失敗 ({ex.Message})，已自動維持畫面錄影。");
+            }
+        }
+
         // 音訊設備健康防護：若指定之麥克風離線，安全回退至虛擬音軌以防止進程崩潰
-        if (hasDirectShowMic && !UseSyntheticCaptureSource)
+        if (hasDirectShowMic && !UseSyntheticCaptureSource && !useNativeMicrophone)
         {
             bool isDevAvailable = IsAudioDeviceAvailable(_ffmpegPath, config.MicrophoneDeviceId!);
             if (!isDevAvailable)
@@ -161,6 +212,7 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
             hasDirectShowMic,
             targetEncoder,
             systemAudioPipeArg,
+            microphoneAudioPipeArg,
             cancellationToken);
         if (!launched && targetEncoder != HardwareEncoderType.SoftwareCpu)
         {
@@ -176,6 +228,7 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
                 hasDirectShowMic,
                 targetEncoder,
                 systemAudioPipeArg,
+                microphoneAudioPipeArg,
                 cancellationToken);
         }
 
@@ -194,6 +247,7 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
         bool hasDirectShowMic,
         HardwareEncoderType encoderType,
         string? systemAudioPipeArg,
+        string? microphoneAudioPipeArg,
         CancellationToken cancellationToken)
     {
         try
@@ -205,7 +259,16 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
                 _process = null;
             }
 
-            var inputArgs = _ffmpegPlatformProvider.BuildInputArguments(config, x, y, width, height, UseSyntheticCaptureSource, hasDirectShowMic, systemAudioPipeArg);
+            var inputArgs = _ffmpegPlatformProvider.BuildInputArguments(
+                config,
+                x,
+                y,
+                width,
+                height,
+                UseSyntheticCaptureSource,
+                hasDirectShowMic,
+                systemAudioPipeArg,
+                microphoneAudioPipeArg);
             var outputArgs = _ffmpegPlatformProvider.BuildOutputArguments(config, encoderType, workingFilePath);
             // A hardware encoder failure can leave an empty working file
             // before the software fallback starts. Keep fallback launches
@@ -469,6 +532,27 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
             proc = _process;
         }
 
+        // Close FIFO producers before asking FFmpeg to stop. If FFmpeg closes
+        // its read ends first, the native audio helpers observe a broken pipe
+        // and incorrectly report a normal recording stop as a capture error.
+        if (_systemAudioLoopbackCapture != null)
+        {
+            try { await _systemAudioLoopbackCapture.StopCaptureAsync(cancellationToken); } catch { }
+        }
+
+        if (_microphoneCapture != null)
+        {
+            try
+            {
+                await _microphoneCapture.StopCaptureAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "停止原生麥克風擷取時發生錯誤");
+            }
+            _microphoneCapture.AudioErrorOccurred -= OnMicrophoneCaptureError;
+        }
+
         try
         {
             if (proc != null && !proc.HasExited)
@@ -499,11 +583,6 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
         }
         finally
         {
-            if (_systemAudioLoopbackCapture != null)
-            {
-                try { await _systemAudioLoopbackCapture.StopCaptureAsync(cancellationToken); } catch { }
-            }
-
             if (_stderrReadingTask != null)
             {
                 try { await _stderrReadingTask; } catch { }
@@ -524,9 +603,9 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
 
         await StopRecordingAsync();
 
-        if (_systemAudioLoopbackCapture != null)
+        if (_microphoneCapture != null)
         {
-            try { await _systemAudioLoopbackCapture.DisposeAsync(); } catch { }
+            _microphoneCapture.AudioErrorOccurred -= OnMicrophoneCaptureError;
         }
 
         lock (_lock)
@@ -536,5 +615,12 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
         }
 
         GC.SuppressFinalize(this);
+    }
+
+    private void OnMicrophoneCaptureError(object? sender, string error)
+    {
+        Log.Warning("原生麥克風擷取發生錯誤: {Error}", error);
+        AudioDeviceLost?.Invoke(this, EventArgs.Empty);
+        EngineWarningOccurred?.Invoke(this, error);
     }
 }

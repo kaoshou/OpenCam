@@ -238,6 +238,7 @@ public class Program
             services.AddSingleton<IAudioDeviceService, ScreenRecorder.Platform.macOS.MacOsAudioDeviceService>();
             services.AddSingleton<IFFmpegPlatformProvider, ScreenRecorder.Platform.macOS.MacOsFFmpegProvider>();
             services.AddSingleton<ISystemAudioLoopbackCapture, ScreenRecorder.Platform.macOS.MacOsAudioLoopbackCapture>();
+            services.AddSingleton<IMicrophoneCapture, ScreenRecorder.Platform.macOS.MacOsMicrophoneCapture>();
         }
     }
 }

@@ -124,7 +124,8 @@
             <!-- 左側：錄影配置卡片 (純白俐落、智慧卷軸適應) -->
             <Border Grid.Column="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" 
                     Padding="14,12" Margin="0,0,8,0" BoxShadow="0 4 16 #0F172A08">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                              IsEnabled="{Binding CanEditRecordingSettings}">
                     <StackPanel Spacing="9" Margin="0,0,6,0">
                     <!-- 錄影目標即時提示徽章 (冰藍漸層微光標籤) -->
                     <Border BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="8" Padding="12,7">

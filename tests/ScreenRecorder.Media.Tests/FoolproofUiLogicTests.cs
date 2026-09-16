@@ -66,6 +66,25 @@ public class FoolproofUiLogicTests
                 recordMicrophone));
     }
 
+    [Theory]
+    [InlineData(false, false, false, true)]
+    [InlineData(false, false, true, false)]
+    [InlineData(true, false, false, false)]
+    [InlineData(false, true, false, false)]
+    public void RecordingSettings_AreEditableOnlyWhileFullyIdle(
+        bool isRecording,
+        bool isPaused,
+        bool isPreparing,
+        bool expected)
+    {
+        Assert.Equal(
+            expected,
+            MainViewModel.CanEditRecordingSettingsForState(
+                isRecording,
+                isPaused,
+                isPreparing));
+    }
+
     // [Fact]
     public void CustomRegion_CanConfigureOnlyWhenSelectedAndNotRecording()
     {

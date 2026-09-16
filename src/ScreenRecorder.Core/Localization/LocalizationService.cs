@@ -140,12 +140,12 @@ public class LocalizationService : ILocalizationService
         ["StatusSetLocationFailed"] = "設定儲存目錄失敗: {0}",
         ["StatusOpenFolderFailed"] = "無法開啟儲存位置：{0}",
         ["StatusUnexpectedDisconnect"] = "錄影核心無預警中斷！已錄製內容已安全保留，可點擊「修復救援」轉出 MP4。",
-        ["VersionAndAbout"] = "OpenCam v0.1.0 · 關於",
+        ["VersionAndAbout"] = "OpenCam v0.1.1 · 關於",
 
         // 關於視窗
         ["AboutTitle"] = "關於 OpenCam",
         ["AppName"] = "OpenCam",
-        ["VersionLabel"] = "版本: v0.1.0 (開源穩定版)",
+        ["VersionLabel"] = "版本: v0.1.1 (開源穩定版)",
         ["AuthorLabel"] = "作者:",
         ["AuthorName"] = "鄭郁翰 (Yu-Han Cheng)",
         ["GithubLabel"] = "GitHub 專案首頁",
@@ -338,12 +338,12 @@ public class LocalizationService : ILocalizationService
         ["StatusSetLocationFailed"] = "Failed to update storage directory: {0}",
         ["StatusOpenFolderFailed"] = "Unable to open the output location: {0}",
         ["StatusUnexpectedDisconnect"] = "Recording core disconnected! Captured data safely preserved. Click 'Recovery' to export MP4.",
-        ["VersionAndAbout"] = "OpenCam v0.1.0 · About",
+        ["VersionAndAbout"] = "OpenCam v0.1.1 · About",
 
         // 關於視窗
         ["AboutTitle"] = "About OpenCam",
         ["AppName"] = "OpenCam",
-        ["VersionLabel"] = "Version: v0.1.0 (Open Source Stable)",
+        ["VersionLabel"] = "Version: v0.1.1 (Open Source Stable)",
         ["AuthorLabel"] = "Author:",
         ["AuthorName"] = "Yu-Han Cheng (鄭郁翰)",
         ["GithubLabel"] = "GitHub Project",

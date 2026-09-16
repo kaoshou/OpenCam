@@ -24,6 +24,7 @@ public class RecordingOrchestrator : IAsyncDisposable
     private readonly IDisplayService _displayService;
     private readonly IFFmpegPlatformProvider _ffmpegPlatformProvider;
     private readonly ISystemAudioLoopbackCapture? _systemAudioLoopbackCapture;
+    private readonly IMicrophoneCapture? _microphoneCapture;
     private readonly IDisplayChangeMonitor? _displayChangeMonitor;
     private readonly ICursorHighlightService? _cursorHighlightService;
 
@@ -54,7 +55,8 @@ public class RecordingOrchestrator : IAsyncDisposable
         IFFmpegPlatformProvider ffmpegPlatformProvider,
         ISystemAudioLoopbackCapture? systemAudioLoopbackCapture = null,
         IDisplayChangeMonitor? displayChangeMonitor = null,
-        ICursorHighlightService? cursorHighlightService = null)
+        ICursorHighlightService? cursorHighlightService = null,
+        IMicrophoneCapture? microphoneCapture = null)
     {
         _stateMachine = stateMachine;
         _storageService = storageService;
@@ -65,6 +67,7 @@ public class RecordingOrchestrator : IAsyncDisposable
         _displayService = displayService;
         _ffmpegPlatformProvider = ffmpegPlatformProvider;
         _systemAudioLoopbackCapture = systemAudioLoopbackCapture;
+        _microphoneCapture = microphoneCapture;
         _displayChangeMonitor = displayChangeMonitor;
         _cursorHighlightService = cursorHighlightService;
 
@@ -138,7 +141,10 @@ public class RecordingOrchestrator : IAsyncDisposable
             await _sessionStore.SaveSessionAsync(session, cancellationToken);
             _currentSession = session;
 
-            _engine = new FFmpegScreenRecorderEngine(_ffmpegPlatformProvider, _systemAudioLoopbackCapture)
+            _engine = new FFmpegScreenRecorderEngine(
+                _ffmpegPlatformProvider,
+                _systemAudioLoopbackCapture,
+                microphoneCapture: _microphoneCapture)
             {
                 UseSyntheticCaptureSource = UseSyntheticCaptureSource
             };
@@ -279,7 +285,10 @@ public class RecordingOrchestrator : IAsyncDisposable
 
             var actualBounds = ResolveCaptureBounds(session.Configuration);
 
-            _engine = new FFmpegScreenRecorderEngine(_ffmpegPlatformProvider, _systemAudioLoopbackCapture)
+            _engine = new FFmpegScreenRecorderEngine(
+                _ffmpegPlatformProvider,
+                _systemAudioLoopbackCapture,
+                microphoneCapture: _microphoneCapture)
             {
                 UseSyntheticCaptureSource = UseSyntheticCaptureSource
             };
@@ -516,7 +525,10 @@ public class RecordingOrchestrator : IAsyncDisposable
 
             var actualBounds = ResolveCaptureBounds(session.Configuration);
 
-            _engine = new FFmpegScreenRecorderEngine(_ffmpegPlatformProvider, _systemAudioLoopbackCapture)
+            _engine = new FFmpegScreenRecorderEngine(
+                _ffmpegPlatformProvider,
+                _systemAudioLoopbackCapture,
+                microphoneCapture: _microphoneCapture)
             {
                 UseSyntheticCaptureSource = UseSyntheticCaptureSource
             };

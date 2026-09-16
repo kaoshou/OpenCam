@@ -19,7 +19,8 @@ public class WindowsFFmpegProvider : IFFmpegPlatformProvider
         int x, int y, int width, int height, 
         bool useSynthetic, 
         bool hasDirectShowMic,
-        string? systemAudioPipeArg = null)
+        string? systemAudioPipeArg = null,
+        string? microphoneAudioPipeArg = null)
     {
         if (useSynthetic)
         {

@@ -153,6 +153,10 @@ public partial class MainViewModel : ObservableObject
     public bool CanStartRecording => !IsRecording && !IsPaused && !IsPreparing;
     public bool CanStopRecording => (IsRecording || IsPaused) && !IsPreparing;
     public bool CanPauseOrResume => (IsRecording || IsPaused) && !IsPreparing;
+    public bool CanEditRecordingSettings => CanEditRecordingSettingsForState(
+        IsRecording,
+        IsPaused,
+        IsPreparing);
     public bool CanSelectMonitor => !IsRecording && !IsPaused && !IsPreparing && IsMonitorSelected;
     public bool CanConfigureCustomRegion => !IsRecording && !IsPaused && !IsPreparing && IsCustomRegion;
     public bool CanSelectMicrophone => !IsRecording && !IsPreparing && RecordMicrophone;
@@ -175,6 +179,12 @@ public partial class MainViewModel : ObservableObject
         (isMacOS && MacOsSystemAudioSupport.IsSupported(
             osVersion,
             baseDirectory));
+
+    internal static bool CanEditRecordingSettingsForState(
+        bool isRecording,
+        bool isPaused,
+        bool isPreparing) =>
+        !isRecording && !isPaused && !isPreparing;
 
     public string TimerForeground => IsPaused ? "#F59E0B" : (IsRecording ? "#34D399" : "#475569");
 
@@ -275,6 +285,7 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanStartRecording));
         OnPropertyChanged(nameof(CanStopRecording));
         OnPropertyChanged(nameof(CanPauseOrResume));
+        OnPropertyChanged(nameof(CanEditRecordingSettings));
         OnPropertyChanged(nameof(CanSelectMonitor));
         OnPropertyChanged(nameof(CanConfigureCustomRegion));
         OnPropertyChanged(nameof(CanSelectMicrophone));
@@ -293,6 +304,7 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanStartRecording));
         OnPropertyChanged(nameof(CanStopRecording));
         OnPropertyChanged(nameof(CanPauseOrResume));
+        OnPropertyChanged(nameof(CanEditRecordingSettings));
         OnPropertyChanged(nameof(CanSelectMonitor));
         OnPropertyChanged(nameof(CanConfigureCustomRegion));
         OnPropertyChanged(nameof(CanSelectMicrophone));
@@ -311,6 +323,7 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanStartRecording));
         OnPropertyChanged(nameof(CanStopRecording));
         OnPropertyChanged(nameof(CanPauseOrResume));
+        OnPropertyChanged(nameof(CanEditRecordingSettings));
         OnPropertyChanged(nameof(CanSelectMonitor));
         OnPropertyChanged(nameof(CanConfigureCustomRegion));
         OnPropertyChanged(nameof(CanSelectMicrophone));

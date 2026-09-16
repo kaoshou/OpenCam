@@ -19,7 +19,7 @@ plist="$contents/Info.plist"
 [[ -f "$plist" ]] || fail "missing Info.plist"
 plutil -lint "$plist" >/dev/null || fail "invalid Info.plist"
 
-for executable in OpenCam ffmpeg ffprobe OpenCam.SystemAudio; do
+for executable in OpenCam ffmpeg ffprobe OpenCam.SystemAudio OpenCam.Microphone; do
   [[ -x "$macos/$executable" ]] || fail "missing executable: Contents/MacOS/$executable"
 done
 
@@ -34,6 +34,10 @@ minimum_version="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$
 helper_description="$(file "$macos/OpenCam.SystemAudio")"
 [[ "$helper_description" == *"Mach-O"* ]] || fail "system audio helper is not a Mach-O executable"
 [[ "$helper_description" == *"arm64"* ]] || fail "system audio helper is not arm64"
+
+microphone_description="$(file "$macos/OpenCam.Microphone")"
+[[ "$microphone_description" == *"Mach-O"* ]] || fail "microphone helper is not a Mach-O executable"
+[[ "$microphone_description" == *"arm64"* ]] || fail "microphone helper is not arm64"
 
 codesign --verify --deep --strict "$app_path" >/dev/null 2>&1 || fail "code signature verification failed"
 

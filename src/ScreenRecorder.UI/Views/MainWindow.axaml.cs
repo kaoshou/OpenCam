@@ -41,7 +41,7 @@ public partial class MainWindow : Window
 
     private async void OnSelectRegionClicked(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is MainViewModel vm)
+        if (DataContext is MainViewModel vm && vm.CanEditRecordingSettings)
         {
             // 防呆保證：明確鎖定為自訂區域
             vm.IsCustomRegion = true;
@@ -58,7 +58,7 @@ public partial class MainWindow : Window
 
     private async void OnChangeOutputFolderClicked(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is MainViewModel vm && !vm.IsRecording)
+        if (DataContext is MainViewModel vm && vm.CanEditRecordingSettings)
         {
             try
             {
@@ -154,4 +154,3 @@ public partial class MainWindow : Window
         }
     }
 }
-

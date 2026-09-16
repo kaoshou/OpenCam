@@ -157,7 +157,7 @@ stateDiagram-v2
 | :--- | :--- | :--- | :--- |
 | **畫面擷取** | `IVideoCaptureService` | Windows.Graphics.Capture + D3D11 | ScreenCaptureKit |
 | **系統聲音** | `IAudioCaptureService` | WASAPI Loopback (NAudio/COM) | ScreenCaptureKit Audio / CoreAudio |
-| **麥克風聲音** | `IAudioCaptureService` | WASAPI Capture (AudioClient) | CoreAudio / AVCaptureSession |
+| **麥克風聲音** | `IMicrophoneCapture` | DirectShow（既有路徑） | `AVAudioEngine` → 私有 PCM FIFO → FFmpeg |
 | **螢幕與 DPI** | `IDisplayService` | Win32 EnumDisplayMonitors + GetDpiForMonitor | NSScreen + CGDisplay |
 | **檔案轉碼** | `IStreamCopyRemuxer` | FFmpeg Process (`-c copy`) | FFmpeg Process (`-c copy`) |
 | **音畫探針** | `IMediaProbeService` | ffprobe Process | ffprobe Process |

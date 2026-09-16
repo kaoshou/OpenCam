@@ -26,7 +26,16 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider
         };
     }
 
-    public string BuildInputArguments(RecordingConfiguration config, int x, int y, int width, int height, bool useSynthetic, bool hasDirectShowMic, string? systemAudioPipeArg = null)
+    public string BuildInputArguments(
+        RecordingConfiguration config,
+        int x,
+        int y,
+        int width,
+        int height,
+        bool useSynthetic,
+        bool hasDirectShowMic,
+        string? systemAudioPipeArg = null,
+        string? microphoneAudioPipeArg = null)
     {
         if (useSynthetic)
         {
@@ -47,11 +56,15 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider
         var videoInput = "Capture screen " + (display?.Index ?? Math.Max(0, config.MonitorIndex));
         var requestsMicrophone = config.AudioSource is
             AudioSourceType.MicrophoneOnly or AudioSourceType.SystemAndMicrophone;
-        var hasMicrophone =
+        var hasDirectMicrophone =
             requestsMicrophone &&
             hasDirectShowMic &&
             !config.IsRecoverySilenceMode &&
             !string.IsNullOrWhiteSpace(config.MicrophoneDeviceId);
+        var hasNativeMicrophone =
+            requestsMicrophone &&
+            !config.IsRecoverySilenceMode &&
+            !string.IsNullOrWhiteSpace(microphoneAudioPipeArg);
         var requestsSystemAudio = config.AudioSource is
             AudioSourceType.SystemOnly or AudioSourceType.SystemAndMicrophone;
         var hasSystemAudio =
@@ -65,7 +78,12 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider
         int? microphoneInputIndex = null;
         int? systemAudioInputIndex = null;
 
-        if (hasMicrophone)
+        if (hasNativeMicrophone)
+        {
+            microphoneInputIndex = nextInputIndex++;
+            args.Add(microphoneAudioPipeArg!.Trim());
+        }
+        else if (hasDirectMicrophone)
         {
             microphoneInputIndex = nextInputIndex++;
             args.Add("-thread_queue_size 1024");
