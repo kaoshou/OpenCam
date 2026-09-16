@@ -21,3 +21,14 @@ internal sealed class WindowsOnlyTheoryAttribute : TheoryAttribute
         }
     }
 }
+
+internal sealed class UnixOnlyFactAttribute : FactAttribute
+{
+    public UnixOnlyFactAttribute()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            Skip = "Requires a Unix executable test fixture.";
+        }
+    }
+}

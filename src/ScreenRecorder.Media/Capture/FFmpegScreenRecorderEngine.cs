@@ -39,6 +39,11 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
     private long _framesRecorded = 0;
     private bool _isDisposed;
     private readonly object _lock = new();
+    private TaskCompletionSource<bool>? _startupSignal;
+    private readonly Queue<string> _stderrTail = new();
+
+    private const int StderrTailLimit = 40;
+    private static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(5);
 
     public bool UseSyntheticCaptureSource { get; set; }
     public HardwareEncoderType ActiveEncoder { get; private set; } = HardwareEncoderType.SoftwareCpu;
@@ -143,27 +148,44 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
             targetEncoder = DetectBestHardwareEncoder();
         }
 
-        lock (_lock)
+        // 啟動錄影進程（具備失敗自動安全 Fallback 機制）
+        bool launched = await LaunchProcessAsync(
+            workingFilePath,
+            config,
+            actualBounds.X,
+            actualBounds.Y,
+            width,
+            height,
+            hasDirectShowMic,
+            targetEncoder,
+            systemAudioPipeArg,
+            cancellationToken);
+        if (!launched && targetEncoder != HardwareEncoderType.SoftwareCpu)
         {
-            // 啟動錄影進程（具備失敗自動安全 Fallback 機制）
-            bool launched = LaunchProcess(workingFilePath, config, actualBounds.X, actualBounds.Y, width, height, hasDirectShowMic, targetEncoder, systemAudioPipeArg, cancellationToken);
-            if (!launched && targetEncoder != HardwareEncoderType.SoftwareCpu)
-            {
-                EngineWarningOccurred?.Invoke(this, $"硬體編碼器 ({targetEncoder}) 初始化失敗，已自動安全回退至 CPU 軟體編碼 (libx264)。");
-                targetEncoder = HardwareEncoderType.SoftwareCpu;
-                launched = LaunchProcess(workingFilePath, config, actualBounds.X, actualBounds.Y, width, height, hasDirectShowMic, targetEncoder, systemAudioPipeArg, cancellationToken);
-            }
-
-            if (!launched)
-            {
-                throw new InvalidOperationException("FFmpeg 錄影引擎初始化失敗，無法啟動錄影進程。請檢查視訊/音訊設備與輸出路徑權限。");
-            }
-
-            ActiveEncoder = targetEncoder;
+            EngineWarningOccurred?.Invoke(this, $"硬體編碼器 ({targetEncoder}) 初始化失敗，已自動安全回退至 CPU 軟體編碼 (libx264)。");
+            targetEncoder = HardwareEncoderType.SoftwareCpu;
+            launched = await LaunchProcessAsync(
+                workingFilePath,
+                config,
+                actualBounds.X,
+                actualBounds.Y,
+                width,
+                height,
+                hasDirectShowMic,
+                targetEncoder,
+                systemAudioPipeArg,
+                cancellationToken);
         }
+
+        if (!launched)
+        {
+            throw new InvalidOperationException("FFmpeg 錄影引擎初始化失敗，無法啟動錄影進程。請檢查視訊/音訊設備與輸出路徑權限。");
+        }
+
+        ActiveEncoder = targetEncoder;
     }
 
-    private bool LaunchProcess(
+    private async Task<bool> LaunchProcessAsync(
         string workingFilePath,
         RecordingConfiguration config,
         int x, int y, int width, int height,
@@ -201,19 +223,56 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
             var proc = new Process { StartInfo = startInfo };
             proc.Start();
 
-            // 短暫等待觀察是否立即因編碼器或設備參數不相容而崩潰退出
-            bool exitedEarly = proc.WaitForExit(350);
-            if (exitedEarly && proc.ExitCode != 0)
+            lock (_lock)
             {
-                var errorOutput = proc.StandardError.ReadToEnd();
-                Log.Warning("FFmpeg 啟動初期非正常退出 (ExitCode={ExitCode}): {Error}", proc.ExitCode, errorOutput);
-                proc.Dispose();
-                return false;
+                _process = proc;
+                _startupSignal = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                _stderrTail.Clear();
             }
 
-            _process = proc;
-            _stderrReadingTask = Task.Run(() => ReadStderrLoop(proc.StandardError, cancellationToken), cancellationToken);
-            return true;
+            _stderrReadingTask = Task.Run(
+                () => ReadStderrLoop(proc, proc.StandardError, cancellationToken),
+                CancellationToken.None);
+
+            var exitTask = proc.WaitForExitAsync(cancellationToken);
+            var timeoutTask = Task.Delay(StartupTimeout, cancellationToken);
+            var completed = await Task.WhenAny(_startupSignal.Task, exitTask, timeoutTask);
+
+            cancellationToken.ThrowIfCancellationRequested();
+            if (completed == _startupSignal.Task && await _startupSignal.Task)
+            {
+                return true;
+            }
+
+            try
+            {
+                if (!proc.HasExited)
+                {
+                    proc.Kill(true);
+                }
+            }
+            catch { }
+
+            try { await proc.WaitForExitAsync(CancellationToken.None); } catch { }
+            if (_stderrReadingTask != null)
+            {
+                try { await _stderrReadingTask; } catch { }
+            }
+
+            string errorTail;
+            lock (_lock)
+            {
+                errorTail = string.Join(Environment.NewLine, _stderrTail);
+                if (ReferenceEquals(_process, proc))
+                {
+                    _process = null;
+                }
+            }
+
+            Log.Warning("FFmpeg 未在期限內產生第一個影格: {Reason}", errorTail);
+            proc.Dispose();
+            return false;
         }
         catch (Exception ex)
         {
@@ -317,7 +376,10 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
             StringComparison.OrdinalIgnoreCase);
     }
 
-    private async Task ReadStderrLoop(StreamReader stderr, CancellationToken cancellationToken)
+    private async Task ReadStderrLoop(
+        Process process,
+        StreamReader stderr,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -325,6 +387,15 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
             {
                 var line = await stderr.ReadLineAsync(cancellationToken);
                 if (line == null) break;
+
+                lock (_lock)
+                {
+                    _stderrTail.Enqueue(line);
+                    while (_stderrTail.Count > StderrTailLimit)
+                    {
+                        _stderrTail.Dequeue();
+                    }
+                }
 
                 if (line.Contains("real-time buffer too full", StringComparison.OrdinalIgnoreCase) ||
                     line.Contains("error capturing audio", StringComparison.OrdinalIgnoreCase) ||
@@ -348,25 +419,39 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
                     double.TryParse(timeMatch.Groups[3].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds))
                 {
                     _recordedTime = new TimeSpan(0, hours, minutes, (int)seconds, (int)((seconds - (int)seconds) * 1000));
+                    if (seconds > 0 || hours > 0 || minutes > 0)
+                    {
+                        _startupSignal?.TrySetResult(true);
+                    }
                 }
 
                 var frameMatch = FrameRegex.Match(line);
                 if (frameMatch.Success && long.TryParse(frameMatch.Groups[1].Value, out var frames))
                 {
                     _framesRecorded = frames;
+                    if (frames > 0)
+                    {
+                        _startupSignal?.TrySetResult(true);
+                    }
                 }
             }
 
+            _startupSignal?.TrySetResult(false);
+
             // 若在未主動取消的情況下 stderr 提前結束且進程退出碼異常，主動上報非預期終止
-            if (!cancellationToken.IsCancellationRequested && _process != null && _process.HasExited && _process.ExitCode != 0)
+            if (!cancellationToken.IsCancellationRequested && process.HasExited && process.ExitCode != 0)
             {
-                Log.Error("FFmpeg 進程於錄影中非預期中斷退出，ExitCode: {ExitCode}", _process.ExitCode);
-                EngineErrorOccurred?.Invoke(this, $"FFmpeg 錄影核心非預期中斷 (ExitCode: {_process.ExitCode})");
+                Log.Error("FFmpeg 進程於錄影中非預期中斷退出，ExitCode: {ExitCode}", process.ExitCode);
+                EngineErrorOccurred?.Invoke(this, $"FFmpeg 錄影核心非預期中斷 (ExitCode: {process.ExitCode})");
             }
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException)
+        {
+            _startupSignal?.TrySetCanceled(cancellationToken);
+        }
         catch (Exception ex)
         {
+            _startupSignal?.TrySetException(ex);
             EngineErrorOccurred?.Invoke(this, ex.Message);
         }
     }
