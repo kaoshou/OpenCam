@@ -22,6 +22,7 @@ using ScreenRecorder.Infrastructure.Settings;
 using ScreenRecorder.Media.Encoders;
 using ScreenRecorder.Platform.macOS;
 using ScreenRecorder.UI.Localization;
+using ScreenRecorder.UI.Views;
 
 namespace ScreenRecorder.UI.ViewModels;
 
@@ -1039,10 +1040,35 @@ public partial class MainViewModel : ObservableObject
         if (width % 2 != 0) width--;
         if (height % 2 != 0) height--;
 
-        RegionX = x;
-        RegionY = y;
-        RegionWidth = width;
-        RegionHeight = height;
+        var region = new CaptureRegion(x, y, width, height);
+        if (OperatingSystem.IsMacOS())
+        {
+            var centerX = region.X + region.Width / 2;
+            var centerY = region.Y + region.Height / 2;
+            var monitors = _displayService.GetMonitors();
+            var monitor = monitors.FirstOrDefault(candidate =>
+                              centerX >= candidate.Bounds.X &&
+                              centerX < candidate.Bounds.X + candidate.Bounds.Width &&
+                              centerY >= candidate.Bounds.Y &&
+                              centerY < candidate.Bounds.Y + candidate.Bounds.Height) ??
+                          monitors.FirstOrDefault(candidate =>
+                              candidate.Index == SelectedMonitor?.Index) ??
+                          monitors.FirstOrDefault(candidate => candidate.IsPrimary) ??
+                          monitors.FirstOrDefault();
+
+            if (monitor is not null)
+            {
+                region = RegionSelectionGeometry.ClampToBounds(region, monitor.Bounds);
+                SelectedMonitor = AvailableMonitors.FirstOrDefault(candidate =>
+                                      candidate.Index == monitor.Index) ??
+                                  SelectedMonitor;
+            }
+        }
+
+        RegionX = region.X;
+        RegionY = region.Y;
+        RegionWidth = region.Width;
+        RegionHeight = region.Height;
         IsCustomRegion = true;
         IsMonitorSelected = false;
         PersistUserSettings();

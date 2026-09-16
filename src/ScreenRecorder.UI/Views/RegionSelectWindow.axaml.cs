@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using ScreenRecorder.UI.Localization;
 
 namespace ScreenRecorder.UI.Views;
@@ -39,6 +40,18 @@ public partial class RegionSelectWindow : Window
     {
         DataContext = this;
         InitializeComponent();
+
+        if (OperatingSystem.IsMacOS())
+        {
+            TransparencyLevelHint = new[]
+            {
+                WindowTransparencyLevel.Blur,
+                WindowTransparencyLevel.Transparent,
+                WindowTransparencyLevel.None
+            };
+            TransparencyBackgroundFallback =
+                new SolidColorBrush(Color.Parse("#660F172A"));
+        }
 
         _selectedX = x;
         _selectedY = y;
@@ -129,7 +142,10 @@ public partial class RegionSelectWindow : Window
         try
         {
             var handle = TryGetPlatformHandle()?.Handle;
-            if (handle.HasValue && handle.Value != IntPtr.Zero && GetWindowRect(handle.Value, out var rect))
+            if (OperatingSystem.IsWindows() &&
+                handle.HasValue &&
+                handle.Value != IntPtr.Zero &&
+                GetWindowRect(handle.Value, out var rect))
             {
                 int w = rect.Right - rect.Left;
                 int h = rect.Bottom - rect.Top;
@@ -145,14 +161,17 @@ public partial class RegionSelectWindow : Window
         }
         catch { }
 
-        // Fallback: 結合 RenderScaling 邏輯換算
-        double scaling = RenderScaling > 0 ? RenderScaling : 1.0;
-        int fallbackW = (int)Math.Round(Width * scaling);
-        int fallbackH = (int)Math.Round(Height * scaling);
-        _selectedX = Position.X;
-        _selectedY = Position.Y;
-        _selectedWidth = fallbackW % 2 == 0 ? fallbackW : fallbackW - 1;
-        _selectedHeight = fallbackH % 2 == 0 ? fallbackH : fallbackH - 1;
+        var region = RegionSelectionGeometry.FromWindow(
+            Position,
+            ClientSize,
+            RenderScaling);
+        if (region.Width > 50 && region.Height > 50)
+        {
+            _selectedX = region.X;
+            _selectedY = region.Y;
+            _selectedWidth = region.Width;
+            _selectedHeight = region.Height;
+        }
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
@@ -270,4 +289,3 @@ public partial class RegionSelectWindow : Window
         Close(false);
     }
 }
-
