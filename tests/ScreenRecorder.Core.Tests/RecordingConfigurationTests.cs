@@ -18,7 +18,8 @@ public class RecordingConfigurationTests
             OutputDirectory = "/original",
             AudioSource = AudioSourceType.SystemOnly,
             MicrophoneDeviceId = null,
-            CursorEffect = CursorEffectMode.Default
+            CursorEffect = CursorEffectMode.Default,
+            MaintainSegmentAudioTrack = true
         };
         var updates = new RecordingConfiguration
         {
@@ -44,5 +45,6 @@ public class RecordingConfigurationTests
         Assert.Equal(60, target.Fps);
         Assert.Equal(HardwareEncoderType.NvidiaNvenc, target.EncoderType);
         Assert.Equal("/original", target.OutputDirectory);
+        Assert.True(target.MaintainSegmentAudioTrack);
     }
 }

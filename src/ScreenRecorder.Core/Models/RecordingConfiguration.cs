@@ -35,6 +35,8 @@ public class RecordingConfiguration
 
     public bool IsRecoverySilenceMode { get; set; } = false;
 
+    public bool MaintainSegmentAudioTrack { get; set; } = false;
+
     public void ApplyPausedSettings(RecordingConfiguration updates)
     {
         ArgumentNullException.ThrowIfNull(updates);

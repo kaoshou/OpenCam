@@ -37,15 +37,28 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider
         string? systemAudioPipeArg = null,
         string? microphoneAudioPipeArg = null)
     {
+        var includeAudioTrack =
+            config.AudioSource != AudioSourceType.None ||
+            config.MaintainSegmentAudioTrack;
+
         if (useSynthetic)
         {
-            return $"-f lavfi -i testsrc=size={width}x{height}:rate={config.Fps}";
+            var syntheticVideo =
+                $"-f lavfi -i testsrc=size={width}x{height}:rate={config.Fps}";
+            return includeAudioTrack
+                ? syntheticVideo +
+                  " -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000" +
+                  " -map 0:v -map 1:a"
+                : syntheticVideo;
         }
 
         var args = new List<string>
         {
             "-thread_queue_size 1024",
             "-f avfoundation",
+            config.CursorEffect == CursorEffectMode.Hidden
+                ? "-capture_cursor 0"
+                : "-capture_cursor 1",
             $"-framerate {config.Fps}"
         };
 
@@ -118,7 +131,7 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider
                 $"-filter:v \"scale={width}:{height}:flags=fast_bilinear\"");
         }
 
-        if (config.AudioSource != AudioSourceType.None)
+        if (includeAudioTrack)
         {
             if (config.IsRecoverySilenceMode ||
                 (!microphoneInputIndex.HasValue && !systemAudioInputIndex.HasValue))
@@ -129,7 +142,8 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider
                 }
 
                 args.Add(
-                    "-filter_complex \"[1:a]aresample=48000:async=1:first_pts=0[silent]\" " +
+                    "-filter_complex \"[1:a]aresample=48000:async=1:first_pts=0," +
+                    "aformat=sample_rates=48000:channel_layouts=stereo[silent]\" " +
                     "-map 0:v -map \"[silent]\"");
             }
             else if (microphoneInputIndex.HasValue && systemAudioInputIndex.HasValue)
@@ -137,19 +151,22 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider
                 args.Add(
                     $"-filter_complex \"[{microphoneInputIndex}:a]aresample=48000:async=1:first_pts=0[mic];" +
                     $"[{systemAudioInputIndex}:a]aresample=48000:async=1:first_pts=0[sys];" +
-                    "[sys][mic]amix=inputs=2:duration=longest:dropout_transition=0[aout]\" " +
+                    "[sys][mic]amix=inputs=2:duration=longest:dropout_transition=0," +
+                    "aformat=sample_rates=48000:channel_layouts=stereo[aout]\" " +
                     "-map 0:v -map \"[aout]\"");
             }
             else if (microphoneInputIndex.HasValue)
             {
                 args.Add(
-                    $"-filter_complex \"[{microphoneInputIndex}:a]aresample=48000:async=1:first_pts=0[mic]\" " +
+                    $"-filter_complex \"[{microphoneInputIndex}:a]aresample=48000:async=1:first_pts=0," +
+                    "aformat=sample_rates=48000:channel_layouts=stereo[mic]\" " +
                     "-map 0:v -map \"[mic]\"");
             }
             else
             {
                 args.Add(
-                    $"-filter_complex \"[{systemAudioInputIndex}:a]aresample=48000:async=1:first_pts=0[sys]\" " +
+                    $"-filter_complex \"[{systemAudioInputIndex}:a]aresample=48000:async=1:first_pts=0," +
+                    "aformat=sample_rates=48000:channel_layouts=stereo[sys]\" " +
                     "-map 0:v -map \"[sys]\"");
             }
         }
@@ -182,9 +199,11 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider
             args.Add($"-b:v {config.VideoBitrateKbps}k");
         }
 
-        if (config.AudioSource != AudioSourceType.None)
+        if (config.AudioSource != AudioSourceType.None ||
+            config.MaintainSegmentAudioTrack)
         {
-            args.Add($"-c:a aac -ar 48000 -b:a {config.AudioBitrateKbps}k");
+            args.Add(
+                $"-c:a aac -ar 48000 -ac 2 -b:a {config.AudioBitrateKbps}k");
         }
 
         args.Add($"\"{outputPath}\"");

@@ -22,21 +22,29 @@ public class WindowsFFmpegProvider : IFFmpegPlatformProvider
         string? systemAudioPipeArg = null,
         string? microphoneAudioPipeArg = null)
     {
+        var includeAudioTrack =
+            config.AudioSource != AudioSourceType.None ||
+            config.MaintainSegmentAudioTrack;
+
         if (useSynthetic)
         {
             return config.AudioSource switch
             {
-                AudioSourceType.None =>
+                AudioSourceType.None when !includeAudioTrack =>
                     $"-y -f lavfi -i testsrc=size={width}x{height}:rate={config.Fps} ",
+
+                AudioSourceType.None =>
+                    $"-y -f lavfi -i testsrc=size={width}x{height}:rate={config.Fps} " +
+                    "-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000 ",
 
                 AudioSourceType.SystemOnly or AudioSourceType.MicrophoneOnly =>
                     $"-y -f lavfi -i testsrc=size={width}x{height}:rate={config.Fps} " +
-                    $"-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 ",
+                    $"-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000 ",
 
                 AudioSourceType.SystemAndMicrophone =>
                     $"-y -f lavfi -i testsrc=size={width}x{height}:rate={config.Fps} " +
-                    $"-f lavfi -i sine=frequency=440:sample_rate=44100 " +
-                    $"-f lavfi -i sine=frequency=880:sample_rate=44100 " +
+                    $"-f lavfi -i sine=frequency=440:sample_rate=48000 " +
+                    $"-f lavfi -i sine=frequency=880:sample_rate=48000 " +
                     $"-filter_complex \"[1:a][2:a]amix=inputs=2:duration=longest[aout]\" -map 0:v -map \"[aout]\" ",
 
                 _ => $"-y -f lavfi -i testsrc=size={width}x{height}:rate={config.Fps} "
@@ -46,14 +54,20 @@ public class WindowsFFmpegProvider : IFFmpegPlatformProvider
         var drawMouseParam = config.CursorEffect == CursorEffectMode.Hidden ? "-draw_mouse 0 " : "-draw_mouse 1 ";
         var baseVideo = $"-y -rtbufsize 100M -f gdigrab {drawMouseParam}-framerate {config.Fps} -offset_x {x} -offset_y {y} -video_size {width}x{height} -i desktop ";
 
-        if (config.AudioSource == AudioSourceType.None)
+        if (config.AudioSource == AudioSourceType.None && !includeAudioTrack)
         {
             return baseVideo;
         }
 
+        if (config.AudioSource == AudioSourceType.None)
+        {
+            return baseVideo +
+                "-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000 ";
+        }
+
         if (config.IsRecoverySilenceMode)
         {
-            return baseVideo + $"-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 ";
+            return baseVideo + $"-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000 ";
         }
 
         bool hasSysAudio = !string.IsNullOrWhiteSpace(systemAudioPipeArg);
@@ -79,7 +93,7 @@ public class WindowsFFmpegProvider : IFFmpegPlatformProvider
                 }
                 else
                 {
-                    return baseVideo + $"-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 ";
+                    return baseVideo + $"-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000 ";
                 }
 
             case AudioSourceType.SystemOnly:
@@ -89,7 +103,7 @@ public class WindowsFFmpegProvider : IFFmpegPlatformProvider
                 }
                 else
                 {
-                    return baseVideo + $"-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 ";
+                    return baseVideo + $"-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000 ";
                 }
 
             case AudioSourceType.MicrophoneOnly:
@@ -99,7 +113,7 @@ public class WindowsFFmpegProvider : IFFmpegPlatformProvider
                 }
                 else
                 {
-                    return baseVideo + $"-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 ";
+                    return baseVideo + $"-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000 ";
                 }
 
             default:
@@ -117,11 +131,12 @@ public class WindowsFFmpegProvider : IFFmpegPlatformProvider
             _ => "-c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p"
         };
 
-        if (config.AudioSource == AudioSourceType.None)
+        if (config.AudioSource == AudioSourceType.None &&
+            !config.MaintainSegmentAudioTrack)
         {
             return $"{vCodec} -f matroska \"{workingFilePath}\"";
         }
 
-        return $"{vCodec} -c:a aac -b:a {config.AudioBitrateKbps}k -f matroska \"{workingFilePath}\"";
+        return $"{vCodec} -c:a aac -ar 48000 -ac 2 -b:a {config.AudioBitrateKbps}k -f matroska \"{workingFilePath}\"";
     }
 }

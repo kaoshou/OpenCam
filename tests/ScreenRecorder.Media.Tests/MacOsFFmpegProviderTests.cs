@@ -64,7 +64,8 @@ public class MacOsFFmpegProviderTests
             "-thread_queue_size 1024 -f avfoundation -i \":2\"",
             args);
         Assert.Contains(
-            "[1:a]aresample=48000:async=1:first_pts=0[mic]",
+            "[1:a]aresample=48000:async=1:first_pts=0," +
+            "aformat=sample_rates=48000:channel_layouts=stereo[mic]",
             args);
         Assert.Contains("-map 0:v -map \"[mic]\"", args);
     }
@@ -96,7 +97,8 @@ public class MacOsFFmpegProviderTests
         Assert.Contains(microphonePipeArgs.Trim(), args);
         Assert.DoesNotContain("-f avfoundation -i \":0\"", args);
         Assert.Contains(
-            "[1:a]aresample=48000:async=1:first_pts=0[mic]",
+            "[1:a]aresample=48000:async=1:first_pts=0," +
+            "aformat=sample_rates=48000:channel_layouts=stereo[mic]",
             args);
         Assert.Contains("-map 0:v -map \"[mic]\"", args);
     }
@@ -118,7 +120,8 @@ public class MacOsFFmpegProviderTests
 
         Assert.Contains(pipeArgs.Trim(), args);
         Assert.Contains(
-            "[1:a]aresample=48000:async=1:first_pts=0[sys]",
+            "[1:a]aresample=48000:async=1:first_pts=0," +
+            "aformat=sample_rates=48000:channel_layouts=stereo[sys]",
             args);
         Assert.Contains("-map 0:v -map \"[sys]\"", args);
     }
@@ -146,7 +149,8 @@ public class MacOsFFmpegProviderTests
             "[2:a]aresample=48000:async=1:first_pts=0[sys]",
             args);
         Assert.Contains(
-            "[sys][mic]amix=inputs=2:duration=longest:dropout_transition=0[aout]",
+            "[sys][mic]amix=inputs=2:duration=longest:dropout_transition=0," +
+            "aformat=sample_rates=48000:channel_layouts=stereo[aout]",
             args);
         Assert.Contains("-map 0:v -map \"[aout]\"", args);
     }
@@ -163,7 +167,54 @@ public class MacOsFFmpegProviderTests
             HardwareEncoderType.AppleVideoToolbox,
             "/tmp/output.mkv");
 
-        Assert.Contains("-c:a aac -ar 48000 -b:a 192k", args);
+        Assert.Contains("-c:a aac -ar 48000 -ac 2 -b:a 192k", args);
+    }
+
+    [Fact]
+    public void SegmentedSession_WithAudioDisabled_KeepsSilentStereoTrack()
+    {
+        var config = new RecordingConfiguration
+        {
+            AudioSource = AudioSourceType.None,
+            MaintainSegmentAudioTrack = true
+        };
+        var provider = CreateProvider();
+
+        var inputArgs = provider.BuildInputArguments(
+            config, 0, 0, 1280, 720, false, false);
+        var outputArgs = provider.BuildOutputArguments(
+            config,
+            HardwareEncoderType.AppleVideoToolbox,
+            "/tmp/output.mkv");
+
+        Assert.Contains(
+            "anullsrc=channel_layout=stereo:sample_rate=48000",
+            inputArgs);
+        Assert.Contains("-map 0:v -map", inputArgs);
+        Assert.Contains("-c:a aac -ar 48000 -ac 2", outputArgs);
+    }
+
+    [Fact]
+    public void CursorMode_ControlsMacOsCursorCapture()
+    {
+        var provider = CreateProvider();
+        var visible = provider.BuildInputArguments(
+            new RecordingConfiguration
+            {
+                AudioSource = AudioSourceType.None,
+                CursorEffect = CursorEffectMode.HighlightHalo
+            },
+            0, 0, 1280, 720, false, false);
+        var hidden = provider.BuildInputArguments(
+            new RecordingConfiguration
+            {
+                AudioSource = AudioSourceType.None,
+                CursorEffect = CursorEffectMode.Hidden
+            },
+            0, 0, 1280, 720, false, false);
+
+        Assert.Contains("-capture_cursor 1", visible);
+        Assert.Contains("-capture_cursor 0", hidden);
     }
 
     [Fact]

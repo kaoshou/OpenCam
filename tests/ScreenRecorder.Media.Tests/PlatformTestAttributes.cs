@@ -32,3 +32,14 @@ internal sealed class UnixOnlyFactAttribute : FactAttribute
         }
     }
 }
+
+internal sealed class MacOsOnlyFactAttribute : FactAttribute
+{
+    public MacOsOnlyFactAttribute()
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            Skip = "Requires macOS process behavior.";
+        }
+    }
+}

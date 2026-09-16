@@ -392,32 +392,27 @@ public partial class MainViewModel : ObservableObject
     partial void OnSelectedCursorEffectChanged(CursorEffectOption? value)
     {
         PersistUserSettings();
-        if (IsPaused) SendPausedConfigurationUpdate();
     }
     partial void OnMinimizeOnRecordChanged(bool value) => PersistUserSettings();
 
     partial void OnRecordSystemAudioChanged(bool value)
     {
         PersistUserSettings();
-        if (IsPaused) SendPausedConfigurationUpdate();
     }
 
     partial void OnRecordMicrophoneChanged(bool value)
     {
         OnPropertyChanged(nameof(CanSelectMicrophone));
         PersistUserSettings();
-        if (IsPaused) SendPausedConfigurationUpdate();
     }
 
     partial void OnSelectedMicrophoneChanged(AudioDeviceOption? value)
     {
         PersistUserSettings();
-        if (IsPaused && value != null) SendPausedConfigurationUpdate();
     }
 
-    private void SendPausedConfigurationUpdate()
-    {
-        var config = new RecordingConfiguration
+    private RecordingConfiguration BuildPausedConfiguration() =>
+        new()
         {
             AudioSource = ResolveAudioSource(
                 SupportsSystemAudio,
@@ -427,11 +422,6 @@ public partial class MainViewModel : ObservableObject
             SystemAudioDeviceId = null,
             CursorEffect = SelectedCursorEffect?.Mode ?? CursorEffectMode.Default
         };
-        _ = _ipcClient.SendCommandAsync(
-            "UpdatePausedConfiguration",
-            config,
-            2000);
-    }
 
     public MainViewModel()
     {
@@ -983,17 +973,46 @@ public partial class MainViewModel : ObservableObject
 
         if (IsPaused)
         {
-            StatusMessage = Strings["StatusResuming"];
-            var response = await _ipcClient.SendCommandAsync("ResumeRecording", new { }, timeoutMs: 8000);
-            if (response.Success)
+            IsPreparing = true;
+            try
             {
-                IsRecording = true;
-                IsPaused = false;
-                StatusMessage = Strings["StatusRecordingActive"];
+                StatusMessage = Strings["StatusResuming"];
+
+                // Send one authoritative snapshot immediately before resume.
+                // This avoids racing fire-and-forget updates when the user
+                // changes several paused settings in quick succession.
+                var updateResponse = await _ipcClient.SendCommandAsync(
+                    "UpdatePausedConfiguration",
+                    BuildPausedConfiguration(),
+                    timeoutMs: 8000);
+                if (!updateResponse.Success)
+                {
+                    StatusMessage = Strings.GetFormatted(
+                        "StatusFailed",
+                        updateResponse.ErrorMessage ?? string.Empty);
+                    return;
+                }
+
+                var response = await _ipcClient.SendCommandAsync(
+                    "ResumeRecording",
+                    new { },
+                    timeoutMs: 8000);
+                if (response.Success)
+                {
+                    IsRecording = true;
+                    IsPaused = false;
+                    StatusMessage = Strings["StatusRecordingActive"];
+                }
+                else
+                {
+                    StatusMessage = Strings.GetFormatted(
+                        "StatusFailed",
+                        response.ErrorMessage ?? string.Empty);
+                }
             }
-            else
+            finally
             {
-                StatusMessage = Strings.GetFormatted("StatusFailed", response.ErrorMessage ?? string.Empty);
+                IsPreparing = false;
             }
         }
         else if (IsRecording)

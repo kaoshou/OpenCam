@@ -111,6 +111,12 @@ public class RecordingOrchestrator : IAsyncDisposable
 
         try
         {
+            // Paused sessions are split into multiple files and later joined
+            // with stream copy. Keep an AAC stereo track in every segment so
+            // enabling or disabling audio while paused never changes the
+            // stream layout and silently drops later audio during concat.
+            config.MaintainSegmentAudioTrack = true;
+
             // 計算實際擷取幾何範圍
             var actualBounds = ResolveCaptureBounds(config);
 

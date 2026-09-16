@@ -64,7 +64,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   build-macos:
-    runs-on: macos-latest
+    runs-on: macos-15
     steps:
     - name: Checkout Source Code
       uses: actions/checkout@v4
@@ -78,13 +78,10 @@ jobs:
       run: |
         dotnet publish src/ScreenRecorder.UI/ScreenRecorder.UI.csproj -c Release -r osx-arm64 --self-contained true -p:PublishSingleFile=false -o publish/osx-arm64
 
-    - name: Download FFmpeg for macOS (Apple Silicon)
+    - name: Build self-contained FFmpeg for Apple Silicon
       run: |
-        # 獲取適合 macOS 的 FFmpeg 與 FFprobe
-        curl -L -o ffmpeg.zip "https://evermeet.cx/ffmpeg/ffmpeg-6.0.zip"
-        unzip -o ffmpeg.zip -d publish/osx-arm64/
-        curl -L -o ffprobe.zip "https://evermeet.cx/ffmpeg/ffprobe-6.0.zip"
-        unzip -o ffprobe.zip -d publish/osx-arm64/
+        chmod +x scripts/build-ffmpeg-macos-arm64.sh
+        scripts/build-ffmpeg-macos-arm64.sh publish/osx-arm64
         
     - name: Create macOS App Bundle
       run: |

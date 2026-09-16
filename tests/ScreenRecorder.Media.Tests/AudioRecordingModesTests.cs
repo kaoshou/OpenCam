@@ -25,7 +25,7 @@ public class AudioRecordingModesTests : IDisposable
     }
 
     [WindowsOnlyTheory]
-    [InlineData(AudioSourceType.None, 0)]
+    [InlineData(AudioSourceType.None, 1)]
     [InlineData(AudioSourceType.SystemOnly, 1)]
     [InlineData(AudioSourceType.MicrophoneOnly, 1)]
     [InlineData(AudioSourceType.SystemAndMicrophone, 1)]
@@ -79,7 +79,7 @@ public class AudioRecordingModesTests : IDisposable
         if (expectedAudioStreams > 0)
         {
             Assert.Equal("aac", probeResult.AudioCodec);
-            Assert.Equal(44100, probeResult.SampleRate);
+            Assert.Equal(48000, probeResult.SampleRate);
         }
     }
 
