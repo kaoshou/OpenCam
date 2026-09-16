@@ -6,6 +6,47 @@ namespace ScreenRecorder.Media.Tests;
 
 public class FoolproofUiLogicTests
 {
+    [Fact]
+    public void SupportsSystemAudio_RequiresSupportedPlatformAndBundledHelper()
+    {
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "OpenCamUiSupport_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            Assert.True(MainViewModel.SupportsSystemAudioOnPlatform(
+                isWindows: true,
+                isMacOS: false,
+                new Version(10, 0),
+                directory));
+            Assert.False(MainViewModel.SupportsSystemAudioOnPlatform(
+                isWindows: false,
+                isMacOS: true,
+                new Version(12, 6),
+                directory));
+            Assert.False(MainViewModel.SupportsSystemAudioOnPlatform(
+                isWindows: false,
+                isMacOS: true,
+                new Version(13, 0),
+                directory));
+
+            File.WriteAllText(
+                Path.Combine(directory, "OpenCam.SystemAudio"),
+                "fixture");
+
+            Assert.True(MainViewModel.SupportsSystemAudioOnPlatform(
+                isWindows: false,
+                isMacOS: true,
+                new Version(13, 0),
+                directory));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
     [Theory]
     [InlineData(false, true, false, AudioSourceType.None)]
     [InlineData(false, true, true, AudioSourceType.MicrophoneOnly)]

@@ -156,11 +156,25 @@ public partial class MainViewModel : ObservableObject
     public bool CanSelectMonitor => !IsRecording && !IsPaused && !IsPreparing && IsMonitorSelected;
     public bool CanConfigureCustomRegion => !IsRecording && !IsPaused && !IsPreparing && IsCustomRegion;
     public bool CanSelectMicrophone => !IsRecording && !IsPreparing && RecordMicrophone;
-    public bool SupportsSystemAudio => OperatingSystem.IsWindows();
+    public bool SupportsSystemAudio => SupportsSystemAudioOnPlatform(
+        OperatingSystem.IsWindows(),
+        OperatingSystem.IsMacOS(),
+        Environment.OSVersion.Version,
+        AppContext.BaseDirectory);
     public bool CanRecordSystemAudio =>
         SupportsSystemAudio && !IsRecording && !IsPaused && !IsPreparing;
     public string SystemAudioLabel => Strings[
         SupportsSystemAudio ? "AudioSystem" : "AudioSystemUnsupportedMac"];
+
+    internal static bool SupportsSystemAudioOnPlatform(
+        bool isWindows,
+        bool isMacOS,
+        Version osVersion,
+        string baseDirectory) =>
+        isWindows ||
+        (isMacOS && MacOsSystemAudioSupport.IsSupported(
+            osVersion,
+            baseDirectory));
 
     public string TimerForeground => IsPaused ? "#F59E0B" : (IsRecording ? "#34D399" : "#475569");
 

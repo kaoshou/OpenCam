@@ -61,6 +61,17 @@ public class LocalizationTests
     }
 
     [Fact]
+    public void SystemAudioLabel_ShouldBePlatformNeutral()
+    {
+        var service = new LocalizationService();
+        service.CurrentLanguage = AppLanguage.ZhTw;
+        Assert.Equal("錄製系統聲音", service["AudioSystem"]);
+
+        service.CurrentLanguage = AppLanguage.EnUs;
+        Assert.Equal("Record System Audio", service["AudioSystem"]);
+    }
+
+    [Fact]
     public void LanguageChangedEvent_ShouldFireOnSwitch()
     {
         var service = new LocalizationService();
