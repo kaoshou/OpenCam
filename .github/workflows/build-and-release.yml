@@ -76,7 +76,7 @@ jobs:
 
     - name: Build and Publish macOS
       run: |
-        dotnet publish src/ScreenRecorder.UI/ScreenRecorder.UI.csproj -c Release -r osx-arm64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish/osx-arm64
+        dotnet publish src/ScreenRecorder.UI/ScreenRecorder.UI.csproj -c Release -r osx-arm64 --self-contained true -p:PublishSingleFile=false -o publish/osx-arm64
 
     - name: Download FFmpeg for macOS (Apple Silicon)
       run: |
@@ -88,58 +88,8 @@ jobs:
         
     - name: Create macOS App Bundle
       run: |
-        mkdir -p OpenCam.app/Contents/MacOS
-        mkdir -p OpenCam.app/Contents/Resources
-        
-        # 複製所有發布檔 (包含 OpenCam、ffmpeg、ffprobe 以及 Avalonia 所需的所有原生 dylib)
-        cp -R publish/osx-arm64/* OpenCam.app/Contents/MacOS/
-        
-        # 確保二進位檔案具備執行權限
-        chmod +x OpenCam.app/Contents/MacOS/OpenCam
-        if [ -f OpenCam.app/Contents/MacOS/ffmpeg ]; then chmod +x OpenCam.app/Contents/MacOS/ffmpeg; fi
-        if [ -f OpenCam.app/Contents/MacOS/ffprobe ]; then chmod +x OpenCam.app/Contents/MacOS/ffprobe; fi
-        
-        # 複製 App 圖示資源
-        if [ -f src/ScreenRecorder.UI/Assets/app_icon.png ]; then
-          cp src/ScreenRecorder.UI/Assets/app_icon.png OpenCam.app/Contents/Resources/app_icon.png
-        fi
-        
-        # 建立標準 Info.plist
-        cat <<EOF > OpenCam.app/Contents/Info.plist
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-            <key>CFBundleExecutable</key>
-            <string>OpenCam</string>
-            <key>CFBundleIdentifier</key>
-            <string>com.kaoshou.opencam</string>
-            <key>CFBundleName</key>
-            <string>OpenCam</string>
-            <key>CFBundleVersion</key>
-            <string>0.1.0</string>
-            <key>CFBundleShortVersionString</key>
-            <string>0.1.0</string>
-            <key>CFBundlePackageType</key>
-            <string>APPL</string>
-            <key>CFBundleSupportedPlatforms</key>
-            <array>
-                <string>MacOSX</string>
-            </array>
-            <key>NSMicrophoneUsageDescription</key>
-            <string>OpenCam needs microphone access to record audio.</string>
-            <key>NSScreenCaptureUsageDescription</key>
-            <string>OpenCam needs screen capture access to record your screen.</string>
-            <key>LSMinimumSystemVersion</key>
-            <string>11.0</string>
-            <key>NSHighResolutionCapable</key>
-            <true/>
-        </dict>
-        </plist>
-        EOF
-        
-        # Apple Silicon 必備：使用 Ad-hoc 對整個 App Bundle 與所有內部函式庫進行深度代碼簽名
-        codesign --force --deep -s - OpenCam.app
+        chmod +x scripts/package-macos.sh scripts/verify-macos-bundle.sh
+        scripts/package-macos.sh publish/osx-arm64 OpenCam.app Release
 
     - name: Create DMG
       run: |
@@ -163,6 +113,5 @@ jobs:
         files: OpenCam_macOS_AppleSilicon.dmg
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
 
 
