@@ -261,10 +261,16 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
     {
         try
         {
+            var isWindows = OperatingSystem.IsWindows();
+            if (!isWindows && !OperatingSystem.IsMacOS())
+            {
+                return false;
+            }
+
             var psi = new ProcessStartInfo
             {
                 FileName = ffmpegPath,
-                Arguments = "-list_devices true -f dshow -i dummy",
+                Arguments = BuildAudioDeviceListArguments(isWindows),
                 RedirectStandardError = true,
                 StandardErrorEncoding = Encoding.UTF8,
                 UseShellExecute = false,
@@ -275,11 +281,40 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
             {
                 var output = proc.StandardError.ReadToEnd();
                 proc.WaitForExit(2000);
-                return output.Contains(deviceName, StringComparison.OrdinalIgnoreCase);
+                return IsAudioDeviceListed(output, deviceName, isWindows);
             }
         }
         catch { }
         return false;
+    }
+
+    internal static string BuildAudioDeviceListArguments(bool isWindows) =>
+        isWindows
+            ? "-list_devices true -f dshow -i dummy"
+            : "-hide_banner -list_devices true -f avfoundation -i \"\"";
+
+    internal static bool IsAudioDeviceListed(
+        string output,
+        string deviceName,
+        bool isWindows)
+    {
+        if (isWindows)
+        {
+            return output.Contains(deviceName, StringComparison.OrdinalIgnoreCase);
+        }
+
+        var audioSectionStart = output.IndexOf(
+            "AVFoundation audio devices:",
+            StringComparison.OrdinalIgnoreCase);
+        if (audioSectionStart < 0)
+        {
+            return false;
+        }
+
+        var audioSection = output[audioSectionStart..];
+        return audioSection.Contains(
+            $"[{deviceName}]",
+            StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task ReadStderrLoop(StreamReader stderr, CancellationToken cancellationToken)

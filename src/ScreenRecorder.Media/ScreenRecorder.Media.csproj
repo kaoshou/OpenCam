@@ -5,6 +5,10 @@
     <ProjectReference Include="..\ScreenRecorder.Infrastructure\ScreenRecorder.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="ScreenRecorder.Media.Tests" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
