@@ -104,6 +104,7 @@ public class LocalizationService : ILocalizationService
         ["FpsTitle"] = "幀率 (FPS):",
         ["AudioTitle"] = "音訊設定",
         ["AudioSystem"] = "錄製系統聲音 (WASAPI Loopback)",
+        ["AudioSystemUnsupportedMac"] = "macOS 系統聲音（此版本尚未支援）",
         ["AudioMic"] = "錄製麥克風 (Microphone)",
         ["MicDevice"] = "麥克風設備:",
         ["StorageTitle"] = "儲存位置",
@@ -123,6 +124,7 @@ public class LocalizationService : ILocalizationService
         // 狀態列動態訊息
         ["StatusReady"] = "準備就緒，點擊「開始錄影」即可錄製",
         ["StatusInitializing"] = "正在初始化錄影管線，請稍候並暫勿操作畫面...",
+        ["StatusScreenPermissionRequired"] = "需要 macOS 螢幕錄製權限；請在「系統設定 → 隱私權與安全性 → 螢幕與系統音訊錄製」允許 OpenCam，然後重新啟動。",
         ["StatusRecordingActive"] = "正在錄影中 (安全工作容器 MKV 連續寫入)",
         ["StatusPausedMsg"] = "錄影已暫停 (已保留前段內容)，點擊「繼續」繼續錄製",
         ["StatusResuming"] = "正在繼續錄影管線，請稍候...",
@@ -299,6 +301,7 @@ public class LocalizationService : ILocalizationService
         ["FpsTitle"] = "Frame Rate (FPS):",
         ["AudioTitle"] = "Audio Settings",
         ["AudioSystem"] = "Record System Audio (WASAPI Loopback)",
+        ["AudioSystemUnsupportedMac"] = "macOS system audio (not supported in this version)",
         ["AudioMic"] = "Record Microphone",
         ["MicDevice"] = "Microphone Device:",
         ["StorageTitle"] = "Output Location",
@@ -318,6 +321,7 @@ public class LocalizationService : ILocalizationService
         // 狀態列動態訊息
         ["StatusReady"] = "Ready. Click 'Record' to start capturing.",
         ["StatusInitializing"] = "Initializing recording pipeline, please wait...",
+        ["StatusScreenPermissionRequired"] = "macOS screen-recording permission is required. Allow OpenCam in System Settings > Privacy & Security > Screen & System Audio Recording, then restart the app.",
         ["StatusRecordingActive"] = "Recording in progress (Continuous write to safe MKV)",
         ["StatusPausedMsg"] = "Recording paused. Click 'Resume' to continue.",
         ["StatusResuming"] = "Resuming recording pipeline, please wait...",

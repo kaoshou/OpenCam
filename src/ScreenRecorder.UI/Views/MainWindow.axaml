@@ -220,8 +220,8 @@
                     <StackPanel Spacing="6">
                         <TextBlock Text="{Binding Strings[AudioTitle]}" FontWeight="Bold" FontSize="12" Foreground="#1E293B" />
 
-                        <CheckBox IsChecked="{Binding RecordSystemAudio}" IsEnabled="{Binding !IsRecording}" 
-                                  Content="{Binding Strings[AudioSystem]}" FontSize="12" />
+                        <CheckBox IsChecked="{Binding RecordSystemAudio}" IsEnabled="{Binding CanRecordSystemAudio}"
+                                  Content="{Binding SystemAudioLabel}" FontSize="12" />
                         
                         <CheckBox IsChecked="{Binding RecordMicrophone}" IsEnabled="{Binding !IsRecording}" 
                                   Content="{Binding Strings[AudioMic]}" FontSize="12" />
@@ -367,5 +367,3 @@
         </Border>
     </Grid>
 </Window>
-
-

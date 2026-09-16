@@ -1,10 +1,30 @@
-﻿using ScreenRecorder.UI.ViewModels;
+﻿using ScreenRecorder.Core.Enums;
+using ScreenRecorder.UI.ViewModels;
 using Xunit;
 
 namespace ScreenRecorder.Media.Tests;
 
 public class FoolproofUiLogicTests
 {
+    [Theory]
+    [InlineData(false, true, false, AudioSourceType.None)]
+    [InlineData(false, true, true, AudioSourceType.MicrophoneOnly)]
+    [InlineData(true, true, false, AudioSourceType.SystemOnly)]
+    [InlineData(true, true, true, AudioSourceType.SystemAndMicrophone)]
+    public void ResolveAudioSource_RespectsCapabilities(
+        bool supportsSystemAudio,
+        bool recordSystemAudio,
+        bool recordMicrophone,
+        AudioSourceType expected)
+    {
+        Assert.Equal(
+            expected,
+            MainViewModel.ResolveAudioSource(
+                supportsSystemAudio,
+                recordSystemAudio,
+                recordMicrophone));
+    }
+
     // [Fact]
     public void CustomRegion_CanConfigureOnlyWhenSelectedAndNotRecording()
     {

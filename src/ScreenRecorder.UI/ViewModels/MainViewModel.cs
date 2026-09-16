@@ -20,6 +20,7 @@ using ScreenRecorder.Platform.Windows.Hotkey;
 using ScreenRecorder.Core.Localization;
 using ScreenRecorder.Infrastructure.Settings;
 using ScreenRecorder.Media.Encoders;
+using ScreenRecorder.Platform.macOS;
 using ScreenRecorder.UI.Localization;
 
 namespace ScreenRecorder.UI.ViewModels;
@@ -44,6 +45,7 @@ public partial class MainViewModel : ObservableObject
     private readonly ISettingsService _settingsService;
     private readonly IEncoderDetector _encoderDetector;
     private readonly IGlobalHotkeyService? _globalHotkeyService;
+    private readonly IMacOsScreenCapturePermissionService? _macOsScreenCapturePermissionService;
     private Process? _recorderProcess;
 
     public ISettingsService SettingsService => _settingsService;
@@ -152,6 +154,11 @@ public partial class MainViewModel : ObservableObject
     public bool CanSelectMonitor => !IsRecording && !IsPaused && !IsPreparing && IsMonitorSelected;
     public bool CanConfigureCustomRegion => !IsRecording && !IsPaused && !IsPreparing && IsCustomRegion;
     public bool CanSelectMicrophone => !IsRecording && !IsPreparing && RecordMicrophone;
+    public bool SupportsSystemAudio => OperatingSystem.IsWindows();
+    public bool CanRecordSystemAudio =>
+        SupportsSystemAudio && !IsRecording && !IsPaused && !IsPreparing;
+    public string SystemAudioLabel => Strings[
+        SupportsSystemAudio ? "AudioSystem" : "AudioSystemUnsupportedMac"];
 
     public string TimerForeground => IsPaused ? "#F59E0B" : (IsRecording ? "#34D399" : "#475569");
 
@@ -171,6 +178,20 @@ public partial class MainViewModel : ObservableObject
             parts.Add(key);
         }
         return parts.Count > 0 ? string.Join(" + ", parts) : key;
+    }
+
+    internal static AudioSourceType ResolveAudioSource(
+        bool supportsSystemAudio,
+        bool recordSystemAudio,
+        bool recordMicrophone)
+    {
+        return (supportsSystemAudio && recordSystemAudio, recordMicrophone) switch
+        {
+            (true, true) => AudioSourceType.SystemAndMicrophone,
+            (true, false) => AudioSourceType.SystemOnly,
+            (false, true) => AudioSourceType.MicrophoneOnly,
+            _ => AudioSourceType.None
+        };
     }
 
     public string StartStopHotkeyText => FormatHotkey(_startStopHotkeyModifiers, _startStopHotkeyKey);
@@ -241,6 +262,7 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanSelectMonitor));
         OnPropertyChanged(nameof(CanConfigureCustomRegion));
         OnPropertyChanged(nameof(CanSelectMicrophone));
+        OnPropertyChanged(nameof(CanRecordSystemAudio));
         OnPropertyChanged(nameof(TimerForeground));
         OnPropertyChanged(nameof(StatusBadgeColor));
         OnPropertyChanged(nameof(StatusBadgeBoxShadow));
@@ -258,6 +280,7 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanSelectMonitor));
         OnPropertyChanged(nameof(CanConfigureCustomRegion));
         OnPropertyChanged(nameof(CanSelectMicrophone));
+        OnPropertyChanged(nameof(CanRecordSystemAudio));
         OnPropertyChanged(nameof(TimerForeground));
         OnPropertyChanged(nameof(StatusBadgeColor));
         OnPropertyChanged(nameof(StatusBadgeBoxShadow));
@@ -275,6 +298,7 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanSelectMonitor));
         OnPropertyChanged(nameof(CanConfigureCustomRegion));
         OnPropertyChanged(nameof(CanSelectMicrophone));
+        OnPropertyChanged(nameof(CanRecordSystemAudio));
         OnPropertyChanged(nameof(StatusBadgeColor));
         OnPropertyChanged(nameof(StatusBadgeBoxShadow));
         OnPropertyChanged(nameof(StatusBadgeTextColor));
@@ -359,6 +383,9 @@ public partial class MainViewModel : ObservableObject
         _encoderDetector = new FFmpegEncoderDetector(ffmpegPlatformProvider);
         _displayService = OperatingSystem.IsWindows() ? new ScreenRecorder.Platform.Windows.Display.WindowsDisplayService() : new ScreenRecorder.Platform.macOS.MacOsDisplayService();
         _audioDeviceService = OperatingSystem.IsWindows() ? new ScreenRecorder.Platform.Windows.Audio.WindowsAudioDeviceService() : new ScreenRecorder.Platform.macOS.MacOsAudioDeviceService();
+        _macOsScreenCapturePermissionService = OperatingSystem.IsMacOS()
+            ? new MacOsScreenCapturePermissionService()
+            : null;
 
         _ipcClient = new NamedPipeIpcClient(NamedPipeConstants.PipeBaseName);
 
@@ -380,6 +407,7 @@ public partial class MainViewModel : ObservableObject
             OnPropertyChanged(nameof(CustomRegionDisplayText));
             RefreshHotkeyTooltips();
             OnPropertyChanged(nameof(StatusBadgeText));
+            OnPropertyChanged(nameof(SystemAudioLabel));
             LoadMonitors();
             RefreshEncoderDisplayNames();
             RefreshCursorEffectDisplayNames();
@@ -464,7 +492,7 @@ public partial class MainViewModel : ObservableObject
         {
             var s = await _settingsService.LoadSettingsAsync();
             SelectedFps = s.Fps;
-            RecordSystemAudio = s.RecordSystemAudio;
+            RecordSystemAudio = SupportsSystemAudio && s.RecordSystemAudio;
             RecordMicrophone = s.RecordMicrophone;
             MinimizeOnRecord = s.MinimizeOnRecord;
             Strings.CurrentLanguage = s.Language;
@@ -821,6 +849,14 @@ public partial class MainViewModel : ObservableObject
 
         try
         {
+            if (_macOsScreenCapturePermissionService is not null &&
+                !_macOsScreenCapturePermissionService.HasPermission() &&
+                !_macOsScreenCapturePermissionService.RequestPermission())
+            {
+                StatusMessage = Strings["StatusScreenPermissionRequired"];
+                return;
+            }
+
             await EnsureRecorderProcessAsync();
 
             var captureSource = CaptureSourceType.Monitor;
@@ -836,13 +872,10 @@ public partial class MainViewModel : ObservableObject
                 MonitorIndex = SelectedMonitor?.Index ?? 0,
                 Region = new CaptureRegion(RegionX, RegionY, RegionWidth, RegionHeight),
                 MicrophoneDeviceId = RecordMicrophone ? SelectedMicrophone?.Id : null,
-                AudioSource = (RecordSystemAudio, RecordMicrophone) switch
-                {
-                    (true, true) => AudioSourceType.SystemAndMicrophone,
-                    (true, false) => AudioSourceType.SystemOnly,
-                    (false, true) => AudioSourceType.MicrophoneOnly,
-                    _ => AudioSourceType.None
-                }
+                AudioSource = ResolveAudioSource(
+                    SupportsSystemAudio,
+                    RecordSystemAudio,
+                    RecordMicrophone)
             };
 
             var response = await _ipcClient.SendCommandAsync("StartRecording", config, timeoutMs: 8000);
