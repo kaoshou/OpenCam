@@ -198,17 +198,37 @@ public class RecordingOrchestrator : IAsyncDisposable
         }
     }
 
-    public void UpdateAudioConfiguration(string? sysAudio, string? micAudio)
+    public async Task<(bool Success, string? ErrorMessage)> UpdatePausedConfigurationAsync(
+        RecordingConfiguration updates,
+        CancellationToken cancellationToken = default)
     {
+        RecordingSession session;
         lock (_lock)
         {
-            if (_currentSession != null)
+            if (_currentSession == null ||
+                _stateMachine.CurrentState != RecordingState.Paused)
             {
-                _currentSession.Configuration.SystemAudioDeviceId = sysAudio;
-                _currentSession.Configuration.MicrophoneDeviceId = micAudio;
-                _currentSession.Configuration.IsRecoverySilenceMode = false;
-                Log.Information("使用者更新音訊裝置設定: System={Sys}, Mic={Mic}", sysAudio, micAudio);
+                return (false, "只有在錄影暫停時才能更新音訊與游標設定");
             }
+
+            _currentSession.Configuration.ApplyPausedSettings(updates);
+            session = _currentSession;
+        }
+
+        try
+        {
+            await _sessionStore.SaveSessionAsync(session, cancellationToken);
+            Log.Information(
+                "使用者更新暫停期間設定: AudioSource={AudioSource}, Mic={Mic}, Cursor={Cursor}",
+                session.Configuration.AudioSource,
+                session.Configuration.MicrophoneDeviceId,
+                session.Configuration.CursorEffect);
+            return (true, null);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "儲存暫停期間設定失敗");
+            return (false, ex.Message);
         }
     }
 

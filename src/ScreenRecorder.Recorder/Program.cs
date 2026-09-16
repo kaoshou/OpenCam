@@ -114,12 +114,17 @@ public class Program
                                 Success = resumeSuccess,
                                 ErrorMessage = resumeError
                             };
-                        case "UpdateAudioDevice":
+                        case "UpdatePausedConfiguration":
                             var updateConfig = JsonSerializer.Deserialize<RecordingConfiguration>(message.PayloadJson);
                             if (updateConfig != null)
                             {
-                                orchestrator.UpdateAudioConfiguration(updateConfig.SystemAudioDeviceId, updateConfig.MicrophoneDeviceId);
-                                return new IpcResponse { Success = true };
+                                var (updateSuccess, updateError) =
+                                    await orchestrator.UpdatePausedConfigurationAsync(updateConfig);
+                                return new IpcResponse
+                                {
+                                    Success = updateSuccess,
+                                    ErrorMessage = updateError
+                                };
                             }
                             return new IpcResponse { Success = false, ErrorMessage = "Invalid Payload" };
 

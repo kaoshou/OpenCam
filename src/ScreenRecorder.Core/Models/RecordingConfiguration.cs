@@ -34,4 +34,15 @@ public class RecordingConfiguration
     public bool DeleteWorkingFileAfterSuccessfulRemux { get; set; } = false;
 
     public bool IsRecoverySilenceMode { get; set; } = false;
+
+    public void ApplyPausedSettings(RecordingConfiguration updates)
+    {
+        ArgumentNullException.ThrowIfNull(updates);
+
+        AudioSource = updates.AudioSource;
+        SystemAudioDeviceId = updates.SystemAudioDeviceId;
+        MicrophoneDeviceId = updates.MicrophoneDeviceId;
+        CursorEffect = updates.CursorEffect;
+        IsRecoverySilenceMode = false;
+    }
 }

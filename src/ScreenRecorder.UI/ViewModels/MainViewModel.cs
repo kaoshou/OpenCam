@@ -157,16 +157,20 @@ public partial class MainViewModel : ObservableObject
         IsRecording,
         IsPaused,
         IsPreparing);
+    public bool CanEditPausedSettings => CanEditPausedSettingsForState(
+        IsRecording,
+        IsPaused,
+        IsPreparing);
     public bool CanSelectMonitor => !IsRecording && !IsPaused && !IsPreparing && IsMonitorSelected;
     public bool CanConfigureCustomRegion => !IsRecording && !IsPaused && !IsPreparing && IsCustomRegion;
-    public bool CanSelectMicrophone => !IsRecording && !IsPreparing && RecordMicrophone;
+    public bool CanSelectMicrophone => CanEditPausedSettings && RecordMicrophone;
     public bool SupportsSystemAudio => SupportsSystemAudioOnPlatform(
         OperatingSystem.IsWindows(),
         OperatingSystem.IsMacOS(),
         Environment.OSVersion.Version,
         AppContext.BaseDirectory);
     public bool CanRecordSystemAudio =>
-        SupportsSystemAudio && !IsRecording && !IsPaused && !IsPreparing;
+        SupportsSystemAudio && CanEditPausedSettings;
     public string SystemAudioLabel => Strings[
         SupportsSystemAudio ? "AudioSystem" : "AudioSystemUnsupportedMac"];
 
@@ -185,6 +189,12 @@ public partial class MainViewModel : ObservableObject
         bool isPaused,
         bool isPreparing) =>
         !isRecording && !isPaused && !isPreparing;
+
+    internal static bool CanEditPausedSettingsForState(
+        bool isRecording,
+        bool isPaused,
+        bool isPreparing) =>
+        !isRecording && !isPreparing;
 
     public string TimerForeground => IsPaused ? "#F59E0B" : (IsRecording ? "#34D399" : "#475569");
 
@@ -286,6 +296,7 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanStopRecording));
         OnPropertyChanged(nameof(CanPauseOrResume));
         OnPropertyChanged(nameof(CanEditRecordingSettings));
+        OnPropertyChanged(nameof(CanEditPausedSettings));
         OnPropertyChanged(nameof(CanSelectMonitor));
         OnPropertyChanged(nameof(CanConfigureCustomRegion));
         OnPropertyChanged(nameof(CanSelectMicrophone));
@@ -305,6 +316,7 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanStopRecording));
         OnPropertyChanged(nameof(CanPauseOrResume));
         OnPropertyChanged(nameof(CanEditRecordingSettings));
+        OnPropertyChanged(nameof(CanEditPausedSettings));
         OnPropertyChanged(nameof(CanSelectMonitor));
         OnPropertyChanged(nameof(CanConfigureCustomRegion));
         OnPropertyChanged(nameof(CanSelectMicrophone));
@@ -324,6 +336,7 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanStopRecording));
         OnPropertyChanged(nameof(CanPauseOrResume));
         OnPropertyChanged(nameof(CanEditRecordingSettings));
+        OnPropertyChanged(nameof(CanEditPausedSettings));
         OnPropertyChanged(nameof(CanSelectMonitor));
         OnPropertyChanged(nameof(CanConfigureCustomRegion));
         OnPropertyChanged(nameof(CanSelectMicrophone));
@@ -376,36 +389,48 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnSelectedFpsChanged(int value) => PersistUserSettings();
     partial void OnSelectedEncoderChanged(EncoderOption? value) => PersistUserSettings();
-    partial void OnSelectedCursorEffectChanged(CursorEffectOption? value) => PersistUserSettings();
+    partial void OnSelectedCursorEffectChanged(CursorEffectOption? value)
+    {
+        PersistUserSettings();
+        if (IsPaused) SendPausedConfigurationUpdate();
+    }
     partial void OnMinimizeOnRecordChanged(bool value) => PersistUserSettings();
 
     partial void OnRecordSystemAudioChanged(bool value)
     {
         PersistUserSettings();
-        if (IsPaused) SendAudioUpdate();
+        if (IsPaused) SendPausedConfigurationUpdate();
     }
 
     partial void OnRecordMicrophoneChanged(bool value)
     {
         OnPropertyChanged(nameof(CanSelectMicrophone));
         PersistUserSettings();
-        if (IsPaused) SendAudioUpdate();
+        if (IsPaused) SendPausedConfigurationUpdate();
     }
 
     partial void OnSelectedMicrophoneChanged(AudioDeviceOption? value)
     {
         PersistUserSettings();
-        if (IsPaused && value != null) SendAudioUpdate();
+        if (IsPaused && value != null) SendPausedConfigurationUpdate();
     }
 
-    private void SendAudioUpdate()
+    private void SendPausedConfigurationUpdate()
     {
-        var config = new RecordingConfiguration 
+        var config = new RecordingConfiguration
         {
+            AudioSource = ResolveAudioSource(
+                SupportsSystemAudio,
+                RecordSystemAudio,
+                RecordMicrophone),
             MicrophoneDeviceId = RecordMicrophone ? SelectedMicrophone?.Id : null,
-            SystemAudioDeviceId = null
+            SystemAudioDeviceId = null,
+            CursorEffect = SelectedCursorEffect?.Mode ?? CursorEffectMode.Default
         };
-        _ = _ipcClient.SendCommandAsync("UpdateAudioDevice", config, 2000);
+        _ = _ipcClient.SendCommandAsync(
+            "UpdatePausedConfiguration",
+            config,
+            2000);
     }
 
     public MainViewModel()
@@ -962,8 +987,8 @@ public partial class MainViewModel : ObservableObject
             var response = await _ipcClient.SendCommandAsync("ResumeRecording", new { }, timeoutMs: 8000);
             if (response.Success)
             {
-                IsPaused = false;
                 IsRecording = true;
+                IsPaused = false;
                 StatusMessage = Strings["StatusRecordingActive"];
             }
             else
@@ -1176,8 +1201,8 @@ public partial class MainViewModel : ObservableObject
                     }
                     else if (telemetry.State == RecordingState.Recording)
                     {
-                        IsPaused = false;
                         IsRecording = true;
+                        IsPaused = false;
                     }
                     else
                     {

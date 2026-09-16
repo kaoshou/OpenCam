@@ -124,8 +124,7 @@
             <!-- 左側：錄影配置卡片 (純白俐落、智慧卷軸適應) -->
             <Border Grid.Column="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" 
                     Padding="14,12" Margin="0,0,8,0" BoxShadow="0 4 16 #0F172A08">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                              IsEnabled="{Binding CanEditRecordingSettings}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Spacing="9" Margin="0,0,6,0">
                     <!-- 錄影目標即時提示徽章 (冰藍漸層微光標籤) -->
                     <Border BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="8" Padding="12,7">
@@ -150,14 +149,14 @@
                         <!-- 指定螢幕 -->
                         <Grid ColumnDefinitions="Auto,*" Margin="0,2">
                             <RadioButton Grid.Column="0" GroupName="Range" IsChecked="{Binding IsMonitorSelected}" 
-                                         IsEnabled="{Binding !IsRecording}" Content="{Binding Strings[RangeMonitor]}" VerticalAlignment="Center" FontSize="12" />
+                                         IsEnabled="{Binding CanEditRecordingSettings}" Content="{Binding Strings[RangeMonitor]}" VerticalAlignment="Center" FontSize="12" />
                             <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableMonitors}" SelectedItem="{Binding SelectedMonitor}" 
                                       IsEnabled="{Binding CanSelectMonitor}" Margin="8,0,0,0" HorizontalAlignment="Stretch" FontSize="11.5" />
                         </Grid>
 
                         <!-- 自訂區域 -->
                         <RadioButton GroupName="Range" IsChecked="{Binding IsCustomRegion}" 
-                                     IsEnabled="{Binding !IsRecording}" Content="{Binding Strings[RangeCustomRegion]}" FontSize="12" />
+                                     IsEnabled="{Binding CanEditRecordingSettings}" Content="{Binding Strings[RangeCustomRegion]}" FontSize="12" />
 
                         <!-- 自訂區域之內嵌調整面板 (展開時呈現精緻淺灰卡片) -->
                         <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="7" 
@@ -187,13 +186,13 @@
                     <Grid ColumnDefinitions="Auto,*" Margin="0,1">
                         <TextBlock Text="{Binding Strings[FpsTitle]}" VerticalAlignment="Center" Margin="0,0,12,0" FontSize="11.5" FontWeight="SemiBold" Foreground="#334155" />
                         <ComboBox Grid.Column="1" ItemsSource="{Binding FpsOptions}" SelectedItem="{Binding SelectedFps}" 
-                                  IsEnabled="{Binding !IsRecording}" HorizontalAlignment="Stretch" FontSize="11.5" />
+                                  IsEnabled="{Binding CanEditRecordingSettings}" HorizontalAlignment="Stretch" FontSize="11.5" />
                     </Grid>
 
                     <Grid ColumnDefinitions="Auto,*" Margin="0,2">
                         <TextBlock Text="{Binding Strings[EncoderTitle]}" VerticalAlignment="Center" Margin="0,0,12,0" FontSize="11.5" FontWeight="SemiBold" Foreground="#334155" />
                         <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableEncoders}" SelectedItem="{Binding SelectedEncoder}" 
-                                  IsEnabled="{Binding !IsRecording}" HorizontalAlignment="Stretch" FontSize="11.5">
+                                  IsEnabled="{Binding CanEditRecordingSettings}" HorizontalAlignment="Stretch" FontSize="11.5">
                             <ComboBox.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding DisplayName}" FontSize="11.5" />
@@ -205,7 +204,7 @@
                     <Grid ColumnDefinitions="Auto,*" Margin="0,2">
                         <TextBlock Text="{Binding Strings[CursorTitle]}" VerticalAlignment="Center" Margin="0,0,12,0" FontSize="11.5" FontWeight="SemiBold" Foreground="#334155" />
                         <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableCursorEffects}" SelectedItem="{Binding SelectedCursorEffect}" 
-                                  IsEnabled="{Binding !IsRecording}" HorizontalAlignment="Stretch" FontSize="11.5">
+                                  IsEnabled="{Binding CanEditPausedSettings}" HorizontalAlignment="Stretch" FontSize="11.5">
                             <ComboBox.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding DisplayName}" FontSize="11.5" />
@@ -224,7 +223,7 @@
                         <CheckBox IsChecked="{Binding RecordSystemAudio}" IsEnabled="{Binding CanRecordSystemAudio}"
                                   Content="{Binding SystemAudioLabel}" FontSize="12" />
                         
-                        <CheckBox IsChecked="{Binding RecordMicrophone}" IsEnabled="{Binding !IsRecording}" 
+                        <CheckBox IsChecked="{Binding RecordMicrophone}" IsEnabled="{Binding CanEditPausedSettings}"
                                   Content="{Binding Strings[AudioMic]}" FontSize="12" />
                         
                         <!-- 麥克風設備選擇列 (展開時附精準邊距) -->
@@ -260,7 +259,7 @@
 
                             <!-- 變更資料夾 -->
                             <Button Grid.Column="2" Click="OnChangeOutputFolderClicked"
-                                    IsEnabled="{Binding !IsRecording}"
+                                    IsEnabled="{Binding CanEditRecordingSettings}"
                                     Background="#334155" Foreground="White"
                                     FontSize="11.5" Padding="11,6" CornerRadius="6" Margin="6,0,0,0"
                                     ToolTip.Tip="{Binding Strings[TooltipChangeFolder]}">
@@ -277,7 +276,7 @@
                     <Rectangle Height="1" Fill="#F1F5F9" HorizontalAlignment="Stretch" />
 
                     <!-- 偏好設定：錄影時自動最小化 -->
-                    <CheckBox IsChecked="{Binding MinimizeOnRecord}" IsEnabled="{Binding !IsRecording}"
+                    <CheckBox IsChecked="{Binding MinimizeOnRecord}" IsEnabled="{Binding CanEditRecordingSettings}"
                               Content="{Binding Strings[MinimizeOnRecord]}" FontSize="11.5" Foreground="#475569" />
                 </StackPanel>
             </ScrollViewer>

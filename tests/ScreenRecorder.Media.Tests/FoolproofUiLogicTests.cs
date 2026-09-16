@@ -71,7 +71,7 @@ public class FoolproofUiLogicTests
     [InlineData(false, false, true, false)]
     [InlineData(true, false, false, false)]
     [InlineData(false, true, false, false)]
-    public void RecordingSettings_AreEditableOnlyWhileFullyIdle(
+    public void FixedRecordingSettings_AreEditableOnlyWhileFullyIdle(
         bool isRecording,
         bool isPaused,
         bool isPreparing,
@@ -80,6 +80,25 @@ public class FoolproofUiLogicTests
         Assert.Equal(
             expected,
             MainViewModel.CanEditRecordingSettingsForState(
+                isRecording,
+                isPaused,
+                isPreparing));
+    }
+
+    [Theory]
+    [InlineData(false, false, false, true)]
+    [InlineData(false, true, false, true)]
+    [InlineData(true, false, false, false)]
+    [InlineData(false, false, true, false)]
+    public void PausedAdjustableSettings_AreEditableWhenIdleOrPaused(
+        bool isRecording,
+        bool isPaused,
+        bool isPreparing,
+        bool expected)
+    {
+        Assert.Equal(
+            expected,
+            MainViewModel.CanEditPausedSettingsForState(
                 isRecording,
                 isPaused,
                 isPreparing));
