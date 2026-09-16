@@ -43,14 +43,11 @@ public partial class RegionSelectWindow : Window
 
         if (OperatingSystem.IsMacOS())
         {
-            TransparencyLevelHint = new[]
-            {
-                WindowTransparencyLevel.Blur,
-                WindowTransparencyLevel.Transparent,
-                WindowTransparencyLevel.None
-            };
+            TransparencyLevelHint =
+                RegionSelectorAppearance.TransparencyLevels(isMacOS: true);
             TransparencyBackgroundFallback =
-                new SolidColorBrush(Color.Parse("#660F172A"));
+                new SolidColorBrush(
+                    RegionSelectorAppearance.FallbackColor(isMacOS: true));
         }
 
         _selectedX = x;

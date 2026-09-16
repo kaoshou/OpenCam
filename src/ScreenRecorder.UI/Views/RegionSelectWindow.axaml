@@ -13,7 +13,7 @@
     <!-- 外層主容器：包含半透明主選區與邊緣八方向手柄 -->
     <Grid>
         <!-- 綠色半透明選取主體 -->
-        <Border BorderBrush="#2ECC71" BorderThickness="4" Background="#182ECC71" CornerRadius="4">
+        <Border BorderBrush="#2ECC71" BorderThickness="4" Background="Transparent" CornerRadius="4">
             <Grid RowDefinitions="Auto,*,Auto" Margin="4">
                 <!-- 頂部浮動控制工具列 -->
                 <Border Grid.Row="0" Background="#EE2C3E50" CornerRadius="6" Padding="10,6" 
