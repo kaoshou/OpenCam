@@ -349,10 +349,17 @@ public partial class MainViewModel : ObservableObject
         PersistUserSettings();
     }
 
-    partial void OnRegionWidthChanged(int value) { OnPropertyChanged(nameof(CurrentTargetSummary)); PersistUserSettings(); }
-    partial void OnRegionHeightChanged(int value) { OnPropertyChanged(nameof(CurrentTargetSummary)); PersistUserSettings(); }
-    partial void OnRegionXChanged(int value) { OnPropertyChanged(nameof(CurrentTargetSummary)); PersistUserSettings(); }
-    partial void OnRegionYChanged(int value) { OnPropertyChanged(nameof(CurrentTargetSummary)); PersistUserSettings(); }
+    partial void OnRegionWidthChanged(int value) => OnCustomRegionChanged();
+    partial void OnRegionHeightChanged(int value) => OnCustomRegionChanged();
+    partial void OnRegionXChanged(int value) => OnCustomRegionChanged();
+    partial void OnRegionYChanged(int value) => OnCustomRegionChanged();
+
+    private void OnCustomRegionChanged()
+    {
+        OnPropertyChanged(nameof(CurrentTargetSummary));
+        OnPropertyChanged(nameof(CustomRegionDisplayText));
+        PersistUserSettings();
+    }
 
     partial void OnSelectedFpsChanged(int value) => PersistUserSettings();
     partial void OnSelectedEncoderChanged(EncoderOption? value) => PersistUserSettings();

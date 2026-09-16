@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Controls;
 using ScreenRecorder.Core.Models;
 using ScreenRecorder.UI.Views;
 
@@ -20,6 +21,17 @@ public class RegionSelectionGeometryTests
     }
 
     [Fact]
+    public void ToLogicalSize_ConvertsPhysicalSelectionBeforeWindowIsShown()
+    {
+        var result = RegionSelectionGeometry.ToLogicalSize(
+            pixelWidth: 1280,
+            pixelHeight: 720,
+            renderScaling: 2.0);
+
+        Assert.Equal(new Size(640, 360), result);
+    }
+
+    [Fact]
     public void ClampToBounds_ClampsToOneDisplay()
     {
         var result = RegionSelectionGeometry.ClampToBounds(
@@ -29,5 +41,47 @@ public class RegionSelectionGeometryTests
         Assert.Equal(
             new CaptureRegion(6000, 780, 400, 300),
             result);
+    }
+
+    [Fact]
+    public void ResizeWindow_SouthEastDragExpandsFromFixedTopLeftCorner()
+    {
+        var result = RegionSelectionGeometry.ResizeWindow(
+            new PixelRect(100, 80, 1280, 720),
+            new PixelPoint(1380, 800),
+            new PixelPoint(1580, 900),
+            WindowEdge.SouthEast,
+            minimumWidth: 320,
+            minimumHeight: 240);
+
+        Assert.Equal(new PixelRect(100, 80, 1480, 820), result);
+    }
+
+    [Fact]
+    public void ResizeWindow_NorthWestDragMovesOriginAndKeepsOppositeCornerFixed()
+    {
+        var result = RegionSelectionGeometry.ResizeWindow(
+            new PixelRect(100, 80, 1280, 720),
+            new PixelPoint(100, 80),
+            new PixelPoint(300, 180),
+            WindowEdge.NorthWest,
+            minimumWidth: 320,
+            minimumHeight: 240);
+
+        Assert.Equal(new PixelRect(300, 180, 1080, 620), result);
+    }
+
+    [Fact]
+    public void ResizeWindow_WestDragStopsAtMinimumWidthAndKeepsRightEdgeFixed()
+    {
+        var result = RegionSelectionGeometry.ResizeWindow(
+            new PixelRect(100, 80, 1280, 720),
+            new PixelPoint(100, 440),
+            new PixelPoint(1500, 440),
+            WindowEdge.West,
+            minimumWidth: 320,
+            minimumHeight: 240);
+
+        Assert.Equal(new PixelRect(1060, 80, 320, 720), result);
     }
 }

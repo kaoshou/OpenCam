@@ -28,6 +28,13 @@ public partial class RegionSelectWindow : Window
     private int _selectedY;
     private int _selectedWidth;
     private int _selectedHeight;
+    private WindowEdge? _manualResizeEdge;
+    private PixelRect _manualResizeInitialBounds;
+    private PixelPoint _manualResizePointerStart;
+    private bool _hasOpened;
+
+    private const int MinimumRegionWidth = 320;
+    private const int MinimumRegionHeight = 240;
 
     public int SelectedX => _selectedX;
     public int SelectedY => _selectedY;
@@ -56,8 +63,14 @@ public partial class RegionSelectWindow : Window
         _selectedHeight = Math.Max(240, height);
 
         Position = new PixelPoint(x, y);
-        Width = _selectedWidth;
-        Height = _selectedHeight;
+        var initialSize = OperatingSystem.IsMacOS()
+            ? new Size(MinimumRegionWidth, MinimumRegionHeight)
+            : RegionSelectionGeometry.ToLogicalSize(
+                _selectedWidth,
+                _selectedHeight,
+                renderScaling: 1.0);
+        Width = initialSize.Width;
+        Height = initialSize.Height;
 
         UpdateSizeDisplay();
 
@@ -76,25 +89,38 @@ public partial class RegionSelectWindow : Window
             Focus();
             if (RenderScaling > 0 && Math.Abs(RenderScaling - 1.0) > 0.001)
             {
-                Width = _selectedWidth / RenderScaling;
-                Height = _selectedHeight / RenderScaling;
+                var logicalSize = RegionSelectionGeometry.ToLogicalSize(
+                    _selectedWidth,
+                    _selectedHeight,
+                    RenderScaling);
+                Width = logicalSize.Width;
+                Height = logicalSize.Height;
             }
-            CaptureFinalBounds();
+            _hasOpened = true;
             UpdateSizeDisplay();
         };
 
         PositionChanged += (s, e) =>
         {
+            if (!_hasOpened)
+            {
+                return;
+            }
+
             TryApplyEdgeSnapping();
             CaptureFinalBounds();
         };
+
+        PointerMoved += OnManualResizePointerMoved;
+        PointerReleased += OnManualResizePointerReleased;
+        PointerCaptureLost += OnManualResizePointerCaptureLost;
     }
 
     private bool _isSnapping = false;
 
     private void TryApplyEdgeSnapping()
     {
-        if (_isSnapping) return;
+        if (_isSnapping || _manualResizeEdge.HasValue) return;
         try
         {
             var screen = Screens.ScreenFromVisual(this);
@@ -203,6 +229,11 @@ public partial class RegionSelectWindow : Window
         base.OnPropertyChanged(change);
         if (change.Property == WidthProperty || change.Property == HeightProperty)
         {
+            if (!_hasOpened)
+            {
+                return;
+            }
+
             CaptureFinalBounds();
             UpdateSizeDisplay();
         }
@@ -236,10 +267,72 @@ public partial class RegionSelectWindow : Window
 
     private void HandleResize(WindowEdge edge, PointerPressedEventArgs e)
     {
-        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
-            BeginResizeDrag(edge, e);
+            return;
         }
+
+        if (OperatingSystem.IsMacOS())
+        {
+            var scaling = RenderScaling > 0 ? RenderScaling : 1.0;
+            _manualResizeEdge = edge;
+            _manualResizeInitialBounds = new PixelRect(
+                Position.X,
+                Position.Y,
+                (int)Math.Round(ClientSize.Width * scaling),
+                (int)Math.Round(ClientSize.Height * scaling));
+            _manualResizePointerStart = this.PointToScreen(e.GetPosition(this));
+            e.Pointer.Capture(this);
+            e.Handled = true;
+            return;
+        }
+
+        BeginResizeDrag(edge, e);
+    }
+
+    private void OnManualResizePointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (!_manualResizeEdge.HasValue)
+        {
+            return;
+        }
+
+        var bounds = RegionSelectionGeometry.ResizeWindow(
+            _manualResizeInitialBounds,
+            _manualResizePointerStart,
+            this.PointToScreen(e.GetPosition(this)),
+            _manualResizeEdge.Value,
+            MinimumRegionWidth,
+            MinimumRegionHeight);
+        var scaling = RenderScaling > 0 ? RenderScaling : 1.0;
+
+        Position = new PixelPoint(bounds.X, bounds.Y);
+        Width = bounds.Width / scaling;
+        Height = bounds.Height / scaling;
+        e.Handled = true;
+    }
+
+    private void OnManualResizePointerReleased(
+        object? sender,
+        PointerReleasedEventArgs e)
+    {
+        if (!_manualResizeEdge.HasValue)
+        {
+            return;
+        }
+
+        _manualResizeEdge = null;
+        e.Pointer.Capture(null);
+        CaptureFinalBounds();
+        UpdateSizeDisplay();
+        e.Handled = true;
+    }
+
+    private void OnManualResizePointerCaptureLost(
+        object? sender,
+        PointerCaptureLostEventArgs e)
+    {
+        _manualResizeEdge = null;
     }
 
     private void OnResizeTopPressed(object? sender, PointerPressedEventArgs e) => HandleResize(WindowEdge.North, e);
