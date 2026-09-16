@@ -60,6 +60,30 @@ public class MacOsFFmpegProviderTests
         Assert.Contains("-i \"Capture screen 0:2\"", args);
     }
 
+    [Fact]
+    public void VideoToolboxOutput_UsesNv12PixelFormat()
+    {
+        var args = CreateProvider().BuildOutputArguments(
+            new RecordingConfiguration { VideoBitrateKbps = 6000 },
+            HardwareEncoderType.AppleVideoToolbox,
+            "/tmp/output.mkv");
+
+        Assert.Contains("-c:v h264_videotoolbox", args);
+        Assert.Contains("-pix_fmt nv12", args);
+    }
+
+    [Fact]
+    public void SoftwareOutput_UsesYuv420pPixelFormat()
+    {
+        var args = CreateProvider().BuildOutputArguments(
+            new RecordingConfiguration { VideoBitrateKbps = 6000 },
+            HardwareEncoderType.SoftwareCpu,
+            "/tmp/output.mkv");
+
+        Assert.Contains("-c:v libx264", args);
+        Assert.Contains("-pix_fmt yuv420p", args);
+    }
+
     private static MacOsFFmpegProvider CreateProvider() =>
         new(new FakeDisplayService(
             new MonitorInfo(

@@ -83,11 +83,13 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider
         if (videoCodec == "h264_videotoolbox")
         {
             args.Add("-profile:v main");
+            args.Add("-pix_fmt nv12");
             args.Add($"-b:v {config.VideoBitrateKbps}k");
         }
         else
         {
             args.Add("-preset fast");
+            args.Add("-pix_fmt yuv420p");
             args.Add($"-b:v {config.VideoBitrateKbps}k");
         }
 
