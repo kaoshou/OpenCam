@@ -1,105 +1,161 @@
-# OpenCam (螢幕錄影工具) 🎥
+# OpenCam（螢幕錄影工具）🎥
 
+[![Latest Release](https://img.shields.io/github/v/release/kaoshou/OpenCam?display_name=tag&sort=semver)](https://github.com/kaoshou/OpenCam/releases/latest)
 [![Build and Release](https://img.shields.io/github/actions/workflow/status/kaoshou/OpenCam/build-and-release.yml?logo=github&label=Build%20and%20Release)](https://github.com/kaoshou/OpenCam/actions/workflows/build-and-release.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-*(English version below)*
+*（English version below）*
 
-OpenCam 是一款強調「**極致可靠性 (High-Reliability)**」的跨平台桌面螢幕錄影工具。
-不論是遭遇當機、停電，還是錄影中途麥克風突然被拔除，OpenCam 都能最大程度保證您的錄影檔案安全，絕不輕易報廢。
+OpenCam 是一款以可靠性為優先的跨平台桌面螢幕錄影工具。錄影期間以 MKV 作為安全工作檔，正常停止後再無損封裝為 MP4，以降低當機、停電或音訊裝置異常時的資料損失風險。
 
-本軟體以 .NET 8 與 Avalonia UI 打造，並使用 FFmpeg 作為核心多媒體引擎，支援 Windows 與 macOS 雙系統。
+本軟體以 .NET 8 與 Avalonia UI 打造，並使用 FFmpeg 作為核心多媒體引擎，支援 Windows 與 macOS。
+
+> 以下為 Windows 介面預覽；macOS 使用相同的主要操作流程。
 
 ![OpenCam 主畫面](docs/images/preview_main_zhtw.png)
 ![OpenCam 偏好設定](docs/images/preview_settings_zhtw.png)
 
+## v0.1.1 重點更新
+
+- 完成 macOS Apple Silicon 版本的指定螢幕與可調整自訂區域錄影。
+- 在 macOS 13 以上透過 ScreenCaptureKit 錄製系統聲音，並透過 AVAudioEngine 錄製系統預設麥克風。
+- 支援預設游標、游標光暈、點擊漣漪及隱藏游標。
+- 點選開始錄影後立即鎖定不會在該次錄影中生效的選項；暫停時可調整系統聲音、麥克風開關與游標樣式，繼續錄影後套用。
+- macOS 套件內含 arm64 版 FFmpeg 與 ffprobe，不需要另外安裝 Homebrew、Rosetta 或 .NET Runtime。
+- 套用 OpenCam 應用程式圖示並改善 macOS 資料夾開啟、音訊穩定性及錄影流程。
+
+完整安裝檔請至 [OpenCam v0.1.1 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.1.1) 下載。
 
 ## 🌟 核心特色
 
-- **防中斷安全機制 (Crash Recovery)**：強制使用 MKV 作為工作檔，若錄影途中遭遇斷電或崩潰，下次啟動可自動恢復，絕不丟失已錄內容。
-- **音訊熱拔插防護 (Audio Hotplug Watchdog)**：錄影途中若不慎拔除 USB 麥克風，系統將自動啟動「虛擬靜音補償 (anullsrc)」，保持錄影不中斷，最終影片仍可完美無縫轉出。
-- **動態切換麥克風**：錄影途中若遭遇意外，只需按下暫停即可在設定中立刻更換新的音訊來源，按下繼續後無縫錄影。
-- **硬體加速支援 (Hardware Encoding)**：支援 NVIDIA (NVENC)、Intel (QSV)、AMD (AMF) 以及 Apple Silicon (VideoToolbox)，錄製不掉幀。
-- **自動無損轉檔**：錄影正常結束後，將自動進行 Stream Copy，快速將安全的 MKV 封裝 (Remux) 轉換為普及的 MP4，不重新編碼、不損失畫質。
-- **磁碟守護機制 (Disk Monitor)**：在磁碟空間耗盡前發出警告，並在臨界點啟動主動安全停止，避免因為 0 bytes remaining 導致檔案毀損。
-- **輕量與跨平台**：支援 Windows 10/11 (x64) 以及 macOS (Apple Silicon)。
+- **指定螢幕與自訂區域**：可選擇要錄製的顯示器，或使用透明且可調整大小的選取框指定錄影範圍。
+- **系統聲音與麥克風**：可分別開啟或關閉系統聲音及麥克風，並支援四種音訊組合。
+- **游標效果**：可使用原始游標、光暈、光暈加點擊漣漪，或在影片中隱藏游標。
+- **防中斷安全機制（Crash Recovery）**：強制使用 MKV 作為工作檔；若錄影途中斷電或崩潰，下次啟動可嘗試恢復已寫入的內容。
+- **音訊熱拔插防護（Audio Hotplug Watchdog）**：Windows 錄影途中若麥克風中斷，系統會使用虛擬靜音音軌盡可能維持錄影流程。
+- **暫停期間調整**：暫停錄影後可調整系統聲音、麥克風開關及游標樣式；錄影來源、解析度、FPS 等固定設定仍保持鎖定。
+- **硬體加速支援（Hardware Encoding）**：支援 NVIDIA NVENC、Intel QSV、AMD AMF 以及 Apple VideoToolbox，並在不可用時回退至 CPU 編碼。
+- **自動無損轉檔**：錄影正常結束後自動使用 Stream Copy，將 MKV 快速封裝（Remux）為 MP4，不重新編碼影片。
+- **磁碟守護機制（Disk Monitor）**：磁碟空間不足前發出警告，並在臨界點嘗試安全停止，降低檔案損毀風險。
+- **跨平台**：支援 Windows 10/11 x64，以及搭載 Apple Silicon 的 macOS 13 Ventura 或以上版本。
 
 ## 🚀 系統需求與安裝
 
-### Windows 10/11
-- 前往 [Releases](https://github.com/kaoshou/OpenCam/releases) 頁面。
-- 下載 OpenCam_*_Setup.exe (安裝版) 或 OpenCam_Windows_Portable.zip (免安裝版)。
-- 執行應用程式（內建所需的 .NET Runtime，無需額外安裝）。
+### Windows 10/11（x64）
 
-### macOS (Apple Silicon M1/M2/M3/M4)
 - 前往 [Releases](https://github.com/kaoshou/OpenCam/releases) 頁面。
-- 下載 `OpenCam_macOS_AppleSilicon.dmg`。
-- 打開 DMG 檔案，將 `OpenCam` 拖曳至您的「應用程式 (Applications)」資料夾。
-- **macOS 安全性提示 (Gatekeeper)**：因本開源工具未購買 Apple 商業開發者證書公證，若系統開啟時提示「"OpenCam" 已毀損，無法打開」，請開啟終端機 (Terminal) 輸入以下指令解除隔離屬性即可正常啟動：
+- 下載 `OpenCam_*_Setup.exe`（安裝版）或 `OpenCam_Windows_Portable.zip`（免安裝版）。
+- 執行應用程式。套件已包含所需的 .NET Runtime，無須另外安裝。
+
+### macOS 13 Ventura 或以上（Apple Silicon／arm64）
+
+> v0.1.1 尚未提供 Intel Mac（x64）版本。
+
+- 前往 [Releases](https://github.com/kaoshou/OpenCam/releases) 頁面並下載 `OpenCam_macOS_AppleSilicon.dmg`。
+- 打開 DMG，將 `OpenCam.app` 拖曳至「應用程式（Applications）」資料夾。
+- 第一次啟動時，請依 macOS 提示在「系統設定 → 隱私權與安全性」中允許 OpenCam 使用「螢幕與系統音訊錄製」及「麥克風」。變更權限後若功能尚未生效，請完全結束並重新開啟 OpenCam。
+- 若 Gatekeeper 阻擋啟動，請先在 Finder 對 `OpenCam.app` 按右鍵並選擇「打開」，或在「系統設定 → 隱私權與安全性」選擇「仍要打開」。
+- 只有在確認 DMG 是從本專案的官方 GitHub Releases 下載，而且系統仍顯示「OpenCam 已毀損，無法打開」時，才在終端機執行：
+
   ```bash
   xattr -cr /Applications/OpenCam.app
   ```
 
+### macOS v0.1.1 注意事項
+
+- 系統音訊錄製需要 macOS 13 或以上版本，並使用 Apple ScreenCaptureKit。
+- 麥克風錄製使用 macOS 系統目前的預設輸入裝置。若要改用另一支麥克風，請先在 macOS 聲音設定中切換預設輸入裝置，再開始或暫停後繼續錄影。
+- 點選「開始錄影」後，錄影來源、區域、畫質、FPS 與儲存位置會鎖定；暫停時只有系統聲音、麥克風與游標樣式可調整。
+
 ## 🛠️ 技術架構
-- **UI 框架**: Avalonia UI, CommunityToolkit.Mvvm
-- **框架語言**: C#, .NET 8
-- **核心引擎**: FFmpeg (獨立進程，支援 dshow 與 avfoundation)
-- **日誌**: Serilog
+
+- **UI 框架**：Avalonia UI、CommunityToolkit.Mvvm
+- **框架語言**：C#、.NET 8
+- **核心引擎**：FFmpeg 獨立進程；Windows 使用 gdigrab、DirectShow 與 WASAPI，macOS 使用 AVFoundation、ScreenCaptureKit 與 AVAudioEngine
+- **硬體編碼**：NVENC、QSV、AMF、VideoToolbox，並提供 libx264 回退
+- **日誌**：Serilog
 
 ## ⚖️ 授權與免責聲明
 
-- **開源授權**: 本專案採用 [Apache License 2.0](LICENSE) 授權條款發布。
-- **第三方聲明**: 本軟體核心多媒體處理使用了 [FFmpeg](http://ffmpeg.org) 的程式碼，受 GPLv3 / LGPLv3 授權保護。原始碼可從其官方網站下載。特別感謝 Avalonia UI, CommunityToolkit.Mvvm 與 Serilog 的貢獻者。
-- **免責聲明與使用條款**: 
-  1. 本軟體按「原樣 (AS IS)」提供，不帶任何明示或暗示的擔保。
-  2. 作者不對使用本軟體造成的任何資料遺失、硬體損壞或衍生性損失負責。
-  3. 使用者必須自行確保錄影行為遵守當地之隱私權與機密保護法律，請勿錄製未經授權的受版權保護內容或侵犯他人隱私。
-  4. 使用本軟體即代表您同意上述條款。
+- **專案授權**：本專案原始碼依 [Apache License 2.0](LICENSE) 發布。
+- **第三方元件**：發布套件包含 FFmpeg；實際適用授權取決於各平台封裝的 FFmpeg 組態。官方發布套件使用啟用 GPL 元件的 FFmpeg，包括 libx264。請參閱 [macOS FFmpeg 建置腳本](scripts/build-ffmpeg-macos-arm64.sh)、[FFmpeg Legal](https://ffmpeg.org/legal.html) 與 [x264 原始碼](https://code.videolan.org/videolan/x264)。Avalonia UI、CommunityToolkit.Mvvm、Serilog 及其他相依套件分別適用其各自授權。
+- **免責聲明與使用條款**：本軟體按「原樣（AS IS）」提供，不帶任何明示或暗示的擔保。作者不對使用本軟體造成的資料遺失、硬體損壞或衍生性損失負責。使用者必須自行確保錄影行為遵守所在地的隱私權、機密保護與著作權法律。
 
 ---
 
-# OpenCam (Screen Recorder) 🎥 (English)
+# OpenCam (Screen Recorder) 🎥
 
-OpenCam is a cross-platform desktop screen recording tool built with a focus on **High-Reliability**. 
-Whether you encounter a crash, power outage, or accidentally unplug your microphone during recording, OpenCam ensures your footage remains safe and recoverable.
+OpenCam is a cross-platform desktop screen recorder built with reliability as its top priority. It records to a crash-resilient MKV working file and remuxes it to MP4 after a normal stop, reducing the risk of losing recorded content after a crash, power outage, or audio-device failure.
 
-Built with .NET 8, Avalonia UI, and FFmpeg, it supports both Windows and macOS.
+OpenCam is built with .NET 8, Avalonia UI, and FFmpeg, and supports Windows and macOS.
+
+> The screenshots below show the Windows interface. The primary workflow is the same on macOS.
 
 ![OpenCam Main Window](docs/images/preview_main_enus.png)
 ![OpenCam Settings Window](docs/images/preview_settings_enus.png)
 
+## What's New in v0.1.1
+
+- Added monitor capture and a resizable custom-region selector on Apple Silicon Macs.
+- Added system-audio recording through ScreenCaptureKit on macOS 13 or later and default-microphone recording through AVAudioEngine.
+- Added default, halo, halo-with-click-ripple, and hidden cursor modes.
+- Settings that cannot affect the active session are locked as soon as recording starts. While paused, system audio, microphone, and cursor settings remain adjustable and are applied when recording resumes.
+- The macOS package includes arm64 FFmpeg and ffprobe binaries; Homebrew, Rosetta, and a separate .NET Runtime are not required.
+- Added the OpenCam app icon and improved folder opening, audio stability, and the macOS recording workflow.
+
+Download the installers from the [OpenCam v0.1.1 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.1.1).
 
 ## 🌟 Key Features
 
-- **Crash Recovery**: Uses MKV as a safe working container. If the app or OS crashes, your footage is preserved and can be recovered on the next launch.
-- **Audio Hotplug Protection**: If your USB microphone is disconnected during a session, OpenCam automatically falls back to a "virtual silence track" to keep the recording process alive and ensure the final MP4 concatenates flawlessly.
-- **Dynamic Mic Switching**: Pause your recording at any time to switch to a different audio device without breaking your final video file.
-- **Hardware Acceleration**: Out-of-the-box support for NVIDIA (NVENC), Intel (QSV), AMD (AMF), and Apple Silicon (VideoToolbox).
-- **Auto-Remuxing**: Automatically remuxes the safe MKV to a highly compatible MP4 format instantly upon stopping, without re-encoding.
-- **Disk Space Monitor**: Actively monitors disk space and safely finalizes your recording before the drive runs out of space to prevent file corruption.
+- **Monitor and Region Capture**: Record a selected display or define an exact area with a transparent, resizable region selector.
+- **System Audio and Microphone**: Enable or disable system audio and microphone recording independently, supporting all four audio combinations.
+- **Cursor Effects**: Use the native cursor, add a halo, add a halo with click ripples, or hide the cursor from the recording.
+- **Crash Recovery**: Uses MKV as a resilient working container. After an interruption, OpenCam attempts to recover content that was already written.
+- **Audio Hotplug Protection**: On Windows, if a microphone disappears during recording, OpenCam uses a virtual silence track to keep the recording pipeline running whenever possible.
+- **Paused-Session Adjustments**: While paused, system audio, microphone, and cursor settings can be changed. Fixed settings such as capture source, resolution, and FPS remain locked.
+- **Hardware Acceleration**: Supports NVIDIA NVENC, Intel QSV, AMD AMF, and Apple VideoToolbox, with CPU encoding as a fallback.
+- **Automatic Remuxing**: After a normal stop, OpenCam stream-copies the MKV working file into a compatible MP4 without re-encoding the video.
+- **Disk Space Monitor**: Warns before storage is exhausted and attempts a safe stop at the critical threshold.
+- **Cross-Platform**: Supports Windows 10/11 x64 and macOS 13 Ventura or later on Apple Silicon.
 
-## 🚀 Installation
+## 🚀 Requirements and Installation
 
-### Windows 10/11
+### Windows 10/11 (x64)
+
 - Go to the [Releases](https://github.com/kaoshou/OpenCam/releases) page.
-- Download OpenCam_*_Setup.exe (Installer) or OpenCam_Windows_Portable.zip (Portable).
-- Run the application (Self-Contained, no separate .NET runtime required).
+- Download `OpenCam_*_Setup.exe` (installer) or `OpenCam_Windows_Portable.zip` (portable).
+- Run OpenCam. The required .NET Runtime is included.
 
-### macOS (Apple Silicon M1/M2/M3/M4)
-- Go to the [Releases](https://github.com/kaoshou/OpenCam/releases) page.
-- Download `OpenCam_macOS_AppleSilicon.dmg`.
-- Mount the DMG and drag `OpenCam.app` to your Applications folder.
-- **Note for macOS Gatekeeper**: Because OpenCam is an open-source tool and not notarized through Apple Developer ID, if macOS alerts `"OpenCam is damaged and can't be opened"`, simply open Terminal and run:
+### macOS 13 Ventura or later (Apple Silicon/arm64)
+
+> OpenCam v0.1.1 does not provide an Intel Mac (x64) build.
+
+- Go to the [Releases](https://github.com/kaoshou/OpenCam/releases) page and download `OpenCam_macOS_AppleSilicon.dmg`.
+- Mount the DMG and drag `OpenCam.app` to the Applications folder.
+- On first launch, follow the macOS prompts and allow OpenCam access to **Screen & System Audio Recording** and **Microphone** under **System Settings → Privacy & Security**. If a permission change does not take effect immediately, quit OpenCam completely and reopen it.
+- If Gatekeeper blocks the app, first Control-click `OpenCam.app` in Finder and select **Open**, or select **Open Anyway** under **System Settings → Privacy & Security**.
+- Only if the DMG came from this project's official GitHub Releases and macOS still reports that OpenCam is damaged, run:
+
   ```bash
   xattr -cr /Applications/OpenCam.app
   ```
-  Then launch OpenCam normally.
 
-## ⚖️ License & Disclaimers
+### macOS v0.1.1 Notes
 
-- **License**: This project is licensed under the [Apache License 2.0](LICENSE). 
-- **Third-Party Acknowledgements**: This software uses code of [FFmpeg](http://ffmpeg.org) licensed under the GPLv3 / LGPLv3 and its source can be downloaded from their official website. Special thanks to Avalonia UI, CommunityToolkit.Mvvm, and Serilog contributors.
-- **Disclaimer**: 
-  This software is provided "AS IS", without warranty of any kind. The authors are not responsible for any damage or data loss. Please comply with your local privacy and security laws when recording sensitive information.
+- System-audio recording requires macOS 13 or later and uses Apple ScreenCaptureKit.
+- Microphone recording uses the current macOS default input device. To use another microphone, select it as the default input in macOS Sound settings before starting, or while the recording is paused.
+- After **Start Recording** is selected, the capture source, region, quality, FPS, and output location are locked. Only system audio, microphone, and cursor settings can be changed while paused.
 
+## 🛠️ Architecture
 
+- **UI**: Avalonia UI and CommunityToolkit.Mvvm
+- **Language and Runtime**: C# and .NET 8
+- **Media Engine**: FFmpeg in a separate process; gdigrab, DirectShow, and WASAPI on Windows, and AVFoundation, ScreenCaptureKit, and AVAudioEngine on macOS
+- **Hardware Encoding**: NVENC, QSV, AMF, and VideoToolbox, with libx264 fallback
+- **Logging**: Serilog
+
+## ⚖️ License and Disclaimers
+
+- **Project License**: The project source code is released under the [Apache License 2.0](LICENSE).
+- **Third-Party Components**: Release packages include FFmpeg. The applicable FFmpeg license depends on the bundled configuration; the official release packages use GPL-enabled FFmpeg components, including libx264. See the [macOS FFmpeg build script](scripts/build-ffmpeg-macos-arm64.sh), [FFmpeg Legal](https://ffmpeg.org/legal.html), and the [x264 source repository](https://code.videolan.org/videolan/x264). Avalonia UI, CommunityToolkit.Mvvm, Serilog, and other dependencies remain subject to their respective licenses.
+- **Disclaimer**: This software is provided “AS IS,” without warranty of any kind. The authors are not responsible for damage or data loss. Users are responsible for complying with applicable privacy, confidentiality, and copyright laws when recording.
