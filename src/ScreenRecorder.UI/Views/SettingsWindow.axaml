@@ -272,7 +272,7 @@
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <TextBlock Text="{Binding Strings[AppName]}" FontSize="20" FontWeight="Bold" Foreground="#0F172A" VerticalAlignment="Center" />
                                     <Border Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" CornerRadius="6" Padding="6,2" VerticalAlignment="Center">
-                                        <TextBlock Text="v0.1.1 (Stable)" FontSize="10.5" FontWeight="Bold" Foreground="#059669" />
+                                        <TextBlock Text="v0.1.2 (Stable)" FontSize="10.5" FontWeight="Bold" Foreground="#059669" />
                                     </Border>
                                 </StackPanel>
                                 <TextBlock Text="{Binding Strings[VersionLabel]}" FontSize="12" Foreground="#64748B" FontWeight="Medium" />

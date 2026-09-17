@@ -12,6 +12,7 @@ using ScreenRecorder.Media.Probe;
 using ScreenRecorder.Media.Remux;
 using ScreenRecorder.Core.Interfaces;
 using ScreenRecorder.Recorder.Services;
+using ScreenRecorder.Platform.macOS;
 using Xunit;
 
 namespace ScreenRecorder.Media.Tests;
@@ -92,6 +93,174 @@ public class ActualRecordingIntegrationTests : IDisposable
         Assert.Equal(640, probeResult.Width);
         Assert.Equal(480, probeResult.Height);
         Assert.True(probeResult.Duration.TotalSeconds >= 1.5, $"錄影時長異常: {probeResult.Duration.TotalSeconds}s");
+    }
+
+    [Fact]
+    public async Task SessionHeartbeat_ContinuesWhileRecordingAndPaused()
+    {
+        var stateMachine = new RecordingStateMachine();
+        var storageService = new StorageService();
+        var sessionStore = new JsonRecordingSessionStore();
+        var diskMonitor = new DiskSpaceMonitor(storageService);
+        var remuxer = new StreamCopyRemuxer();
+        var probe = new MediaFileProbe();
+        var displayService = new FixedDisplayService();
+
+        await using var orchestrator = new RecordingOrchestrator(
+            stateMachine,
+            storageService,
+            sessionStore,
+            diskMonitor,
+            remuxer,
+            probe,
+            displayService,
+            new MacOsFFmpegProvider(displayService))
+        {
+            UseSyntheticCaptureSource = true
+        };
+
+        var config = new RecordingConfiguration
+        {
+            CaptureSource = CaptureSourceType.CustomRegion,
+            Region = new CaptureRegion(0, 0, 320, 240),
+            Fps = 30,
+            AudioSource = AudioSourceType.None,
+            EncoderType = HardwareEncoderType.SoftwareCpu,
+            OutputDirectory = _tempDir,
+            DeleteWorkingFileAfterSuccessfulRemux = false
+        };
+
+        var (startSuccess, startError, _) = await orchestrator.StartRecordingAsync(config);
+        Assert.True(startSuccess, startError);
+        var sessionDirectory = Assert.IsType<string>(orchestrator.CurrentSession?.WorkingDirectory);
+        var started = await sessionStore.LoadSessionAsync(sessionDirectory);
+        Assert.NotNull(started);
+
+        await Task.Delay(2500);
+        var whileRecording = await sessionStore.LoadSessionAsync(sessionDirectory);
+        Assert.NotNull(whileRecording);
+        Assert.True(whileRecording.LastHeartbeatTime > started.LastHeartbeatTime);
+
+        var (pauseSuccess, pauseError) = await orchestrator.PauseRecordingAsync();
+        Assert.True(pauseSuccess, pauseError);
+        var paused = await sessionStore.LoadSessionAsync(sessionDirectory);
+        Assert.NotNull(paused);
+
+        await Task.Delay(2500);
+        var whilePaused = await sessionStore.LoadSessionAsync(sessionDirectory);
+        Assert.NotNull(whilePaused);
+        Assert.True(whilePaused.LastHeartbeatTime > paused.LastHeartbeatTime);
+
+        var (stopSuccess, stopError, _) = await orchestrator.StopRecordingAsync();
+        Assert.True(stopSuccess, stopError);
+    }
+
+    [Fact]
+    public async Task SessionHeartbeat_ContinuesWhileFinalizing()
+    {
+        var stateMachine = new RecordingStateMachine();
+        var storageService = new StorageService();
+        var sessionStore = new JsonRecordingSessionStore();
+        var diskMonitor = new DiskSpaceMonitor(storageService);
+        var remuxer = new BlockingRemuxer();
+        var probe = new MediaFileProbe();
+        var displayService = new FixedDisplayService();
+
+        await using var orchestrator = new RecordingOrchestrator(
+            stateMachine,
+            storageService,
+            sessionStore,
+            diskMonitor,
+            remuxer,
+            probe,
+            displayService,
+            new MacOsFFmpegProvider(displayService))
+        {
+            UseSyntheticCaptureSource = true
+        };
+
+        var config = new RecordingConfiguration
+        {
+            CaptureSource = CaptureSourceType.CustomRegion,
+            Region = new CaptureRegion(0, 0, 320, 240),
+            Fps = 30,
+            AudioSource = AudioSourceType.None,
+            EncoderType = HardwareEncoderType.SoftwareCpu,
+            OutputDirectory = _tempDir,
+            DeleteWorkingFileAfterSuccessfulRemux = false
+        };
+
+        var (startSuccess, startError, _) = await orchestrator.StartRecordingAsync(config);
+        Assert.True(startSuccess, startError);
+        var sessionDirectory = Assert.IsType<string>(orchestrator.CurrentSession?.WorkingDirectory);
+        await Task.Delay(500);
+
+        var stopTask = orchestrator.StopRecordingAsync();
+        await remuxer.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        var finalizing = await sessionStore.LoadSessionAsync(sessionDirectory);
+        Assert.NotNull(finalizing);
+
+        await Task.Delay(2500);
+        var stillFinalizing = await sessionStore.LoadSessionAsync(sessionDirectory);
+        Assert.NotNull(stillFinalizing);
+        var heartbeatAdvanced = stillFinalizing.LastHeartbeatTime > finalizing.LastHeartbeatTime;
+
+        remuxer.Release.TrySetResult();
+        var (stopSuccess, stopError, _) = await stopTask;
+
+        Assert.True(heartbeatAdvanced);
+        Assert.True(stopSuccess, stopError);
+    }
+
+    [Fact]
+    public async Task SessionHeartbeat_TransientStoreFailure_RetriesOnNextTick()
+    {
+        var stateMachine = new RecordingStateMachine();
+        var storageService = new StorageService();
+        var sessionStore = new FailOnceRecordingSessionStore();
+        var diskMonitor = new DiskSpaceMonitor(storageService);
+        var displayService = new FixedDisplayService();
+
+        await using var orchestrator = new RecordingOrchestrator(
+            stateMachine,
+            storageService,
+            sessionStore,
+            diskMonitor,
+            new StreamCopyRemuxer(),
+            new MediaFileProbe(),
+            displayService,
+            new MacOsFFmpegProvider(displayService))
+        {
+            UseSyntheticCaptureSource = true
+        };
+
+        var config = new RecordingConfiguration
+        {
+            CaptureSource = CaptureSourceType.CustomRegion,
+            Region = new CaptureRegion(0, 0, 320, 240),
+            Fps = 30,
+            AudioSource = AudioSourceType.None,
+            EncoderType = HardwareEncoderType.SoftwareCpu,
+            OutputDirectory = _tempDir,
+            DeleteWorkingFileAfterSuccessfulRemux = false
+        };
+
+        var (startSuccess, startError, _) = await orchestrator.StartRecordingAsync(config);
+        Assert.True(startSuccess, startError);
+        var sessionDirectory = Assert.IsType<string>(orchestrator.CurrentSession?.WorkingDirectory);
+        var started = await sessionStore.LoadSessionAsync(sessionDirectory);
+        Assert.NotNull(started);
+
+        sessionStore.FailNextSave();
+        await Task.Delay(4500);
+
+        var afterRetry = await sessionStore.LoadSessionAsync(sessionDirectory);
+        Assert.NotNull(afterRetry);
+        var heartbeatAdvanced = afterRetry.LastHeartbeatTime > started.LastHeartbeatTime;
+
+        var (stopSuccess, stopError, _) = await orchestrator.StopRecordingAsync();
+        Assert.True(heartbeatAdvanced);
+        Assert.True(stopSuccess, stopError);
     }
 
     [WindowsOnlyFact]
@@ -331,5 +500,97 @@ public class ActualRecordingIntegrationTests : IDisposable
             }
         }
         catch { }
+    }
+
+    private sealed class FixedDisplayService : IDisplayService
+    {
+        private static readonly MonitorInfo Monitor = new(
+            0,
+            "Synthetic Display",
+            new CaptureRegion(0, 0, 320, 240),
+            true,
+            1.0);
+
+        public IReadOnlyList<MonitorInfo> GetMonitors() => new[] { Monitor };
+
+        public MonitorInfo GetPrimaryMonitor() => Monitor;
+
+        public CaptureRegion GetVirtualScreenBounds() => Monitor.Bounds;
+    }
+
+    private sealed class BlockingRemuxer : IStreamCopyRemuxer
+    {
+        private readonly StreamCopyRemuxer _inner = new();
+
+        public TaskCompletionSource Entered { get; } = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource Release { get; } = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task<bool> RemuxToMp4Async(
+            string mkvInputPath,
+            string mp4OutputPath,
+            IProgress<double>? progress = null,
+            CancellationToken cancellationToken = default)
+        {
+            Entered.TrySetResult();
+            await Release.Task.WaitAsync(cancellationToken);
+            return await _inner.RemuxToMp4Async(
+                mkvInputPath,
+                mp4OutputPath,
+                progress,
+                cancellationToken);
+        }
+
+        public async Task<bool> ConcatAndRemuxToMp4Async(
+            IReadOnlyList<string> mkvInputPaths,
+            string mp4OutputPath,
+            IProgress<double>? progress = null,
+            CancellationToken cancellationToken = default)
+        {
+            Entered.TrySetResult();
+            await Release.Task.WaitAsync(cancellationToken);
+            return await _inner.ConcatAndRemuxToMp4Async(
+                mkvInputPaths,
+                mp4OutputPath,
+                progress,
+                cancellationToken);
+        }
+    }
+
+    private sealed class FailOnceRecordingSessionStore : IRecordingSessionStore
+    {
+        private readonly JsonRecordingSessionStore _inner = new();
+        private int _failNextSave;
+
+        public void FailNextSave() => Interlocked.Exchange(ref _failNextSave, 1);
+
+        public Task SaveSessionAsync(
+            RecordingSession session,
+            CancellationToken cancellationToken = default)
+        {
+            if (Interlocked.Exchange(ref _failNextSave, 0) == 1)
+            {
+                throw new IOException("Injected transient session-store failure");
+            }
+
+            return _inner.SaveSessionAsync(session, cancellationToken);
+        }
+
+        public Task<RecordingSession?> LoadSessionAsync(
+            string sessionDirectory,
+            CancellationToken cancellationToken = default) =>
+            _inner.LoadSessionAsync(sessionDirectory, cancellationToken);
+
+        public Task<IReadOnlyList<RecordingSession>> FindAllSessionsAsync(
+            string rootRecordingsPath,
+            CancellationToken cancellationToken = default) =>
+            _inner.FindAllSessionsAsync(rootRecordingsPath, cancellationToken);
+
+        public Task DeleteSessionAsync(
+            string sessionDirectory,
+            CancellationToken cancellationToken = default) =>
+            _inner.DeleteSessionAsync(sessionDirectory, cancellationToken);
     }
 }

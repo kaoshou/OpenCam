@@ -7,10 +7,14 @@ namespace ScreenRecorder.Media.Remux;
 public class StreamCopyRemuxer : IStreamCopyRemuxer
 {
     private readonly string? _ffmpegPath;
+    private readonly TimeSpan? _operationTimeout;
 
-    public StreamCopyRemuxer(string? ffmpegPath = null)
+    public StreamCopyRemuxer(
+        string? ffmpegPath = null,
+        TimeSpan? operationTimeout = null)
     {
         _ffmpegPath = ffmpegPath ?? FFmpegDiscovery.FindFFmpegExecutable();
+        _operationTimeout = operationTimeout;
     }
 
     public async Task<bool> RemuxToMp4Async(
@@ -48,8 +52,12 @@ public class StreamCopyRemuxer : IStreamCopyRemuxer
             CreateNoWindow = true
         };
 
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+        using var timeoutCts = _operationTimeout.HasValue
+            ? new CancellationTokenSource(_operationTimeout.Value)
+            : null;
+        using var linkedCts = timeoutCts != null
+            ? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token)
+            : CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
         using var process = new Process { StartInfo = startInfo };
 
@@ -132,7 +140,7 @@ public class StreamCopyRemuxer : IStreamCopyRemuxer
         var listFilePath = Path.Combine(outputDirectory ?? Path.GetTempPath(), $"concat_list_{Guid.NewGuid():N}.txt");
         try
         {
-            var lines = validPaths.Select(p => $"file '{p.Replace('\\', '/')}'");
+            var lines = validPaths.Select(p => $"file '{EscapeConcatPath(p)}'");
             await File.WriteAllLinesAsync(listFilePath, lines, cancellationToken);
 
             // 使用 concat demuxer 執行無損流式拼接 (絕不二次重新編碼)
@@ -148,29 +156,50 @@ public class StreamCopyRemuxer : IStreamCopyRemuxer
                 CreateNoWindow = true
             };
 
-            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+            using var timeoutCts = _operationTimeout.HasValue
+                ? new CancellationTokenSource(_operationTimeout.Value)
+                : null;
+            using var linkedCts = timeoutCts != null
+                ? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token)
+                : CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
             using var process = new Process { StartInfo = startInfo };
-            process.Start();
-
-            var errorOutputTask = process.StandardError.ReadToEndAsync(linkedCts.Token);
-            var stdOutputTask = process.StandardOutput.ReadToEndAsync(linkedCts.Token);
-
-            await process.WaitForExitAsync(linkedCts.Token);
-            await Task.WhenAll(errorOutputTask, stdOutputTask);
-
-            if (process.ExitCode != 0)
+            try
             {
+                process.Start();
+
+                var errorOutputTask = process.StandardError.ReadToEndAsync(linkedCts.Token);
+                var stdOutputTask = process.StandardOutput.ReadToEndAsync(linkedCts.Token);
+
+                await process.WaitForExitAsync(linkedCts.Token);
+                await Task.WhenAll(errorOutputTask, stdOutputTask);
+
+                if (process.ExitCode != 0)
+                {
+                    if (File.Exists(mp4OutputPath))
+                    {
+                        try { File.Delete(mp4OutputPath); } catch { }
+                    }
+                    return false;
+                }
+
+                if (!File.Exists(mp4OutputPath)) return false;
+                return new FileInfo(mp4OutputPath).Length > 0;
+            }
+            catch (OperationCanceledException)
+            {
+                try
+                {
+                    if (!process.HasExited) process.Kill(entireProcessTree: true);
+                }
+                catch { }
+
                 if (File.Exists(mp4OutputPath))
                 {
                     try { File.Delete(mp4OutputPath); } catch { }
                 }
-                return false;
+                throw;
             }
-
-            if (!File.Exists(mp4OutputPath)) return false;
-            return new FileInfo(mp4OutputPath).Length > 0;
         }
         finally
         {
@@ -180,4 +209,7 @@ public class StreamCopyRemuxer : IStreamCopyRemuxer
             }
         }
     }
+
+    private static string EscapeConcatPath(string path) =>
+        path.Replace('\\', '/').Replace("'", "'\\''", StringComparison.Ordinal);
 }

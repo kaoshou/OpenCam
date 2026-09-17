@@ -35,6 +35,8 @@ public class RecordingOrchestrator : IAsyncDisposable
     private TimeSpan _accumulatedDuration = TimeSpan.Zero;
     private int _segmentIndex = 0;
     private readonly object _lock = new();
+    private readonly SemaphoreSlim _sessionStoreGate = new(1, 1);
+    private readonly SemaphoreSlim _lifecycleGate = new(1, 1);
 
     public bool UseSyntheticCaptureSource { get; set; }
 
@@ -83,6 +85,21 @@ public class RecordingOrchestrator : IAsyncDisposable
     public async Task<(bool Success, string? ErrorMessage, string? SessionId)> StartRecordingAsync(
         RecordingConfiguration config, 
         CancellationToken cancellationToken = default)
+    {
+        await _lifecycleGate.WaitAsync(cancellationToken);
+        try
+        {
+            return await StartRecordingCoreAsync(config, cancellationToken);
+        }
+        finally
+        {
+            _lifecycleGate.Release();
+        }
+    }
+
+    private async Task<(bool Success, string? ErrorMessage, string? SessionId)> StartRecordingCoreAsync(
+        RecordingConfiguration config,
+        CancellationToken cancellationToken)
     {
         lock (_lock)
         {
@@ -144,7 +161,7 @@ public class RecordingOrchestrator : IAsyncDisposable
                 LogFilePath = sessionLog
             };
 
-            await _sessionStore.SaveSessionAsync(session, cancellationToken);
+            await SaveSessionAsync(session, cancellationToken);
             _currentSession = session;
 
             _engine = new FFmpegScreenRecorderEngine(
@@ -162,7 +179,7 @@ public class RecordingOrchestrator : IAsyncDisposable
                 {
                     _currentSession.State = RecordingState.Failed;
                     _currentSession.ErrorMessage = err;
-                    try { _sessionStore.SaveSessionAsync(_currentSession).GetAwaiter().GetResult(); } catch { }
+                    try { SaveSessionAsync(_currentSession).GetAwaiter().GetResult(); } catch { }
                 }
             };
             _engine.EngineWarningOccurred += (s, warn) =>
@@ -175,11 +192,12 @@ public class RecordingOrchestrator : IAsyncDisposable
 
             _stateMachine.TryTransition(RecordingState.Recording, "錄影引擎已啟動");
             session.State = RecordingState.Recording;
-            await _sessionStore.SaveSessionAsync(session, cancellationToken);
+            await SaveSessionAsync(session, cancellationToken);
 
             _diskMonitor.StartMonitoring(rootPath, TimeSpan.FromSeconds(2));
 
             _watchdogCts?.Cancel();
+            _watchdogCts?.Dispose();
             _watchdogCts = new CancellationTokenSource();
             _watchdogTask = Task.Run(() => WatchdogLoopAsync(session, _watchdogCts.Token));
 
@@ -198,7 +216,7 @@ public class RecordingOrchestrator : IAsyncDisposable
             {
                 _currentSession.State = RecordingState.Failed;
                 _currentSession.ErrorMessage = ex.Message;
-                try { await _sessionStore.SaveSessionAsync(_currentSession, cancellationToken); } catch { }
+                try { await SaveSessionAsync(_currentSession, cancellationToken); } catch { }
             }
             return (false, ex.Message, null);
         }
@@ -207,6 +225,21 @@ public class RecordingOrchestrator : IAsyncDisposable
     public async Task<(bool Success, string? ErrorMessage)> UpdatePausedConfigurationAsync(
         RecordingConfiguration updates,
         CancellationToken cancellationToken = default)
+    {
+        await _lifecycleGate.WaitAsync(cancellationToken);
+        try
+        {
+            return await UpdatePausedConfigurationCoreAsync(updates, cancellationToken);
+        }
+        finally
+        {
+            _lifecycleGate.Release();
+        }
+    }
+
+    private async Task<(bool Success, string? ErrorMessage)> UpdatePausedConfigurationCoreAsync(
+        RecordingConfiguration updates,
+        CancellationToken cancellationToken)
     {
         RecordingSession session;
         lock (_lock)
@@ -223,7 +256,7 @@ public class RecordingOrchestrator : IAsyncDisposable
 
         try
         {
-            await _sessionStore.SaveSessionAsync(session, cancellationToken);
+            await SaveSessionAsync(session, cancellationToken);
             Log.Information(
                 "使用者更新暫停期間設定: AudioSource={AudioSource}, Mic={Mic}, Cursor={Cursor}",
                 session.Configuration.AudioSource,
@@ -240,6 +273,20 @@ public class RecordingOrchestrator : IAsyncDisposable
 
     public async Task<(bool Success, string? ErrorMessage)> PauseRecordingAsync(CancellationToken cancellationToken = default)
     {
+        await _lifecycleGate.WaitAsync(cancellationToken);
+        try
+        {
+            return await PauseRecordingCoreAsync(cancellationToken);
+        }
+        finally
+        {
+            _lifecycleGate.Release();
+        }
+    }
+
+    private async Task<(bool Success, string? ErrorMessage)> PauseRecordingCoreAsync(
+        CancellationToken cancellationToken)
+    {
         lock (_lock)
         {
             if (_currentSession == null || !_stateMachine.CanTransitionTo(RecordingState.Pausing))
@@ -250,7 +297,6 @@ public class RecordingOrchestrator : IAsyncDisposable
             _stateMachine.TryTransition(RecordingState.Pausing, "使用者要求暫停錄影");
         }
 
-        _watchdogCts?.Cancel();
         _cursorHighlightService?.Stop();
 
         try
@@ -277,7 +323,7 @@ public class RecordingOrchestrator : IAsyncDisposable
 
             if (_currentSession != null)
             {
-                await _sessionStore.SaveSessionAsync(_currentSession, cancellationToken);
+                await SaveSessionAsync(_currentSession, cancellationToken);
                 Log.Information("錄影已成功暫停，累計時長: {Elapsed}, 分段數: {Count}", 
                     _accumulatedDuration, _currentSession.SegmentFilePaths.Count);
             }
@@ -292,6 +338,20 @@ public class RecordingOrchestrator : IAsyncDisposable
     }
 
     public async Task<(bool Success, string? ErrorMessage)> ResumeRecordingAsync(CancellationToken cancellationToken = default)
+    {
+        await _lifecycleGate.WaitAsync(cancellationToken);
+        try
+        {
+            return await ResumeRecordingCoreAsync(cancellationToken);
+        }
+        finally
+        {
+            _lifecycleGate.Release();
+        }
+    }
+
+    private async Task<(bool Success, string? ErrorMessage)> ResumeRecordingCoreAsync(
+        CancellationToken cancellationToken)
     {
         lock (_lock)
         {
@@ -334,11 +394,15 @@ public class RecordingOrchestrator : IAsyncDisposable
                 session.State = RecordingState.Recording;
             }
 
-            await _sessionStore.SaveSessionAsync(session, cancellationToken);
+            await SaveSessionAsync(session, cancellationToken);
 
-            _watchdogCts?.Cancel();
-            _watchdogCts = new CancellationTokenSource();
-            _watchdogTask = Task.Run(() => WatchdogLoopAsync(session, _watchdogCts.Token));
+            if (_watchdogTask == null || _watchdogTask.IsCompleted)
+            {
+                _watchdogCts?.Cancel();
+                _watchdogCts?.Dispose();
+                _watchdogCts = new CancellationTokenSource();
+                _watchdogTask = Task.Run(() => WatchdogLoopAsync(session, _watchdogCts.Token));
+            }
 
             _cursorHighlightService?.Start(session.Configuration.CursorEffect);
 
@@ -357,17 +421,33 @@ public class RecordingOrchestrator : IAsyncDisposable
         string reason = "User requested stop", 
         CancellationToken cancellationToken = default)
     {
-        if (_currentSession == null || !_stateMachine.CanTransitionTo(RecordingState.Stopping))
+        await _lifecycleGate.WaitAsync(cancellationToken);
+        try
         {
-            return (false, $"目前狀態 {_stateMachine.CurrentState} 無法停止錄影", null);
+            return await StopRecordingCoreAsync(reason, cancellationToken);
         }
+        finally
+        {
+            _lifecycleGate.Release();
+        }
+    }
 
-        _stateMachine.TryTransition(RecordingState.Stopping, reason);
+    private async Task<(bool Success, string? ErrorMessage, string? FinalFilePath)> StopRecordingCoreAsync(
+        string reason,
+        CancellationToken cancellationToken)
+    {
+        lock (_lock)
+        {
+            if (_currentSession == null ||
+                !_stateMachine.TryTransition(RecordingState.Stopping, reason))
+            {
+                return (false, $"目前狀態 {_stateMachine.CurrentState} 無法停止錄影", null);
+            }
+
+        }
         _diskMonitor.StopMonitoring();
 
         _cursorHighlightService?.Stop();
-        _watchdogCts?.Cancel();
-        try { if (_watchdogTask != null) await _watchdogTask; } catch { }
 
         var session = _currentSession;
         session.EndTime = DateTimeOffset.Now;
@@ -375,6 +455,9 @@ public class RecordingOrchestrator : IAsyncDisposable
 
         try
         {
+            session.State = RecordingState.Stopping;
+            await SaveSessionAsync(session, cancellationToken);
+
             // 1. 安全關閉 MKV 錄影引擎 (若在 Paused 狀態下停止，_engine 已為 null)
             if (_engine != null)
             {
@@ -387,7 +470,7 @@ public class RecordingOrchestrator : IAsyncDisposable
             // 2. 切換為 Finalizing
             _stateMachine.TryTransition(RecordingState.Finalizing, "開始 Remux MKV -> MP4");
             session.State = RecordingState.Finalizing;
-            await _sessionStore.SaveSessionAsync(session, cancellationToken);
+            await SaveSessionAsync(session, cancellationToken);
 
             // 3. 無損轉碼 Stream Copy Remux (支援單段或多段無損 Concat 拼接)
             bool remuxSuccess;
@@ -435,7 +518,7 @@ public class RecordingOrchestrator : IAsyncDisposable
 
             _stateMachine.TryTransition(RecordingState.Completed, "錄影與驗收全數完成");
             session.State = RecordingState.Completed;
-            await _sessionStore.SaveSessionAsync(session, cancellationToken);
+            await SaveSessionAsync(session, cancellationToken);
 
             var finalPath = session.FinalFilePath;
 
@@ -452,10 +535,14 @@ public class RecordingOrchestrator : IAsyncDisposable
             _stateMachine.ForceTransition(RecordingState.Failed, ex.Message);
             session.State = RecordingState.Failed;
             session.ErrorMessage = ex.Message;
-            try { await _sessionStore.SaveSessionAsync(session, cancellationToken); } catch { }
+            try { await SaveSessionAsync(session, cancellationToken); } catch { }
 
             // 確保原始 MKV 被保留
             return (false, ex.Message, null);
+        }
+        finally
+        {
+            await StopWatchdogAsync();
         }
     }
 
@@ -523,17 +610,29 @@ public class RecordingOrchestrator : IAsyncDisposable
         return primary?.Bounds ?? new CaptureRegion(0, 0, 1920, 1080);
     }
 
-    private bool _isRecoveringAudio = false;
+    private int _audioRecoveryInFlight;
 
     private async void OnAudioDeviceLost(object? sender, EventArgs e)
     {
-        if (_isRecoveringAudio || _currentSession == null || _stateMachine.CurrentState != RecordingState.Recording) return;
-        
-        Log.Warning("偵測到音訊裝置拔除或異常崩潰，準備觸發安全靜音補償接續錄製...");
-        _isRecoveringAudio = true;
+        if (Interlocked.CompareExchange(ref _audioRecoveryInFlight, 1, 0) != 0)
+        {
+            return;
+        }
+
+        var requiresEmergencyStop = false;
+        await _lifecycleGate.WaitAsync();
 
         try
         {
+            if (_currentSession == null ||
+                (sender != null && !ReferenceEquals(sender, _engine)) ||
+                _stateMachine.CurrentState != RecordingState.Recording)
+            {
+                return;
+            }
+
+            Log.Warning("偵測到音訊裝置拔除或異常崩潰，準備觸發安全靜音補償接續錄製...");
+
             var session = _currentSession;
             session.Configuration.IsRecoverySilenceMode = true;
 
@@ -568,7 +667,7 @@ public class RecordingOrchestrator : IAsyncDisposable
 
             await _engine.StartRecordingAsync(nextSegment, session.Configuration, actualBounds, default);
             
-            await _sessionStore.SaveSessionAsync(session, default);
+            await SaveSessionAsync(session, default);
             
             Log.Information("已成功切換至靜音補償模式，繼續錄製分段 {Index}: {Path}", _segmentIndex, nextSegment);
         }
@@ -576,11 +675,17 @@ public class RecordingOrchestrator : IAsyncDisposable
         {
             Log.Error(ex, "音訊裝置拔除自動恢復發生錯誤");
             EmergencyStopTriggered?.Invoke(this, $"音訊裝置拔除後無法自動恢復錄影: {ex.Message}");
-            await StopRecordingAsync("音訊裝置異常觸發安全停機");
+            requiresEmergencyStop = true;
         }
         finally
         {
-            _isRecoveringAudio = false;
+            _lifecycleGate.Release();
+            Interlocked.Exchange(ref _audioRecoveryInFlight, 0);
+        }
+
+        if (requiresEmergencyStop)
+        {
+            await StopRecordingAsync("音訊裝置異常觸發安全停機");
         }
     }
 
@@ -608,9 +713,37 @@ public class RecordingOrchestrator : IAsyncDisposable
             {
                 await Task.Delay(2000, ct);
 
-                if (_stateMachine.CurrentState != RecordingState.Recording)
+                var currentState = _stateMachine.CurrentState;
+                if (currentState is not RecordingState.Recording and
+                    not RecordingState.Pausing and
+                    not RecordingState.Paused and
+                    not RecordingState.Stopping and
+                    not RecordingState.Finalizing)
                 {
                     break;
+                }
+
+                session.LastHeartbeatTime = DateTimeOffset.UtcNow;
+                try
+                {
+                    await SaveSessionAsync(session, ct);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(
+                        ex,
+                        "寫入錄影工作階段心跳失敗，下一輪將自動重試: {SessionId}",
+                        session.SessionId);
+                }
+
+                if (currentState != RecordingState.Recording)
+                {
+                    stallCount = 0;
+                    continue;
                 }
 
                 if (File.Exists(session.WorkingFilePath))
@@ -645,6 +778,49 @@ public class RecordingOrchestrator : IAsyncDisposable
         catch (Exception ex)
         {
             Log.Warning(ex, "看門狗背景監測發生非致命例外");
+        }
+    }
+
+    private async Task SaveSessionAsync(
+        RecordingSession session,
+        CancellationToken cancellationToken = default)
+    {
+        await _sessionStoreGate.WaitAsync(cancellationToken);
+        try
+        {
+            await _sessionStore.SaveSessionAsync(session, cancellationToken);
+        }
+        finally
+        {
+            _sessionStoreGate.Release();
+        }
+    }
+
+    private async Task StopWatchdogAsync()
+    {
+        var cancellation = _watchdogCts;
+        var task = _watchdogTask;
+
+        cancellation?.Cancel();
+        if (task != null)
+        {
+            try
+            {
+                await task;
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
+        cancellation?.Dispose();
+        if (ReferenceEquals(_watchdogCts, cancellation))
+        {
+            _watchdogCts = null;
+        }
+        if (ReferenceEquals(_watchdogTask, task))
+        {
+            _watchdogTask = null;
         }
     }
 
@@ -695,25 +871,38 @@ public class RecordingOrchestrator : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        _diskMonitor.DiskSpaceCriticalTriggered -= OnDiskSpaceCritical;
-        if (_displayChangeMonitor != null)
+        await _lifecycleGate.WaitAsync();
+        try
         {
-            _displayChangeMonitor.DisplayChanged -= OnDisplayChanged;
-            _displayChangeMonitor.Stop();
-        }
+            _diskMonitor.DiskSpaceCriticalTriggered -= OnDiskSpaceCritical;
+            if (_displayChangeMonitor != null)
+            {
+                _displayChangeMonitor.DisplayChanged -= OnDisplayChanged;
+                _displayChangeMonitor.Stop();
+            }
 
-        if (_stateMachine.CurrentState == RecordingState.Recording || _stateMachine.CurrentState == RecordingState.Paused)
+            if (_stateMachine.CurrentState is
+                RecordingState.Recording or
+                RecordingState.Pausing or
+                RecordingState.Paused)
+            {
+                await StopRecordingCoreAsync("Orchestrator 處置退出", default);
+            }
+
+            if (_engine != null)
+            {
+                await _engine.DisposeAsync();
+                _engine = null;
+            }
+
+            await StopWatchdogAsync();
+            _diskMonitor.Dispose();
+            _sessionStoreGate.Dispose();
+            GC.SuppressFinalize(this);
+        }
+        finally
         {
-            await StopRecordingAsync("Orchestrator 處置退出");
+            _lifecycleGate.Release();
         }
-
-        if (_engine != null)
-        {
-            await _engine.DisposeAsync();
-            _engine = null;
-        }
-
-        _diskMonitor.Dispose();
-        GC.SuppressFinalize(this);
     }
 }

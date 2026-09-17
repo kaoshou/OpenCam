@@ -112,6 +112,34 @@ public class RemuxAndProbeTests : IDisposable
             "Audio enabled after pause must remain audible in the final MP4.");
     }
 
+    [Fact]
+    public async Task Concat_PathContainsApostrophe_Succeeds()
+    {
+        var ffmpegPath = FFmpegDiscovery.FindFFmpegExecutable();
+        Assert.NotNull(ffmpegPath);
+
+        var quotedDirectory = Path.Combine(_tempDir, "O'Connor");
+        Directory.CreateDirectory(quotedDirectory);
+        var firstSegment = Path.Combine(quotedDirectory, "segment_000.mkv");
+        var secondSegment = Path.Combine(quotedDirectory, "segment_001.mkv");
+        var outputPath = Path.Combine(quotedDirectory, "joined.mp4");
+
+        await RunFfmpegAsync(
+            ffmpegPath!,
+            $"-y -f lavfi -i testsrc=duration=0.5:size=320x240:rate=30 -c:v libx264 \"{firstSegment}\"");
+        await RunFfmpegAsync(
+            ffmpegPath!,
+            $"-y -f lavfi -i testsrc=duration=0.5:size=320x240:rate=30 -c:v libx264 \"{secondSegment}\"");
+
+        var success = await new StreamCopyRemuxer(ffmpegPath)
+            .ConcatAndRemuxToMp4Async(
+                new[] { firstSegment, secondSegment },
+                outputPath);
+
+        Assert.True(success);
+        Assert.True(File.Exists(outputPath));
+    }
+
     private static async Task RunFfmpegAsync(string ffmpegPath, string arguments)
     {
         var startInfo = new ProcessStartInfo

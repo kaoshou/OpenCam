@@ -134,9 +134,10 @@ public class WindowsFFmpegProvider : IFFmpegPlatformProvider
         if (config.AudioSource == AudioSourceType.None &&
             !config.MaintainSegmentAudioTrack)
         {
-            return $"{vCodec} -f matroska \"{workingFilePath}\"";
+            return $"{vCodec} -flush_packets 1 -cluster_time_limit 1000 -f matroska \"{workingFilePath}\"";
         }
 
-        return $"{vCodec} -c:a aac -ar 48000 -ac 2 -b:a {config.AudioBitrateKbps}k -f matroska \"{workingFilePath}\"";
+        return $"{vCodec} -c:a aac -ar 48000 -ac 2 -b:a {config.AudioBitrateKbps}k " +
+               $"-flush_packets 1 -cluster_time_limit 1000 -f matroska \"{workingFilePath}\"";
     }
 }

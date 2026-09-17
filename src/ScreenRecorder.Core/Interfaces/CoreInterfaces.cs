@@ -147,7 +147,7 @@ public record RecoverableSessionInfo(
 public interface IRecordingRecoveryService
 {
     Task<IReadOnlyList<RecoverableSessionInfo>> ScanForRecoverableSessionsAsync(string rootRecordingsPath, CancellationToken cancellationToken = default);
-    Task<(bool Success, string? ErrorMessage, string? FinalMp4Path)> RecoverSessionAsync(string sessionDirectory, CancellationToken cancellationToken = default);
+    Task<(bool Success, bool IsPartial, string? ErrorMessage, string? FinalMp4Path)> RecoverSessionAsync(string sessionDirectory, CancellationToken cancellationToken = default);
 }
 
 public interface IRecorderHealthMonitor
@@ -193,6 +193,5 @@ public interface ICursorHighlightService : IDisposable
     void Start(CursorEffectMode mode);
     void Stop();
 }
-
 
 

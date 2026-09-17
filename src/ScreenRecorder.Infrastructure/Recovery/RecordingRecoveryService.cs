@@ -8,6 +8,8 @@ namespace ScreenRecorder.Infrastructure.Recovery;
 
 public class RecordingRecoveryService : IRecordingRecoveryService
 {
+    public static readonly TimeSpan ActiveHeartbeatTimeout = TimeSpan.FromSeconds(15);
+
     private readonly IRecordingSessionStore _sessionStore;
     private readonly IStreamCopyRemuxer _remuxer;
     private readonly IMediaProbeService _probeService;
@@ -40,16 +42,16 @@ public class RecordingRecoveryService : IRecordingRecoveryService
                 continue;
             }
 
-            var mkvPath = _storageService.GetWorkingFilePath(session.WorkingDirectory);
-            bool hasFile = File.Exists(mkvPath);
-            long fileSize = 0;
-            if (hasFile)
+            if (IsSessionActive(session, DateTimeOffset.UtcNow))
             {
-                try { fileSize = new FileInfo(mkvPath).Length; } catch { }
+                continue;
             }
 
-            // 只要檔案存在且非 0 byte，即具備救援價值
-            if (hasFile && fileSize > 0)
+            var segments = FindRecoverableSegments(session);
+            var fileSize = segments.Sum(segment => segment.Length);
+
+            // 只要至少一個分段存在且非 0 byte，即具備救援價值
+            if (segments.Count > 0 && fileSize > 0)
             {
                 var desc = session.State switch
                 {
@@ -67,33 +69,45 @@ public class RecordingRecoveryService : IRecordingRecoveryService
         return recoverableList;
     }
 
-    public async Task<(bool Success, string? ErrorMessage, string? FinalMp4Path)> RecoverSessionAsync(
+    public async Task<(bool Success, bool IsPartial, string? ErrorMessage, string? FinalMp4Path)> RecoverSessionAsync(
         string sessionDirectory, 
         CancellationToken cancellationToken = default)
     {
         var session = await _sessionStore.LoadSessionAsync(sessionDirectory, cancellationToken);
         if (session == null)
         {
-            return (false, "找不到指定的 Session 資料", null);
+            return (false, false, "找不到指定的 Session 資料", null);
         }
 
-        var segments = session.SegmentFilePaths != null && session.SegmentFilePaths.Count > 0
-            ? session.SegmentFilePaths.Where(File.Exists).ToList()
-            : Directory.GetFiles(sessionDirectory, "segment_*.mkv").OrderBy(f => f).ToList();
+        if (IsSessionActive(session, DateTimeOffset.UtcNow))
+        {
+            return (false, false, "錄影工作階段仍在執行，暫不允許救援", null);
+        }
+
+        var expectedSegments = FindRecoverySegmentPaths(session);
+        var segments = FindRecoverableSegments(expectedSegments)
+            .Select(segment => segment.FullName)
+            .ToList();
 
         if (segments.Count == 0)
         {
-            var fallbackMkv = _storageService.GetWorkingFilePath(sessionDirectory);
-            if (File.Exists(fallbackMkv))
-            {
-                segments.Add(fallbackMkv);
-            }
+            return (false, false, "在工作階段目錄中找不到任何有效的 MKV 檔案", null);
         }
 
-        if (segments.Count == 0)
+        FileStream recoveryClaim;
+        try
         {
-            return (false, "在工作階段目錄中找不到任何有效的 MKV 檔案", null);
+            recoveryClaim = new FileStream(
+                Path.Combine(sessionDirectory, ".recovery.lock"),
+                FileMode.OpenOrCreate,
+                FileAccess.ReadWrite,
+                FileShare.None);
         }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return (false, false, "此工作階段正在由另一個 OpenCam 實例救援", null);
+        }
+        using var recoveryClaimScope = recoveryClaim;
 
         // 決定救援輸出路徑
         var rootDir = Path.GetDirectoryName(session.WorkingDirectory);
@@ -113,35 +127,54 @@ public class RecordingRecoveryService : IRecordingRecoveryService
 
         try
         {
-            bool success;
-            if (segments.Count > 1)
+            var usableSegments = await FindUsableSegmentsAsync(
+                segments,
+                cancellationToken);
+            if (usableSegments.Count == 0)
             {
-                Log.Information("開始執行多段 Crash Recovery 拼接救援: {Count} 個分段 -> {Mp4}", segments.Count, outputMp4);
-                success = await _remuxer.ConcatAndRemuxToMp4Async(segments, outputMp4, null, cancellationToken);
+                return (false, false, "所有 MKV 分段皆已損壞或不含有效視訊，無法救援", null);
             }
-            else
+
+            var recoveredSegments = usableSegments;
+            var success = await RemuxSegmentsAsync(
+                recoveredSegments,
+                outputMp4,
+                cancellationToken);
+
+            // 若完整拼接仍失敗，逐步捨棄最末段，至少保住前面連續且可讀的內容。
+            for (var count = usableSegments.Count - 1; !success && count >= 1; count--)
             {
-                Log.Information("開始執行單段 Crash Recovery 救援轉碼: {Mkv} -> {Mp4}", segments[0], outputMp4);
-                success = await _remuxer.RemuxToMp4Async(segments[0], outputMp4, null, cancellationToken);
+                recoveredSegments = usableSegments.Take(count).ToList();
+                Log.Warning(
+                    "完整救援拼接失敗，改以最前方 {Count} 個有效分段重試",
+                    count);
+                success = await RemuxSegmentsAsync(
+                    recoveredSegments,
+                    outputMp4,
+                    cancellationToken);
             }
 
             if (!success || !File.Exists(outputMp4))
             {
-                return (false, "無損轉碼失敗，請確認 MKV 檔案未被其他程序鎖定", null);
+                return (false, false, "無損轉碼失敗，請確認 MKV 檔案未被其他程序鎖定", null);
             }
 
             var probeResult = await _probeService.ProbeAsync(outputMp4, cancellationToken);
             if (!probeResult.IsValid || probeResult.VideoStreamCount < 1)
             {
-                return (false, "修復後的檔案格式無效", null);
+                return (false, false, "修復後的檔案格式無效", null);
             }
+
+            var isPartial = recoveredSegments.Count < expectedSegments.Count;
 
             // 記錄 recovery.json
             var recoveryMetadata = new
             {
                 RecoveredAt = DateTimeOffset.Now,
                 OriginalSessionId = session.SessionId,
-                WorkingFilePaths = segments,
+                WorkingFilePaths = expectedSegments,
+                RecoveredSegmentPaths = recoveredSegments,
+                IsPartial = isPartial,
                 OutputMp4Path = outputMp4,
                 Duration = probeResult.Duration,
                 FileSize = probeResult.FileSizeBytes
@@ -154,16 +187,186 @@ public class RecordingRecoveryService : IRecordingRecoveryService
             session.State = RecordingState.Completed;
             session.FinalFilePath = outputMp4;
             session.FileSizeBytes = probeResult.FileSizeBytes;
-            session.StopReason = "Crash Recovery 成功救回";
+            session.StopReason = isPartial
+                ? $"Crash Recovery 部分救回 ({recoveredSegments.Count}/{expectedSegments.Count} 個分段)"
+                : "Crash Recovery 完整救回";
             await _sessionStore.SaveSessionAsync(session, cancellationToken);
 
             Log.Information("Crash Recovery 救援成功: {Mp4}, 時長 {Dur}", outputMp4, probeResult.Duration);
-            return (true, null, outputMp4);
+            var warning = isPartial
+                ? $"僅救回 {recoveredSegments.Count}/{expectedSegments.Count} 個分段；損壞段落未寫入 MP4，原始 MKV 已保留"
+                : null;
+            return (true, isPartial, warning, outputMp4);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Crash Recovery 執行失敗");
-            return (false, ex.Message, null);
+            return (false, false, ex.Message, null);
         }
+    }
+
+    private async Task<List<string>> FindUsableSegmentsAsync(
+        IReadOnlyList<string> segments,
+        CancellationToken cancellationToken)
+    {
+        var usable = new List<string>();
+        foreach (var segment in segments)
+        {
+            try
+            {
+                var result = await _probeService.ProbeAsync(segment, cancellationToken);
+                if (result.IsValid && result.VideoStreamCount > 0)
+                {
+                    usable.Add(segment);
+                }
+                else
+                {
+                    Log.Warning("略過無法解析的救援分段: {Segment}", segment);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "檢查救援分段時發生錯誤，已略過: {Segment}", segment);
+            }
+        }
+
+        return usable;
+    }
+
+    private async Task<bool> RemuxSegmentsAsync(
+        IReadOnlyList<string> segments,
+        string outputMp4,
+        CancellationToken cancellationToken)
+    {
+        if (segments.Count > 1)
+        {
+            Log.Information(
+                "開始執行多段 Crash Recovery 拼接救援: {Count} 個分段 -> {Mp4}",
+                segments.Count,
+                outputMp4);
+            return await _remuxer.ConcatAndRemuxToMp4Async(
+                segments,
+                outputMp4,
+                null,
+                cancellationToken);
+        }
+
+        Log.Information(
+            "開始執行單段 Crash Recovery 救援轉碼: {Mkv} -> {Mp4}",
+            segments[0],
+            outputMp4);
+        return await _remuxer.RemuxToMp4Async(
+            segments[0],
+            outputMp4,
+            null,
+            cancellationToken);
+    }
+
+    private static bool IsSessionActive(
+        RecordingSession session,
+        DateTimeOffset now)
+    {
+        if (session.LastHeartbeatTime == default)
+        {
+            return false;
+        }
+
+        var isPotentiallyActive = session.State is
+            RecordingState.Preparing or
+            RecordingState.Recording or
+            RecordingState.Pausing or
+            RecordingState.Paused or
+            RecordingState.Stopping or
+            RecordingState.Finalizing;
+        if (!isPotentiallyActive)
+        {
+            return false;
+        }
+
+        var heartbeatAge = now - session.LastHeartbeatTime;
+        return heartbeatAge >= -ActiveHeartbeatTimeout &&
+               heartbeatAge <= ActiveHeartbeatTimeout;
+    }
+
+    private List<FileInfo> FindRecoverableSegments(RecordingSession session) =>
+        FindRecoverableSegments(FindRecoverySegmentPaths(session));
+
+    private static List<FileInfo> FindRecoverableSegments(
+        IReadOnlyList<string> paths)
+    {
+        var result = new List<FileInfo>();
+        foreach (var path in paths)
+        {
+            try
+            {
+                var file = new FileInfo(path);
+                if (file.Exists && file.Length > 0)
+                {
+                    result.Add(file);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "掃描救援分段失敗: {Path}", path);
+            }
+        }
+
+        return result;
+    }
+
+    private List<string> FindRecoverySegmentPaths(RecordingSession session)
+    {
+        var paths = new List<string>();
+        if (session.SegmentFilePaths != null)
+        {
+            paths.AddRange(session.SegmentFilePaths);
+        }
+
+        if (!string.IsNullOrWhiteSpace(session.WorkingFilePath))
+        {
+            paths.Add(session.WorkingFilePath);
+        }
+
+        if (Directory.Exists(session.WorkingDirectory))
+        {
+            try
+            {
+                paths.AddRange(Directory
+                    .EnumerateFiles(session.WorkingDirectory, "segment_*.mkv")
+                    .OrderBy(path => path, StringComparer.Ordinal));
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(
+                    ex,
+                    "無法列舉救援工作階段目錄: {WorkingDirectory}",
+                    session.WorkingDirectory);
+            }
+        }
+
+        // 相容 v0.1.0 與更早版本的單一工作檔名稱；僅在實際存在或沒有
+        // 其他候選路徑時納入，避免把新格式不存在的 recording.mkv 誤算成遺失分段。
+        var legacyPath = _storageService.GetWorkingFilePath(session.WorkingDirectory);
+        if (File.Exists(legacyPath) || paths.Count == 0)
+        {
+            paths.Add(legacyPath);
+        }
+
+        var comparer = OperatingSystem.IsWindows()
+            ? StringComparer.OrdinalIgnoreCase
+            : StringComparer.Ordinal;
+
+        return paths
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Distinct(comparer)
+            .ToList();
     }
 }

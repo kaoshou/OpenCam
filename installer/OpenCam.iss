@@ -1,5 +1,5 @@
 ﻿#define MyAppName "OpenCam 螢幕錄影工具"
-#define MyAppVersion "0.1.1"
+#define MyAppVersion "0.1.2"
 #define MyAppPublisher "Yu-Han Cheng"
 #define MyAppURL "https://github.com/kaoshou/OpenCam"
 #define MyAppExeName "OpenCam.exe"

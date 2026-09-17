@@ -206,6 +206,7 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider
                 $"-c:a aac -ar 48000 -ac 2 -b:a {config.AudioBitrateKbps}k");
         }
 
+        args.Add("-flush_packets 1 -cluster_time_limit 1000 -f matroska");
         args.Add($"\"{outputPath}\"");
 
         return string.Join(" ", args);

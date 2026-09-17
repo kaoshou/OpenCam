@@ -91,6 +91,7 @@
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
                     <!-- 偏好設定按鈕 (簡潔高雅微光齒輪) -->
                     <Button Click="OnSettingsClicked"
+                            IsEnabled="{Binding CanEditRecordingSettings}"
                             Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1"
                             Foreground="#334155" FontSize="11.5" Padding="10,6.5" CornerRadius="7"
                             VerticalAlignment="Center" Cursor="Hand"

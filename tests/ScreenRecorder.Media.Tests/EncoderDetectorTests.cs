@@ -72,4 +72,17 @@ public class EncoderDetectorTests
 
         Assert.Contains("h264_nvenc", args);
     }
+
+    [Fact]
+    public void WindowsOutput_FlushesShortMatroskaClustersForCrashRecovery()
+    {
+        var args = new ScreenRecorder.Platform.Windows.WindowsFFmpegProvider()
+            .BuildOutputArguments(
+                new RecordingConfiguration(),
+                HardwareEncoderType.SoftwareCpu,
+                "test.mkv");
+
+        Assert.Contains("-flush_packets 1", args);
+        Assert.Contains("-cluster_time_limit 1000", args);
+    }
 }

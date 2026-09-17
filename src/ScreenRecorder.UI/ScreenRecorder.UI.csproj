@@ -25,7 +25,7 @@
     <Nullable>enable</Nullable>
     <ApplicationIcon>Assets\app_icon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.1.1</Version>
+    <Version>0.1.2</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -37,4 +37,3 @@
   </ItemGroup>
 
 </Project>
-

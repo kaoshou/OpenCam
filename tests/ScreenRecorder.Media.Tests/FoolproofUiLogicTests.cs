@@ -104,6 +104,68 @@ public class FoolproofUiLogicTests
                 isPreparing));
     }
 
+    [Theory]
+    [InlineData(false, false, false, false, true)]
+    [InlineData(true, false, false, false, false)]
+    [InlineData(false, true, false, false, false)]
+    [InlineData(false, false, true, false, false)]
+    [InlineData(false, false, false, true, false)]
+    public void Recovery_IsAvailableOnlyWhileFullyIdle(
+        bool isRecording,
+        bool isPaused,
+        bool isPreparing,
+        bool isRecovering,
+        bool expected)
+    {
+        Assert.Equal(
+            expected,
+            MainViewModel.CanRecoverSessionsForState(
+                isRecording,
+                isPaused,
+                isPreparing,
+                isRecovering));
+    }
+
+    [Fact]
+    public void Recovery_LocksStartingAndAllRecordingSettings()
+    {
+        Assert.False(MainViewModel.CanStartRecordingForState(
+            isRecording: false,
+            isPaused: false,
+            isPreparing: false,
+            isRecovering: true));
+        Assert.False(MainViewModel.CanEditRecordingSettingsForState(
+            isRecording: false,
+            isPaused: false,
+            isPreparing: false,
+            isRecovering: true));
+        Assert.False(MainViewModel.CanEditPausedSettingsForState(
+            isRecording: false,
+            isPaused: false,
+            isPreparing: false,
+            isRecovering: true));
+    }
+
+    [Theory]
+    [InlineData(0, 0, 0, "NoRecoverable")]
+    [InlineData(2, 0, 0, "Success")]
+    [InlineData(1, 1, 0, "PartialSuccess")]
+    [InlineData(0, 1, 1, "PartialSuccess")]
+    [InlineData(0, 0, 2, "Failed")]
+    public void RecoveryOutcome_DistinguishesSuccessAndFailure(
+        int recoveredCount,
+        int partialCount,
+        int failedCount,
+        string expected)
+    {
+        Assert.Equal(
+            expected,
+            MainViewModel.ResolveRecoveryOutcome(
+                recoveredCount,
+                partialCount,
+                failedCount).ToString());
+    }
+
     // [Fact]
     public void CustomRegion_CanConfigureOnlyWhenSelectedAndNotRecording()
     {

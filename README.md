@@ -15,16 +15,16 @@ OpenCam 是一款以可靠性為優先的跨平台桌面螢幕錄影工具。錄
 ![OpenCam 主畫面](docs/images/preview_main_zhtw.png)
 ![OpenCam 偏好設定](docs/images/preview_settings_zhtw.png)
 
-## v0.1.1 重點更新
+## v0.1.2 重點更新
 
-- 完成 macOS Apple Silicon 版本的指定螢幕與可調整自訂區域錄影。
-- 在 macOS 13 以上透過 ScreenCaptureKit 錄製系統聲音，並透過 AVAudioEngine 錄製系統預設麥克風。
-- 支援預設游標、游標光暈、點擊漣漪及隱藏游標。
-- 點選開始錄影後立即鎖定不會在該次錄影中生效的選項；暫停時可調整系統聲音、麥克風開關與游標樣式，繼續錄影後套用。
-- macOS 套件內含 arm64 版 FFmpeg 與 ffprobe，不需要另外安裝 Homebrew、Rosetta 或 .NET Runtime。
-- 套用 OpenCam 應用程式圖示並改善 macOS 資料夾開啟、音訊穩定性及錄影流程。
+- 重整 Crash Recovery：支援目前的 `segment_*.mkv` 分段與舊版 `recording.mkv` 工作檔。
+- 工作階段中繼資料遺失或損壞時，可由現存 MKV 分段重建並嘗試救援。
+- 損壞或空白尾段不再阻擋整次救援；OpenCam 會保留可讀的連續內容，並清楚標示部分救回。
+- 錄影、暫停、停止及 MP4 封裝期間持續更新工作階段心跳，避免把仍在執行的錄影誤判為可救援內容。
+- 改善 MKV 寫入與 MP4 無損封裝的取消、長影片、特殊路徑及多實例安全性；所有原始 MKV 均會保留。
+- 救援期間鎖定開始錄影與相關設定，並顯示完整救回、部分救回與失敗的正確統計。
 
-完整安裝檔請至 [OpenCam v0.1.1 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.1.1) 下載。
+完整安裝檔請至 [OpenCam v0.1.2 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.1.2) 下載。
 
 ## 🌟 核心特色
 
@@ -49,7 +49,7 @@ OpenCam 是一款以可靠性為優先的跨平台桌面螢幕錄影工具。錄
 
 ### macOS 13 Ventura 或以上（Apple Silicon／arm64）
 
-> v0.1.1 尚未提供 Intel Mac（x64）版本。
+> v0.1.2 尚未提供 Intel Mac（x64）版本。
 
 - 前往 [Releases](https://github.com/kaoshou/OpenCam/releases) 頁面並下載 `OpenCam_macOS_AppleSilicon.dmg`。
 - 打開 DMG，將 `OpenCam.app` 拖曳至「應用程式（Applications）」資料夾。
@@ -61,7 +61,7 @@ OpenCam 是一款以可靠性為優先的跨平台桌面螢幕錄影工具。錄
   xattr -cr /Applications/OpenCam.app
   ```
 
-### macOS v0.1.1 注意事項
+### macOS v0.1.2 注意事項
 
 - 系統音訊錄製需要 macOS 13 或以上版本，並使用 Apple ScreenCaptureKit。
 - 麥克風錄製使用 macOS 系統目前的預設輸入裝置。若要改用另一支麥克風，請先在 macOS 聲音設定中切換預設輸入裝置，再開始或暫停後繼續錄影。
@@ -94,16 +94,16 @@ OpenCam is built with .NET 8, Avalonia UI, and FFmpeg, and supports Windows and 
 ![OpenCam Main Window](docs/images/preview_main_enus.png)
 ![OpenCam Settings Window](docs/images/preview_settings_enus.png)
 
-## What's New in v0.1.1
+## What's New in v0.1.2
 
-- Added monitor capture and a resizable custom-region selector on Apple Silicon Macs.
-- Added system-audio recording through ScreenCaptureKit on macOS 13 or later and default-microphone recording through AVAudioEngine.
-- Added default, halo, halo-with-click-ripple, and hidden cursor modes.
-- Settings that cannot affect the active session are locked as soon as recording starts. While paused, system audio, microphone, and cursor settings remain adjustable and are applied when recording resumes.
-- The macOS package includes arm64 FFmpeg and ffprobe binaries; Homebrew, Rosetta, and a separate .NET Runtime are not required.
-- Added the OpenCam app icon and improved folder opening, audio stability, and the macOS recording workflow.
+- Reworked Crash Recovery to support current `segment_*.mkv` recordings and legacy `recording.mkv` working files.
+- Interrupted sessions can be reconstructed from surviving MKV segments when their metadata is missing or damaged.
+- A damaged or empty trailing segment no longer blocks recovery of the readable continuous content; partial results are reported explicitly.
+- Session heartbeats now remain current while recording, paused, stopping, and remuxing so active sessions are not offered for recovery.
+- Improved MKV durability and MP4 remux cancellation, long-recording, special-path, and multi-instance handling while preserving every original MKV file.
+- Recording controls are locked during recovery, with accurate counts for full, partial, and failed results.
 
-Download the installers from the [OpenCam v0.1.1 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.1.1).
+Download the installers from the [OpenCam v0.1.2 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.1.2).
 
 ## 🌟 Key Features
 
@@ -128,7 +128,7 @@ Download the installers from the [OpenCam v0.1.1 Release](https://github.com/kao
 
 ### macOS 13 Ventura or later (Apple Silicon/arm64)
 
-> OpenCam v0.1.1 does not provide an Intel Mac (x64) build.
+> OpenCam v0.1.2 does not provide an Intel Mac (x64) build.
 
 - Go to the [Releases](https://github.com/kaoshou/OpenCam/releases) page and download `OpenCam_macOS_AppleSilicon.dmg`.
 - Mount the DMG and drag `OpenCam.app` to the Applications folder.
@@ -140,7 +140,7 @@ Download the installers from the [OpenCam v0.1.1 Release](https://github.com/kao
   xattr -cr /Applications/OpenCam.app
   ```
 
-### macOS v0.1.1 Notes
+### macOS v0.1.2 Notes
 
 - System-audio recording requires macOS 13 or later and uses Apple ScreenCaptureKit.
 - Microphone recording uses the current macOS default input device. To use another microphone, select it as the default input in macOS Sound settings before starting, or while the recording is paused.

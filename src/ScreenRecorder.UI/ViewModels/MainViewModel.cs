@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Text.Json;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ScreenRecorder.Core.Enums;
@@ -24,8 +25,17 @@ using ScreenRecorder.Platform.macOS;
 using ScreenRecorder.UI.Localization;
 using ScreenRecorder.UI.Services;
 using ScreenRecorder.UI.Views;
+using Serilog;
 
 namespace ScreenRecorder.UI.ViewModels;
+
+internal enum RecoveryOutcome
+{
+    NoRecoverable,
+    Success,
+    PartialSuccess,
+    Failed
+}
 
 public partial class MainViewModel : ObservableObject
 {
@@ -39,7 +49,7 @@ public partial class MainViewModel : ObservableObject
     }
 
     private NamedPipeIpcClient _ipcClient;
-    private readonly System.Timers.Timer _telemetryTimer;
+    private readonly DispatcherTimer _telemetryTimer;
     private readonly IRecordingRecoveryService _recoveryService;
     private readonly IStorageService _storageService;
     private readonly IDisplayService _displayService;
@@ -49,6 +59,7 @@ public partial class MainViewModel : ObservableObject
     private readonly IGlobalHotkeyService? _globalHotkeyService;
     private readonly IMacOsScreenCapturePermissionService? _macOsScreenCapturePermissionService;
     private Process? _recorderProcess;
+    private int _telemetryPollInFlight;
 
     public ISettingsService SettingsService => _settingsService;
     private bool _openFolderOnFinished = false;
@@ -150,19 +161,33 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private int _recoverableSessionCount;
 
-    public bool CanStartRecording => !IsRecording && !IsPaused && !IsPreparing;
+    [ObservableProperty]
+    private bool _isRecovering;
+
+    public bool CanStartRecording => CanStartRecordingForState(
+        IsRecording,
+        IsPaused,
+        IsPreparing,
+        IsRecovering);
     public bool CanStopRecording => (IsRecording || IsPaused) && !IsPreparing;
     public bool CanPauseOrResume => (IsRecording || IsPaused) && !IsPreparing;
+    public bool CanRecoverSessions => CanRecoverSessionsForState(
+        IsRecording,
+        IsPaused,
+        IsPreparing,
+        IsRecovering);
     public bool CanEditRecordingSettings => CanEditRecordingSettingsForState(
         IsRecording,
         IsPaused,
-        IsPreparing);
+        IsPreparing,
+        IsRecovering);
     public bool CanEditPausedSettings => CanEditPausedSettingsForState(
         IsRecording,
         IsPaused,
-        IsPreparing);
-    public bool CanSelectMonitor => !IsRecording && !IsPaused && !IsPreparing && IsMonitorSelected;
-    public bool CanConfigureCustomRegion => !IsRecording && !IsPaused && !IsPreparing && IsCustomRegion;
+        IsPreparing,
+        IsRecovering);
+    public bool CanSelectMonitor => CanEditRecordingSettings && IsMonitorSelected;
+    public bool CanConfigureCustomRegion => CanEditRecordingSettings && IsCustomRegion;
     public bool CanSelectMicrophone => CanEditPausedSettings && RecordMicrophone;
     public bool SupportsSystemAudio => SupportsSystemAudioOnPlatform(
         OperatingSystem.IsWindows(),
@@ -184,17 +209,46 @@ public partial class MainViewModel : ObservableObject
             osVersion,
             baseDirectory));
 
+    internal static bool CanStartRecordingForState(
+        bool isRecording,
+        bool isPaused,
+        bool isPreparing,
+        bool isRecovering) =>
+        !isRecording && !isPaused && !isPreparing && !isRecovering;
+
     internal static bool CanEditRecordingSettingsForState(
         bool isRecording,
         bool isPaused,
-        bool isPreparing) =>
-        !isRecording && !isPaused && !isPreparing;
+        bool isPreparing,
+        bool isRecovering = false) =>
+        !isRecording && !isPaused && !isPreparing && !isRecovering;
 
     internal static bool CanEditPausedSettingsForState(
         bool isRecording,
         bool isPaused,
-        bool isPreparing) =>
-        !isRecording && !isPreparing;
+        bool isPreparing,
+        bool isRecovering = false) =>
+        !isRecording && !isPreparing && !isRecovering;
+
+    internal static bool CanRecoverSessionsForState(
+        bool isRecording,
+        bool isPaused,
+        bool isPreparing,
+        bool isRecovering) =>
+        !isRecording && !isPaused && !isPreparing && !isRecovering;
+
+    internal static RecoveryOutcome ResolveRecoveryOutcome(
+        int recoveredCount,
+        int partialCount,
+        int failedCount) =>
+        (recoveredCount, partialCount, failedCount) switch
+        {
+            (0, 0, 0) => RecoveryOutcome.NoRecoverable,
+            (> 0, 0, 0) => RecoveryOutcome.Success,
+            (_, > 0, _) => RecoveryOutcome.PartialSuccess,
+            (> 0, 0, > 0) => RecoveryOutcome.PartialSuccess,
+            _ => RecoveryOutcome.Failed
+        };
 
     public string TimerForeground => IsPaused ? "#F59E0B" : (IsRecording ? "#34D399" : "#475569");
 
@@ -295,6 +349,8 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanStartRecording));
         OnPropertyChanged(nameof(CanStopRecording));
         OnPropertyChanged(nameof(CanPauseOrResume));
+        OnPropertyChanged(nameof(CanRecoverSessions));
+        RecoverSessionsCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanEditRecordingSettings));
         OnPropertyChanged(nameof(CanEditPausedSettings));
         OnPropertyChanged(nameof(CanSelectMonitor));
@@ -315,6 +371,8 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanStartRecording));
         OnPropertyChanged(nameof(CanStopRecording));
         OnPropertyChanged(nameof(CanPauseOrResume));
+        OnPropertyChanged(nameof(CanRecoverSessions));
+        RecoverSessionsCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanEditRecordingSettings));
         OnPropertyChanged(nameof(CanEditPausedSettings));
         OnPropertyChanged(nameof(CanSelectMonitor));
@@ -335,6 +393,8 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanStartRecording));
         OnPropertyChanged(nameof(CanStopRecording));
         OnPropertyChanged(nameof(CanPauseOrResume));
+        OnPropertyChanged(nameof(CanRecoverSessions));
+        RecoverSessionsCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanEditRecordingSettings));
         OnPropertyChanged(nameof(CanEditPausedSettings));
         OnPropertyChanged(nameof(CanSelectMonitor));
@@ -347,6 +407,19 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(StatusBadgeText));
         OnPropertyChanged(nameof(PauseResumeButtonText));
         OnPropertyChanged(nameof(PauseResumeTooltipText));
+    }
+
+    partial void OnIsRecoveringChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CanStartRecording));
+        OnPropertyChanged(nameof(CanEditRecordingSettings));
+        OnPropertyChanged(nameof(CanEditPausedSettings));
+        OnPropertyChanged(nameof(CanSelectMonitor));
+        OnPropertyChanged(nameof(CanConfigureCustomRegion));
+        OnPropertyChanged(nameof(CanSelectMicrophone));
+        OnPropertyChanged(nameof(CanRecordSystemAudio));
+        OnPropertyChanged(nameof(CanRecoverSessions));
+        RecoverSessionsCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnIsMonitorSelectedChanged(bool value)
@@ -447,8 +520,11 @@ public partial class MainViewModel : ObservableObject
             new MediaFileProbe(),
             _storageService);
 
-        _telemetryTimer = new System.Timers.Timer(500);
-        _telemetryTimer.Elapsed += async (s, e) => await QueryTelemetryAsync();
+        _telemetryTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(500)
+        };
+        _telemetryTimer.Tick += OnTelemetryTimerTick;
 
         // 動態偵測所有實體顯示器
         Strings.PropertyChanged += (s, e) =>
@@ -494,7 +570,7 @@ public partial class MainViewModel : ObservableObject
         LoadUserSettings();
 
         // 非同步掃描未完成之錄影
-        Task.Run(CheckRecoverableSessionsAsync);
+        _ = CheckRecoverableSessionsAsync();
 
         // 立即探測目標存放磁碟之剩餘空間 (更新介面顯示 -- GB)
         UpdateDiskSpaceRemaining();
@@ -511,7 +587,7 @@ public partial class MainViewModel : ObservableObject
                     {
                         if (hotkeyId == 9001) // F9: 開始 / 停止
                         {
-                            if (!IsRecording && !IsPaused && !IsPreparing)
+                            if (CanStartRecording)
                             {
                                 await StartRecordingAsync();
                             }
@@ -596,7 +672,10 @@ public partial class MainViewModel : ObservableObject
             await LoadEncodersAsync(s.EncoderType);
             LoadCursorEffects(s.CursorEffect);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "載入使用者設定失敗，將使用預設值");
+        }
         finally
         {
             _isLoadingSettings = false;
@@ -741,7 +820,10 @@ public partial class MainViewModel : ObservableObject
             };
             _ = Task.Run(() => _settingsService.SaveSettingsAsync(settings));
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "建立使用者設定快照失敗");
+        }
     }
 
     public void ApplyNewSettings(UserSettings newSettings)
@@ -887,13 +969,16 @@ public partial class MainViewModel : ObservableObject
                 StatusMessage = Strings.GetFormatted("StatusRecoverableDetected", RecoverableSessionCount);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "掃描可救援錄影工作階段失敗: {OutputDirectory}", OutputDirectory);
+        }
     }
 
     [RelayCommand]
     public async Task StartRecordingAsync()
     {
-        if (IsRecording || IsPreparing) return;
+        if (!CanStartRecording) return;
 
         IsPreparing = true;
         StatusMessage = Strings["StatusInitializing"];
@@ -1066,32 +1151,91 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanRecoverSessions))]
     public async Task RecoverSessionsAsync()
     {
-        StatusMessage = Strings["StatusRecovering"];
-        var sessions = await _recoveryService.ScanForRecoverableSessionsAsync(OutputDirectory);
-
-        if (sessions.Count == 0)
+        if (!CanRecoverSessions)
         {
-            StatusMessage = Strings["StatusNoRecoverable"];
-            RecoverableSessionCount = 0;
             return;
         }
 
-        int recoveredCount = 0;
-        foreach (var s in sessions)
+        IsRecovering = true;
+        StatusMessage = Strings["StatusRecovering"];
+        try
         {
-            var (success, err, mp4) = await _recoveryService.RecoverSessionAsync(s.Session.WorkingDirectory);
-            if (success)
+            var sessions = await _recoveryService.ScanForRecoverableSessionsAsync(OutputDirectory);
+            if (sessions.Count == 0)
             {
-                recoveredCount++;
-                LastOutputFilePath = mp4;
+                StatusMessage = Strings["StatusNoRecoverable"];
+                RecoverableSessionCount = 0;
+                return;
+            }
+
+            int recoveredCount = 0;
+            int partialCount = 0;
+            int failedCount = 0;
+            foreach (var session in sessions)
+            {
+                var (success, isPartial, error, mp4) = await _recoveryService.RecoverSessionAsync(
+                    session.Session.WorkingDirectory);
+                if (success)
+                {
+                    if (isPartial)
+                    {
+                        partialCount++;
+                    }
+                    else
+                    {
+                        recoveredCount++;
+                    }
+                    LastOutputFilePath = mp4;
+                }
+                else
+                {
+                    failedCount++;
+                    Log.Warning(
+                        "救援工作階段失敗: {SessionId}, {Error}",
+                        session.Session.SessionId,
+                        error ?? "未知錯誤");
+                }
+            }
+
+            var remaining = await _recoveryService.ScanForRecoverableSessionsAsync(OutputDirectory);
+            RecoverableSessionCount = remaining.Count;
+            StatusMessage = ResolveRecoveryOutcome(recoveredCount, partialCount, failedCount) switch
+            {
+                RecoveryOutcome.Success => Strings.GetFormatted(
+                    "StatusRecoverSuccess",
+                    recoveredCount),
+                RecoveryOutcome.PartialSuccess => Strings.GetFormatted(
+                    "StatusRecoverPartial",
+                    recoveredCount,
+                    partialCount,
+                    failedCount),
+                RecoveryOutcome.Failed => Strings.GetFormatted(
+                    "StatusRecoverFailed",
+                    failedCount),
+                _ => Strings["StatusNoRecoverable"]
+            };
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "掃描或執行 Crash Recovery 時發生錯誤");
+            StatusMessage = Strings.GetFormatted("StatusRecoverFailed", 1);
+            try
+            {
+                var remaining = await _recoveryService.ScanForRecoverableSessionsAsync(OutputDirectory);
+                RecoverableSessionCount = remaining.Count;
+            }
+            catch (Exception scanException)
+            {
+                Log.Warning(scanException, "救援失敗後重新掃描工作階段亦失敗");
             }
         }
-
-        RecoverableSessionCount = 0;
-        StatusMessage = Strings.GetFormatted("StatusRecoverSuccess", recoveredCount);
+        finally
+        {
+            IsRecovering = false;
+        }
     }
 
     [RelayCommand]
@@ -1163,7 +1307,7 @@ public partial class MainViewModel : ObservableObject
             UpdateDiskSpaceRemaining(newPath);
             StatusMessage = Strings.GetFormatted("StatusLocationUpdated", newPath);
             PersistUserSettings();
-            Task.Run(CheckRecoverableSessionsAsync);
+            _ = CheckRecoverableSessionsAsync();
         }
         catch (Exception ex)
         {
@@ -1199,6 +1343,23 @@ public partial class MainViewModel : ObservableObject
 
 
     private int _telemetryFailures = 0;
+
+    private async void OnTelemetryTimerTick(object? sender, EventArgs e)
+    {
+        if (Interlocked.Exchange(ref _telemetryPollInFlight, 1) == 1)
+        {
+            return;
+        }
+
+        try
+        {
+            await QueryTelemetryAsync();
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _telemetryPollInFlight, 0);
+        }
+    }
 
     internal async Task QueryTelemetryAsync()
     {
@@ -1254,6 +1415,18 @@ public partial class MainViewModel : ObservableObject
             IsPaused = false;
             StatusMessage = Strings["StatusUnexpectedDisconnect"];
             await CheckRecoverableSessionsAsync();
+            _ = RecheckRecoverableSessionsAfterHeartbeatTimeoutAsync();
+        }
+    }
+
+    private async Task RecheckRecoverableSessionsAfterHeartbeatTimeoutAsync()
+    {
+        await Task.Delay(
+            RecordingRecoveryService.ActiveHeartbeatTimeout + TimeSpan.FromSeconds(1));
+
+        if (!IsRecording && !IsPaused && !IsPreparing)
+        {
+            await CheckRecoverableSessionsAsync();
         }
     }
 
@@ -1297,6 +1470,9 @@ public partial class MainViewModel : ObservableObject
 
     public void Cleanup()
     {
+        _telemetryTimer.Stop();
+        _telemetryTimer.Tick -= OnTelemetryTimerTick;
+
         try
         {
             _globalHotkeyService?.Dispose();

@@ -91,7 +91,7 @@ public partial class MainWindow : Window
             if (vm.MatchesStartStopHotkey(e.Key, e.KeyModifiers))
             {
                 e.Handled = true;
-                if (!vm.IsRecording && !vm.IsPaused && !vm.IsPreparing)
+                if (vm.CanStartRecording)
                 {
                     await vm.StartRecordingCommand.ExecuteAsync(null);
                 }
@@ -139,7 +139,7 @@ public partial class MainWindow : Window
 
     private async Task OpenSettingsWindowAsync(int initialTabIndex)
     {
-        if (DataContext is MainViewModel vm)
+        if (DataContext is MainViewModel vm && vm.CanEditRecordingSettings)
         {
             var settingsVm = new SettingsViewModel(vm.SettingsService);
             await settingsVm.LoadSettingsAsync();

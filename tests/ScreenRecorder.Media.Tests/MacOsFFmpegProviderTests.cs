@@ -241,6 +241,18 @@ public class MacOsFFmpegProviderTests
         Assert.Contains("-pix_fmt yuv420p", args);
     }
 
+    [Fact]
+    public void Output_FlushesShortMatroskaClustersForCrashRecovery()
+    {
+        var args = CreateProvider().BuildOutputArguments(
+            new RecordingConfiguration(),
+            HardwareEncoderType.SoftwareCpu,
+            "/tmp/output.mkv");
+
+        Assert.Contains("-flush_packets 1", args);
+        Assert.Contains("-cluster_time_limit 1000", args);
+    }
+
     private static MacOsFFmpegProvider CreateProvider() =>
         new(new FakeDisplayService(
             new MonitorInfo(
