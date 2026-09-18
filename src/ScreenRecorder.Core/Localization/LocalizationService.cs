@@ -146,12 +146,12 @@ public class LocalizationService : ILocalizationService
         ["RecordingCloseWarningMessage"] = "目前正在錄影，請先停止錄影後再關閉程式。",
         ["RecordingCloseWarningDetail"] = "這次關閉要求已取消，OpenCam 會繼續錄影。",
         ["ReturnToRecording"] = "返回錄影",
-        ["VersionAndAbout"] = "OpenCam v0.1.2 · 關於",
+        ["VersionAndAbout"] = "OpenCam v0.1.3 · 關於",
 
         // 關於視窗
         ["AboutTitle"] = "關於 OpenCam",
         ["AppName"] = "OpenCam",
-        ["VersionLabel"] = "版本: v0.1.2 (開源穩定版)",
+        ["VersionLabel"] = "版本: v0.1.3 (開源穩定版)",
         ["AuthorLabel"] = "作者:",
         ["AuthorName"] = "鄭郁翰 (Yu-Han Cheng)",
         ["GithubLabel"] = "GitHub 專案首頁",
@@ -350,12 +350,12 @@ public class LocalizationService : ILocalizationService
         ["RecordingCloseWarningMessage"] = "Stop the recording before closing OpenCam.",
         ["RecordingCloseWarningDetail"] = "The close request was canceled and recording will continue.",
         ["ReturnToRecording"] = "Return to Recording",
-        ["VersionAndAbout"] = "OpenCam v0.1.2 · About",
+        ["VersionAndAbout"] = "OpenCam v0.1.3 · About",
 
         // 關於視窗
         ["AboutTitle"] = "About OpenCam",
         ["AppName"] = "OpenCam",
-        ["VersionLabel"] = "Version: v0.1.2 (Open Source Stable)",
+        ["VersionLabel"] = "Version: v0.1.3 (Open Source Stable)",
         ["AuthorLabel"] = "Author:",
         ["AuthorName"] = "Yu-Han Cheng (鄭郁翰)",
         ["GithubLabel"] = "GitHub Project",

@@ -4,12 +4,12 @@ public static class FFmpegDiscovery
 {
     public static string? FindFFmpegExecutable()
     {
-        return FindOnPath("ffmpeg") ?? FindInAppDirectory("ffmpeg");
+        return FindInAppDirectory("ffmpeg") ?? FindOnPath("ffmpeg");
     }
 
     public static string? FindFFprobeExecutable()
     {
-        return FindOnPath("ffprobe") ?? FindInAppDirectory("ffprobe");
+        return FindInAppDirectory("ffprobe") ?? FindOnPath("ffprobe");
     }
 
     private static string? FindInAppDirectory(string exeName)
