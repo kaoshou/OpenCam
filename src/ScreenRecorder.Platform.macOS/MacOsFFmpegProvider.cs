@@ -115,22 +115,6 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider
             args.Add("-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000");
         }
 
-        if (config.CaptureSource == CaptureSourceType.CustomRegion)
-        {
-            var localX = Math.Max(0, x - (display?.Bounds.X ?? 0));
-            var localY = Math.Max(0, y - (display?.Bounds.Y ?? 0));
-            args.Add($"-filter:v \"crop={width}:{height}:{localX}:{localY}\"");
-        }
-        else
-        {
-            // AVFoundation reports Retina screen frames in backing pixels
-            // (for example 4480x2520) while the display service exposes the
-            // logical capture size (2240x1260). Normalize monitor captures so
-            // VideoToolbox receives the requested, encodable dimensions.
-            args.Add(
-                $"-filter:v \"scale={width}:{height}:flags=fast_bilinear\"");
-        }
-
         if (includeAudioTrack)
         {
             if (config.IsRecoverySilenceMode ||
@@ -169,6 +153,22 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider
                     "aformat=sample_rates=48000:channel_layouts=stereo[sys]\" " +
                     "-map 0:v -map \"[sys]\"");
             }
+        }
+
+        if (config.CaptureSource == CaptureSourceType.CustomRegion)
+        {
+            var localX = Math.Max(0, x - (display?.Bounds.X ?? 0));
+            var localY = Math.Max(0, y - (display?.Bounds.Y ?? 0));
+            args.Add($"-filter:v \"crop={width}:{height}:{localX}:{localY}\"");
+        }
+        else
+        {
+            // AVFoundation reports Retina screen frames in backing pixels
+            // (for example 4480x2520) while the display service exposes the
+            // logical capture size (2240x1260). Normalize monitor captures so
+            // VideoToolbox receives the requested, encodable dimensions.
+            args.Add(
+                $"-filter:v \"scale={width}:{height}:flags=fast_bilinear\"");
         }
 
         return string.Join(" ", args);

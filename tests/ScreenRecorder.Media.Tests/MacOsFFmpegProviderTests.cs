@@ -194,6 +194,33 @@ public class MacOsFFmpegProviderTests
         Assert.Contains("-c:a aac -ar 48000 -ac 2", outputArgs);
     }
 
+    [Theory]
+    [InlineData(CaptureSourceType.Monitor, "scale=1280:720")]
+    [InlineData(CaptureSourceType.CustomRegion, "crop=1280:720:0:0")]
+    public void SegmentedSession_WithSilentTrack_PlacesAllInputsBeforeVideoFilter(
+        CaptureSourceType captureSource,
+        string expectedVideoFilter)
+    {
+        var config = new RecordingConfiguration
+        {
+            CaptureSource = captureSource,
+            AudioSource = AudioSourceType.None,
+            MaintainSegmentAudioTrack = true
+        };
+
+        var args = CreateProvider().BuildInputArguments(
+            config, 0, 0, 1280, 720, false, false);
+
+        var silentInputIndex = args.IndexOf(
+            "-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000",
+            StringComparison.Ordinal);
+        var videoFilterIndex = args.IndexOf(expectedVideoFilter, StringComparison.Ordinal);
+
+        Assert.True(silentInputIndex >= 0, "Expected the silent audio input to be present.");
+        Assert.True(videoFilterIndex > silentInputIndex,
+            "FFmpeg output filters must appear after every input argument.");
+    }
+
     [Fact]
     public void CursorMode_ControlsMacOsCursorCapture()
     {
