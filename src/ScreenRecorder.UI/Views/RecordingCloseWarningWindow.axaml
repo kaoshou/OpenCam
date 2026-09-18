@@ -1,0 +1,53 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ScreenRecorder.UI.Views.RecordingCloseWarningWindow"
+        Title="{Binding [RecordingCloseWarningTitle]}"
+        Icon="/Assets/app_icon.png"
+        Width="440" Height="250"
+        MinWidth="440" MinHeight="250"
+        MaxWidth="440" MaxHeight="250"
+        Background="#F8FAFC"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        ShowInTaskbar="False">
+
+    <Grid RowDefinitions="*,Auto" Margin="24,22,24,20">
+        <StackPanel Grid.Row="0" Spacing="14" VerticalAlignment="Center">
+            <Border Width="48" Height="48"
+                    HorizontalAlignment="Center"
+                    Background="#FEF3C7"
+                    CornerRadius="24">
+                <TextBlock Text="!"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           Foreground="#D97706"
+                           FontSize="28"
+                           FontWeight="Bold" />
+            </Border>
+
+            <TextBlock Text="{Binding [RecordingCloseWarningMessage]}"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap"
+                       Foreground="#0F172A"
+                       FontSize="16"
+                       FontWeight="Bold" />
+
+            <TextBlock Text="{Binding [RecordingCloseWarningDetail]}"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap"
+                       Foreground="#64748B"
+                       FontSize="12" />
+        </StackPanel>
+
+        <Button Grid.Row="1"
+                Content="{Binding [ReturnToRecording]}"
+                Click="OnReturnClicked"
+                HorizontalAlignment="Center"
+                MinWidth="150"
+                Padding="18,9"
+                Background="#2563EB"
+                Foreground="White"
+                FontWeight="SemiBold"
+                CornerRadius="7" />
+    </Grid>
+</Window>

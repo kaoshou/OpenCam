@@ -45,6 +45,14 @@ public partial class App : Application
             };
             _mainWindow = mainWindow;
             desktop.MainWindow = mainWindow;
+            desktop.ShutdownRequested += (_, e) =>
+            {
+                if (viewModel.IsApplicationCloseBlocked)
+                {
+                    e.Cancel = true;
+                    _ = mainWindow.ShowRecordingCloseWarningAsync();
+                }
+            };
 
             if (desktop.Args != null && desktop.Args.Length >= 2 && desktop.Args[0] == "--screenshot")
             {
@@ -195,7 +203,7 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.Shutdown();
+            desktop.TryShutdown();
         }
     }
 }

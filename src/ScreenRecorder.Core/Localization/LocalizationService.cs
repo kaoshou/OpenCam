@@ -142,6 +142,10 @@ public class LocalizationService : ILocalizationService
         ["StatusSetLocationFailed"] = "設定儲存目錄失敗: {0}",
         ["StatusOpenFolderFailed"] = "無法開啟儲存位置：{0}",
         ["StatusUnexpectedDisconnect"] = "錄影核心無預警中斷！已錄製內容已安全保留，可點擊「修復救援」轉出 MP4。",
+        ["RecordingCloseWarningTitle"] = "錄影進行中",
+        ["RecordingCloseWarningMessage"] = "目前正在錄影，請先停止錄影後再關閉程式。",
+        ["RecordingCloseWarningDetail"] = "這次關閉要求已取消，OpenCam 會繼續錄影。",
+        ["ReturnToRecording"] = "返回錄影",
         ["VersionAndAbout"] = "OpenCam v0.1.2 · 關於",
 
         // 關於視窗
@@ -342,6 +346,10 @@ public class LocalizationService : ILocalizationService
         ["StatusSetLocationFailed"] = "Failed to update storage directory: {0}",
         ["StatusOpenFolderFailed"] = "Unable to open the output location: {0}",
         ["StatusUnexpectedDisconnect"] = "Recording core disconnected! Captured data safely preserved. Click 'Recovery' to export MP4.",
+        ["RecordingCloseWarningTitle"] = "Recording in Progress",
+        ["RecordingCloseWarningMessage"] = "Stop the recording before closing OpenCam.",
+        ["RecordingCloseWarningDetail"] = "The close request was canceled and recording will continue.",
+        ["ReturnToRecording"] = "Return to Recording",
         ["VersionAndAbout"] = "OpenCam v0.1.2 · About",
 
         // 關於視窗

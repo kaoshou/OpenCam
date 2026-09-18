@@ -147,6 +147,46 @@ public class FoolproofUiLogicTests
     }
 
     [Theory]
+    [InlineData(false, false, false, false)]
+    [InlineData(true, false, false, true)]
+    [InlineData(false, true, false, true)]
+    [InlineData(false, false, true, true)]
+    public void Closing_IsBlockedWhileRecordingSessionIsActive(
+        bool isRecording,
+        bool isPaused,
+        bool isPreparing,
+        bool expected)
+    {
+        Assert.Equal(
+            expected,
+            MainViewModel.ShouldBlockApplicationClose(
+                isRecording,
+                isPaused,
+                isPreparing));
+    }
+
+    [Theory]
+    [InlineData(true, true, false, false, false)]
+    [InlineData(true, false, true, false, false)]
+    [InlineData(false, true, false, true, false)]
+    [InlineData(false, false, true, false, true)]
+    public void StopResponse_ClearsActiveStateOnlyAfterConfirmedSuccess(
+        bool stopSucceeded,
+        bool wasRecording,
+        bool wasPaused,
+        bool expectedRecording,
+        bool expectedPaused)
+    {
+        var result = MainViewModel.ResolveStateAfterStopResponse(
+            stopSucceeded,
+            wasRecording,
+            wasPaused);
+
+        Assert.Equal(expectedRecording, result.IsRecording);
+        Assert.Equal(expectedPaused, result.IsPaused);
+    }
+
+    [Theory]
     [InlineData(0, 0, 0, "NoRecoverable")]
     [InlineData(2, 0, 0, "Success")]
     [InlineData(1, 1, 0, "PartialSuccess")]

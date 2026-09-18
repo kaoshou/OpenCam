@@ -216,6 +216,25 @@ public partial class MainViewModel : ObservableObject
         bool isRecovering) =>
         !isRecording && !isPaused && !isPreparing && !isRecovering;
 
+    internal static bool ShouldBlockApplicationClose(
+        bool isRecording,
+        bool isPaused,
+        bool isPreparing) =>
+        isRecording || isPaused || isPreparing;
+
+    internal static (bool IsRecording, bool IsPaused) ResolveStateAfterStopResponse(
+        bool stopSucceeded,
+        bool wasRecording,
+        bool wasPaused) =>
+        stopSucceeded
+            ? (false, false)
+            : (wasRecording, wasPaused);
+
+    public bool IsApplicationCloseBlocked => ShouldBlockApplicationClose(
+        IsRecording,
+        IsPaused,
+        IsPreparing);
+
     internal static bool CanEditRecordingSettingsForState(
         bool isRecording,
         bool isPaused,
@@ -1120,34 +1139,51 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     public async Task StopRecordingAsync()
     {
-        if (!IsRecording && !IsPaused) return;
+        if ((!IsRecording && !IsPaused) || IsPreparing) return;
 
+        var wasRecording = IsRecording;
+        var wasPaused = IsPaused;
+        IsPreparing = true;
         _telemetryTimer.Stop();
         StatusMessage = Strings["StatusStopping"];
 
-        var response = await _ipcClient.SendCommandAsync("StopRecording", new StopRecordingCommand(), timeoutMs: 15000);
-
-        IsRecording = false;
-        IsPaused = false;
-
-        if (response.Success)
+        try
         {
-            LastOutputFilePath = response.SessionId;
-            StatusMessage = Strings["StatusSuccess"];
+            var response = await _ipcClient.SendCommandAsync(
+                "StopRecording",
+                new StopRecordingCommand(),
+                timeoutMs: 15000);
+            var nextState = ResolveStateAfterStopResponse(
+                response.Success,
+                wasRecording,
+                wasPaused);
+            IsRecording = nextState.IsRecording;
+            IsPaused = nextState.IsPaused;
 
-            if (MinimizeOnRecord)
+            if (response.Success)
             {
-                RequestRestoreWindow?.Invoke(this, EventArgs.Empty);
+                LastOutputFilePath = response.SessionId;
+                StatusMessage = Strings["StatusSuccess"];
+
+                if (MinimizeOnRecord)
+                {
+                    RequestRestoreWindow?.Invoke(this, EventArgs.Empty);
+                }
+
+                if (_openFolderOnFinished && !string.IsNullOrEmpty(LastOutputFilePath))
+                {
+                    OpenOutputFolder();
+                }
             }
-
-            if (_openFolderOnFinished && !string.IsNullOrEmpty(LastOutputFilePath))
+            else
             {
-                OpenOutputFolder();
+                StatusMessage = Strings.GetFormatted("StatusStopFailed", response.ErrorMessage ?? string.Empty);
+                _telemetryTimer.Start();
             }
         }
-        else
+        finally
         {
-            StatusMessage = Strings.GetFormatted("StatusStopFailed", response.ErrorMessage ?? string.Empty);
+            IsPreparing = false;
         }
     }
 

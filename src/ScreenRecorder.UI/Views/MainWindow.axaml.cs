@@ -8,6 +8,8 @@ namespace ScreenRecorder.UI.Views;
 
 public partial class MainWindow : Window
 {
+    private RecordingCloseWarningWindow? _closeWarningWindow;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -36,6 +38,49 @@ public partial class MainWindow : Window
         if (DataContext is MainViewModel vm)
         {
             vm.Cleanup();
+        }
+    }
+
+    protected override void OnClosing(WindowClosingEventArgs e)
+    {
+        base.OnClosing(e);
+
+        if (DataContext is MainViewModel { IsApplicationCloseBlocked: true })
+        {
+            e.Cancel = true;
+            _ = ShowRecordingCloseWarningAsync();
+        }
+    }
+
+    public async Task ShowRecordingCloseWarningAsync()
+    {
+        if (_closeWarningWindow is not null)
+        {
+            WindowState = WindowState.Normal;
+            Activate();
+            _closeWarningWindow.Activate();
+            return;
+        }
+
+        var warningWindow = new RecordingCloseWarningWindow();
+        _closeWarningWindow = warningWindow;
+        try
+        {
+            WindowState = WindowState.Normal;
+            if (!IsVisible)
+            {
+                Show();
+            }
+            Activate();
+
+            await warningWindow.ShowDialog(this);
+        }
+        finally
+        {
+            if (ReferenceEquals(_closeWarningWindow, warningWindow))
+            {
+                _closeWarningWindow = null;
+            }
         }
     }
 
