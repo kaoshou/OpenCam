@@ -5,7 +5,7 @@ $InstallerDir = Join-Path $ProjectRoot "installer"
 $PublishDir = Join-Path $InstallerDir "publish"
 
 Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host " OpenCam v0.1.4 獨立發布打包腳本" -ForegroundColor Cyan
+Write-Host " OpenCam v0.1.5 獨立發布打包腳本" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 
 # 1. 清理舊的發布檔案
@@ -37,5 +37,5 @@ Write-Host "1. 請確保您已下載並安裝 [Inno Setup 6] (https://jrsoftware
 Write-Host "2. 進入 $InstallerDir 目錄"
 Write-Host "3. 點擊兩下開啟 OpenCam.iss"
 Write-Host "4. 在 Inno Setup 中點擊上方的 [Build] -> [Compile] (或按 Ctrl+F9)"
-Write-Host "5. 完成後，安裝檔將會產生在 $InstallerDir\Output\OpenCam_v0.1.4_Setup.exe"
+Write-Host "5. 完成後，安裝檔將會產生在 $InstallerDir\Output\OpenCam_v0.1.5_Setup.exe"
 Write-Host "==========================================" -ForegroundColor Cyan

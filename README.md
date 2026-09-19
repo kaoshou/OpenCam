@@ -17,8 +17,12 @@ OpenCam 是一款以可靠性為優先的跨平台桌面螢幕錄影工具。錄
 ![OpenCam 主畫面](docs/images/preview_main_zhtw.png)
 ![OpenCam 偏好設定](docs/images/preview_settings_zhtw.png)
 
-## v0.1.4 重點更新
+## v0.1.5 重點更新
 
+- 修正錄影畫質、磁碟警告門檻與成功封裝後清理 MKV 等偏好設定未完整套用到 Recorder 的問題。
+- 修正錄影正常停止後，UI 可能因最後狀態訊息而誤判為中斷的問題。
+- 暫停後變更系統聲音、麥克風與游標設定時，會正確傳遞到下一個錄影片段。
+- 新增繁體中文與英文完整使用說明，涵蓋錄影模式、參數、檔案機制、設定、工作檔位置及修復救援流程。
 - 重整 Crash Recovery：支援目前的 `segment_*.mkv` 分段與舊版 `recording.mkv` 工作檔。
 - 工作階段中繼資料遺失或損壞時，可由現存 MKV 分段重建並嘗試救援。
 - 損壞或空白尾段不再阻擋整次救援；OpenCam 會保留可讀的連續內容，並清楚標示部分救回。
@@ -29,7 +33,7 @@ OpenCam 是一款以可靠性為優先的跨平台桌面螢幕錄影工具。錄
 - 官方封裝優先使用 App 內附的 FFmpeg 與 FFprobe，避免系統 PATH 中的其他版本造成相容性問題。
 - 修正 macOS 無音訊錄影時 FFmpeg 參數順序錯誤，指定螢幕與自訂區域皆可正常開始錄影。
 
-完整安裝檔請至 [OpenCam v0.1.4 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.1.4) 下載。
+完整安裝檔請至 [OpenCam v0.1.5 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.1.5) 下載。
 
 ## 🌟 核心特色
 
@@ -54,7 +58,7 @@ OpenCam 是一款以可靠性為優先的跨平台桌面螢幕錄影工具。錄
 
 ### macOS 13 Ventura 或以上（Apple Silicon／arm64）
 
-> v0.1.4 尚未提供 Intel Mac（x64）版本。
+> v0.1.5 尚未提供 Intel Mac（x64）版本。
 
 - 前往 [Releases](https://github.com/kaoshou/OpenCam/releases) 頁面並下載 `OpenCam_macOS_AppleSilicon.dmg`。
 - 打開 DMG，將 `OpenCam.app` 拖曳至「應用程式（Applications）」資料夾。
@@ -66,7 +70,7 @@ OpenCam 是一款以可靠性為優先的跨平台桌面螢幕錄影工具。錄
   xattr -cr /Applications/OpenCam.app
   ```
 
-### macOS v0.1.4 注意事項
+### macOS v0.1.5 注意事項
 
 - 系統音訊錄製需要 macOS 13 或以上版本，並使用 Apple ScreenCaptureKit。
 - 麥克風錄製使用 macOS 系統目前的預設輸入裝置。若要改用另一支麥克風，請先在 macOS 聲音設定中切換預設輸入裝置，再開始或暫停後繼續錄影。
@@ -101,8 +105,12 @@ OpenCam is built with .NET 8, Avalonia UI, and FFmpeg, and supports Windows and 
 ![OpenCam Main Window](docs/images/preview_main_enus.png)
 ![OpenCam Settings Window](docs/images/preview_settings_enus.png)
 
-## What's New in v0.1.4
+## What's New in v0.1.5
 
+- Fixed preferences that were not fully propagated to the Recorder, including video quality, disk-warning thresholds, and MKV cleanup after successful remuxing.
+- Fixed a case where the UI could interpret the final status message after a normal stop as an interrupted recording.
+- Changes to system audio, microphone, and cursor settings while paused are now passed correctly to the next recording segment.
+- Added complete Traditional Chinese and English user guides covering recording modes, options, file handling, preferences, working-file locations, and Crash Recovery.
 - Reworked Crash Recovery to support current `segment_*.mkv` recordings and legacy `recording.mkv` working files.
 - Interrupted sessions can be reconstructed from surviving MKV segments when their metadata is missing or damaged.
 - A damaged or empty trailing segment no longer blocks recovery of the readable continuous content; partial results are reported explicitly.
@@ -113,7 +121,7 @@ OpenCam is built with .NET 8, Avalonia UI, and FFmpeg, and supports Windows and 
 - Official packages prefer the bundled FFmpeg and FFprobe before falling back to versions found on the system PATH.
 - Fixed the FFmpeg argument order for silent macOS recordings so monitor and custom-region capture both start correctly.
 
-Download the installers from the [OpenCam v0.1.4 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.1.4).
+Download the installers from the [OpenCam v0.1.5 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.1.5).
 
 ## 🌟 Key Features
 
@@ -138,7 +146,7 @@ Download the installers from the [OpenCam v0.1.4 Release](https://github.com/kao
 
 ### macOS 13 Ventura or later (Apple Silicon/arm64)
 
-> OpenCam v0.1.4 does not provide an Intel Mac (x64) build.
+> OpenCam v0.1.5 does not provide an Intel Mac (x64) build.
 
 - Go to the [Releases](https://github.com/kaoshou/OpenCam/releases) page and download `OpenCam_macOS_AppleSilicon.dmg`.
 - Mount the DMG and drag `OpenCam.app` to the Applications folder.
@@ -150,7 +158,7 @@ Download the installers from the [OpenCam v0.1.4 Release](https://github.com/kao
   xattr -cr /Applications/OpenCam.app
   ```
 
-### macOS v0.1.4 Notes
+### macOS v0.1.5 Notes
 
 - System-audio recording requires macOS 13 or later and uses Apple ScreenCaptureKit.
 - Microphone recording uses the current macOS default input device. To use another microphone, select it as the default input in macOS Sound settings before starting, or while the recording is paused.
