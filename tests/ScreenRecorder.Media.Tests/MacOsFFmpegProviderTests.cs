@@ -248,7 +248,7 @@ public class MacOsFFmpegProviderTests
     public void VideoToolboxOutput_UsesNv12PixelFormat()
     {
         var args = CreateProvider().BuildOutputArguments(
-            new RecordingConfiguration { VideoBitrateKbps = 6000 },
+            new RecordingConfiguration { VideoQualityPreset = "Standard" },
             HardwareEncoderType.AppleVideoToolbox,
             "/tmp/output.mkv");
 
@@ -257,15 +257,38 @@ public class MacOsFFmpegProviderTests
     }
 
     [Fact]
+    public void VideoToolboxOutput_UsesSelectedQualityBitrate()
+    {
+        var args = CreateProvider().BuildOutputArguments(
+            new RecordingConfiguration { VideoQualityPreset = "Compact" },
+            HardwareEncoderType.AppleVideoToolbox,
+            "/tmp/output.mkv");
+
+        Assert.Contains("-b:v 3500k", args);
+    }
+
+    [Fact]
     public void SoftwareOutput_UsesYuv420pPixelFormat()
     {
         var args = CreateProvider().BuildOutputArguments(
-            new RecordingConfiguration { VideoBitrateKbps = 6000 },
+            new RecordingConfiguration { VideoQualityPreset = "Standard" },
             HardwareEncoderType.SoftwareCpu,
             "/tmp/output.mkv");
 
         Assert.Contains("-c:v libx264", args);
         Assert.Contains("-pix_fmt yuv420p", args);
+    }
+
+    [Fact]
+    public void SoftwareOutput_UsesSelectedCrfQuality()
+    {
+        var args = CreateProvider().BuildOutputArguments(
+            new RecordingConfiguration { VideoQualityPreset = "Ultra" },
+            HardwareEncoderType.SoftwareCpu,
+            "/tmp/output.mkv");
+
+        Assert.Contains("-crf 18", args);
+        Assert.DoesNotContain("-b:v", args);
     }
 
     [Fact]

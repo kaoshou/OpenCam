@@ -73,6 +73,26 @@ public class EncoderDetectorTests
         Assert.Contains("h264_nvenc", args);
     }
 
+    [Theory]
+    [InlineData(HardwareEncoderType.SoftwareCpu, "-crf 28")]
+    [InlineData(HardwareEncoderType.NvidiaNvenc, "-cq 28")]
+    [InlineData(HardwareEncoderType.IntelQsv, "-global_quality 28")]
+    [InlineData(HardwareEncoderType.AmdAmf, "-qp_p 28")]
+    public void WindowsOutput_UsesSelectedQualityPreset(
+        HardwareEncoderType encoderType,
+        string expectedArgument)
+    {
+        var config = new RecordingConfiguration
+        {
+            VideoQualityPreset = "Compact"
+        };
+
+        var args = new ScreenRecorder.Platform.Windows.WindowsFFmpegProvider()
+            .BuildOutputArguments(config, encoderType, "test.mkv");
+
+        Assert.Contains(expectedArgument, args);
+    }
+
     [Fact]
     public void WindowsOutput_FlushesShortMatroskaClustersForCrashRecovery()
     {

@@ -238,10 +238,10 @@ public class LocalizationService : ILocalizationService
         ["LanguageOptionEnUs"] = "English (US)",
 
         // 畫質與行為
-        ["VideoQualityLabel"] = "影片編碼畫質 (CRF):",
-        ["QualityUltra"] = "超高畫質 (CRF 18 - 銳利清晰)",
-        ["QualityStandard"] = "標準畫質 (CRF 23 - 推薦平衡)",
-        ["QualityCompact"] = "高壓縮節省空間 (CRF 28 - 檔案小)",
+        ["VideoQualityLabel"] = "影片編碼畫質:",
+        ["QualityUltra"] = "超高畫質（銳利清晰、檔案較大）",
+        ["QualityStandard"] = "標準畫質（推薦平衡）",
+        ["QualityCompact"] = "高壓縮節省空間（檔案較小）",
         ["OpenFolderOnFinishedLabel"] = "錄影停止並封裝完成後自動開啟目標資料夾",
         ["DeleteWorkingFileAfterRemuxLabel"] = "MP4 封裝完成後自動清理 MKV 工作檔",
         ["DeleteWorkingFileNotice"] = "安全提示：依專案高可靠規範，預設保留 MKV 原始檔以防外力損毀時能即時救援。",
@@ -442,10 +442,10 @@ public class LocalizationService : ILocalizationService
         ["LanguageOptionEnUs"] = "English (US)",
 
         // Quality & Actions
-        ["VideoQualityLabel"] = "Video Encoding Quality (CRF):",
-        ["QualityUltra"] = "Ultra Quality (CRF 18 - Razor Sharp)",
-        ["QualityStandard"] = "Standard Quality (CRF 23 - Recommended)",
-        ["QualityCompact"] = "Compact Size (CRF 28 - Smallest File)",
+        ["VideoQualityLabel"] = "Video Encoding Quality:",
+        ["QualityUltra"] = "Ultra Quality (sharper, larger files)",
+        ["QualityStandard"] = "Standard Quality (recommended balance)",
+        ["QualityCompact"] = "Compact Size (smaller files)",
         ["OpenFolderOnFinishedLabel"] = "Automatically open destination folder when recording finishes",
         ["DeleteWorkingFileAfterRemuxLabel"] = "Automatically clean up MKV working file after MP4 remux",
         ["DeleteWorkingFileNotice"] = "Safety Notice: By default, keeping MKV ensures maximum crash recovery capability.",

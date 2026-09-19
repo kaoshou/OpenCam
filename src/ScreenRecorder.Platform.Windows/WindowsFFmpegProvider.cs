@@ -123,12 +123,13 @@ public class WindowsFFmpegProvider : IFFmpegPlatformProvider
 
     public string BuildOutputArguments(RecordingConfiguration config, HardwareEncoderType encoderType, string workingFilePath)
     {
+        var quality = config.VideoQualityValue;
         var vCodec = encoderType switch
         {
-            HardwareEncoderType.NvidiaNvenc => "-c:v h264_nvenc -preset p4 -cq 23 -pix_fmt yuv420p",
-            HardwareEncoderType.IntelQsv => "-c:v h264_qsv -global_quality 23 -pix_fmt nv12",
-            HardwareEncoderType.AmdAmf => "-c:v h264_amf -quality speed -rc cqp -qp_p 23 -pix_fmt yuv420p",
-            _ => "-c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p"
+            HardwareEncoderType.NvidiaNvenc => $"-c:v h264_nvenc -preset p4 -cq {quality} -pix_fmt yuv420p",
+            HardwareEncoderType.IntelQsv => $"-c:v h264_qsv -global_quality {quality} -pix_fmt nv12",
+            HardwareEncoderType.AmdAmf => $"-c:v h264_amf -quality speed -rc cqp -qp_p {quality} -pix_fmt yuv420p",
+            _ => $"-c:v libx264 -preset veryfast -crf {quality} -pix_fmt yuv420p"
         };
 
         if (config.AudioSource == AudioSourceType.None &&

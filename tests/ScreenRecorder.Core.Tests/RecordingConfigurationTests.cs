@@ -5,6 +5,26 @@ namespace ScreenRecorder.Core.Tests;
 
 public class RecordingConfigurationTests
 {
+    [Theory]
+    [InlineData("Ultra", 18, 10000)]
+    [InlineData("Standard", 23, 6000)]
+    [InlineData("Compact", 28, 3500)]
+    [InlineData("unexpected", 23, 6000)]
+    [InlineData(null, 23, 6000)]
+    public void VideoQualityPreset_ResolvesRuntimeQuality(
+        string? preset,
+        int expectedQuality,
+        int expectedBitrateKbps)
+    {
+        var config = new RecordingConfiguration
+        {
+            VideoQualityPreset = preset!
+        };
+
+        Assert.Equal(expectedQuality, config.VideoQualityValue);
+        Assert.Equal(expectedBitrateKbps, config.VideoBitrateKbps);
+    }
+
     [Fact]
     public void ApplyPausedSettings_ChangesOnlyAudioAndCursorOptions()
     {

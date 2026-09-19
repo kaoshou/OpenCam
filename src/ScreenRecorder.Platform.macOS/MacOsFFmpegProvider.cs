@@ -196,7 +196,7 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider
         {
             args.Add("-preset fast");
             args.Add("-pix_fmt yuv420p");
-            args.Add($"-b:v {config.VideoBitrateKbps}k");
+            args.Add($"-crf {config.VideoQualityValue}");
         }
 
         if (config.AudioSource != AudioSourceType.None ||

@@ -1,4 +1,5 @@
 using ScreenRecorder.Core.Enums;
+using System.Text.Json.Serialization;
 
 namespace ScreenRecorder.Core.Models;
 
@@ -7,6 +8,8 @@ namespace ScreenRecorder.Core.Models;
 /// </summary>
 public class RecordingConfiguration
 {
+    private string _videoQualityPreset = "Standard";
+
     public CaptureSourceType CaptureSource { get; set; } = CaptureSourceType.Monitor;
 
     public int MonitorIndex { get; set; } = 0;
@@ -27,7 +30,32 @@ public class RecordingConfiguration
     public HardwareEncoderType EncoderType { get; set; } = HardwareEncoderType.Auto;
     public CursorEffectMode CursorEffect { get; set; } = CursorEffectMode.Default;
 
-    public int VideoBitrateKbps { get; set; } = 6000;
+    public string VideoQualityPreset
+    {
+        get => _videoQualityPreset;
+        set => _videoQualityPreset = value?.Trim().ToUpperInvariant() switch
+        {
+            "ULTRA" => "Ultra",
+            "COMPACT" => "Compact",
+            _ => "Standard"
+        };
+    }
+
+    [JsonIgnore]
+    public int VideoQualityValue => VideoQualityPreset switch
+    {
+        "Ultra" => 18,
+        "Compact" => 28,
+        _ => 23
+    };
+
+    [JsonIgnore]
+    public int VideoBitrateKbps => VideoQualityPreset switch
+    {
+        "Ultra" => 10000,
+        "Compact" => 3500,
+        _ => 6000
+    };
 
     public int AudioBitrateKbps { get; set; } = 192;
 
