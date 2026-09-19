@@ -68,11 +68,13 @@ public partial class MainViewModel : ObservableObject
     private string _startStopHotkeyKey = "F9";
     private uint _pauseResumeHotkeyModifiers = 0;
     private string _pauseResumeHotkeyKey = "F10";
-    private string _videoQualityPreset = "High";
+    private string _videoQualityPreset = "Standard";
     private double _diskWarningThresholdGb = 2.0;
     private double _diskCriticalThresholdMb = 500.0;
+    private long _activeDiskWarningThresholdBytes = RecordingConfiguration.DefaultDiskWarningThresholdBytes;
 
     private bool _isLoadingSettings = true;
+    private bool _isDiskSpaceWarningActive;
 
     public event EventHandler? RequestMinimizeWindow;
     public event EventHandler? RequestRestoreWindow;
@@ -514,6 +516,46 @@ public partial class MainViewModel : ObservableObject
             SystemAudioDeviceId = null,
             CursorEffect = SelectedCursorEffect?.Mode ?? CursorEffectMode.Default
         };
+
+    public static RecordingConfiguration ApplyRuntimeSettings(
+        RecordingConfiguration config,
+        string videoQualityPreset,
+        bool deleteWorkingFileAfterRemux,
+        double diskWarningThresholdGb,
+        double diskCriticalThresholdMb)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+
+        config.VideoQualityPreset = videoQualityPreset;
+        config.DeleteWorkingFileAfterSuccessfulRemux = deleteWorkingFileAfterRemux;
+        config.DiskWarningThresholdBytes = ConvertThresholdToBytes(
+            diskWarningThresholdGb,
+            1024d * 1024d * 1024d,
+            RecordingConfiguration.DefaultDiskWarningThresholdBytes);
+        config.DiskCriticalThresholdBytes = ConvertThresholdToBytes(
+            diskCriticalThresholdMb,
+            1024d * 1024d,
+            RecordingConfiguration.DefaultDiskCriticalThresholdBytes);
+        return config;
+    }
+
+    public static bool IsDiskSpaceWarning(long availableBytes, long warningThresholdBytes) =>
+        availableBytes >= 0 &&
+        warningThresholdBytes > 0 &&
+        availableBytes <= warningThresholdBytes;
+
+    private static long ConvertThresholdToBytes(
+        double value,
+        double multiplier,
+        long fallback)
+    {
+        if (!double.IsFinite(value) || value <= 0 || value > long.MaxValue / multiplier)
+        {
+            return fallback;
+        }
+
+        return (long)Math.Round(value * multiplier, MidpointRounding.AwayFromZero);
+    }
 
     public MainViewModel()
     {
@@ -1017,7 +1059,7 @@ public partial class MainViewModel : ObservableObject
             var captureSource = CaptureSourceType.Monitor;
             if (IsCustomRegion) captureSource = CaptureSourceType.CustomRegion;
 
-            var config = new RecordingConfiguration
+            var config = ApplyRuntimeSettings(new RecordingConfiguration
             {
                 Fps = SelectedFps,
                 EncoderType = SelectedEncoder?.Type ?? HardwareEncoderType.Auto,
@@ -1031,7 +1073,12 @@ public partial class MainViewModel : ObservableObject
                     SupportsSystemAudio,
                     RecordSystemAudio,
                     RecordMicrophone)
-            };
+            },
+            _videoQualityPreset,
+            _deleteWorkingFileAfterRemux,
+            _diskWarningThresholdGb,
+            _diskCriticalThresholdMb);
+            _activeDiskWarningThresholdBytes = config.DiskWarningThresholdBytes;
 
             var response = await _ipcClient.SendCommandAsync("StartRecording", config, timeoutMs: 8000);
 
@@ -1431,6 +1478,23 @@ public partial class MainViewModel : ObservableObject
                     ElapsedTimeText = telemetry.ElapsedTime.ToString(@"hh\:mm\:ss");
                     FileSizeText = $"{telemetry.CurrentFileSizeBytes / (1024.0 * 1024.0):F1} MB";
                     DiskRemainingText = $"{telemetry.AvailableDiskSpaceBytes / (1024.0 * 1024.0 * 1024.0):F1} GB";
+
+                    if (IsDiskSpaceWarning(
+                            telemetry.AvailableDiskSpaceBytes,
+                            _activeDiskWarningThresholdBytes))
+                    {
+                        _isDiskSpaceWarningActive = true;
+                        StatusMessage = Strings.GetFormatted(
+                            "StatusDiskSpaceWarning",
+                            telemetry.AvailableDiskSpaceBytes / (1024.0 * 1024.0 * 1024.0));
+                    }
+                    else if (_isDiskSpaceWarningActive)
+                    {
+                        _isDiskSpaceWarningActive = false;
+                        StatusMessage = IsPaused
+                            ? Strings["StatusPausedMsg"]
+                            : Strings["StatusRecordingActive"];
+                    }
                     return;
                 }
             }

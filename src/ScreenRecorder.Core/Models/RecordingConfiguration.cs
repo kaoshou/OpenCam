@@ -8,6 +8,9 @@ namespace ScreenRecorder.Core.Models;
 /// </summary>
 public class RecordingConfiguration
 {
+    public const long DefaultDiskWarningThresholdBytes = 2L * 1024 * 1024 * 1024;
+    public const long DefaultDiskCriticalThresholdBytes = 500L * 1024 * 1024;
+
     private string _videoQualityPreset = "Standard";
 
     public CaptureSourceType CaptureSource { get; set; } = CaptureSourceType.Monitor;
@@ -60,6 +63,10 @@ public class RecordingConfiguration
     public int AudioBitrateKbps { get; set; } = 192;
 
     public bool DeleteWorkingFileAfterSuccessfulRemux { get; set; } = false;
+
+    public long DiskWarningThresholdBytes { get; set; } = DefaultDiskWarningThresholdBytes;
+
+    public long DiskCriticalThresholdBytes { get; set; } = DefaultDiskCriticalThresholdBytes;
 
     public bool IsRecoverySilenceMode { get; set; } = false;
 

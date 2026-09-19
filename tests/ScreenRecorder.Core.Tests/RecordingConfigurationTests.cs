@@ -26,6 +26,16 @@ public class RecordingConfigurationTests
     }
 
     [Fact]
+    public void RuntimeDiskThresholds_DefaultToExistingSafeValues()
+    {
+        var config = new RecordingConfiguration();
+
+        Assert.Equal(2L * 1024 * 1024 * 1024, config.DiskWarningThresholdBytes);
+        Assert.Equal(500L * 1024 * 1024, config.DiskCriticalThresholdBytes);
+        Assert.False(config.DeleteWorkingFileAfterSuccessfulRemux);
+    }
+
+    [Fact]
     public void ApplyPausedSettings_ChangesOnlyAudioAndCursorOptions()
     {
         var target = new RecordingConfiguration

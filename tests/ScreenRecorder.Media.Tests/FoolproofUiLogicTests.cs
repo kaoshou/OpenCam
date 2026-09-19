@@ -7,6 +7,39 @@ namespace ScreenRecorder.Media.Tests;
 public class FoolproofUiLogicTests
 {
     [Fact]
+    public void ApplyRuntimeSettings_PropagatesPersistedRecordingOptions()
+    {
+        var config = MainViewModel.ApplyRuntimeSettings(
+            new ScreenRecorder.Core.Models.RecordingConfiguration(),
+            videoQualityPreset: "Ultra",
+            deleteWorkingFileAfterRemux: true,
+            diskWarningThresholdGb: 5.0,
+            diskCriticalThresholdMb: 1000.0);
+
+        Assert.Equal("Ultra", config.VideoQualityPreset);
+        Assert.True(config.DeleteWorkingFileAfterSuccessfulRemux);
+        Assert.Equal(5L * 1024 * 1024 * 1024, config.DiskWarningThresholdBytes);
+        Assert.Equal(1000L * 1024 * 1024, config.DiskCriticalThresholdBytes);
+    }
+
+    [Theory]
+    [InlineData(4.9, 5.0, true)]
+    [InlineData(5.0, 5.0, true)]
+    [InlineData(5.1, 5.0, false)]
+    public void DiskWarning_UsesConfiguredThreshold(
+        double availableGb,
+        double warningThresholdGb,
+        bool expected)
+    {
+        var availableBytes = (long)(availableGb * 1024 * 1024 * 1024);
+        var warningBytes = (long)(warningThresholdGb * 1024 * 1024 * 1024);
+
+        Assert.Equal(
+            expected,
+            MainViewModel.IsDiskSpaceWarning(availableBytes, warningBytes));
+    }
+
+    [Fact]
     public void SupportsSystemAudio_RequiresSupportedPlatformAndBundledHelper()
     {
         var directory = Path.Combine(
