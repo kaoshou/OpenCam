@@ -72,6 +72,17 @@ public class RecordingConfiguration
 
     public bool MaintainSegmentAudioTrack { get; set; } = false;
 
+    public void NormalizeDiskGuardThresholds()
+    {
+        if (DiskWarningThresholdBytes <= 0 ||
+            DiskCriticalThresholdBytes <= 0 ||
+            DiskWarningThresholdBytes <= DiskCriticalThresholdBytes)
+        {
+            DiskWarningThresholdBytes = DefaultDiskWarningThresholdBytes;
+            DiskCriticalThresholdBytes = DefaultDiskCriticalThresholdBytes;
+        }
+    }
+
     public void ApplyPausedSettings(RecordingConfiguration updates)
     {
         ArgumentNullException.ThrowIfNull(updates);

@@ -225,19 +225,9 @@ public class RecordingOrchestrator : IAsyncDisposable
 
     private void ApplyDiskGuardThresholds(RecordingConfiguration config)
     {
-        var warningThreshold = config.DiskWarningThresholdBytes;
-        var criticalThreshold = config.DiskCriticalThresholdBytes;
-
-        if (warningThreshold <= 0 ||
-            criticalThreshold <= 0 ||
-            warningThreshold <= criticalThreshold)
-        {
-            warningThreshold = RecordingConfiguration.DefaultDiskWarningThresholdBytes;
-            criticalThreshold = RecordingConfiguration.DefaultDiskCriticalThresholdBytes;
-        }
-
-        _diskMonitor.WarningThresholdBytes = warningThreshold;
-        _diskMonitor.CriticalThresholdBytes = criticalThreshold;
+        config.NormalizeDiskGuardThresholds();
+        _diskMonitor.WarningThresholdBytes = config.DiskWarningThresholdBytes;
+        _diskMonitor.CriticalThresholdBytes = config.DiskCriticalThresholdBytes;
     }
 
     public async Task<(bool Success, string? ErrorMessage)> UpdatePausedConfigurationAsync(

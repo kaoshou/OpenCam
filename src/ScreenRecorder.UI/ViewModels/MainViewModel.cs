@@ -536,10 +536,15 @@ public partial class MainViewModel : ObservableObject
             diskCriticalThresholdMb,
             1024d * 1024d,
             RecordingConfiguration.DefaultDiskCriticalThresholdBytes);
+        config.NormalizeDiskGuardThresholds();
         return config;
     }
 
-    public static bool IsDiskSpaceWarning(long availableBytes, long warningThresholdBytes) =>
+    public static bool IsDiskSpaceWarning(
+        RecordingState state,
+        long availableBytes,
+        long warningThresholdBytes) =>
+        state is RecordingState.Recording or RecordingState.Paused &&
         availableBytes >= 0 &&
         warningThresholdBytes > 0 &&
         availableBytes <= warningThresholdBytes;
@@ -1472,7 +1477,9 @@ public partial class MainViewModel : ObservableObject
                         // 核心進程已完成或已結束，同步 UI 狀態
                         IsPaused = false;
                         IsRecording = false;
+                        _isDiskSpaceWarningActive = false;
                         _telemetryTimer.Stop();
+                        return;
                     }
 
                     ElapsedTimeText = telemetry.ElapsedTime.ToString(@"hh\:mm\:ss");
@@ -1480,6 +1487,7 @@ public partial class MainViewModel : ObservableObject
                     DiskRemainingText = $"{telemetry.AvailableDiskSpaceBytes / (1024.0 * 1024.0 * 1024.0):F1} GB";
 
                     if (IsDiskSpaceWarning(
+                            telemetry.State,
                             telemetry.AvailableDiskSpaceBytes,
                             _activeDiskWarningThresholdBytes))
                     {
@@ -1491,7 +1499,7 @@ public partial class MainViewModel : ObservableObject
                     else if (_isDiskSpaceWarningActive)
                     {
                         _isDiskSpaceWarningActive = false;
-                        StatusMessage = IsPaused
+                        StatusMessage = telemetry.State == RecordingState.Paused
                             ? Strings["StatusPausedMsg"]
                             : Strings["StatusRecordingActive"];
                     }

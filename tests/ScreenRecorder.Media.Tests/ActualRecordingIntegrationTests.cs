@@ -167,6 +167,36 @@ public class ActualRecordingIntegrationTests : IDisposable
         Assert.All(segmentPaths, path => Assert.True(File.Exists(path)));
     }
 
+    [Fact]
+    public async Task FailedRemux_PreservesWorkingFilesWhenCleanupEnabled()
+    {
+        var storageService = new StorageService();
+        var displayService = new FixedDisplayService();
+        await using var orchestrator = new RecordingOrchestrator(
+            new RecordingStateMachine(),
+            storageService,
+            new JsonRecordingSessionStore(),
+            new DiskSpaceMonitor(storageService),
+            new FailingRemuxer(),
+            new MediaFileProbe(),
+            displayService,
+            new MacOsFFmpegProvider(displayService))
+        {
+            UseSyntheticCaptureSource = true
+        };
+
+        var (startSuccess, startError, _) = await orchestrator.StartRecordingAsync(
+            CreateSyntheticConfiguration(deleteWorkingFiles: true));
+        Assert.True(startSuccess, startError);
+        var segmentPaths = orchestrator.CurrentSession!.SegmentFilePaths.ToArray();
+
+        await Task.Delay(1200);
+        var (stopSuccess, _, _) = await orchestrator.StopRecordingAsync();
+
+        Assert.False(stopSuccess);
+        Assert.All(segmentPaths, path => Assert.True(File.Exists(path)));
+    }
+
     [WindowsOnlyFact]
     public async Task RealScreenRecording_EndToEnd_ShouldRecordMkvAndRemuxToMp4()
     {
@@ -730,6 +760,23 @@ public class ActualRecordingIntegrationTests : IDisposable
                 null,
                 0,
                 null));
+    }
+
+    private sealed class FailingRemuxer : IStreamCopyRemuxer
+    {
+        public Task<bool> RemuxToMp4Async(
+            string mkvInputPath,
+            string mp4OutputPath,
+            IProgress<double>? progress = null,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(false);
+
+        public Task<bool> ConcatAndRemuxToMp4Async(
+            IReadOnlyList<string> mkvInputPaths,
+            string mp4OutputPath,
+            IProgress<double>? progress = null,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(false);
     }
 
     private sealed class FailOnceRecordingSessionStore : IRecordingSessionStore

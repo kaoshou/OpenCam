@@ -1,5 +1,6 @@
 using ScreenRecorder.Core.Enums;
 using ScreenRecorder.Core.Models;
+using System.Text.Json;
 
 namespace ScreenRecorder.Core.Tests;
 
@@ -32,6 +33,33 @@ public class RecordingConfigurationTests
 
         Assert.Equal(2L * 1024 * 1024 * 1024, config.DiskWarningThresholdBytes);
         Assert.Equal(500L * 1024 * 1024, config.DiskCriticalThresholdBytes);
+        Assert.False(config.DeleteWorkingFileAfterSuccessfulRemux);
+    }
+
+    [Fact]
+    public void NormalizeDiskGuardThresholds_InvalidPairRestoresSafeDefaults()
+    {
+        var config = new RecordingConfiguration
+        {
+            DiskWarningThresholdBytes = 400L * 1024 * 1024,
+            DiskCriticalThresholdBytes = 500L * 1024 * 1024
+        };
+
+        config.NormalizeDiskGuardThresholds();
+
+        Assert.Equal(RecordingConfiguration.DefaultDiskWarningThresholdBytes, config.DiskWarningThresholdBytes);
+        Assert.Equal(RecordingConfiguration.DefaultDiskCriticalThresholdBytes, config.DiskCriticalThresholdBytes);
+    }
+
+    [Fact]
+    public void LegacyIpcPayloadWithoutRuntimeSettingsUsesSafeDefaults()
+    {
+        var config = JsonSerializer.Deserialize<RecordingConfiguration>("{}");
+
+        Assert.NotNull(config);
+        Assert.Equal("Standard", config.VideoQualityPreset);
+        Assert.Equal(RecordingConfiguration.DefaultDiskWarningThresholdBytes, config.DiskWarningThresholdBytes);
+        Assert.Equal(RecordingConfiguration.DefaultDiskCriticalThresholdBytes, config.DiskCriticalThresholdBytes);
         Assert.False(config.DeleteWorkingFileAfterSuccessfulRemux);
     }
 

@@ -23,10 +23,15 @@ public class FoolproofUiLogicTests
     }
 
     [Theory]
-    [InlineData(4.9, 5.0, true)]
-    [InlineData(5.0, 5.0, true)]
-    [InlineData(5.1, 5.0, false)]
-    public void DiskWarning_UsesConfiguredThreshold(
+    [InlineData(RecordingState.Recording, 4.9, 5.0, true)]
+    [InlineData(RecordingState.Paused, 5.0, 5.0, true)]
+    [InlineData(RecordingState.Recording, 5.1, 5.0, false)]
+    [InlineData(RecordingState.Stopping, 0.0, 5.0, false)]
+    [InlineData(RecordingState.Finalizing, 0.0, 5.0, false)]
+    [InlineData(RecordingState.Completed, 0.0, 5.0, false)]
+    [InlineData(RecordingState.Failed, 0.0, 5.0, false)]
+    public void DiskWarning_OnlyAppliesToActiveRecordingStates(
+        RecordingState state,
         double availableGb,
         double warningThresholdGb,
         bool expected)
@@ -36,7 +41,25 @@ public class FoolproofUiLogicTests
 
         Assert.Equal(
             expected,
-            MainViewModel.IsDiskSpaceWarning(availableBytes, warningBytes));
+            MainViewModel.IsDiskSpaceWarning(state, availableBytes, warningBytes));
+    }
+
+    [Fact]
+    public void ApplyRuntimeSettings_InvalidThresholdPairUsesSafeDefaults()
+    {
+        var config = MainViewModel.ApplyRuntimeSettings(
+            new ScreenRecorder.Core.Models.RecordingConfiguration(),
+            videoQualityPreset: "Standard",
+            deleteWorkingFileAfterRemux: false,
+            diskWarningThresholdGb: 0.25,
+            diskCriticalThresholdMb: 500.0);
+
+        Assert.Equal(
+            ScreenRecorder.Core.Models.RecordingConfiguration.DefaultDiskWarningThresholdBytes,
+            config.DiskWarningThresholdBytes);
+        Assert.Equal(
+            ScreenRecorder.Core.Models.RecordingConfiguration.DefaultDiskCriticalThresholdBytes,
+            config.DiskCriticalThresholdBytes);
     }
 
     [Fact]
