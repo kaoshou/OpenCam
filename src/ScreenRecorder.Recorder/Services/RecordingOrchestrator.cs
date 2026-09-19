@@ -194,6 +194,7 @@ public class RecordingOrchestrator : IAsyncDisposable
             session.State = RecordingState.Recording;
             await SaveSessionAsync(session, cancellationToken);
 
+            ApplyDiskGuardThresholds(config);
             _diskMonitor.StartMonitoring(rootPath, TimeSpan.FromSeconds(2));
 
             _watchdogCts?.Cancel();
@@ -220,6 +221,23 @@ public class RecordingOrchestrator : IAsyncDisposable
             }
             return (false, ex.Message, null);
         }
+    }
+
+    private void ApplyDiskGuardThresholds(RecordingConfiguration config)
+    {
+        var warningThreshold = config.DiskWarningThresholdBytes;
+        var criticalThreshold = config.DiskCriticalThresholdBytes;
+
+        if (warningThreshold <= 0 ||
+            criticalThreshold <= 0 ||
+            warningThreshold <= criticalThreshold)
+        {
+            warningThreshold = RecordingConfiguration.DefaultDiskWarningThresholdBytes;
+            criticalThreshold = RecordingConfiguration.DefaultDiskCriticalThresholdBytes;
+        }
+
+        _diskMonitor.WarningThresholdBytes = warningThreshold;
+        _diskMonitor.CriticalThresholdBytes = criticalThreshold;
     }
 
     public async Task<(bool Success, string? ErrorMessage)> UpdatePausedConfigurationAsync(

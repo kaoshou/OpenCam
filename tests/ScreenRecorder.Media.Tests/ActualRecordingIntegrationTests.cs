@@ -27,6 +27,146 @@ public class ActualRecordingIntegrationTests : IDisposable
         Directory.CreateDirectory(_tempDir);
     }
 
+    [Fact]
+    public async Task StartRecording_AppliesConfiguredDiskGuardThresholds()
+    {
+        var storageService = new StorageService();
+        var diskMonitor = new DiskSpaceMonitor(storageService);
+        var displayService = new FixedDisplayService();
+        await using var orchestrator = new RecordingOrchestrator(
+            new RecordingStateMachine(),
+            storageService,
+            new JsonRecordingSessionStore(),
+            diskMonitor,
+            new StreamCopyRemuxer(),
+            new MediaFileProbe(),
+            displayService,
+            new MacOsFFmpegProvider(displayService))
+        {
+            UseSyntheticCaptureSource = true
+        };
+        var config = CreateSyntheticConfiguration(deleteWorkingFiles: false);
+        config.DiskWarningThresholdBytes = 5L * 1024 * 1024 * 1024;
+        config.DiskCriticalThresholdBytes = 1000L * 1024 * 1024;
+
+        var (startSuccess, startError, _) = await orchestrator.StartRecordingAsync(config);
+        Assert.True(startSuccess, startError);
+        try
+        {
+            Assert.Equal(config.DiskWarningThresholdBytes, diskMonitor.WarningThresholdBytes);
+            Assert.Equal(config.DiskCriticalThresholdBytes, diskMonitor.CriticalThresholdBytes);
+        }
+        finally
+        {
+            await Task.Delay(500);
+            await orchestrator.StopRecordingAsync();
+        }
+    }
+
+    [Fact]
+    public async Task StartRecording_InvalidDiskGuardThresholdsUseSafeDefaults()
+    {
+        var storageService = new StorageService();
+        var diskMonitor = new DiskSpaceMonitor(storageService);
+        var displayService = new FixedDisplayService();
+        await using var orchestrator = new RecordingOrchestrator(
+            new RecordingStateMachine(),
+            storageService,
+            new JsonRecordingSessionStore(),
+            diskMonitor,
+            new StreamCopyRemuxer(),
+            new MediaFileProbe(),
+            displayService,
+            new MacOsFFmpegProvider(displayService))
+        {
+            UseSyntheticCaptureSource = true
+        };
+        var config = CreateSyntheticConfiguration(deleteWorkingFiles: false);
+        config.DiskWarningThresholdBytes = 400L * 1024 * 1024;
+        config.DiskCriticalThresholdBytes = 500L * 1024 * 1024;
+
+        var (startSuccess, startError, _) = await orchestrator.StartRecordingAsync(config);
+        Assert.True(startSuccess, startError);
+        try
+        {
+            Assert.Equal(
+                RecordingConfiguration.DefaultDiskWarningThresholdBytes,
+                diskMonitor.WarningThresholdBytes);
+            Assert.Equal(
+                RecordingConfiguration.DefaultDiskCriticalThresholdBytes,
+                diskMonitor.CriticalThresholdBytes);
+        }
+        finally
+        {
+            await Task.Delay(500);
+            await orchestrator.StopRecordingAsync();
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CompletedRecording_RespectsWorkingFileCleanupPolicy(bool deleteWorkingFiles)
+    {
+        var storageService = new StorageService();
+        var diskMonitor = new DiskSpaceMonitor(storageService);
+        var displayService = new FixedDisplayService();
+        await using var orchestrator = new RecordingOrchestrator(
+            new RecordingStateMachine(),
+            storageService,
+            new JsonRecordingSessionStore(),
+            diskMonitor,
+            new StreamCopyRemuxer(),
+            new MediaFileProbe(),
+            displayService,
+            new MacOsFFmpegProvider(displayService))
+        {
+            UseSyntheticCaptureSource = true
+        };
+
+        var (startSuccess, startError, _) = await orchestrator.StartRecordingAsync(
+            CreateSyntheticConfiguration(deleteWorkingFiles));
+        Assert.True(startSuccess, startError);
+        var segmentPaths = orchestrator.CurrentSession!.SegmentFilePaths.ToArray();
+
+        await Task.Delay(1200);
+        var (stopSuccess, stopError, finalPath) = await orchestrator.StopRecordingAsync();
+
+        Assert.True(stopSuccess, stopError);
+        Assert.True(File.Exists(finalPath));
+        Assert.All(segmentPaths, path => Assert.Equal(!deleteWorkingFiles, File.Exists(path)));
+    }
+
+    [Fact]
+    public async Task FailedMediaValidation_PreservesWorkingFilesWhenCleanupEnabled()
+    {
+        var storageService = new StorageService();
+        var displayService = new FixedDisplayService();
+        await using var orchestrator = new RecordingOrchestrator(
+            new RecordingStateMachine(),
+            storageService,
+            new JsonRecordingSessionStore(),
+            new DiskSpaceMonitor(storageService),
+            new StreamCopyRemuxer(),
+            new InvalidMediaProbe(),
+            displayService,
+            new MacOsFFmpegProvider(displayService))
+        {
+            UseSyntheticCaptureSource = true
+        };
+
+        var (startSuccess, startError, _) = await orchestrator.StartRecordingAsync(
+            CreateSyntheticConfiguration(deleteWorkingFiles: true));
+        Assert.True(startSuccess, startError);
+        var segmentPaths = orchestrator.CurrentSession!.SegmentFilePaths.ToArray();
+
+        await Task.Delay(1200);
+        var (stopSuccess, _, _) = await orchestrator.StopRecordingAsync();
+
+        Assert.False(stopSuccess);
+        Assert.All(segmentPaths, path => Assert.True(File.Exists(path)));
+    }
+
     [WindowsOnlyFact]
     public async Task RealScreenRecording_EndToEnd_ShouldRecordMkvAndRemuxToMp4()
     {
@@ -502,6 +642,18 @@ public class ActualRecordingIntegrationTests : IDisposable
         catch { }
     }
 
+    private RecordingConfiguration CreateSyntheticConfiguration(bool deleteWorkingFiles) =>
+        new()
+        {
+            CaptureSource = CaptureSourceType.CustomRegion,
+            Region = new CaptureRegion(0, 0, 320, 240),
+            Fps = 30,
+            AudioSource = AudioSourceType.None,
+            EncoderType = HardwareEncoderType.SoftwareCpu,
+            OutputDirectory = _tempDir,
+            DeleteWorkingFileAfterSuccessfulRemux = deleteWorkingFiles
+        };
+
     private sealed class FixedDisplayService : IDisplayService
     {
         private static readonly MonitorInfo Monitor = new(
@@ -557,6 +709,27 @@ public class ActualRecordingIntegrationTests : IDisposable
                 progress,
                 cancellationToken);
         }
+    }
+
+    private sealed class InvalidMediaProbe : IMediaProbeService
+    {
+        public Task<MediaProbeResult> ProbeAsync(
+            string mediaFilePath,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new MediaProbeResult(
+                false,
+                string.Empty,
+                TimeSpan.Zero,
+                0,
+                0,
+                0,
+                null,
+                0,
+                0,
+                0,
+                null,
+                0,
+                null));
     }
 
     private sealed class FailOnceRecordingSessionStore : IRecordingSessionStore
