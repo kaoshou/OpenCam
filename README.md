@@ -10,6 +10,8 @@ OpenCam 是一款以可靠性為優先的跨平台桌面螢幕錄影工具。錄
 
 本軟體以 .NET 8 與 Avalonia UI 打造，並使用 FFmpeg 作為核心多媒體引擎，支援 Windows 與 macOS。
 
+📖 [完整使用說明（繁體中文）](docs/USER_GUIDE.zh-TW.md) ｜ [English User Guide](docs/USER_GUIDE.en-US.md)
+
 > 以下為 Windows 介面預覽；macOS 使用相同的主要操作流程。
 
 ![OpenCam 主畫面](docs/images/preview_main_zhtw.png)
@@ -91,6 +93,8 @@ OpenCam 是一款以可靠性為優先的跨平台桌面螢幕錄影工具。錄
 OpenCam is a cross-platform desktop screen recorder built with reliability as its top priority. It records to a crash-resilient MKV working file and remuxes it to MP4 after a normal stop, reducing the risk of losing recorded content after a crash, power outage, or audio-device failure.
 
 OpenCam is built with .NET 8, Avalonia UI, and FFmpeg, and supports Windows and macOS.
+
+📖 [Complete User Guide](docs/USER_GUIDE.en-US.md) | [繁體中文使用說明](docs/USER_GUIDE.zh-TW.md)
 
 > The screenshots below show the Windows interface. The primary workflow is the same on macOS.
 
