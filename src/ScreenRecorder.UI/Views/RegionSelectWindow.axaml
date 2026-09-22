@@ -52,16 +52,21 @@
                         PointerPressed="OnDragMovePointerPressed" 
                         DoubleTapped="OnClientDoubleTapped"
                         Cursor="SizeAll">
-                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="6">
-                        <TextBlock Text="{Binding Strings[RegionDragTip]}" 
-                                   Foreground="#EEFFFFFF" 
-                                   HorizontalAlignment="Center" 
-                                   FontSize="15" FontWeight="SemiBold" />
-                        <TextBlock Text="{Binding Strings[RegionResizeTip]}" 
-                                   Foreground="#CCFFFFFF" 
-                                   HorizontalAlignment="Center" 
-                                   FontSize="12" />
-                    </StackPanel>
+                    <Border Background="#D91B2430" CornerRadius="8" Padding="10,7"
+                            MaxWidth="260"
+                            VerticalAlignment="Center" HorizontalAlignment="Center"
+                            IsHitTestVisible="False">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="{Binding Strings[RegionDragTip]}"
+                                       Foreground="White" TextWrapping="Wrap" TextAlignment="Center"
+                                       HorizontalAlignment="Center"
+                                       FontSize="13" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding Strings[RegionResizeTip]}"
+                                       Foreground="#F1F5F9" TextWrapping="Wrap" TextAlignment="Center"
+                                       HorizontalAlignment="Center"
+                                       FontSize="11" />
+                        </StackPanel>
+                    </Border>
                 </Border>
             </Grid>
         </Border>
