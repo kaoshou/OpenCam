@@ -1,0 +1,2 @@
+# Keep the canonical AGPL text byte-identical in Windows release packages.
+LICENSE text eol=lf
