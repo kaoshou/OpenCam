@@ -40,6 +40,8 @@ If you try to close the window while OpenCam is preparing, recording, or paused,
 
 Records the complete image from the selected display. If multiple displays are connected, choose one from the monitor list.
 
+If you are unsure which physical display is “Monitor 1/2/3…”, select monitor mode and click **Identify Displays**. OpenCam briefly shows the matching number on every connected display, highlighting the selected one. This works with any number of displays. If geometry or scaling makes a match uncertain, OpenCam omits that label and shows a notice rather than risk identifying the wrong screen. Labels are dismissed when recording preparation begins and do not appear in the video.
+
 “Complete image” means the entire selected monitor; OpenCam does not combine all displays into one video. The monitor source is locked after recording starts. Stop the current recording before switching displays.
 
 ### Custom Rectangle
@@ -92,6 +94,16 @@ The two audio sources can be switched independently, supporting four combination
 - **Microphone**: Windows lets you select a device in OpenCam. macOS uses the system-default input device.
 
 Audio settings are initially locked after recording starts. To change system-audio or microphone recording, pause first, make the change, and resume. OpenCam applies the new setting to the next recording segment.
+
+The recording status panel shows separate live level waveforms for **System Audio** and **Microphone**, helping you check whether each input is receiving sound. These are approximate recent volume indicators, not an audio preview or a calibrated meter:
+
+- **Live**: Detectable input level is present.
+- **Silent**: The source is being monitored, but its level is very low or zero.
+- **Off**: This source is not enabled for the current segment.
+- **Paused**: Recording is paused; the waveform does not imply active capture and refreshes after resuming.
+- **Unavailable**: Live level data cannot currently be obtained. This does not prove the recorded track is silent; if it persists, stop and inspect the result and audio device.
+
+The waveforms read only level values from the capture path. They do not store extra raw audio or change the recording.
 
 ### Output Location
 

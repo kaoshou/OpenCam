@@ -42,7 +42,9 @@ OpenCam 是一款以可靠性為優先的跨平台桌面螢幕錄影工具。錄
 ## 🌟 核心特色
 
 - **指定螢幕與自訂區域**：可選擇要錄製的顯示器，或使用透明且可調整大小的選取框指定錄影範圍。
+- **多螢幕辨識**：可在每台已連接的顯示器上短暫顯示對應編號，辨認選中的錄影來源。
 - **系統聲音與麥克風**：可分別開啟或關閉系統聲音及麥克風，並支援四種音訊組合。
+- **分開的即時音量波形**：錄影時分別查看系統聲音與麥克風的收音狀態。
 - **游標效果**：可使用原始游標、光暈、光暈加點擊漣漪，或在影片中隱藏游標。
 - **防中斷安全機制（Crash Recovery）**：強制使用 MKV 作為工作檔；若錄影途中斷電或崩潰，下次啟動可嘗試恢復已寫入的內容。
 - **音訊熱拔插防護（Audio Hotplug Watchdog）**：Windows 錄影途中若麥克風中斷，系統會使用虛擬靜音音軌盡可能維持錄影流程。
@@ -134,7 +136,9 @@ Download the installers from the [OpenCam v0.1.5 Release](https://github.com/kao
 ## 🌟 Key Features
 
 - **Monitor and Region Capture**: Record a selected display or define an exact area with a transparent, resizable region selector.
+- **Identify Displays**: Briefly show the matching number on every connected monitor so you can choose the right capture target.
 - **System Audio and Microphone**: Enable or disable system audio and microphone recording independently, supporting all four audio combinations.
+- **Separate Live Level Waveforms**: Check system-audio and microphone activity independently while recording.
 - **Cursor Effects**: Use the native cursor, add a halo, add a halo with click ripples, or hide the cursor from the recording.
 - **Crash Recovery**: Uses MKV as a resilient working container. After an interruption, OpenCam attempts to recover content that was already written.
 - **Audio Hotplug Protection**: On Windows, if a microphone disappears during recording, OpenCam uses a virtual silence track to keep the recording pipeline running whenever possible.
