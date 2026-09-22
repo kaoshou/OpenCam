@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 using System.Diagnostics;
+using ScreenRecorder.Core.Audio;
 using ScreenRecorder.Core.Interfaces;
+using ScreenRecorder.Core.Models;
 
 namespace ScreenRecorder.Platform.macOS;
 
-public sealed class MacOsMicrophoneCapture : IMicrophoneCapture
+public sealed class MacOsMicrophoneCapture : IMicrophoneCapture, IAudioLevelSource
 {
     private const string ReadyLine =
         "READY sample-rate=48000 channels=1 format=s16le";
@@ -13,6 +15,7 @@ public sealed class MacOsMicrophoneCapture : IMicrophoneCapture
     private readonly Func<string> _createTempDirectory;
     private readonly Action<string> _createFifo;
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly AudioLevelAccumulator _levels = new();
 
     private Process? _helperProcess;
     private CancellationTokenSource? _monitorCts;
@@ -45,6 +48,9 @@ public sealed class MacOsMicrophoneCapture : IMicrophoneCapture
             Path.GetDirectoryName(_helperPath) ?? AppContext.BaseDirectory);
 
     public bool IsCapturing => _isCapturing;
+
+    public AudioLevelSample? ReadLatestLevel(DateTimeOffset now) =>
+        _isCapturing ? _levels.ReadFresh(now, TimeSpan.FromSeconds(1)) : null;
 
     public event EventHandler<string>? AudioErrorOccurred;
 
@@ -177,6 +183,10 @@ public sealed class MacOsMicrophoneCapture : IMicrophoneCapture
                 {
                     AudioErrorOccurred?.Invoke(this, line[6..]);
                 }
+                else if (MacOsLevelLineParser.TryParse(line, out var rms, out var peak))
+                {
+                    _levels.PublishNormalized(rms, peak, DateTimeOffset.UtcNow);
+                }
             }
 
             if (!cancellationToken.IsCancellationRequested &&
@@ -203,6 +213,7 @@ public sealed class MacOsMicrophoneCapture : IMicrophoneCapture
     private async Task CleanupCoreAsync()
     {
         _isCapturing = false;
+        _levels.Clear();
         _monitorCts?.Cancel();
 
         if (_helperProcess is not null)

@@ -41,6 +41,61 @@ struct MicrophoneOptions {
     }
 }
 
+final class LevelReporter {
+    private let lock = NSLock()
+    private var latest: (rms: Double, peak: Double, at: TimeInterval)?
+    private var timer: DispatchSourceTimer?
+
+    func observe(_ bytes: UnsafeMutableRawPointer, count: Int) {
+        let sampleCount = count / MemoryLayout<Int16>.size
+        guard sampleCount > 0 else { return }
+        let samples = bytes.assumingMemoryBound(to: Int16.self)
+        var sum = 0.0
+        var peak = 0.0
+        var measured = 0
+        let stride = sampleCount <= 16 ? 1 : 16
+        for index in Swift.stride(from: 0, to: sampleCount, by: stride) {
+            let magnitude = abs(Double(samples[index])) / 32768.0
+            sum += magnitude * magnitude
+            peak = max(peak, magnitude)
+            measured += 1
+        }
+        let rms = normalize(sqrt(sum / Double(measured)))
+        lock.lock()
+        latest = (rms, normalize(peak), ProcessInfo.processInfo.systemUptime)
+        lock.unlock()
+    }
+
+    func start() {
+        let source = DispatchSource.makeTimerSource(queue: .global(qos: .utility))
+        source.schedule(deadline: .now() + .milliseconds(200), repeating: .milliseconds(200))
+        source.setEventHandler { [weak self] in
+            guard let self else { return }
+            self.lock.lock()
+            let value = self.latest
+            self.lock.unlock()
+            if let value, ProcessInfo.processInfo.systemUptime - value.at <= 0.5 {
+                writeStderr(String(format: "LEVEL rms=%.4f peak=%.4f", value.rms, value.peak))
+            }
+        }
+        timer = source
+        source.resume()
+    }
+
+    func stop() {
+        timer?.cancel()
+        timer = nil
+        lock.lock()
+        latest = nil
+        lock.unlock()
+    }
+
+    private func normalize(_ amplitude: Double) -> Double {
+        guard amplitude > 0 else { return 0 }
+        return min(1, max(0, (20 * log10(amplitude) + 60) / 60))
+    }
+}
+
 final class MicrophonePCMWriter {
     private let fifoPath: String
     private let targetFormat = AVAudioFormat(
@@ -51,6 +106,7 @@ final class MicrophonePCMWriter {
     private var sourceFormat: AVAudioFormat?
     private var converter: AVAudioConverter?
     private var fifoHandle: FileHandle?
+    let levelReporter = LevelReporter()
 
     init(fifoPath: String) {
         self.fifoPath = fifoPath
@@ -109,9 +165,11 @@ final class MicrophonePCMWriter {
         try fifoHandle.write(contentsOf: Data(
             bytes: bytes,
             count: Int(audioBuffer.mDataByteSize)))
+        levelReporter.observe(bytes, count: Int(audioBuffer.mDataByteSize))
     }
 
     func close() {
+        levelReporter.stop()
         try? fifoHandle?.close()
         fifoHandle = nil
     }
@@ -152,6 +210,7 @@ final class MicrophoneCapture {
 
         engine.prepare()
         try engine.start()
+        writer.levelReporter.start()
     }
 
     func stop() {
