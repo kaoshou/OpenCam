@@ -27,3 +27,5 @@ artifacts/
 
 ## Local isolated worktrees
 .worktrees/
+website/node_modules/
+website/dist/
