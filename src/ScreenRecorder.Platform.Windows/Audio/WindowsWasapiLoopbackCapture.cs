@@ -6,7 +6,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
+using ScreenRecorder.Core.Audio;
 using ScreenRecorder.Core.Interfaces;
+using ScreenRecorder.Core.Models;
 using Serilog;
 
 namespace ScreenRecorder.Platform.Windows.Audio;
@@ -16,8 +18,9 @@ namespace ScreenRecorder.Platform.Windows.Audio;
 /// 並透過本機 Named Pipe 將 PCM 音訊流即時饋送予 FFmpeg。
 /// 內建 WasapiOut 靜音時鐘保持機制，徹底根絕錄音斷斷續續與音訊漂移問題。
 /// </summary>
-public class WindowsWasapiLoopbackCapture : ISystemAudioLoopbackCapture
+public class WindowsWasapiLoopbackCapture : ISystemAudioLoopbackCapture, IAudioLevelSource
 {
+    private readonly AudioLevelAccumulator _levels = new();
     private WasapiLoopbackCapture? _capture;
     private WasapiOut? _silencePlayer;
     private NamedPipeServerStream? _pipeServer;
@@ -31,6 +34,8 @@ public class WindowsWasapiLoopbackCapture : ISystemAudioLoopbackCapture
 
     public bool IsSupported => OperatingSystem.IsWindows();
     public bool IsCapturing => _isCapturing;
+    public AudioLevelSample? ReadLatestLevel(DateTimeOffset now) =>
+        _isCapturing ? _levels.ReadFresh(now, TimeSpan.FromSeconds(1)) : null;
 
     public event EventHandler<string>? AudioErrorOccurred;
 
@@ -140,10 +145,15 @@ public class WindowsWasapiLoopbackCapture : ISystemAudioLoopbackCapture
                             }
 
                             _pipeServer.Write(_conversionBuffer, 0, requiredBytes);
+                            try { _levels.PublishPcm16(_conversionBuffer.AsSpan(0, requiredBytes), DateTimeOffset.UtcNow); } catch { }
                         }
                         else
                         {
                             _pipeServer.Write(e.Buffer, 0, e.BytesRecorded);
+                            if (waveFormat.Encoding == WaveFormatEncoding.Pcm && waveFormat.BitsPerSample == 16)
+                            {
+                                try { _levels.PublishPcm16(e.Buffer.AsSpan(0, e.BytesRecorded), DateTimeOffset.UtcNow); } catch { }
+                            }
                         }
 
                         _lastWriteTimeUtc = DateTime.UtcNow;
@@ -284,6 +294,7 @@ public class WindowsWasapiLoopbackCapture : ISystemAudioLoopbackCapture
         }
 
         _isCapturing = false;
+        _levels.Clear();
     }
 
     public async ValueTask DisposeAsync()

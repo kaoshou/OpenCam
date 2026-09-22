@@ -235,6 +235,7 @@ public class Program
             services.AddSingleton<IAudioDeviceService, ScreenRecorder.Platform.Windows.Audio.WindowsAudioDeviceService>();
             services.AddSingleton<IFFmpegPlatformProvider, ScreenRecorder.Platform.Windows.WindowsFFmpegProvider>();
             services.AddSingleton<ISystemAudioLoopbackCapture, ScreenRecorder.Platform.Windows.Audio.WindowsWasapiLoopbackCapture>();
+            services.AddSingleton<IMicrophoneLevelObserver, ScreenRecorder.Platform.Windows.Audio.WindowsMicrophoneLevelObserver>();
         }
         else if (OperatingSystem.IsMacOS())
         {
