@@ -118,6 +118,13 @@ public class LocalizationService : ILocalizationService
 
         // 狀態監控儀表板
         ["MonitorTitle"] = "錄影狀態監控",
+        ["AudioMeterSystem"] = "系統聲音",
+        ["AudioMeterMicrophone"] = "麥克風",
+        ["AudioMeterOff"] = "未啟用",
+        ["AudioMeterLive"] = "收音中",
+        ["AudioMeterSilent"] = "無聲",
+        ["AudioMeterPaused"] = "已暫停",
+        ["AudioMeterUnavailable"] = "無法監測",
         ["StatusIdle"] = "待命中",
         ["StatusRecording"] = "錄影中",
         ["StatusPaused"] = "已暫停",
@@ -330,6 +337,13 @@ public class LocalizationService : ILocalizationService
 
         // 狀態監控儀表板
         ["MonitorTitle"] = "Status Monitor",
+        ["AudioMeterSystem"] = "System audio",
+        ["AudioMeterMicrophone"] = "Microphone",
+        ["AudioMeterOff"] = "Off",
+        ["AudioMeterLive"] = "Live",
+        ["AudioMeterSilent"] = "Silent",
+        ["AudioMeterPaused"] = "Paused",
+        ["AudioMeterUnavailable"] = "Unavailable",
         ["StatusIdle"] = "IDLE",
         ["StatusRecording"] = "RECORDING",
         ["StatusPaused"] = "PAUSED",

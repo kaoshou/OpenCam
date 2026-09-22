@@ -10,12 +10,15 @@ namespace ScreenRecorder.Platform.Windows.Audio;
 /// <summary>Best-effort shared-mode tap; FFmpeg keeps owning the recording input.</summary>
 public sealed class WindowsMicrophoneLevelObserver : IMicrophoneLevelObserver
 {
+    private static readonly Guid PcmSubFormat = new("00000001-0000-0010-8000-00aa00389b71");
+    private static readonly Guid FloatSubFormat = new("00000003-0000-0010-8000-00aa00389b71");
     private readonly IAudioDeviceService _devices;
     private readonly AudioLevelAccumulator _levels = new();
     private MMDeviceEnumerator? _enumerator;
     private MMDevice? _endpoint;
     private WasapiCapture? _capture;
     private bool _running;
+    private long _lastLevelUpdateMs;
 
     public WindowsMicrophoneLevelObserver(IAudioDeviceService devices) => _devices = devices;
 
@@ -46,6 +49,7 @@ public sealed class WindowsMicrophoneLevelObserver : IMicrophoneLevelObserver
             _capture.DataAvailable += OnDataAvailable;
             _capture.RecordingStopped += OnRecordingStopped;
             _capture.StartRecording();
+            Interlocked.Exchange(ref _lastLevelUpdateMs, 0);
             _running = true;
             return Task.FromResult(true);
         }
@@ -74,12 +78,19 @@ public sealed class WindowsMicrophoneLevelObserver : IMicrophoneLevelObserver
             {
                 return;
             }
+            if (!ShouldSampleLevel()) return;
 
-            if (format.Encoding == WaveFormatEncoding.Pcm && format.BitsPerSample == 16)
+            var pcm16 = format.BitsPerSample == 16 &&
+                (format.Encoding == WaveFormatEncoding.Pcm ||
+                 format is WaveFormatExtensible { SubFormat: var pcmSubtype } && pcmSubtype == PcmSubFormat);
+            var float32 = format.BitsPerSample == 32 &&
+                (format.Encoding == WaveFormatEncoding.IeeeFloat ||
+                 format is WaveFormatExtensible { SubFormat: var floatSubtype } && floatSubtype == FloatSubFormat);
+            if (pcm16)
             {
                 _levels.PublishPcm16(args.Buffer.AsSpan(0, args.BytesRecorded), DateTimeOffset.UtcNow);
             }
-            else if (format.Encoding == WaveFormatEncoding.IeeeFloat && format.BitsPerSample == 32)
+            else if (float32)
             {
                 var count = args.BytesRecorded / sizeof(float);
                 var stride = count <= 16 ? 1 : 16;
@@ -116,6 +127,17 @@ public sealed class WindowsMicrophoneLevelObserver : IMicrophoneLevelObserver
     private static double Normalize(double amplitude) => amplitude <= 0
         ? 0
         : Math.Clamp((20 * Math.Log10(amplitude) + 60) / 60, 0, 1);
+
+    private bool ShouldSampleLevel()
+    {
+        var now = Environment.TickCount64;
+        while (true)
+        {
+            var last = Volatile.Read(ref _lastLevelUpdateMs);
+            if (last != 0 && now - last < 200) return false;
+            if (Interlocked.CompareExchange(ref _lastLevelUpdateMs, now, last) == last) return true;
+        }
+    }
 
     private void StopCore()
     {

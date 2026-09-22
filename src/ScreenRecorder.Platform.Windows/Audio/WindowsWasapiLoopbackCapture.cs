@@ -21,6 +21,7 @@ namespace ScreenRecorder.Platform.Windows.Audio;
 public class WindowsWasapiLoopbackCapture : ISystemAudioLoopbackCapture, IAudioLevelSource
 {
     private readonly AudioLevelAccumulator _levels = new();
+    private long _lastLevelUpdateMs;
     private WasapiLoopbackCapture? _capture;
     private WasapiOut? _silencePlayer;
     private NamedPipeServerStream? _pipeServer;
@@ -114,6 +115,7 @@ public class WindowsWasapiLoopbackCapture : ISystemAudioLoopbackCapture, IAudioL
             }, linkedCts.Token);
 
             _lastWriteTimeUtc = DateTime.UtcNow;
+            Interlocked.Exchange(ref _lastLevelUpdateMs, 0);
 
             // 4. 綁定音訊資料回調 (將 IEEE Float 轉換為標準 16-bit PCM s16le 以獲取極致相容性與無損音質)
             _capture.DataAvailable += (s, e) =>
@@ -145,12 +147,15 @@ public class WindowsWasapiLoopbackCapture : ISystemAudioLoopbackCapture, IAudioL
                             }
 
                             _pipeServer.Write(_conversionBuffer, 0, requiredBytes);
-                            try { _levels.PublishPcm16(_conversionBuffer.AsSpan(0, requiredBytes), DateTimeOffset.UtcNow); } catch { }
+                            if (ShouldSampleLevel())
+                            {
+                                try { _levels.PublishPcm16(_conversionBuffer.AsSpan(0, requiredBytes), DateTimeOffset.UtcNow); } catch { }
+                            }
                         }
                         else
                         {
                             _pipeServer.Write(e.Buffer, 0, e.BytesRecorded);
-                            if (waveFormat.Encoding == WaveFormatEncoding.Pcm && waveFormat.BitsPerSample == 16)
+                            if (waveFormat.Encoding == WaveFormatEncoding.Pcm && waveFormat.BitsPerSample == 16 && ShouldSampleLevel())
                             {
                                 try { _levels.PublishPcm16(e.Buffer.AsSpan(0, e.BytesRecorded), DateTimeOffset.UtcNow); } catch { }
                             }
@@ -244,6 +249,17 @@ public class WindowsWasapiLoopbackCapture : ISystemAudioLoopbackCapture, IAudioL
         }
 
         await CleanupAsync();
+    }
+
+    private bool ShouldSampleLevel()
+    {
+        var now = Environment.TickCount64;
+        while (true)
+        {
+            var last = Volatile.Read(ref _lastLevelUpdateMs);
+            if (last != 0 && now - last < 200) return false;
+            if (Interlocked.CompareExchange(ref _lastLevelUpdateMs, now, last) == last) return true;
+        }
     }
 
     private async Task CleanupAsync()

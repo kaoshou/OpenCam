@@ -330,6 +330,46 @@
                                        HorizontalAlignment="Center" />
                         </Border>
 
+                        <!-- 獨立來源音量：只繪出實際量測值，停用或中斷時清空 -->
+                        <StackPanel Spacing="6">
+                            <Border Background="#111827" BorderBrush="#1F2937" BorderThickness="1" CornerRadius="7" Padding="8,5">
+                                <StackPanel Spacing="3">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="{Binding Strings[AudioMeterSystem]}" Foreground="#5EEAD4" FontSize="10.5" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="1" Text="{Binding SystemAudioMeterStateText}" Foreground="#CBD5E1" FontSize="10" />
+                                    </Grid>
+                                    <ItemsControl ItemsSource="{Binding SystemWaveformBars}" Height="26">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Bottom" /></ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:AudioWaveformBar">
+                                                <Border Width="4" Height="{Binding Height}" Background="#2DD4BF" VerticalAlignment="Bottom" CornerRadius="2" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                            <Border Background="#111827" BorderBrush="#1F2937" BorderThickness="1" CornerRadius="7" Padding="8,5">
+                                <StackPanel Spacing="3">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="{Binding Strings[AudioMeterMicrophone]}" Foreground="#C4B5FD" FontSize="10.5" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="1" Text="{Binding MicrophoneMeterStateText}" Foreground="#CBD5E1" FontSize="10" />
+                                    </Grid>
+                                    <ItemsControl ItemsSource="{Binding MicrophoneWaveformBars}" Height="26">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Bottom" /></ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:AudioWaveformBar">
+                                                <Border Width="4" Height="{Binding Height}" Background="#A78BFA" VerticalAlignment="Bottom" CornerRadius="2" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
                         <!-- 檔案大小與磁碟空間雙方塊卡片 (獨立磨砂黑金屬卡片) -->
                         <Grid ColumnDefinitions="*,*" Margin="0,4,0,0">
                             <!-- 檔案大小 -->

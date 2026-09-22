@@ -51,6 +51,11 @@ public partial class MainViewModel : ObservableObject
 
     private NamedPipeIpcClient _ipcClient;
     private readonly DispatcherTimer _telemetryTimer;
+    private readonly DispatcherTimer _audioMeterTimer;
+    private readonly AudioWaveformHistory _systemWaveform = new();
+    private readonly AudioWaveformHistory _microphoneWaveform = new();
+    private AudioMeterState _systemMeterState = AudioMeterState.Off;
+    private AudioMeterState _microphoneMeterState = AudioMeterState.Off;
     private readonly IRecordingRecoveryService _recoveryService;
     private readonly IStorageService _storageService;
     private readonly IDisplayService _displayService;
@@ -61,6 +66,22 @@ public partial class MainViewModel : ObservableObject
     private readonly IMacOsScreenCapturePermissionService? _macOsScreenCapturePermissionService;
     private Process? _recorderProcess;
     private int _telemetryPollInFlight;
+    private int _audioMeterPollInFlight;
+    private int _audioMeterGeneration;
+
+    public IReadOnlyList<AudioWaveformBar> SystemWaveformBars => _systemWaveform.Bars;
+    public IReadOnlyList<AudioWaveformBar> MicrophoneWaveformBars => _microphoneWaveform.Bars;
+    public string SystemAudioMeterStateText => MeterStateText(_systemMeterState);
+    public string MicrophoneMeterStateText => MeterStateText(_microphoneMeterState);
+
+    private string MeterStateText(AudioMeterState state) => Strings[state switch
+    {
+        AudioMeterState.Live => "AudioMeterLive",
+        AudioMeterState.Silent => "AudioMeterSilent",
+        AudioMeterState.Paused => "AudioMeterPaused",
+        AudioMeterState.Unavailable => "AudioMeterUnavailable",
+        _ => "AudioMeterOff"
+    }];
 
     public ISettingsService SettingsService => _settingsService;
     private bool _openFolderOnFinished = false;
@@ -494,12 +515,14 @@ public partial class MainViewModel : ObservableObject
     partial void OnRecordSystemAudioChanged(bool value)
     {
         PersistUserSettings();
+        if (IsPaused) SetMeterStatesForPausedSelection();
     }
 
     partial void OnRecordMicrophoneChanged(bool value)
     {
         OnPropertyChanged(nameof(CanSelectMicrophone));
         PersistUserSettings();
+        if (IsPaused) SetMeterStatesForPausedSelection();
     }
 
     partial void OnSelectedMicrophoneChanged(AudioDeviceOption? value)
@@ -593,6 +616,8 @@ public partial class MainViewModel : ObservableObject
             Interval = TimeSpan.FromMilliseconds(500)
         };
         _telemetryTimer.Tick += OnTelemetryTimerTick;
+        _audioMeterTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+        _audioMeterTimer.Tick += OnAudioMeterTimerTick;
 
         // 動態偵測所有實體顯示器
         Strings.PropertyChanged += (s, e) =>
@@ -603,6 +628,8 @@ public partial class MainViewModel : ObservableObject
             RefreshHotkeyTooltips();
             OnPropertyChanged(nameof(StatusBadgeText));
             OnPropertyChanged(nameof(SystemAudioLabel));
+            OnPropertyChanged(nameof(SystemAudioMeterStateText));
+            OnPropertyChanged(nameof(MicrophoneMeterStateText));
             LoadMonitors();
             RefreshEncoderDisplayNames();
             RefreshCursorEffectDisplayNames();
@@ -1095,6 +1122,7 @@ public partial class MainViewModel : ObservableObject
                 IsPaused = false;
                 StatusMessage = Strings["StatusRecordingActive"];
                 _telemetryTimer.Start();
+                StartAudioMeterPolling();
 
                 if (MinimizeOnRecord)
                 {
@@ -1109,6 +1137,7 @@ public partial class MainViewModel : ObservableObject
                     IsPaused = false;
                     StatusMessage = Strings["StatusRecordingActive"];
                     _telemetryTimer.Start();
+                    StartAudioMeterPolling();
                     return;
                 }
                 StatusMessage = Strings.GetFormatted("StatusFailed", response.ErrorMessage ?? string.Empty);
@@ -1182,6 +1211,7 @@ public partial class MainViewModel : ObservableObject
                 IsPaused = true;
                 IsRecording = false;
                 StatusMessage = Strings["StatusPausedMsg"];
+                SetMeterStatesForPausedSelection();
             }
             else
             {
@@ -1199,6 +1229,7 @@ public partial class MainViewModel : ObservableObject
         var wasPaused = IsPaused;
         IsPreparing = true;
         _telemetryTimer.Stop();
+        StopAudioMeterPolling();
         StatusMessage = Strings["StatusStopping"];
 
         try
@@ -1233,6 +1264,7 @@ public partial class MainViewModel : ObservableObject
             {
                 StatusMessage = Strings.GetFormatted("StatusStopFailed", response.ErrorMessage ?? string.Empty);
                 _telemetryTimer.Start();
+                StartAudioMeterPolling();
             }
         }
         finally
@@ -1434,6 +1466,96 @@ public partial class MainViewModel : ObservableObject
 
     private int _telemetryFailures = 0;
 
+    private void StartAudioMeterPolling()
+    {
+        Interlocked.Increment(ref _audioMeterGeneration);
+        _systemWaveform.Clear();
+        _microphoneWaveform.Clear();
+        _audioMeterTimer.Start();
+        _ = QueryAudioLevelsAsync();
+    }
+
+    private void StopAudioMeterPolling()
+    {
+        Interlocked.Increment(ref _audioMeterGeneration);
+        _audioMeterTimer.Stop();
+        _systemMeterState = AudioMeterState.Off;
+        _microphoneMeterState = AudioMeterState.Off;
+        _systemWaveform.Clear();
+        _microphoneWaveform.Clear();
+        NotifyAudioMeterChanged();
+    }
+
+    private void NotifyAudioMeterChanged()
+    {
+        OnPropertyChanged(nameof(SystemWaveformBars));
+        OnPropertyChanged(nameof(MicrophoneWaveformBars));
+        OnPropertyChanged(nameof(SystemAudioMeterStateText));
+        OnPropertyChanged(nameof(MicrophoneMeterStateText));
+    }
+
+    private void SetMeterStatesForPausedSelection()
+    {
+        ApplyAudioLevels(new AudioLevelsSnapshot(
+            new AudioSourceLevel(RecordSystemAudio && SupportsSystemAudio
+                ? AudioMeterState.Paused : AudioMeterState.Off, 0, 0),
+            new AudioSourceLevel(RecordMicrophone
+                ? AudioMeterState.Paused : AudioMeterState.Off, 0, 0)));
+    }
+
+    private void ApplyAudioLevels(AudioLevelsSnapshot snapshot)
+    {
+        _systemMeterState = snapshot.SystemAudio.State;
+        _microphoneMeterState = snapshot.Microphone.State;
+        _systemWaveform.Push(snapshot.SystemAudio);
+        _microphoneWaveform.Push(snapshot.Microphone);
+        NotifyAudioMeterChanged();
+    }
+
+    private async void OnAudioMeterTimerTick(object? sender, EventArgs e) =>
+        await QueryAudioLevelsAsync();
+
+    private async Task QueryAudioLevelsAsync()
+    {
+        if (!IsRecording && !IsPaused || Interlocked.Exchange(ref _audioMeterPollInFlight, 1) == 1)
+        {
+            return;
+        }
+
+        var generation = Volatile.Read(ref _audioMeterGeneration);
+        try
+        {
+            var response = await _ipcClient.SendCommandAsync("GetAudioLevels", new { }, timeoutMs: 500);
+            if (generation != Volatile.Read(ref _audioMeterGeneration) || !IsRecording && !IsPaused) return;
+            if (response.Success && AudioLevelsResponseParser.TryParse(response.ErrorMessage, out var levels))
+            {
+                if (IsPaused)
+                {
+                    SetMeterStatesForPausedSelection();
+                }
+                else
+                {
+                    ApplyAudioLevels(levels);
+                }
+                return;
+            }
+        }
+        catch { }
+        finally
+        {
+            Interlocked.Exchange(ref _audioMeterPollInFlight, 0);
+        }
+
+        if (generation == Volatile.Read(ref _audioMeterGeneration) && (IsRecording || IsPaused))
+        {
+            ApplyAudioLevels(new AudioLevelsSnapshot(
+                new AudioSourceLevel(RecordSystemAudio && SupportsSystemAudio
+                    ? AudioMeterState.Unavailable : AudioMeterState.Off, 0, 0),
+                new AudioSourceLevel(RecordMicrophone
+                    ? AudioMeterState.Unavailable : AudioMeterState.Off, 0, 0)));
+        }
+    }
+
     private async void OnTelemetryTimerTick(object? sender, EventArgs e)
     {
         if (Interlocked.Exchange(ref _telemetryPollInFlight, 1) == 1)
@@ -1481,6 +1603,7 @@ public partial class MainViewModel : ObservableObject
                         IsRecording = false;
                         _isDiskSpaceWarningActive = false;
                         _telemetryTimer.Stop();
+                        StopAudioMeterPolling();
                         return;
                     }
 
@@ -1520,6 +1643,7 @@ public partial class MainViewModel : ObservableObject
         if (_telemetryFailures >= 6)
         {
             _telemetryTimer.Stop();
+            StopAudioMeterPolling();
             _telemetryFailures = 0;
             IsRecording = false;
             IsPaused = false;
@@ -1582,6 +1706,8 @@ public partial class MainViewModel : ObservableObject
     {
         _telemetryTimer.Stop();
         _telemetryTimer.Tick -= OnTelemetryTimerTick;
+        StopAudioMeterPolling();
+        _audioMeterTimer.Tick -= OnAudioMeterTimerTick;
 
         try
         {
