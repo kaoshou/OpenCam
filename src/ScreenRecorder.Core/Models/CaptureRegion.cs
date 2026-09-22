@@ -1,4 +1,5 @@
-﻿namespace ScreenRecorder.Core.Models;
+﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+namespace ScreenRecorder.Core.Models;
 
 /// <summary>
 /// 螢幕自訂錄影區域（物理像素座標）

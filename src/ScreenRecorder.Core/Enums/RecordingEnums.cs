@@ -1,4 +1,5 @@
-﻿namespace ScreenRecorder.Core.Enums;
+﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+namespace ScreenRecorder.Core.Enums;
 
 /// <summary>
 /// 錄影生命週期狀態

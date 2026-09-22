@@ -1,4 +1,5 @@
-﻿using System.Collections.ObjectModel;
+﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ScreenRecorder.Core.Interfaces;

@@ -1,4 +1,5 @@
-﻿using Avalonia.Controls;
+﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 for (const link of document.querySelectorAll('[data-language]')) {
   link.addEventListener('click', () => {
     try { localStorage.setItem('opencam-language', link.dataset.language); } catch { /* Optional. */ }

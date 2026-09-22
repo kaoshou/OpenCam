@@ -1,4 +1,5 @@
-﻿using System.ComponentModel;
+﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+using System.ComponentModel;
 using ScreenRecorder.Core.Localization;
 
 namespace ScreenRecorder.UI.Localization;

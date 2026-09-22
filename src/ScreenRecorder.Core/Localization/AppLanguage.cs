@@ -1,4 +1,5 @@
-﻿namespace ScreenRecorder.Core.Localization;
+﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+namespace ScreenRecorder.Core.Localization;
 
 /// <summary>
 /// 應用程式支援之語言清單

@@ -1,4 +1,5 @@
-﻿using ScreenRecorder.Media.FFmpeg;
+﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+using ScreenRecorder.Media.FFmpeg;
 using Xunit;
 
 namespace ScreenRecorder.Media.Tests;

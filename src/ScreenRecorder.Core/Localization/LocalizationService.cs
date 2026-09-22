@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 namespace ScreenRecorder.Core.Localization;
 
 public class LocalizationService : ILocalizationService
@@ -147,15 +148,18 @@ public class LocalizationService : ILocalizationService
         ["RecordingCloseWarningMessage"] = "目前正在錄影，請先停止錄影後再關閉程式。",
         ["RecordingCloseWarningDetail"] = "這次關閉要求已取消，OpenCam 會繼續錄影。",
         ["ReturnToRecording"] = "返回錄影",
-        ["VersionAndAbout"] = "OpenCam v0.1.5 · 關於",
+        ["VersionAndAbout"] = "OpenCam v0.2.0 · 關於",
 
         // 關於視窗
         ["AboutTitle"] = "關於 OpenCam",
         ["AppName"] = "OpenCam",
-        ["VersionLabel"] = "版本: v0.1.5 (開源穩定版)",
+        ["VersionLabel"] = "版本: v0.2.0",
         ["AuthorLabel"] = "作者:",
         ["AuthorName"] = "鄭郁翰 (Yu-Han Cheng)",
         ["GithubLabel"] = "GitHub 專案首頁",
+        ["ProjectLicenseLabel"] = "專案授權:",
+        ["ProjectLicenseName"] = "AGPL-3.0-or-later",
+        ["ProjectLicenseDetail"] = "OpenCam 原始碼依 GNU AGPL 第 3 版或更新版授權；完整條款及原始碼請見 GitHub 專案的 LICENSE 檔。無擔保提供。第三方元件各依其自身授權。",
         ["AppDescription"] = "一款簡單、穩定且具備極致可靠性的桌面螢幕錄影工具。\n核心特色包含：安全容器強制連續寫入、停止時無損轉碼 MP4、崩潰/斷電自動救援、支援多螢幕與自訂範圍、A/V 高精度同步。",
         ["ThirdPartyTitle"] = "第三方開源函式庫授權清單",
         ["LicenseFfmpegDesc"] = "依據 GNU Lesser General Public License (LGPL) 2.1 / GPL 3.0 授權使用其多媒體編碼與封裝管線。",
@@ -352,15 +356,18 @@ public class LocalizationService : ILocalizationService
         ["RecordingCloseWarningMessage"] = "Stop the recording before closing OpenCam.",
         ["RecordingCloseWarningDetail"] = "The close request was canceled and recording will continue.",
         ["ReturnToRecording"] = "Return to Recording",
-        ["VersionAndAbout"] = "OpenCam v0.1.5 · About",
+        ["VersionAndAbout"] = "OpenCam v0.2.0 · About",
 
         // 關於視窗
         ["AboutTitle"] = "About OpenCam",
         ["AppName"] = "OpenCam",
-        ["VersionLabel"] = "Version: v0.1.5 (Open Source Stable)",
+        ["VersionLabel"] = "Version: v0.2.0",
         ["AuthorLabel"] = "Author:",
         ["AuthorName"] = "Yu-Han Cheng (鄭郁翰)",
         ["GithubLabel"] = "GitHub Project",
+        ["ProjectLicenseLabel"] = "Project license:",
+        ["ProjectLicenseName"] = "AGPL-3.0-or-later",
+        ["ProjectLicenseDetail"] = "OpenCam source is licensed under GNU AGPL version 3 or later. See LICENSE in the GitHub repository for the full terms and source code. Provided without warranty. Third-party components retain their own licenses.",
         ["AppDescription"] = "A simple, stable, and highly reliable desktop screen recording tool.\nKey Features: Continuous MKV safe container writing, lossless MP4 remuxing on graceful stop, crash and power-loss recovery, full/multi-monitor/custom region capture, and precise A/V sync.",
         ["ThirdPartyTitle"] = "Third-Party Open Source Licenses",
         ["LicenseFfmpegDesc"] = "Multimedia encoding and muxing pipeline licensed under GNU Lesser General Public License (LGPL) 2.1 / GPL 3.0.",

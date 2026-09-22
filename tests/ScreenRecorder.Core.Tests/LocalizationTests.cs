@@ -1,4 +1,5 @@
-﻿using ScreenRecorder.Core.Localization;
+﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+using ScreenRecorder.Core.Localization;
 using Xunit;
 
 namespace ScreenRecorder.Core.Tests;

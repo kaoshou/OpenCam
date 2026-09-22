@@ -1,4 +1,5 @@
-﻿using Serilog;
+﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+using Serilog;
 using Serilog.Events;
 
 namespace ScreenRecorder.Infrastructure.Logging;

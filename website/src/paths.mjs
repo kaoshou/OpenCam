@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 export const BASE_PATH = '/OpenCam/';
 const languages = new Set(['zh-TW', 'en-US']);
 const pages = new Set(['home', 'guide']);

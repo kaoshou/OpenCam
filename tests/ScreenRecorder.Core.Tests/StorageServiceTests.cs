@@ -1,4 +1,5 @@
-﻿using ScreenRecorder.Infrastructure.Storage;
+﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+using ScreenRecorder.Infrastructure.Storage;
 using Xunit;
 
 namespace ScreenRecorder.Core.Tests;

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 :root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #183126; background: #f7faf7; scroll-behavior: smooth; }
 * { box-sizing: border-box; }
 body { margin: 0; line-height: 1.65; }
@@ -31,6 +32,7 @@ a { color: inherit; }
 .button-secondary { background: white; border: 1px solid #c9dbcf; }
 .hero-meta, .visual-caption, .preview-note { color: #6b8072; font-size: .78rem; }
 .hero-meta { margin: 17px 0 0; }
+.release-license-note { max-width: 520px; margin: 9px 0 0; color: #53665b; font-size: .78rem; line-height: 1.55; }
 .hero-visual { position: relative; padding: 30px 0 0 20px; }
 .window-halo { position: absolute; inset: 5% -10% 0 12%; border-radius: 50%; background: #86dba454; filter: blur(55px); }
 .hero-visual img { position: relative; display: block; border-radius: 16px; border: 1px solid #bfd7c6; box-shadow: 0 32px 70px #164d3038; transform: rotate(-2deg); }

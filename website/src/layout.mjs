@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 import { assetPath, routeFor } from './paths.mjs';
 
 export function escapeHtml(value) {
@@ -11,6 +12,7 @@ export function renderLayout({ language, title, description, page, body }) {
   const otherRoute = routeFor(other, page);
   const guideLabel = language === 'zh-TW' ? '使用說明' : 'User guide';
   const skip = language === 'zh-TW' ? '跳至主要內容' : 'Skip to content';
+  const licenseLabel = language === 'zh-TW' ? '授權：AGPL-3.0-or-later' : 'License: AGPL-3.0-or-later';
   return `<!doctype html>
 <html lang="${language}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${escapeHtml(title)} · OpenCam</title><meta name="description" content="${escapeHtml(description)}">
@@ -20,7 +22,7 @@ export function renderLayout({ language, title, description, page, body }) {
 <a class="skip-link" href="#main">${skip}</a>
 <header class="site-header"><nav class="nav-wrap" aria-label="${language === 'zh-TW' ? '主要導覽' : 'Main navigation'}"><a class="brand" href="${home}"><img src="${assetPath('app_icon.png')}" alt="OpenCam" width="32" height="32">OpenCam</a><div class="nav-links"><a href="${home}">${language === 'zh-TW' ? '首頁' : 'Home'}</a><a href="${guide}">${guideLabel}</a><a class="language-switch" href="${otherRoute}" data-language="${other}">${other === 'zh-TW' ? '繁體中文' : 'English'}</a></div></nav></header>
 <main id="main">${body}</main>
-<footer class="site-footer"><div class="container"><span>© OpenCam</span><a href="https://github.com/kaoshou/OpenCam">GitHub</a><a href="${guide}">${guideLabel}</a></div></footer></body></html>`;
+<footer class="site-footer"><div class="container"><span>© OpenCam</span><a href="https://github.com/kaoshou/OpenCam">GitHub</a><a href="${guide}">${guideLabel}</a><a href="https://github.com/kaoshou/OpenCam/blob/master/LICENSE">${licenseLabel}</a></div></footer></body></html>`;
 }
 
 export function renderEntry() {

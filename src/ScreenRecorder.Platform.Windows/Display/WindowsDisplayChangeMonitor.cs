@@ -1,4 +1,5 @@
-﻿using System.Runtime.Versioning;
+﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+using System.Runtime.Versioning;
 using Microsoft.Win32;
 using ScreenRecorder.Core.Interfaces;
 

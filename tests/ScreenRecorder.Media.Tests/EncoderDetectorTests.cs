@@ -1,4 +1,5 @@
-﻿using ScreenRecorder.Core.Enums;
+﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+using ScreenRecorder.Core.Enums;
 using ScreenRecorder.Core.Models;
 using ScreenRecorder.Media.Capture;
 using ScreenRecorder.Media.Encoders;

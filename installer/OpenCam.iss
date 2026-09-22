@@ -1,5 +1,6 @@
-﻿#define MyAppName "OpenCam 螢幕錄影工具"
-#define MyAppVersion "0.1.5"
+﻿; SPDX-License-Identifier: AGPL-3.0-or-later
+#define MyAppName "OpenCam 螢幕錄影工具"
+#define MyAppVersion "0.2.0"
 #define MyAppPublisher "Yu-Han Cheng"
 #define MyAppURL "https://github.com/kaoshou/OpenCam"
 #define MyAppExeName "OpenCam.exe"
@@ -13,6 +14,7 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
+LicenseFile=..\LICENSE
 ; 預設安裝目錄 (例如: C:\Program Files\OpenCam)
 DefaultDirName={autopf}\OpenCam
 ; 開始功能表資料夾名稱

@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+using System.Diagnostics;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -35,7 +36,7 @@ public partial class AboutWindow : Window
         {
             Process.Start(new ProcessStartInfo
             {
-                FileName = "https://github.com/kaoshou",
+                FileName = "https://github.com/kaoshou/OpenCam",
                 UseShellExecute = true
             });
         }

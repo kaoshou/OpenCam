@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+using System.Collections.Generic;
 using ScreenRecorder.Core.Interfaces;
 using ScreenRecorder.Core.Models;
 

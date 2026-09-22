@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using ScreenRecorder.Core.Enums;
 using ScreenRecorder.Core.Interfaces;

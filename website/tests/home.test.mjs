@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm, readFile } from 'node:fs/promises';
@@ -17,7 +18,11 @@ test('localized homepages include genuine previews, guide, and current download'
       assert.match(html, /<img[^>]+alt="[^"]+"/);
       assert.match(html, new RegExp(`/OpenCam/${lang}/guide/`));
       assert.match(html, /Apple Silicon/);
-      assert.doesNotMatch(html, /v0\.1\.5|fonts\.googleapis|google-analytics|gtag\(/);
+      assert.match(html, /AGPL-3\.0-or-later/);
+      assert.match(html, /https:\/\/github\.com\/kaoshou\/OpenCam\/blob\/master\/LICENSE/);
+      assert.match(html, /0\.2\.0/);
+      assert.match(html, /v0\.1\.5/);
+      assert.doesNotMatch(html, /fonts\.googleapis|google-analytics|gtag\(/);
     }
   } finally { await rm(out, { recursive: true, force: true }); }
 });

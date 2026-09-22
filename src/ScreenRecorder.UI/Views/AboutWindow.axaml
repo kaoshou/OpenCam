@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="ScreenRecorder.UI.Views.AboutWindow"
@@ -30,9 +31,14 @@
                     <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,2,0,0">
                         <TextBlock Text="GitHub:" FontSize="12" FontWeight="SemiBold" Foreground="#334155" VerticalAlignment="Center" />
                         <Button Click="OnGitHubClicked" Background="Transparent" Padding="0" Cursor="Hand" BorderThickness="0">
-                            <TextBlock Text="https://github.com/kaoshou" Foreground="#2563EB" TextDecorations="Underline" FontSize="12" FontWeight="Medium" />
+                            <TextBlock Text="https://github.com/kaoshou/OpenCam" Foreground="#2563EB" TextDecorations="Underline" FontSize="12" FontWeight="Medium" />
                         </Button>
                     </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,2,0,0">
+                        <TextBlock Text="{Binding Strings[ProjectLicenseLabel]}" FontSize="12" FontWeight="SemiBold" Foreground="#334155" />
+                        <TextBlock Text="{Binding Strings[ProjectLicenseName]}" FontSize="12" Foreground="#475569" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding Strings[ProjectLicenseDetail]}" FontSize="10.5" Foreground="#64748B" TextWrapping="Wrap" />
                 </StackPanel>
             </Grid>
         </Border>

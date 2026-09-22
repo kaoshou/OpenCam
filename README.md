@@ -2,7 +2,7 @@
 
 [![Latest Release](https://img.shields.io/github/v/release/kaoshou/OpenCam?display_name=tag&sort=semver)](https://github.com/kaoshou/OpenCam/releases/latest)
 [![Build and Release](https://img.shields.io/github/actions/workflow/status/kaoshou/OpenCam/build-and-release.yml?logo=github&label=Build%20and%20Release)](https://github.com/kaoshou/OpenCam/actions/workflows/build-and-release.yml)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-blue.svg)](LICENSE)
 
 *（English version below）*
 
@@ -13,6 +13,8 @@ OpenCam 是一款以可靠性為優先的跨平台桌面螢幕錄影工具。錄
 📖 [完整使用說明（繁體中文）](docs/USER_GUIDE.zh-TW.md) ｜ [English User Guide](docs/USER_GUIDE.en-US.md)
 
 🌐 [OpenCam 官方網站](https://kaoshou.github.io/OpenCam/)（可切換繁體中文／English）
+
+目前原始碼版本為 **0.2.0**，採用 **AGPL-3.0-or-later**；下方的 v0.1.5 下載連結是先前發布版本，其原授權不受此次變更影響。尚未發布 0.2.0 安裝包。
 
 > 以下為 Windows 介面預覽；macOS 使用相同的主要操作流程。
 
@@ -88,7 +90,7 @@ OpenCam 是一款以可靠性為優先的跨平台桌面螢幕錄影工具。錄
 
 ## ⚖️ 授權與免責聲明
 
-- **專案授權**：本專案原始碼依 [Apache License 2.0](LICENSE) 發布。
+- **專案授權**：自 0.2.0 起，專案自有原始碼依 [GNU Affero General Public License v3.0 or later](LICENSE)（`AGPL-3.0-or-later`）發布；請參閱 [版權與原始碼說明](NOTICE.md)。先前發布版本仍依其當時的授權條款提供。
 - **第三方元件**：發布套件包含 FFmpeg；實際適用授權取決於各平台封裝的 FFmpeg 組態。官方發布套件使用啟用 GPL 元件的 FFmpeg，包括 libx264。請參閱 [macOS FFmpeg 建置腳本](scripts/build-ffmpeg-macos-arm64.sh)、[FFmpeg Legal](https://ffmpeg.org/legal.html) 與 [x264 原始碼](https://code.videolan.org/videolan/x264)。Avalonia UI、CommunityToolkit.Mvvm、Serilog 及其他相依套件分別適用其各自授權。
 - **免責聲明與使用條款**：本軟體按「原樣（AS IS）」提供，不帶任何明示或暗示的擔保。作者不對使用本軟體造成的資料遺失、硬體損壞或衍生性損失負責。使用者必須自行確保錄影行為遵守所在地的隱私權、機密保護與著作權法律。
 
@@ -103,6 +105,8 @@ OpenCam is built with .NET 8, Avalonia UI, and FFmpeg, and supports Windows and 
 📖 [Complete User Guide](docs/USER_GUIDE.en-US.md) | [繁體中文使用說明](docs/USER_GUIDE.zh-TW.md)
 
 🌐 [OpenCam official website](https://kaoshou.github.io/OpenCam/) (English / 繁體中文)
+
+The current source version is **0.2.0**, licensed under **AGPL-3.0-or-later**. The v0.1.5 download linked below is an earlier release and retains its original license. No 0.2.0 installer has been published yet.
 
 > The screenshots below show the Windows interface. The primary workflow is the same on macOS.
 
@@ -178,6 +182,6 @@ Download the installers from the [OpenCam v0.1.5 Release](https://github.com/kao
 
 ## ⚖️ License and Disclaimers
 
-- **Project License**: The project source code is released under the [Apache License 2.0](LICENSE).
+- **Project License**: From 0.2.0 onward, project-owned source code is released under the [GNU Affero General Public License v3.0 or later](LICENSE) (`AGPL-3.0-or-later`). See the [copyright and source notice](NOTICE.md). Earlier releases retain the terms under which they were published.
 - **Third-Party Components**: Release packages include FFmpeg. The applicable FFmpeg license depends on the bundled configuration; the official release packages use GPL-enabled FFmpeg components, including libx264. See the [macOS FFmpeg build script](scripts/build-ffmpeg-macos-arm64.sh), [FFmpeg Legal](https://ffmpeg.org/legal.html), and the [x264 source repository](https://code.videolan.org/videolan/x264). Avalonia UI, CommunityToolkit.Mvvm, Serilog, and other dependencies remain subject to their respective licenses.
 - **Disclaimer**: This software is provided “AS IS,” without warranty of any kind. The authors are not responsible for damage or data loss. Users are responsible for complying with applicable privacy, confidentiality, and copyright laws when recording.

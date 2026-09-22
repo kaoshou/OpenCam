@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 import { assetPath, routeFor } from './paths.mjs';
 import { escapeHtml } from './layout.mjs';
 
@@ -8,6 +9,7 @@ export const content = {
     heroText: '選擇整個螢幕或指定範圍，一鍵開始錄影。OpenCam 先保存 MKV 工作檔，完成後再封裝成 MP4。',
     downloadLabel: '下載 OpenCam', guideLabel: '閱讀使用說明',
     openSource: '開放原始碼 · 免費使用',
+    licenseReleaseNote: '目前原始碼為 0.2.0（AGPL-3.0-or-later）；下載連結仍指向 v0.1.5，該舊版保留原授權。',
     screenshotTitle: '每一步，都清楚直覺。',
     screenshotText: '從錄影範圍、聲音來源到儲存位置，常用選項都在眼前。',
     mainAlt: 'OpenCam 繁體中文主畫面，顯示錄影來源、編碼器與音訊選項',
@@ -36,6 +38,7 @@ export const content = {
     heroText: 'Choose a display or a precise region, then start recording. OpenCam saves an MKV working file first and packages it as MP4 when you finish.',
     downloadLabel: 'Download OpenCam', guideLabel: 'Read the user guide',
     openSource: 'Open source · Free to use',
+    licenseReleaseNote: 'Current source: 0.2.0 (AGPL-3.0-or-later). The download still points to v0.1.5, which retains its original license.',
     screenshotTitle: 'Clear from the first click.',
     screenshotText: 'Capture area, audio sources, and output location are right where you need them.',
     mainAlt: 'OpenCam English main window showing capture, encoder, and audio controls',
@@ -67,7 +70,7 @@ export function renderHome(language) {
   const guide = routeFor(language, 'guide');
   const latest = 'https://github.com/kaoshou/OpenCam/releases/latest';
   const featureCards = c.features.map(([number, title, text]) => `<li class="feature-card"><span class="feature-number">${number}</span><h3>${escapeHtml(title)}</h3><p>${escapeHtml(text)}</p></li>`).join('');
-  return `<section class="hero"><div class="container hero-grid"><div class="hero-copy"><p class="eyebrow"><span class="eyebrow-dot"></span>${escapeHtml(c.eyebrow)}</p><h1>${c.heroTitle}</h1><p class="hero-text">${escapeHtml(c.heroText)}</p><div class="hero-actions"><a class="button button-primary" href="${latest}">${escapeHtml(c.downloadLabel)} <span aria-hidden="true">↗</span></a><a class="button button-secondary" href="${guide}">${escapeHtml(c.guideLabel)} <span aria-hidden="true">→</span></a></div><p class="hero-meta">${escapeHtml(c.openSource)}</p></div><div class="hero-visual"><div class="window-halo"></div><img src="${assetPath(`preview_main_${suffix}.png`)}" alt="${escapeHtml(c.mainAlt)}" width="1100" height="730"><span class="visual-caption">${escapeHtml(c.mainCaption)}</span></div></div></section>
+  return `<section class="hero"><div class="container hero-grid"><div class="hero-copy"><p class="eyebrow"><span class="eyebrow-dot"></span>${escapeHtml(c.eyebrow)}</p><h1>${c.heroTitle}</h1><p class="hero-text">${escapeHtml(c.heroText)}</p><div class="hero-actions"><a class="button button-primary" href="${latest}">${escapeHtml(c.downloadLabel)} <span aria-hidden="true">↗</span></a><a class="button button-secondary" href="${guide}">${escapeHtml(c.guideLabel)} <span aria-hidden="true">→</span></a></div><p class="hero-meta">${escapeHtml(c.openSource)}</p><p class="release-license-note">${escapeHtml(c.licenseReleaseNote)}</p></div><div class="hero-visual"><div class="window-halo"></div><img src="${assetPath(`preview_main_${suffix}.png`)}" alt="${escapeHtml(c.mainAlt)}" width="1100" height="730"><span class="visual-caption">${escapeHtml(c.mainCaption)}</span></div></div></section>
 <section class="section screenshot-section" id="preview"><div class="container"><div class="section-intro"><p class="section-kicker">01 / OpenCam</p><h2>${escapeHtml(c.screenshotTitle)}</h2><p>${escapeHtml(c.screenshotText)}</p></div><div class="screenshot-grid"><figure class="screenshot-card"><img src="${assetPath(`preview_main_${suffix}.png`)}" alt="${escapeHtml(c.mainAlt)}" loading="lazy"><figcaption>${escapeHtml(c.mainCaption)}</figcaption></figure><figure class="screenshot-card"><img src="${assetPath(`preview_settings_${suffix}.png`)}" alt="${escapeHtml(c.settingsAlt)}" loading="lazy"><figcaption>${escapeHtml(c.settingsCaption)}</figcaption></figure></div><p class="preview-note">${escapeHtml(c.previewNote)}</p></div></section>
 <section class="section features-section" id="features"><div class="container"><div class="section-intro"><p class="section-kicker">02 / Features</p><h2>${escapeHtml(c.featuresTitle)}</h2></div><ul class="feature-grid">${featureCards}</ul></div></section>
 <section class="section process-section"><div class="container process-grid"><div><p class="section-kicker">03 / ${escapeHtml(c.processEyebrow)}</p><h2>${escapeHtml(c.processTitle)}</h2><p class="process-text">${escapeHtml(c.processText)}</p><a class="text-link" href="${guide}">${escapeHtml(c.guideLabel)} →</a></div><ol class="process-steps">${c.processSteps.map((step, index) => `<li><span>0${index + 1}</span><strong>${escapeHtml(step)}</strong></li>`).join('')}</ol></div></section>

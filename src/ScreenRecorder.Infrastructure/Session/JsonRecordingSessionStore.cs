@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+using System.Text.Json;
 using ScreenRecorder.Core.Interfaces;
 using ScreenRecorder.Core.Models;
 using ScreenRecorder.Core.Enums;

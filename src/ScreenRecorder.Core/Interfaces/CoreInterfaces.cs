@@ -1,4 +1,5 @@
-﻿using ScreenRecorder.Core.Enums;
+﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+using ScreenRecorder.Core.Enums;
 using ScreenRecorder.Core.Models;
 
 namespace ScreenRecorder.Core.Interfaces;
@@ -193,5 +194,3 @@ public interface ICursorHighlightService : IDisposable
     void Start(CursorEffectMode mode);
     void Stop();
 }
-
-

@@ -1,4 +1,5 @@
-﻿namespace ScreenRecorder.Core.Localization;
+﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+namespace ScreenRecorder.Core.Localization;
 
 public interface ILocalizationService
 {

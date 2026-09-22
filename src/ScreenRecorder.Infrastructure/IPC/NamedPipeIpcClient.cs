@@ -1,4 +1,5 @@
-﻿using System.IO.Pipes;
+﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
 

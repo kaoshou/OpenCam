@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
@@ -7,11 +8,12 @@ import { renderGuide } from '../src/guide.mjs';
 import { buildSite } from '../build.mjs';
 
 test('canonical links and duplicate headings resolve safely', () => {
-  const markdown = '## Recording\n## Recording\n[README](../README.md) [中文](USER_GUIDE.zh-TW.md) [External](https://example.com)\n\n```html\n<script>bad</script>\n```';
+  const markdown = '## Recording\n## Recording\n[README](../README.md) [License](../LICENSE) [中文](USER_GUIDE.zh-TW.md) [External](https://example.com)\n\n```html\n<script>bad</script>\n```';
   const { html, toc } = renderGuide(markdown, 'en-US');
   assert.match(html, /id="recording"/);
   assert.match(html, /id="recording-2"/);
   assert.match(html, /https:\/\/github\.com\/kaoshou\/OpenCam#readme/);
+  assert.match(html, /https:\/\/github\.com\/kaoshou\/OpenCam\/blob\/master\/LICENSE/);
   assert.match(html, /href="\/OpenCam\/zh-TW\/guide\/"/);
   assert.match(html, /href="https:\/\/example\.com"/);
   assert.match(html, /&lt;script&gt;bad&lt;\/script&gt;/);

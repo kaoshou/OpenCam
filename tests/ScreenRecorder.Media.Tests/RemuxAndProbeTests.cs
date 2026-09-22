@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+using System.Diagnostics;
 using ScreenRecorder.Media.FFmpeg;
 using ScreenRecorder.Media.Probe;
 using ScreenRecorder.Media.Remux;

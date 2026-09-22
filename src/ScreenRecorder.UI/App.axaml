@@ -1,4 +1,5 @@
-﻿<Application xmlns="https://github.com/avaloniaui"
+﻿<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="ScreenRecorder.UI.App"
              RequestedThemeVariant="Light">

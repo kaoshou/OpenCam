@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+using System.Text;
 using ScreenRecorder.Infrastructure.IPC;
 using Xunit;
 

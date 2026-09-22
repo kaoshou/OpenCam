@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -35,6 +36,8 @@ icon_source="$repo_root/src/ScreenRecorder.UI/Assets/app_icon.png"
 [[ -f "$microphone_source" ]] || fail "missing microphone helper source"
 [[ -f "$cursor_source" ]] || fail "missing cursor overlay helper source"
 [[ -f "$icon_source" ]] || fail "missing app icon source"
+[[ -f "$repo_root/LICENSE" ]] || fail "missing project license"
+[[ -f "$repo_root/NOTICE.md" ]] || fail "missing project notice"
 
 temp_root="$(mktemp -d)"
 trap 'rm -rf "$temp_root"' EXIT
@@ -44,6 +47,19 @@ rm -rf "$app_path"
 mkdir -p "$app_path/Contents/MacOS" "$app_path/Contents/Resources"
 cp -R "$publish_dir"/. "$app_path/Contents/MacOS/"
 cp "$temp_root/OpenCam.icns" "$app_path/Contents/Resources/OpenCam.icns"
+cp "$repo_root/LICENSE" "$app_path/Contents/Resources/LICENSE"
+cp "$repo_root/NOTICE.md" "$app_path/Contents/Resources/NOTICE.md"
+
+source_revision="${GITHUB_SHA:-}"
+if [[ ! "$source_revision" =~ ^[0-9a-fA-F]{40}$ ]]; then
+  source_revision="$(git -C "$repo_root" rev-parse HEAD)"
+fi
+printf 'OpenCam 0.2.0\nSPDX-License-Identifier: AGPL-3.0-or-later\nCorresponding source: https://github.com/kaoshou/OpenCam/tree/%s\n' \
+  "$source_revision" > "$app_path/Contents/Resources/SOURCE.txt"
+if [[ -n "$(git -C "$repo_root" status --porcelain)" ]]; then
+  printf 'Local build note: uncommitted changes may not be represented by the source revision above.\n' \
+    >> "$app_path/Contents/Resources/SOURCE.txt"
+fi
 
 helper="$app_path/Contents/MacOS/OpenCam.SystemAudio"
 xcrun swiftc "$source_file" \
@@ -84,8 +100,8 @@ plist_buddy=/usr/libexec/PlistBuddy
 "$plist_buddy" -c 'Add :CFBundleIdentifier string com.kaoshou.opencam' "$plist"
 "$plist_buddy" -c 'Add :CFBundleName string OpenCam' "$plist"
 "$plist_buddy" -c 'Add :CFBundleDisplayName string OpenCam' "$plist"
-"$plist_buddy" -c 'Add :CFBundleVersion string 0.1.5' "$plist"
-"$plist_buddy" -c 'Add :CFBundleShortVersionString string 0.1.5' "$plist"
+"$plist_buddy" -c 'Add :CFBundleVersion string 0.2.0' "$plist"
+"$plist_buddy" -c 'Add :CFBundleShortVersionString string 0.2.0' "$plist"
 "$plist_buddy" -c 'Add :CFBundlePackageType string APPL' "$plist"
 "$plist_buddy" -c 'Add :CFBundleIconFile string OpenCam.icns' "$plist"
 "$plist_buddy" -c 'Add :CFBundleSupportedPlatforms array' "$plist"

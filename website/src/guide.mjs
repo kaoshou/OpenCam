@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 import MarkdownIt from 'markdown-it';
 import { routeFor } from './paths.mjs';
 
@@ -5,6 +6,7 @@ const markdown = new MarkdownIt({ html: false, linkify: true, typographer: false
 
 export function rewriteGuideHref(href, language) {
   if (href === '../README.md') return 'https://github.com/kaoshou/OpenCam#readme';
+  if (href === '../LICENSE') return 'https://github.com/kaoshou/OpenCam/blob/master/LICENSE';
   if (href === 'USER_GUIDE.zh-TW.md') return routeFor('zh-TW', 'guide');
   if (href === 'USER_GUIDE.en-US.md') return routeFor('en-US', 'guide');
   if (/^(https?:|#)/i.test(href)) return href;

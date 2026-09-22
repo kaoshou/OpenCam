@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 namespace ScreenRecorder.Media.Tests;
 
 internal sealed class WindowsOnlyFactAttribute : FactAttribute

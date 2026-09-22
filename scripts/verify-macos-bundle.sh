@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
 set -euo pipefail
 
 app_path="${1:-}"
@@ -24,6 +25,15 @@ for executable in OpenCam ffmpeg ffprobe OpenCam.SystemAudio OpenCam.Microphone 
 done
 
 [[ -f "$resources/OpenCam.icns" ]] || fail "missing Resources/OpenCam.icns"
+[[ -f "$resources/LICENSE" ]] || fail "missing Resources/LICENSE"
+[[ -f "$resources/NOTICE.md" ]] || fail "missing Resources/NOTICE.md"
+[[ -f "$resources/SOURCE.txt" ]] || fail "missing Resources/SOURCE.txt"
+[[ "$(shasum -a 256 "$resources/LICENSE" | awk '{print $1}')" == "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0" ]] || \
+  fail "Resources/LICENSE is not the official AGPLv3 text"
+grep -q 'SPDX-License-Identifier: AGPL-3.0-or-later' "$resources/SOURCE.txt" || \
+  fail "SOURCE.txt has the wrong license identifier"
+grep -Eq 'Corresponding source: https://github.com/kaoshou/OpenCam/tree/[[:xdigit:]]{40}' "$resources/SOURCE.txt" || \
+  fail "SOURCE.txt is missing a source revision"
 
 icon_name="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$plist" 2>/dev/null || true)"
 [[ "$icon_name" == "OpenCam.icns" ]] || fail "CFBundleIconFile must be OpenCam.icns"

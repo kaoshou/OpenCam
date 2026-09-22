@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 using ScreenRecorder.Platform.Windows.Display;
 using ScreenRecorder.Platform.Windows.Audio;
 using ScreenRecorder.Core.Interfaces;

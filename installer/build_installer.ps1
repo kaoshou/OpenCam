@@ -1,11 +1,12 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 $ErrorActionPreference = "Stop"
 
-$ProjectRoot = "C:\Work\螢幕錄影專案"
+$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $InstallerDir = Join-Path $ProjectRoot "installer"
 $PublishDir = Join-Path $InstallerDir "publish"
 
 Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host " OpenCam v0.1.5 獨立發布打包腳本" -ForegroundColor Cyan
+Write-Host " OpenCam v0.2.0 獨立發布打包腳本" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 
 # 1. 清理舊的發布檔案
@@ -29,6 +30,18 @@ dotnet publish $CsprojPath `
     -p:DebugType=embedded `
     -o $PublishDir
 
+Copy-Item (Join-Path $ProjectRoot "LICENSE") (Join-Path $PublishDir "LICENSE")
+Copy-Item (Join-Path $ProjectRoot "NOTICE.md") (Join-Path $PublishDir "NOTICE.md")
+$Revision = (git -C $ProjectRoot rev-parse HEAD).Trim()
+if ($LASTEXITCODE -ne 0 -or $Revision -notmatch '^[0-9a-fA-F]{40}$') {
+    throw "無法確認對應的 Git 原始碼版本"
+}
+@"
+OpenCam 0.2.0
+SPDX-License-Identifier: AGPL-3.0-or-later
+Corresponding source: https://github.com/kaoshou/OpenCam/tree/$Revision
+"@ | Set-Content (Join-Path $PublishDir "SOURCE.txt") -Encoding utf8
+
 Write-Host "`n[3/3] 發佈完成！檔案已存放於 $PublishDir" -ForegroundColor Green
 
 Write-Host "`n==========================================" -ForegroundColor Cyan
@@ -37,5 +50,5 @@ Write-Host "1. 請確保您已下載並安裝 [Inno Setup 6] (https://jrsoftware
 Write-Host "2. 進入 $InstallerDir 目錄"
 Write-Host "3. 點擊兩下開啟 OpenCam.iss"
 Write-Host "4. 在 Inno Setup 中點擊上方的 [Build] -> [Compile] (或按 Ctrl+F9)"
-Write-Host "5. 完成後，安裝檔將會產生在 $InstallerDir\Output\OpenCam_v0.1.5_Setup.exe"
+Write-Host "5. 完成後，安裝檔將會產生在 $InstallerDir\Output\OpenCam_v0.2.0_Setup.exe"
 Write-Host "==========================================" -ForegroundColor Cyan

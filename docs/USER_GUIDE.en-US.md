@@ -183,6 +183,8 @@ Disabled by default. Enabling it saves disk space, but removes the MKV backup af
 
 Displays the current version, licensing information, and a link to the GitHub project. This tab does not change recording settings.
 
+From 0.2.0 onward, OpenCam's project-owned source code is licensed under [AGPL-3.0-or-later](../LICENSE). Download packages include the complete `LICENSE` and a `SOURCE.txt` link to the corresponding source revision. FFmpeg and other third-party components retain their own licenses; earlier releases are not retroactively relicensed.
+
 ## 8. Result, Working File, Settings, and Log Locations
 
 ### Default Output Locations
