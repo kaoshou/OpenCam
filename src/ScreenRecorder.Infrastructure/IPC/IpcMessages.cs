@@ -1,5 +1,6 @@
 ﻿// SPDX-License-Identifier: AGPL-3.0-or-later
 using ScreenRecorder.Core.Models;
+using System.Text.Json.Serialization;
 
 namespace ScreenRecorder.Infrastructure.IPC;
 
@@ -29,4 +30,8 @@ public class IpcResponse
     public bool Success { get; set; }
     public string? ErrorMessage { get; set; }
     public string? SessionId { get; set; }
+    [JsonIgnore]
+    public bool TimedOut { get; set; }
+    [JsonIgnore]
+    public bool StatusUnconfirmed { get; set; }
 }

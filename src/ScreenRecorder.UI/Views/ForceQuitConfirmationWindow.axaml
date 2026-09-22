@@ -1,0 +1,34 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ScreenRecorder.UI.Views.ForceQuitConfirmationWindow"
+        Title="{Binding [ForceQuitConfirmTitle]}"
+        Icon="/Assets/app_icon.png"
+        Width="500" Height="280"
+        MinWidth="500" MinHeight="280"
+        MaxWidth="500" MaxHeight="280"
+        Background="#FFF7F7"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        ShowInTaskbar="False">
+    <Grid RowDefinitions="*,Auto" Margin="24,22,24,20">
+        <StackPanel Grid.Row="0" Spacing="14" VerticalAlignment="Center">
+            <TextBlock Text="!" HorizontalAlignment="Center" Foreground="#B91C1C"
+                       FontSize="36" FontWeight="Bold" />
+            <TextBlock Text="{Binding [ForceQuitConfirmMessage]}"
+                       TextAlignment="Center" TextWrapping="Wrap"
+                       Foreground="#7F1D1D" FontSize="16" FontWeight="Bold" />
+            <TextBlock Text="{Binding [ForceQuitConfirmDetail]}"
+                       TextAlignment="Center" TextWrapping="Wrap"
+                       Foreground="#475569" FontSize="12" />
+        </StackPanel>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
+            <Button Content="{Binding [ForceQuitCancel]}" Click="OnCancelClicked"
+                    MinWidth="150" Padding="18,9" Background="#2563EB"
+                    Foreground="White" CornerRadius="7" />
+            <Button Content="{Binding [ForceQuitConfirmAction]}" Click="OnConfirmClicked"
+                    MinWidth="170" Padding="18,9" Background="#B91C1C"
+                    Foreground="White" CornerRadius="7" />
+        </StackPanel>
+    </Grid>
+</Window>

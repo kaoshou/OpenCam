@@ -54,6 +54,7 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
 
     private const int StderrTailLimit = 40;
     private static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan MacOsAudioStartupTimeout = TimeSpan.FromSeconds(15);
 
     public bool UseSyntheticCaptureSource { get; set; }
     public HardwareEncoderType ActiveEncoder { get; private set; } = HardwareEncoderType.SoftwareCpu;
@@ -384,7 +385,11 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
                 CancellationToken.None);
 
             var exitTask = proc.WaitForExitAsync(cancellationToken);
-            var timeoutTask = Task.Delay(StartupTimeout, cancellationToken);
+            var startupTimeout = OperatingSystem.IsMacOS() &&
+                (microphoneAudioPipeArg != null || systemAudioPipeArg != null)
+                ? MacOsAudioStartupTimeout
+                : StartupTimeout;
+            var timeoutTask = Task.Delay(startupTimeout, cancellationToken);
             var completed = await Task.WhenAny(_startupSignal.Task, exitTask, timeoutTask);
 
             cancellationToken.ThrowIfCancellationRequested();

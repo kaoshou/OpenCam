@@ -149,22 +149,25 @@
                         
 
                         <!-- 指定螢幕 -->
-                        <Grid ColumnDefinitions="Auto,*" Margin="0,2">
+                        <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2">
                             <RadioButton Grid.Column="0" GroupName="Range" IsChecked="{Binding IsMonitorSelected}" 
                                          IsEnabled="{Binding CanEditRecordingSettings}" Content="{Binding Strings[RangeMonitor]}" VerticalAlignment="Center" FontSize="12" />
                             <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableMonitors}" SelectedItem="{Binding SelectedMonitor}" 
                                       IsEnabled="{Binding CanSelectMonitor}" Margin="8,0,0,0" HorizontalAlignment="Stretch" FontSize="11.5" />
+                            <Button Grid.Column="2" Click="OnIdentifyDisplaysClicked"
+                                    IsEnabled="{Binding CanSelectMonitor}"
+                                    Width="30" Height="28" Margin="6,0,0,0" Padding="0"
+                                    VerticalAlignment="Center" CornerRadius="6"
+                                    Background="#F8FAFC" Foreground="#0369A1"
+                                    BorderBrush="#CBD5E1" BorderThickness="1"
+                                    Cursor="Hand"
+                                    AutomationProperties.Name="{Binding Strings[IdentifyDisplays]}"
+                                    ToolTip.Tip="{Binding Strings[IdentifyDisplaysTooltip]}">
+                                <Path Width="17" Height="17" Stretch="Uniform"
+                                      Stroke="#0369A1" StrokeThickness="1.5"
+                                      Data="M2 4h13v10H2z M5 17h7 M8.5 14v3 M17 7h5v10h-5z M17 18h5" />
+                            </Button>
                         </Grid>
-                        <Button Click="OnIdentifyDisplaysClicked"
-                                IsEnabled="{Binding CanSelectMonitor}"
-                                HorizontalAlignment="Left"
-                                Margin="22,1,0,3"
-                                Padding="9,4"
-                                FontSize="11"
-                                Background="#E0F2FE" Foreground="#075985"
-                                BorderBrush="#7DD3FC" BorderThickness="1"
-                                ToolTip.Tip="{Binding Strings[IdentifyDisplaysTooltip]}"
-                                Content="{Binding Strings[IdentifyDisplays]}" />
 
                         <!-- 自訂區域 -->
                         <RadioButton GroupName="Range" IsChecked="{Binding IsCustomRegion}" 

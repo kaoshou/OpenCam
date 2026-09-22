@@ -97,6 +97,9 @@ public partial class MainViewModel : ObservableObject
 
     private bool _isLoadingSettings = true;
     private bool _isDiskSpaceWarningActive;
+    private bool _startupStatusUnconfirmed;
+    private bool _unconfirmedStopFailed;
+    private bool _forceQuitAuthorized;
 
     public event EventHandler? RequestMinimizeWindow;
     public event EventHandler? RequestRestoreWindow;
@@ -194,7 +197,7 @@ public partial class MainViewModel : ObservableObject
         IsPreparing,
         IsRecovering);
     public bool CanStopRecording => (IsRecording || IsPaused) && !IsPreparing;
-    public bool CanPauseOrResume => (IsRecording || IsPaused) && !IsPreparing;
+    public bool CanPauseOrResume => (IsRecording || IsPaused) && !IsPreparing && !_startupStatusUnconfirmed;
     public bool CanRecoverSessions => CanRecoverSessionsForState(
         IsRecording,
         IsPaused,
@@ -258,7 +261,34 @@ public partial class MainViewModel : ObservableObject
     public bool IsApplicationCloseBlocked => ShouldBlockApplicationClose(
         IsRecording,
         IsPaused,
-        IsPreparing);
+        IsPreparing) && !_forceQuitAuthorized;
+
+    public bool CanForceQuitUnconfirmed =>
+        _startupStatusUnconfirmed && _unconfirmedStopFailed && !_forceQuitAuthorized;
+
+    internal void MarkUnconfirmedStopFailure()
+    {
+        if (!_startupStatusUnconfirmed) return;
+        _unconfirmedStopFailed = true;
+        OnPropertyChanged(nameof(CanForceQuitUnconfirmed));
+    }
+
+    internal bool TryAuthorizeForceQuit()
+    {
+        if (!CanForceQuitUnconfirmed) return false;
+        _forceQuitAuthorized = true;
+        OnPropertyChanged(nameof(CanForceQuitUnconfirmed));
+        OnPropertyChanged(nameof(IsApplicationCloseBlocked));
+        return true;
+    }
+
+    private void ClearUnconfirmedStartup()
+    {
+        _startupStatusUnconfirmed = false;
+        _unconfirmedStopFailed = false;
+        OnPropertyChanged(nameof(CanForceQuitUnconfirmed));
+        OnPropertyChanged(nameof(CanPauseOrResume));
+    }
 
     internal static bool CanEditRecordingSettingsForState(
         bool isRecording,
@@ -1114,7 +1144,15 @@ public partial class MainViewModel : ObservableObject
             _diskCriticalThresholdMb);
             _activeDiskWarningThresholdBytes = config.DiskWarningThresholdBytes;
 
-            var response = await _ipcClient.SendCommandAsync("StartRecording", config, timeoutMs: 8000);
+            // macOS native audio may need two FFmpeg startup attempts (hardware
+            // encoder then CPU fallback). Keep the UI request alive for both.
+            var startTimeoutMs = OperatingSystem.IsMacOS() &&
+                config.AudioSource != AudioSourceType.None ? 40000 : 8000;
+            var response = await RecordingStartCoordinator.StartAsync(
+                _ipcClient,
+                config,
+                startTimeoutMs,
+                () => _recorderProcess?.HasExited != false);
 
             if (response.Success)
             {
@@ -1128,6 +1166,10 @@ public partial class MainViewModel : ObservableObject
                 {
                     RequestMinimizeWindow?.Invoke(this, EventArgs.Empty);
                 }
+            }
+            else if (response.StatusUnconfirmed)
+            {
+                EnterUnconfirmedStartup();
             }
             else
             {
@@ -1153,10 +1195,23 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    internal void EnterUnconfirmedStartup()
+    {
+        _startupStatusUnconfirmed = true;
+        _unconfirmedStopFailed = false;
+        IsPreparing = false;
+        IsRecording = true;
+        IsPaused = false;
+        OnPropertyChanged(nameof(CanPauseOrResume));
+        OnPropertyChanged(nameof(CanForceQuitUnconfirmed));
+        StatusMessage = Strings["StatusStartUnconfirmed"];
+        _telemetryTimer.Start();
+    }
+
     [RelayCommand]
     public async Task TogglePauseResumeAsync()
     {
-        if ((!IsRecording && !IsPaused) || IsPreparing) return;
+        if (!CanPauseOrResume) return;
 
         if (IsPaused)
         {
@@ -1247,6 +1302,7 @@ public partial class MainViewModel : ObservableObject
 
             if (response.Success)
             {
+                ClearUnconfirmedStartup();
                 LastOutputFilePath = response.SessionId;
                 StatusMessage = Strings["StatusSuccess"];
 
@@ -1262,9 +1318,10 @@ public partial class MainViewModel : ObservableObject
             }
             else
             {
+                MarkUnconfirmedStopFailure();
                 StatusMessage = Strings.GetFormatted("StatusStopFailed", response.ErrorMessage ?? string.Empty);
                 _telemetryTimer.Start();
-                StartAudioMeterPolling();
+                if (!_startupStatusUnconfirmed) StartAudioMeterPolling();
             }
         }
         finally
@@ -1593,6 +1650,27 @@ public partial class MainViewModel : ObservableObject
                 if (telemetry != null)
                 {
                     _telemetryFailures = 0;
+                    if (_startupStatusUnconfirmed)
+                    {
+                        if (telemetry.State is RecordingState.Preparing or RecordingState.Pausing)
+                        {
+                            return;
+                        }
+
+                        ClearUnconfirmedStartup();
+                        if (telemetry.State is RecordingState.Recording or RecordingState.Paused)
+                        {
+                            StatusMessage = telemetry.State == RecordingState.Paused
+                                ? Strings["StatusPausedMsg"]
+                                : Strings["StatusRecordingActive"];
+                            StartAudioMeterPolling();
+                        }
+                        else
+                        {
+                            StatusMessage = Strings.GetFormatted(
+                                "StatusFailed", telemetry.LastError ?? string.Empty);
+                        }
+                    }
                     if (telemetry.State == RecordingState.Paused)
                     {
                         IsPaused = true;
@@ -1649,6 +1727,13 @@ public partial class MainViewModel : ObservableObject
         // 當連續 6 次 (3 秒) 逾時或中斷，判定錄影核心異常中止
         if (_telemetryFailures >= 6)
         {
+            if (_startupStatusUnconfirmed && _recorderProcess?.HasExited == false)
+            {
+                _telemetryFailures = 0;
+                return;
+            }
+
+            ClearUnconfirmedStartup();
             _telemetryTimer.Stop();
             StopAudioMeterPolling();
             _telemetryFailures = 0;

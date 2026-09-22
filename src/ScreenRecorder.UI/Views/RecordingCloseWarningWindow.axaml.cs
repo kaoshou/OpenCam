@@ -14,18 +14,30 @@ public partial class RecordingCloseWarningWindow : Window
         DataContext = LanguageManager.Instance;
     }
 
+    internal RecordingCloseWarningWindow(bool allowForceQuit) : this()
+    {
+        ForceQuitButton.IsVisible = allowForceQuit;
+        if (allowForceQuit)
+        {
+            WarningMessageText.Text = LanguageManager.Instance["RecordingCloseUnconfirmedMessage"];
+            WarningDetailText.Text = LanguageManager.Instance["RecordingCloseUnconfirmedDetail"];
+        }
+    }
+
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
         if (e.Key is Key.Escape or Key.Enter)
         {
             e.Handled = true;
-            Close();
+            Close(false);
         }
     }
 
     private void OnReturnClicked(object? sender, RoutedEventArgs e)
     {
-        Close();
+        Close(false);
     }
+
+    private void OnForceQuitClicked(object? sender, RoutedEventArgs e) => Close(true);
 }

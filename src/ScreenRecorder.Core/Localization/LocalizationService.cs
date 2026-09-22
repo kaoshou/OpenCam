@@ -136,6 +136,7 @@ public class LocalizationService : ILocalizationService
         // 狀態列動態訊息
         ["StatusReady"] = "準備就緒，點擊「開始錄影」即可錄製",
         ["StatusInitializing"] = "正在初始化錄影管線，請稍候並暫勿操作畫面...",
+        ["StatusStartUnconfirmed"] = "尚無法確認錄影是否已開始；請保持程式開啟，或按「停止」安全結束。",
         ["StatusScreenPermissionRequired"] = "需要 macOS 螢幕錄製權限；請在「系統設定 → 隱私權與安全性 → 螢幕與系統音訊錄製」允許 OpenCam，然後重新啟動。",
         ["StatusRecordingActive"] = "正在錄影中 (安全工作容器 MKV 連續寫入)",
         ["StatusDiskSpaceWarning"] = "磁碟剩餘空間偏低：{0:F1} GB；低於危急門檻時將安全停止錄影",
@@ -159,6 +160,14 @@ public class LocalizationService : ILocalizationService
         ["RecordingCloseWarningMessage"] = "目前正在錄影，請先停止錄影後再關閉程式。",
         ["RecordingCloseWarningDetail"] = "這次關閉要求已取消，OpenCam 會繼續錄影。",
         ["ReturnToRecording"] = "返回錄影",
+        ["RecordingCloseUnconfirmedMessage"] = "錄影狀態尚未確認，且安全停止未成功。",
+        ["RecordingCloseUnconfirmedDetail"] = "可保持程式開啟繼續等待；強制結束可能中斷影片，之後需使用修復救援。",
+        ["ForceQuitButton"] = "強制結束…",
+        ["ForceQuitConfirmTitle"] = "確認強制結束",
+        ["ForceQuitConfirmMessage"] = "這會立即結束 OpenCam 與錄影程序，錄到一半的 MKV 可能需要修復救援。",
+        ["ForceQuitConfirmDetail"] = "只有在安全停止失敗、錄影狀態無法確認時才使用。此動作無法復原。",
+        ["ForceQuitCancel"] = "取消，保持開啟",
+        ["ForceQuitConfirmAction"] = "確認強制結束",
         ["VersionAndAbout"] = "OpenCam v0.2.0 · 關於",
 
         // 關於視窗
@@ -355,6 +364,7 @@ public class LocalizationService : ILocalizationService
         // 狀態列動態訊息
         ["StatusReady"] = "Ready. Click 'Record' to start capturing.",
         ["StatusInitializing"] = "Initializing recording pipeline, please wait...",
+        ["StatusStartUnconfirmed"] = "Recording startup is not yet confirmed. Keep OpenCam open, or press Stop to end it safely.",
         ["StatusScreenPermissionRequired"] = "macOS screen-recording permission is required. Allow OpenCam in System Settings > Privacy & Security > Screen & System Audio Recording, then restart the app.",
         ["StatusRecordingActive"] = "Recording in progress (Continuous write to safe MKV)",
         ["StatusDiskSpaceWarning"] = "Low disk space: {0:F1} GB remaining. Recording will stop safely at the critical threshold.",
@@ -378,6 +388,14 @@ public class LocalizationService : ILocalizationService
         ["RecordingCloseWarningMessage"] = "Stop the recording before closing OpenCam.",
         ["RecordingCloseWarningDetail"] = "The close request was canceled and recording will continue.",
         ["ReturnToRecording"] = "Return to Recording",
+        ["RecordingCloseUnconfirmedMessage"] = "Recording status is unknown and a safe stop did not succeed.",
+        ["RecordingCloseUnconfirmedDetail"] = "Keep OpenCam open and wait, or force quit. Force quitting may interrupt the video and require recovery.",
+        ["ForceQuitButton"] = "Force Quit…",
+        ["ForceQuitConfirmTitle"] = "Confirm Force Quit",
+        ["ForceQuitConfirmMessage"] = "This immediately closes OpenCam and its recorder. The unfinished MKV may need recovery.",
+        ["ForceQuitConfirmDetail"] = "Use only when safe stop failed and recording status cannot be confirmed. This cannot be undone.",
+        ["ForceQuitCancel"] = "Cancel and Keep Open",
+        ["ForceQuitConfirmAction"] = "Confirm Force Quit",
         ["VersionAndAbout"] = "OpenCam v0.2.0 · About",
 
         // 關於視窗

@@ -126,6 +126,39 @@ public class FFmpegStartupHandshakeTests
         }
     }
 
+    [MacOsOnlyFact]
+    public async Task MacMicrophoneRecording_WaitsForDelayedFirstFrame()
+    {
+        var executable = CreateExecutable(
+            "sleep 6\necho 'frame=    1 fps=0.0 time=00:00:00.03' >&2\n" +
+            "while IFS= read -r line; do [ \"$line\" = q ] && exit 0; done");
+        var microphoneCapture = new StubMicrophoneCapture();
+        try
+        {
+            await using var engine = new FFmpegScreenRecorderEngine(
+                new StubProvider(), null, executable, microphoneCapture);
+
+            await engine.StartRecordingAsync(
+                Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".mkv"),
+                new RecordingConfiguration
+                {
+                    EncoderType = HardwareEncoderType.SoftwareCpu,
+                    AudioSource = AudioSourceType.MicrophoneOnly,
+                    MicrophoneDeviceId = "0",
+                    Fps = 30
+                },
+                new CaptureRegion(0, 0, 640, 480));
+
+            Assert.True(engine.IsRunning);
+            Assert.True(microphoneCapture.IsCapturing);
+            await engine.StopRecordingAsync();
+        }
+        finally
+        {
+            File.Delete(executable);
+        }
+    }
+
     [UnixOnlyFact]
     public async Task FailedStartup_ReleasesMicrophoneBeforeNextAttempt()
     {

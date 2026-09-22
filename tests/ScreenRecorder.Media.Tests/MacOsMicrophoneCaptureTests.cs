@@ -60,6 +60,28 @@ public class MacOsMicrophoneCaptureTests : IDisposable
         Assert.False(Directory.Exists(_captureDirectory));
     }
 
+    [MacOsOnlyFact]
+    public async Task StartCapture_WaitsForDelayedNativeHelperReadiness()
+    {
+        File.WriteAllText(
+            _helperPath,
+            "#!/bin/sh\n" +
+            "sleep 6\n" +
+            "echo 'READY sample-rate=48000 channels=1 format=s16le' >&2\n" +
+            "while true; do sleep 1; done\n");
+
+        await using var capture = new MacOsMicrophoneCapture(
+            _helperPath,
+            () => _captureDirectory,
+            UnixFifo.CreatePrivate);
+
+        var info = await capture.StartCaptureAsync("0");
+
+        Assert.NotNull(info);
+        Assert.True(capture.IsCapturing);
+        await capture.StopCaptureAsync();
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_fixtureDirectory))

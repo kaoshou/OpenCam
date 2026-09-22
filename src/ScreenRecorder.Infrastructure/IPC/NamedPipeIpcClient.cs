@@ -18,11 +18,11 @@ public class NamedPipeIpcClient : IAsyncDisposable
     {
         using var pipeClient = new NamedPipeClientStream(".", _pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
 
+        using var timeoutCts = new CancellationTokenSource(timeoutMs);
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+
         try
         {
-            using var timeoutCts = new CancellationTokenSource(timeoutMs);
-            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
-
             await pipeClient.ConnectAsync(linkedCts.Token);
 
             using var writer = new StreamWriter(pipeClient, Encoding.UTF8, leaveOpen: true);
@@ -46,6 +46,10 @@ public class NamedPipeIpcClient : IAsyncDisposable
 
             return JsonSerializer.Deserialize<IpcResponse>(responseLine) 
                 ?? new IpcResponse { Success = false, ErrorMessage = "無法解析回應" };
+        }
+        catch (OperationCanceledException ex) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            return new IpcResponse { Success = false, ErrorMessage = ex.Message, TimedOut = true };
         }
         catch (Exception ex)
         {

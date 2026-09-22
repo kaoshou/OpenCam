@@ -151,7 +151,8 @@ public partial class MainWindow : Window
             return;
         }
 
-        var warningWindow = new RecordingCloseWarningWindow();
+        var warningWindow = new RecordingCloseWarningWindow(
+            (DataContext as MainViewModel)?.CanForceQuitUnconfirmed == true);
         _closeWarningWindow = warningWindow;
         try
         {
@@ -162,7 +163,15 @@ public partial class MainWindow : Window
             }
             Activate();
 
-            await warningWindow.ShowDialog(this);
+            var forceRequested = await warningWindow.ShowDialog<bool>(this);
+            if (forceRequested && DataContext is MainViewModel vm && vm.CanForceQuitUnconfirmed)
+            {
+                var confirmation = new ForceQuitConfirmationWindow();
+                if (await confirmation.ShowDialog<bool>(this) && vm.TryAuthorizeForceQuit())
+                {
+                    Close();
+                }
+            }
         }
         finally
         {

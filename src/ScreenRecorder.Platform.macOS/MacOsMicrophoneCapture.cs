@@ -98,7 +98,7 @@ public sealed class MacOsMicrophoneCapture : IMicrophoneCapture, IAudioLevelSour
                     "Unable to launch OpenCam.Microphone.");
 
             using var timeoutCts = new CancellationTokenSource(
-                TimeSpan.FromSeconds(5));
+                TimeSpan.FromSeconds(8));
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
                 cancellationToken,
                 timeoutCts.Token);

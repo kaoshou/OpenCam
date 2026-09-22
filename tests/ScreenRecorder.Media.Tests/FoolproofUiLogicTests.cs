@@ -8,6 +8,49 @@ namespace ScreenRecorder.Media.Tests;
 public class FoolproofUiLogicTests
 {
     [Fact]
+    public void UnconfirmedStartup_AllowsStopButBlocksCloseAndSettings()
+    {
+        var vm = new MainViewModel { IsPreparing = true };
+
+        vm.EnterUnconfirmedStartup();
+
+        Assert.False(vm.IsPreparing);
+        Assert.True(vm.IsRecording);
+        Assert.True(vm.CanStopRecording);
+        Assert.False(vm.CanPauseOrResume);
+        Assert.False(vm.CanEditRecordingSettings);
+        Assert.True(vm.IsApplicationCloseBlocked);
+    }
+
+    [Fact]
+    public void ForceQuitRequiresUnconfirmedStartupAndFailedNormalStop()
+    {
+        var vm = new MainViewModel { IsPreparing = true };
+        vm.EnterUnconfirmedStartup();
+
+        Assert.False(vm.CanForceQuitUnconfirmed);
+        Assert.False(vm.TryAuthorizeForceQuit());
+        Assert.True(vm.IsApplicationCloseBlocked);
+
+        vm.MarkUnconfirmedStopFailure();
+
+        Assert.True(vm.CanForceQuitUnconfirmed);
+        Assert.True(vm.IsApplicationCloseBlocked);
+        Assert.True(vm.TryAuthorizeForceQuit());
+        Assert.False(vm.IsApplicationCloseBlocked);
+    }
+
+    [Fact]
+    public void ConfirmedRecordingCannotAuthorizeForceQuit()
+    {
+        var vm = new MainViewModel { IsRecording = true };
+
+        Assert.False(vm.CanForceQuitUnconfirmed);
+        Assert.False(vm.TryAuthorizeForceQuit());
+        Assert.True(vm.IsApplicationCloseBlocked);
+    }
+
+    [Fact]
     public void ApplyRuntimeSettings_PropagatesPersistedRecordingOptions()
     {
         var config = MainViewModel.ApplyRuntimeSettings(
