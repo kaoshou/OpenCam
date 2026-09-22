@@ -45,7 +45,7 @@ icon_source="$repo_root/src/ScreenRecorder.UI/Assets/app_icon.png"
 
 temp_root="$(mktemp -d)"
 trap 'rm -rf "$temp_root"' EXIT
-sips -s format icns "$icon_source" --out "$temp_root/OpenCam.icns" >/dev/null
+"$repo_root/scripts/build-macos-icon.sh" "$icon_source" "$temp_root/OpenCam.icns"
 
 rm -rf "$app_path"
 mkdir -p "$app_path/Contents/MacOS" "$app_path/Contents/Resources"
