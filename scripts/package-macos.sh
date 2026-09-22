@@ -58,7 +58,7 @@ source_revision="${GITHUB_SHA:-}"
 if [[ ! "$source_revision" =~ ^[0-9a-fA-F]{40}$ ]]; then
   source_revision="$(git -C "$repo_root" rev-parse HEAD)"
 fi
-printf 'OpenCam 0.2.0\nSPDX-License-Identifier: AGPL-3.0-or-later\nCorresponding source: https://github.com/kaoshou/OpenCam/tree/%s\n' \
+printf 'OpenCam 0.2.1\nSPDX-License-Identifier: AGPL-3.0-or-later\nCorresponding source: https://github.com/kaoshou/OpenCam/tree/%s\n' \
   "$source_revision" > "$app_path/Contents/Resources/SOURCE.txt"
 
 helper="$app_path/Contents/MacOS/OpenCam.SystemAudio"
@@ -100,8 +100,8 @@ plist_buddy=/usr/libexec/PlistBuddy
 "$plist_buddy" -c 'Add :CFBundleIdentifier string com.kaoshou.opencam' "$plist"
 "$plist_buddy" -c 'Add :CFBundleName string OpenCam' "$plist"
 "$plist_buddy" -c 'Add :CFBundleDisplayName string OpenCam' "$plist"
-"$plist_buddy" -c 'Add :CFBundleVersion string 0.2.0' "$plist"
-"$plist_buddy" -c 'Add :CFBundleShortVersionString string 0.2.0' "$plist"
+"$plist_buddy" -c 'Add :CFBundleVersion string 0.2.1' "$plist"
+"$plist_buddy" -c 'Add :CFBundleShortVersionString string 0.2.1' "$plist"
 "$plist_buddy" -c 'Add :CFBundlePackageType string APPL' "$plist"
 "$plist_buddy" -c 'Add :CFBundleIconFile string OpenCam.icns' "$plist"
 "$plist_buddy" -c 'Add :CFBundleSupportedPlatforms array' "$plist"

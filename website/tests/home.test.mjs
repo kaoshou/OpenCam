@@ -12,7 +12,7 @@ test('localized homepages include genuine previews, guide, and current download'
     await buildSite({ repositoryRoot: resolve(import.meta.dirname, '../..'), outputRoot: out });
     for (const [lang, suffix] of [['zh-TW', 'zhtw'], ['en-US', 'enus']]) {
       const html = await readFile(join(out, lang, 'index.html'), 'utf8');
-      assert.match(html, /https:\/\/github\.com\/kaoshou\/OpenCam\/releases\/tag\/v0\.2\.0/);
+      assert.match(html, /class="button button-primary" href="https:\/\/github\.com\/kaoshou\/OpenCam\/releases"/);
       assert.match(html, new RegExp(`preview_main_${suffix}\\.png`));
       assert.match(html, new RegExp(`preview_settings_${suffix}\\.png`));
       assert.match(html, /<img[^>]+alt="[^"]+"/);
@@ -20,7 +20,7 @@ test('localized homepages include genuine previews, guide, and current download'
       assert.match(html, /Apple Silicon/);
       assert.match(html, /AGPL-3\.0-or-later/);
       assert.match(html, /https:\/\/github\.com\/kaoshou\/OpenCam\/blob\/master\/LICENSE/);
-      assert.match(html, /0\.2\.0/);
+      assert.match(html, /Download v0\.2\.1|下載 v0\.2\.1/);
       assert.doesNotMatch(html, /download still points to v0\.1\.5|下載連結仍指向 v0\.1\.5/);
       assert.doesNotMatch(html, /fonts\.googleapis|google-analytics|gtag\(/);
     }

@@ -54,11 +54,11 @@ jobs:
         Copy-Item LICENSE installer/publish/LICENSE.txt
         Copy-Item NOTICE.md installer/publish/NOTICE.md
         @"
-        OpenCam 0.2.0
+        OpenCam 0.2.1
         SPDX-License-Identifier: AGPL-3.0-or-later
         Corresponding source: https://github.com/kaoshou/OpenCam/tree/$env:GITHUB_SHA
         "@ | Set-Content installer/publish/SOURCE.txt -Encoding utf8
-        node scripts/check-release-notices.mjs installer/publish $env:GITHUB_SHA 0.2.0 --installer
+        node scripts/check-release-notices.mjs installer/publish $env:GITHUB_SHA 0.2.1 --installer
         
     - name: Create Windows Portable ZIP
       run: |
@@ -105,7 +105,7 @@ jobs:
       run: |
         chmod +x scripts/package-macos.sh scripts/verify-macos-bundle.sh
         scripts/package-macos.sh publish/osx-arm64 OpenCam.app Release
-        node scripts/check-release-notices.mjs OpenCam.app/Contents/Resources "$GITHUB_SHA" 0.2.0
+        node scripts/check-release-notices.mjs OpenCam.app/Contents/Resources "$GITHUB_SHA" 0.2.1
 
     - name: Create DMG
       run: |

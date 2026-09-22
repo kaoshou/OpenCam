@@ -14,7 +14,9 @@ OpenCam 是一款以可靠性為優先的跨平台桌面螢幕錄影工具。錄
 
 🌐 [OpenCam 官方網站](https://kaoshou.github.io/OpenCam/)（可切換繁體中文／English）
 
-目前版本為 **0.2.0**，採用 **AGPL-3.0-or-later**。Windows 與 Apple Silicon macOS 安裝包請至 [v0.2.0 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.2.0) 下載；先前版本仍依當時的授權條款提供。
+目前版本為 **0.2.1**，採用 **AGPL-3.0-or-later**。Windows 與 Apple Silicon macOS 安裝包請至 [v0.2.1 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.2.1) 下載；先前版本仍依當時的授權條款提供。
+
+v0.2.1 更新了 Windows、macOS 與網站共用的扁平式圖示，並在網站導覽列加入 GitHub 專案連結。下方截圖仍是 v0.2.0 時擷取的介面畫面，並非 v0.2.1 安裝檔截圖。
 
 以下為 **0.2.0** 在 macOS 上的實際畫面。點選圖片可檢視原尺寸，避免縮小後看不清選項文字。
 
@@ -29,7 +31,7 @@ OpenCam 是一款以可靠性為優先的跨平台桌面螢幕錄影工具。錄
 - 錄影啟動後會鎖定不會即時生效的選項；暫停後仍可調整系統聲音、麥克風與游標樣式。
 - 錄影期間關閉視窗會先提醒並保護工作階段，避免無意中斷。
 
-完整安裝檔請至 [OpenCam v0.2.0 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.2.0) 下載。
+v0.2.0 的完整安裝檔請至 [OpenCam v0.2.0 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.2.0) 下載。
 
 ## v0.1.5 歷史更新
 
@@ -75,7 +77,7 @@ OpenCam 是一款以可靠性為優先的跨平台桌面螢幕錄影工具。錄
 
 ### macOS 13 Ventura 或以上（Apple Silicon／arm64）
 
-> v0.2.0 尚未提供 Intel Mac（x64）版本。
+> v0.2.1 尚未提供 Intel Mac（x64）版本。
 
 - 前往 [Releases](https://github.com/kaoshou/OpenCam/releases) 頁面並下載 `OpenCam_macOS_AppleSilicon.dmg`。
 - 打開 DMG，將 `OpenCam.app` 拖曳至「應用程式（Applications）」資料夾。
@@ -119,7 +121,9 @@ OpenCam is built with .NET 8, Avalonia UI, and FFmpeg, and supports Windows and 
 
 🌐 [OpenCam official website](https://kaoshou.github.io/OpenCam/) (English / 繁體中文)
 
-The current version is **0.2.0**, licensed under **AGPL-3.0-or-later**. Download the Windows and Apple Silicon macOS packages from the [v0.2.0 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.2.0). Earlier releases retain their original license terms.
+The current version is **0.2.1**, licensed under **AGPL-3.0-or-later**. Download the Windows and Apple Silicon macOS packages from the [v0.2.1 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.2.1). Earlier releases retain their original license terms.
+
+v0.2.1 updates the shared flat icon on Windows, macOS, and the website, and adds a GitHub project link to the site navigation. The screenshots below were captured from v0.2.0, not the v0.2.1 installer.
 
 These are actual screenshots of **0.2.0** on macOS. Select an image to view it at full size so the interface text stays legible.
 
@@ -134,7 +138,7 @@ These are actual screenshots of **0.2.0** on macOS. Select an image to view it a
 - Settings that cannot take effect mid-session lock as soon as recording starts; system audio, microphone, and cursor style remain adjustable while paused.
 - Closing the window during recording shows a warning and protects the active session against accidental interruption.
 
-Download the installers from the [OpenCam v0.2.0 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.2.0).
+Download the v0.2.0 installers from the [OpenCam v0.2.0 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.2.0).
 
 ## Earlier v0.1.5 Changes
 
@@ -179,7 +183,7 @@ Download the installers from the [OpenCam v0.1.5 Release](https://github.com/kao
 
 ### macOS 13 Ventura or later (Apple Silicon/arm64)
 
-> OpenCam v0.2.0 does not provide an Intel Mac (x64) build.
+> OpenCam v0.2.1 does not provide an Intel Mac (x64) build.
 
 - Go to the [Releases](https://github.com/kaoshou/OpenCam/releases) page and download `OpenCam_macOS_AppleSilicon.dmg`.
 - Mount the DMG and drag `OpenCam.app` to the Applications folder.

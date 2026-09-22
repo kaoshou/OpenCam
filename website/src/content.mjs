@@ -9,7 +9,7 @@ export const content = {
     heroText: '選擇整個螢幕或指定範圍，一鍵開始錄影。OpenCam 先保存 MKV 工作檔，完成後再封裝成 MP4。',
     downloadLabel: '下載 OpenCam', guideLabel: '閱讀使用說明',
     openSource: '開放原始碼 · 免費使用',
-    licenseReleaseNote: '下載 v0.2.0（AGPL-3.0-or-later）；Windows 與 Apple Silicon Mac 安裝包由 GitHub Actions 建置。',
+    licenseReleaseNote: '下載 v0.2.1（AGPL-3.0-or-later）；Windows 與 Apple Silicon Mac 安裝包由 GitHub Actions 建置。',
     screenshotTitle: '每一步，都清楚直覺。',
     screenshotText: '最新版 macOS 介面：錄影範圍、音訊來源與狀態監控一目了然。點開圖片可檢視原尺寸文字。',
     mainAlt: 'OpenCam 0.2.0 macOS 繁體中文主畫面，包含多螢幕辨識按鈕、錄影設定與狀態監控區',
@@ -39,7 +39,7 @@ export const content = {
     heroText: 'Choose a display or a precise region, then start recording. OpenCam saves an MKV working file first and packages it as MP4 when you finish.',
     downloadLabel: 'Download OpenCam', guideLabel: 'Read the user guide',
     openSource: 'Open source · Free to use',
-    licenseReleaseNote: 'Download v0.2.0 (AGPL-3.0-or-later). Windows and Apple Silicon Mac packages are built by GitHub Actions.',
+    licenseReleaseNote: 'Download v0.2.1 (AGPL-3.0-or-later). Windows and Apple Silicon Mac packages are built by GitHub Actions.',
     screenshotTitle: 'Clear from the first click.',
     screenshotText: 'The current macOS interface puts capture, audio, and recording status in view. Open an image at full size to read its labels.',
     mainAlt: 'OpenCam 0.2.0 macOS English main window with display identification, capture settings, and recording status',
@@ -70,7 +70,7 @@ export function renderHome(language) {
   if (!c) throw new TypeError('Unsupported site language');
   const suffix = language === 'zh-TW' ? 'zhtw' : 'enus';
   const guide = routeFor(language, 'guide');
-  const latest = 'https://github.com/kaoshou/OpenCam/releases/tag/v0.2.0';
+  const latest = 'https://github.com/kaoshou/OpenCam/releases';
   const featureCards = c.features.map(([number, title, text]) => `<li class="feature-card"><span class="feature-number">${number}</span><h3>${escapeHtml(title)}</h3><p>${escapeHtml(text)}</p></li>`).join('');
   const mainImage = assetPath(`preview_main_${suffix}.png`);
   const settingsImage = assetPath(`preview_settings_${suffix}.png`);
