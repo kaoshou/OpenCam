@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile, copyFile, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { renderEntry, renderLayout } from './src/layout.mjs';
+import { renderHome, content } from './src/content.mjs';
 
 const websiteRoot = fileURLToPath(new URL('.', import.meta.url));
 const requiredAssets = [
@@ -34,7 +35,7 @@ export async function buildSite({ repositoryRoot = resolve(websiteRoot, '..'), o
   await mkdir(join(outputRoot, 'assets'), { recursive: true });
   await writePage(outputRoot, '', renderEntry());
   for (const language of ['zh-TW', 'en-US']) {
-    await writePage(outputRoot, language, renderLayout({ language, title: 'OpenCam', description: 'Screen recording', page: 'home', body: '<h1>OpenCam</h1>' }));
+    await writePage(outputRoot, language, renderLayout({ language, title: language === 'zh-TW' ? '簡單螢幕錄影' : 'Simple screen recording', description: content[language].heroText, page: 'home', body: renderHome(language) }));
     await writePage(outputRoot, join(language, 'guide'), renderLayout({ language, title: 'Guide', description: 'User guide', page: 'guide', body: '<h1>Guide</h1>' }));
   }
   for (const [source, target] of requiredAssets) await copyFile(join(repositoryRoot, source), join(outputRoot, 'assets', target));
