@@ -14,7 +14,8 @@ internal sealed record UiScreenDescriptor(
     CaptureRegion Bounds,
     double Scaling,
     bool IsPrimary,
-    string? Identity = null);
+    string? Identity = null,
+    bool UsesLogicalBounds = false);
 
 internal sealed record DisplayMatchResult(
     IReadOnlyList<(int CaptureIndex, int UiScreenIndex)> Matches,
@@ -67,22 +68,22 @@ internal static class DisplayScreenMatcher
             return string.Equals(capture.Identity, screen.Identity, StringComparison.OrdinalIgnoreCase);
         }
 
-        return SameBounds(capture.Bounds, screen.Bounds, PixelTolerance) ||
-               SameLogicalBounds(capture, screen);
+        return screen.UsesLogicalBounds
+            ? SameLogicalBounds(capture, screen)
+            : SameBounds(capture.Bounds, screen.Bounds, PixelTolerance);
     }
 
     private static bool SameLogicalBounds(CaptureDisplayDescriptor capture, UiScreenDescriptor screen)
     {
-        if (!double.IsFinite(capture.Scaling) || capture.Scaling <= 0 ||
-            !double.IsFinite(screen.Scaling) || screen.Scaling <= 0)
+        if (!double.IsFinite(capture.Scaling) || capture.Scaling <= 0)
         {
             return false;
         }
 
-        return Close(capture.Bounds.X / capture.Scaling, screen.Bounds.X / screen.Scaling, LogicalTolerance) &&
-               Close(capture.Bounds.Y / capture.Scaling, screen.Bounds.Y / screen.Scaling, LogicalTolerance) &&
-               Close(capture.Bounds.Width / capture.Scaling, screen.Bounds.Width / screen.Scaling, LogicalTolerance) &&
-               Close(capture.Bounds.Height / capture.Scaling, screen.Bounds.Height / screen.Scaling, LogicalTolerance);
+        return Close(capture.Bounds.X / capture.Scaling, screen.Bounds.X, LogicalTolerance) &&
+               Close(capture.Bounds.Y / capture.Scaling, screen.Bounds.Y, LogicalTolerance) &&
+               Close(capture.Bounds.Width / capture.Scaling, screen.Bounds.Width, LogicalTolerance) &&
+               Close(capture.Bounds.Height / capture.Scaling, screen.Bounds.Height, LogicalTolerance);
     }
 
     private static bool SameBounds(CaptureRegion left, CaptureRegion right, double tolerance) =>

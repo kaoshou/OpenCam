@@ -118,7 +118,8 @@ public partial class MainWindow : Window
                         screen.Bounds.Width, screen.Bounds.Height),
                     screen.Scaling,
                     screen.IsPrimary,
-                    WindowsDisplayIdentity(screen.DisplayName)))
+                    WindowsDisplayIdentity(screen.DisplayName),
+                    OperatingSystem.IsMacOS()))
                 .ToArray();
             var unresolved = _displayIdentification.Show(captures, uiScreens, vm.SelectedMonitor?.Index);
             if (unresolved > 0)

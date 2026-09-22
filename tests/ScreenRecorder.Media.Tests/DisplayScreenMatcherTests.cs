@@ -72,6 +72,28 @@ public sealed class DisplayScreenMatcherTests
     }
 
     [Fact]
+    public void MacLogicalBounds_MixedScaling_DoesNotCrossMatchRawPixelBounds()
+    {
+        var capture = new[]
+        {
+            Capture(0, 0, 0, 1920, 1080, true),
+            Capture(1, 3840, 0, 3840, 2160, scale: 2),
+            Capture(2, 3840, 0, 3840, 2160)
+        };
+        var ui = new[]
+        {
+            Ui(3840, 0, 3840, 2160, logicalBounds: true),
+            Ui(0, 0, 1920, 1080, true, logicalBounds: true),
+            Ui(1920, 0, 1920, 1080, logicalBounds: true)
+        };
+
+        var result = DisplayScreenMatcher.Match(capture, ui);
+
+        Assert.Equal(new[] { (0, 1), (1, 2), (2, 0) }, result.Matches);
+        Assert.Empty(result.UnresolvedCaptureIndices);
+    }
+
+    [Fact]
     public void DuplicateGeometryWithoutIdentity_RemainsUnresolved()
     {
         var capture = new[]
@@ -125,6 +147,6 @@ public sealed class DisplayScreenMatcherTests
         new(index, new CaptureRegion(x, y, width, height), scale, primary, identity);
 
     private static UiScreenDescriptor Ui(int x, int y, int width, int height,
-        bool primary = false, string? identity = null, double scale = 1) =>
-        new(new CaptureRegion(x, y, width, height), scale, primary, identity);
+        bool primary = false, string? identity = null, double scale = 1, bool logicalBounds = false) =>
+        new(new CaptureRegion(x, y, width, height), scale, primary, identity, logicalBounds);
 }
