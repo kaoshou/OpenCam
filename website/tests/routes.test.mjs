@@ -24,6 +24,17 @@ test('language entry and deep-link layout work without JavaScript', () => {
   assert.match(renderLayout({ language: 'en-US', title: 'Guide', description: 'Guide', page: 'guide', body: '' }), /href="\/OpenCam\/assets\/site\.css"/);
 });
 
+test('navigation links to the GitHub project on both home and guide pages', () => {
+  for (const language of ['zh-TW', 'en-US']) {
+    for (const page of ['home', 'guide']) {
+      const html = renderLayout({ language, title: 'OpenCam', description: 'OpenCam', page, body: '' });
+      const nav = html.match(/<nav class="nav-wrap"[\s\S]*?<\/nav>/)?.[0];
+      assert.ok(nav, `Missing navigation: ${language}/${page}`);
+      assert.match(nav, /<a class="github-link" href="https:\/\/github\.com\/kaoshou\/OpenCam" target="_blank" rel="noopener noreferrer">GitHub<\/a>/);
+    }
+  }
+});
+
 test('build emits four deep links and fails for missing source assets', async () => {
   const out = await mkdtemp(join(tmpdir(), 'opencam-site-'));
   try {
