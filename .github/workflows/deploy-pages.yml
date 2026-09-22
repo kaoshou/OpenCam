@@ -1,0 +1,61 @@
+name: Deploy OpenCam Website
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'website/**'
+      - 'docs/USER_GUIDE.*.md'
+      - 'docs/images/**'
+      - 'src/ScreenRecorder.UI/Assets/app_icon.png'
+      - '.github/workflows/deploy-pages.yml'
+  pull_request:
+    paths:
+      - 'website/**'
+      - 'docs/USER_GUIDE.*.md'
+      - 'docs/images/**'
+      - 'src/ScreenRecorder.UI/Assets/app_icon.png'
+      - '.github/workflows/deploy-pages.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - run: npm ci --prefix website
+      - run: npm test --prefix website
+      - run: npm run build --prefix website
+      - uses: actions/configure-pages@v5
+        if: github.ref == 'refs/heads/master'
+      - uses: actions/upload-pages-artifact@v4
+        if: github.ref == 'refs/heads/master'
+        with:
+          path: website/dist
+
+  deploy:
+    if: github.ref == 'refs/heads/master'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment
