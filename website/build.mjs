@@ -1,5 +1,5 @@
 import { mkdir, readFile, writeFile, copyFile, stat } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { renderEntry, renderLayout } from './src/layout.mjs';
 import { renderHome, content } from './src/content.mjs';
@@ -14,6 +14,32 @@ const requiredAssets = [
   ['docs/images/preview_settings_zhtw.png', 'preview_settings_zhtw.png'],
   ['docs/images/preview_settings_enus.png', 'preview_settings_enus.png']
 ];
+const routeFiles = ['index.html', 'zh-TW/index.html', 'en-US/index.html', 'zh-TW/guide/index.html', 'en-US/guide/index.html'];
+
+export async function validateOutput(outputRoot) {
+  for (const route of routeFiles) {
+    const html = await readFile(join(outputRoot, route), 'utf8');
+    if ((html.match(/<main\b/g) || []).length !== 1) throw new Error(`Expected one main landmark: ${route}`);
+    if (route.includes('/guide/') && !/<nav class="guide-toc"(?:\s|>)/.test(html)) throw new Error(`Missing guide contents: ${route}`);
+    for (const match of html.matchAll(/<img\b[^>]*>/g)) {
+      if (!/\balt="[^"]+"/.test(match[0])) throw new Error(`Missing image alternative: ${route}`);
+    }
+    for (const match of html.matchAll(/\b(?:href|src)="([^"]+)"/g)) {
+      const href = match[1];
+      if (/^(https?:|mailto:|#)/i.test(href)) continue;
+      if (!href.startsWith('/OpenCam/')) throw new Error(`Invalid project-site path: ${route}: ${href}`);
+      const relative = decodeURIComponent(href.slice('/OpenCam/'.length).split('#')[0].split('?')[0]);
+      const target = resolve(outputRoot, relative);
+      if (target !== resolve(outputRoot) && !target.startsWith(resolve(outputRoot) + sep)) throw new Error(`Path escapes site: ${href}`);
+      try {
+        const info = await stat(target);
+        if (info.isDirectory()) await required(join(target, 'index.html'));
+        else if (info.size === 0) throw new Error('empty');
+      } catch { throw new Error(`Unresolved site asset: ${route}: ${href}`); }
+    }
+  }
+  for (const [, asset] of requiredAssets) await required(join(outputRoot, 'assets', asset));
+}
 
 async function required(path) {
   try {
@@ -47,6 +73,7 @@ export async function buildSite({ repositoryRoot = resolve(websiteRoot, '..'), o
   }
   for (const [source, target] of requiredAssets) await copyFile(join(repositoryRoot, source), join(outputRoot, 'assets', target));
   for (const name of ['site.css', 'site.js']) await copyFile(join(websiteRoot, 'src', name), join(outputRoot, 'assets', name));
+  await validateOutput(outputRoot);
   return outputRoot;
 }
 

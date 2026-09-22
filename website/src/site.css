@@ -102,4 +102,4 @@ a { color: inherit; }
 .guide-article pre code { padding: 0; background: none; color: inherit; }
 .guide-article blockquote { margin: 20px 0; padding: 8px 20px; border-left: 4px solid #279c6d; background: #edf7ef; }
 @media (max-width: 900px) { .guide-shell { grid-template-columns: 1fr; gap: 25px; padding-block: 35px 75px; } .guide-sidebar { position: static; max-height: none; } .guide-toc ol { columns: 2; } }
-@media (max-width: 650px) { .guide-toc ol { columns: 1; } .guide-article h2 { margin-top: 40px; } }
+@media (max-width: 650px) { .guide-toc ol { columns: 1; max-height: 215px; overflow-y: auto; border-top: 1px solid #dce9df; padding-top: 8px; } .guide-article h2 { margin-top: 40px; } }
