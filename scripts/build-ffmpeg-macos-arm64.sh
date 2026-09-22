@@ -31,8 +31,10 @@ curl -fL \
   -o "$build_root/ffmpeg.tar.xz"
 printf '%s  %s\n' "$ffmpeg_sha256" "$build_root/ffmpeg.tar.xz" | shasum -a 256 -c -
 
+# The VideoLAN archive endpoint can return a 200 HTML challenge to CI runners.
+# The pinned GitHub mirror archive has the same SHA-256; keep verifying it below.
 curl -fL \
-  "https://code.videolan.org/videolan/x264/-/archive/${x264_commit}/x264-${x264_commit}.tar.gz" \
+  "https://codeload.github.com/mirror/x264/tar.gz/${x264_commit}" \
   -o "$build_root/x264.tar.gz"
 printf '%s  %s\n' "$x264_sha256" "$build_root/x264.tar.gz" | shasum -a 256 -c -
 
