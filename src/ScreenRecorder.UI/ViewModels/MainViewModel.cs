@@ -190,6 +190,7 @@ public partial class MainViewModel : ObservableObject
         IsPreparing,
         IsRecovering);
     public bool CanSelectMonitor => CanEditRecordingSettings && IsMonitorSelected;
+    public IReadOnlyList<MonitorInfo> GetCurrentMonitors() => _displayService.GetMonitors();
     public bool CanConfigureCustomRegion => CanEditRecordingSettings && IsCustomRegion;
     public bool CanSelectMicrophone => CanEditPausedSettings && RecordMicrophone;
     public bool SupportsSystemAudio => SupportsSystemAudioOnPlatform(

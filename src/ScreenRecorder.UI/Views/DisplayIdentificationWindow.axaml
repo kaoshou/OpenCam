@@ -1,0 +1,28 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ScreenRecorder.UI.Views.DisplayIdentificationWindow"
+        Width="176" Height="92"
+        SystemDecorations="None"
+        TransparencyLevelHint="Transparent"
+        Background="Transparent"
+        CanResize="False"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        Topmost="True"
+        WindowStartupLocation="Manual">
+    <Border x:Name="BadgeBorder"
+            Background="#EC0F172A"
+            BorderBrush="#94A3B8"
+            BorderThickness="2"
+            CornerRadius="12"
+            Padding="8"
+            IsHitTestVisible="False">
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="1">
+            <TextBlock x:Name="NumberText" FontSize="32" FontWeight="Bold"
+                       Foreground="White" TextAlignment="Center" HorizontalAlignment="Center" />
+            <TextBlock x:Name="SelectedText" FontSize="11" FontWeight="SemiBold"
+                       Foreground="#FDE68A" TextAlignment="Center" HorizontalAlignment="Center" />
+        </StackPanel>
+    </Border>
+</Window>

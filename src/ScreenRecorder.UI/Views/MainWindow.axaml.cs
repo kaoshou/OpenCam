@@ -1,8 +1,10 @@
 ﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+using System.ComponentModel;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using ScreenRecorder.Core.Models;
 using ScreenRecorder.UI.ViewModels;
 
 namespace ScreenRecorder.UI.Views;
@@ -10,6 +12,9 @@ namespace ScreenRecorder.UI.Views;
 public partial class MainWindow : Window
 {
     private RecordingCloseWarningWindow? _closeWarningWindow;
+    private readonly DisplayIdentificationController _displayIdentification =
+        new(new AvaloniaDisplayBadgePresenter(), new AvaloniaDisplayIdentificationTimer());
+    private MainViewModel? _identificationViewModel;
 
     public MainWindow()
     {
@@ -17,6 +22,17 @@ public partial class MainWindow : Window
 
         DataContextChanged += (s, e) =>
         {
+            if (_identificationViewModel is not null)
+            {
+                _identificationViewModel.PropertyChanged -= OnIdentificationViewModelPropertyChanged;
+            }
+            _displayIdentification.Close();
+            _identificationViewModel = DataContext as MainViewModel;
+            if (_identificationViewModel is not null)
+            {
+                _identificationViewModel.PropertyChanged += OnIdentificationViewModelPropertyChanged;
+            }
+
             if (DataContext is MainViewModel vm)
             {
                 vm.RequestMinimizeWindow += (sender, args) =>
@@ -33,8 +49,33 @@ public partial class MainWindow : Window
         };
     }
 
+    protected override void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+        Screens.Changed += OnScreensChanged;
+    }
+
+    private void OnScreensChanged(object? sender, EventArgs e) => _displayIdentification.Close();
+
+    private void OnIdentificationViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(MainViewModel.IsPreparing) or nameof(MainViewModel.IsRecording)
+            or nameof(MainViewModel.IsMonitorSelected) or nameof(MainViewModel.SelectedMonitor)
+            or nameof(MainViewModel.IsRecovering))
+        {
+            _displayIdentification.Close();
+        }
+    }
+
     protected override void OnClosed(EventArgs e)
     {
+        Screens.Changed -= OnScreensChanged;
+        _displayIdentification.Dispose();
+        if (_identificationViewModel is not null)
+        {
+            _identificationViewModel.PropertyChanged -= OnIdentificationViewModelPropertyChanged;
+            _identificationViewModel = null;
+        }
         base.OnClosed(e);
         if (DataContext is MainViewModel vm)
         {
@@ -44,6 +85,7 @@ public partial class MainWindow : Window
 
     protected override void OnClosing(WindowClosingEventArgs e)
     {
+        _displayIdentification.Close();
         base.OnClosing(e);
 
         if (DataContext is MainViewModel { IsApplicationCloseBlocked: true })
@@ -52,6 +94,51 @@ public partial class MainWindow : Window
             _ = ShowRecordingCloseWarningAsync();
         }
     }
+
+    private void OnIdentifyDisplaysClicked(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm || !vm.CanSelectMonitor)
+        {
+            return;
+        }
+
+        try
+        {
+            var captures = vm.GetCurrentMonitors()
+                .Select(monitor => new CaptureDisplayDescriptor(
+                    monitor.Index,
+                    monitor.Bounds,
+                    monitor.DpiScaling,
+                    monitor.IsPrimary,
+                    WindowsDisplayIdentity(monitor.DeviceName)))
+                .ToArray();
+            var uiScreens = Screens.All
+                .Select(screen => new UiScreenDescriptor(
+                    new CaptureRegion(screen.Bounds.X, screen.Bounds.Y,
+                        screen.Bounds.Width, screen.Bounds.Height),
+                    screen.Scaling,
+                    screen.IsPrimary,
+                    WindowsDisplayIdentity(screen.DisplayName)))
+                .ToArray();
+            var unresolved = _displayIdentification.Show(captures, uiScreens, vm.SelectedMonitor?.Index);
+            if (unresolved > 0)
+            {
+                vm.StatusMessage = vm.Strings.GetFormatted("DisplayIdentificationIncomplete", unresolved);
+            }
+        }
+        catch
+        {
+            _displayIdentification.Close();
+            vm.StatusMessage = vm.Strings.GetFormatted("DisplayIdentificationIncomplete",
+                vm.AvailableMonitors.Count);
+        }
+    }
+
+    private static string? WindowsDisplayIdentity(string? name) =>
+        OperatingSystem.IsWindows() &&
+        name?.StartsWith(@"\\.\DISPLAY", StringComparison.OrdinalIgnoreCase) == true
+            ? name
+            : null;
 
     public async Task ShowRecordingCloseWarningAsync()
     {

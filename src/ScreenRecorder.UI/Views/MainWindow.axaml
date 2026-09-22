@@ -155,6 +155,16 @@
                             <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableMonitors}" SelectedItem="{Binding SelectedMonitor}" 
                                       IsEnabled="{Binding CanSelectMonitor}" Margin="8,0,0,0" HorizontalAlignment="Stretch" FontSize="11.5" />
                         </Grid>
+                        <Button Click="OnIdentifyDisplaysClicked"
+                                IsEnabled="{Binding CanSelectMonitor}"
+                                HorizontalAlignment="Left"
+                                Margin="22,1,0,3"
+                                Padding="9,4"
+                                FontSize="11"
+                                Background="#E0F2FE" Foreground="#075985"
+                                BorderBrush="#7DD3FC" BorderThickness="1"
+                                ToolTip.Tip="{Binding Strings[IdentifyDisplaysTooltip]}"
+                                Content="{Binding Strings[IdentifyDisplays]}" />
 
                         <!-- 自訂區域 -->
                         <RadioButton GroupName="Range" IsChecked="{Binding IsCustomRegion}" 
