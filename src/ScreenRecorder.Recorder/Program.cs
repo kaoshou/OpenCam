@@ -137,6 +137,14 @@ public class Program
                                 ErrorMessage = JsonSerializer.Serialize(telemetry)
                             };
 
+                        case "GetAudioLevels":
+                            return new IpcResponse
+                            {
+                                Success = true,
+                                ErrorMessage = JsonSerializer.Serialize(
+                                    orchestrator.GetAudioLevels(DateTimeOffset.UtcNow))
+                            };
+
                         case "StopRecording":
                             var (stopSuccess, stopError, finalFilePath) = await orchestrator.StopRecordingAsync("UI 請求停止錄影");
                             return new IpcResponse

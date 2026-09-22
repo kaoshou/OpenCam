@@ -29,11 +29,19 @@ public interface IScreenRecorderEngine : IAsyncDisposable
     event EventHandler? AudioDeviceLost;
 }
 
-public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
+public interface IRecordingAudioLevelSource
+{
+    (AudioLevelSample? SystemAudio, AudioLevelSample? Microphone) ReadInputLevels(DateTimeOffset now);
+}
+
+public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudioLevelSource
 {
     private readonly IFFmpegPlatformProvider _ffmpegPlatformProvider;
     private readonly ISystemAudioLoopbackCapture? _systemAudioLoopbackCapture;
     private readonly IMicrophoneCapture? _microphoneCapture;
+    private readonly IMicrophoneLevelObserver? _microphoneLevelObserver;
+    private bool _systemLevelActive;
+    private bool _microphoneLevelActive;
     private readonly string _ffmpegPath;
     private Process? _process;
     private Task? _stderrReadingTask;
@@ -57,6 +65,35 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
     public TimeSpan CurrentRecordedTime => _recordedTime;
     public long CurrentFramesRecorded => _framesRecorded;
 
+    public (AudioLevelSample? SystemAudio, AudioLevelSample? Microphone) ReadInputLevels(DateTimeOffset now)
+    {
+        if (!IsRunning)
+        {
+            return (null, null);
+        }
+
+        AudioLevelSample? system = null;
+        AudioLevelSample? microphone = null;
+        try
+        {
+            if (_systemLevelActive && _systemAudioLoopbackCapture is IAudioLevelSource source)
+            {
+                system = source.ReadLatestLevel(now);
+            }
+        }
+        catch { }
+        try
+        {
+            if (_microphoneLevelActive)
+            {
+                microphone = (_microphoneCapture as IAudioLevelSource)?.ReadLatestLevel(now) ??
+                    _microphoneLevelObserver?.ReadLatestLevel(now);
+            }
+        }
+        catch { }
+        return (system, microphone);
+    }
+
     public event EventHandler<string>? EngineErrorOccurred;
     public event EventHandler<string>? EngineWarningOccurred;
     public event EventHandler? AudioDeviceLost;
@@ -65,11 +102,13 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
         IFFmpegPlatformProvider ffmpegPlatformProvider, 
         ISystemAudioLoopbackCapture? systemAudioLoopbackCapture = null,
         string? ffmpegPath = null,
-        IMicrophoneCapture? microphoneCapture = null)
+        IMicrophoneCapture? microphoneCapture = null,
+        IMicrophoneLevelObserver? microphoneLevelObserver = null)
     {
         _ffmpegPlatformProvider = ffmpegPlatformProvider ?? throw new ArgumentNullException(nameof(ffmpegPlatformProvider));
         _systemAudioLoopbackCapture = systemAudioLoopbackCapture;
         _microphoneCapture = microphoneCapture;
+        _microphoneLevelObserver = microphoneLevelObserver;
         _ffmpegPath = ffmpegPath ?? FFmpegDiscovery.FindFFmpegExecutable()
             ?? throw new FileNotFoundException("未在系統中探測到 FFmpeg 執行檔");
 
@@ -85,6 +124,8 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
         CaptureRegion actualBounds, 
         CancellationToken cancellationToken = default)
     {
+        _systemLevelActive = false;
+        _microphoneLevelActive = false;
         lock (_lock)
         {
             if (IsRunning)
@@ -138,6 +179,7 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
                 if (microphoneInfo != null)
                 {
                     microphoneAudioPipeArg = microphoneInfo.FfmpegInputArgs;
+                    _microphoneLevelActive = _microphoneCapture is IAudioLevelSource;
                     hasDirectShowMic = false;
                     Log.Information(
                         "原生麥克風擷取已啟動，傳遞參數: {Args}",
@@ -185,6 +227,7 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
                 if (sysAudioInfo != null)
                 {
                     systemAudioPipeArg = sysAudioInfo.FfmpegInputArgs;
+                    _systemLevelActive = _systemAudioLoopbackCapture is IAudioLevelSource;
                     Log.Information("系統聲音 Loopback 擷取已啟動，傳遞參數: {Args}", systemAudioPipeArg);
                 }
             }
@@ -239,6 +282,19 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
         }
 
         ActiveEncoder = targetEncoder;
+        if (hasDirectShowMic && _microphoneLevelObserver != null &&
+            !string.IsNullOrWhiteSpace(config.MicrophoneDeviceId))
+        {
+            try
+            {
+                _microphoneLevelActive = await _microphoneLevelObserver.StartAsync(
+                    config.MicrophoneDeviceId, cancellationToken);
+            }
+            catch
+            {
+                _microphoneLevelActive = false;
+            }
+        }
     }
 
     private async Task<bool> LaunchProcessAsync(
@@ -527,6 +583,12 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine
 
     public async Task StopRecordingAsync(CancellationToken cancellationToken = default)
     {
+        _systemLevelActive = false;
+        _microphoneLevelActive = false;
+        if (_microphoneLevelObserver is not null)
+        {
+            try { await _microphoneLevelObserver.StopAsync(cancellationToken); } catch { }
+        }
         Process? proc;
         lock (_lock)
         {

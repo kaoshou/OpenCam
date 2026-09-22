@@ -26,6 +26,7 @@ public class RecordingOrchestrator : IAsyncDisposable
     private readonly IFFmpegPlatformProvider _ffmpegPlatformProvider;
     private readonly ISystemAudioLoopbackCapture? _systemAudioLoopbackCapture;
     private readonly IMicrophoneCapture? _microphoneCapture;
+    private readonly IMicrophoneLevelObserver? _microphoneLevelObserver;
     private readonly IDisplayChangeMonitor? _displayChangeMonitor;
     private readonly ICursorHighlightService? _cursorHighlightService;
 
@@ -59,7 +60,8 @@ public class RecordingOrchestrator : IAsyncDisposable
         ISystemAudioLoopbackCapture? systemAudioLoopbackCapture = null,
         IDisplayChangeMonitor? displayChangeMonitor = null,
         ICursorHighlightService? cursorHighlightService = null,
-        IMicrophoneCapture? microphoneCapture = null)
+        IMicrophoneCapture? microphoneCapture = null,
+        IMicrophoneLevelObserver? microphoneLevelObserver = null)
     {
         _stateMachine = stateMachine;
         _storageService = storageService;
@@ -71,6 +73,7 @@ public class RecordingOrchestrator : IAsyncDisposable
         _ffmpegPlatformProvider = ffmpegPlatformProvider;
         _systemAudioLoopbackCapture = systemAudioLoopbackCapture;
         _microphoneCapture = microphoneCapture;
+        _microphoneLevelObserver = microphoneLevelObserver;
         _displayChangeMonitor = displayChangeMonitor;
         _cursorHighlightService = cursorHighlightService;
 
@@ -168,7 +171,8 @@ public class RecordingOrchestrator : IAsyncDisposable
             _engine = new FFmpegScreenRecorderEngine(
                 _ffmpegPlatformProvider,
                 _systemAudioLoopbackCapture,
-                microphoneCapture: _microphoneCapture)
+                microphoneCapture: _microphoneCapture,
+                microphoneLevelObserver: _microphoneLevelObserver)
             {
                 UseSyntheticCaptureSource = UseSyntheticCaptureSource
             };
@@ -383,7 +387,8 @@ public class RecordingOrchestrator : IAsyncDisposable
             _engine = new FFmpegScreenRecorderEngine(
                 _ffmpegPlatformProvider,
                 _systemAudioLoopbackCapture,
-                microphoneCapture: _microphoneCapture)
+                microphoneCapture: _microphoneCapture,
+                microphoneLevelObserver: _microphoneLevelObserver)
             {
                 UseSyntheticCaptureSource = UseSyntheticCaptureSource
             };
@@ -555,6 +560,29 @@ public class RecordingOrchestrator : IAsyncDisposable
         }
     }
 
+    public AudioLevelsSnapshot GetAudioLevels(DateTimeOffset now)
+    {
+        var session = _currentSession;
+        if (session is null)
+        {
+            return RecordingAudioLevelResolver.Resolve(AudioSourceType.None,
+                _stateMachine.CurrentState, null, null, now);
+        }
+
+        (AudioLevelSample? SystemAudio, AudioLevelSample? Microphone) input = default;
+        try
+        {
+            if (_engine is IRecordingAudioLevelSource source)
+            {
+                input = source.ReadInputLevels(now);
+            }
+        }
+        catch { }
+
+        return RecordingAudioLevelResolver.Resolve(session.Configuration.AudioSource,
+            _stateMachine.CurrentState, input.SystemAudio, input.Microphone, now);
+    }
+
     public RecorderTelemetry GetTelemetry()
     {
         var session = _currentSession;
@@ -662,7 +690,8 @@ public class RecordingOrchestrator : IAsyncDisposable
             _engine = new FFmpegScreenRecorderEngine(
                 _ffmpegPlatformProvider,
                 _systemAudioLoopbackCapture,
-                microphoneCapture: _microphoneCapture)
+                microphoneCapture: _microphoneCapture,
+                microphoneLevelObserver: _microphoneLevelObserver)
             {
                 UseSyntheticCaptureSource = UseSyntheticCaptureSource
             };
