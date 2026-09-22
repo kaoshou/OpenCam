@@ -3,13 +3,44 @@ using System.Text.Json;
 using ScreenRecorder.Core.Enums;
 using ScreenRecorder.Core.Models;
 using ScreenRecorder.Recorder.Services;
+using ScreenRecorder.Infrastructure.IPC;
+using ScreenRecorder.UI.ViewModels;
 
 namespace ScreenRecorder.Media.Tests;
 
 public sealed class AudioLevelsLifecycleTests
 {
+    [RealRecorderFact]
+    public async Task RealRecorder_WhenExplicitlyConfigured_ReturnsMeasuredMicrophoneState()
+    {
+        var pipe = Environment.GetEnvironmentVariable("OPENCAM_REAL_PIPE");
+        if (string.IsNullOrWhiteSpace(pipe)) return;
+        await using var client = new NamedPipeIpcClient(pipe);
+        var response = await client.SendCommandAsync("GetAudioLevels", new { }, timeoutMs: 1500);
+        Assert.True(response.Success, response.ErrorMessage);
+        Assert.True(AudioLevelsResponseParser.TryParse(response.ErrorMessage, out var snapshot), response.ErrorMessage);
+        var expectingMicrophone = Environment.GetEnvironmentVariable("OPENCAM_EXPECT_MIC") == "1";
+        Assert.True(expectingMicrophone
+                ? snapshot.Microphone.State is AudioMeterState.Silent or AudioMeterState.Live
+                : snapshot.Microphone.State == AudioMeterState.Off,
+            response.ErrorMessage);
+    }
+
     private static readonly DateTimeOffset Now = new(2026, 9, 22, 10, 0, 0, TimeSpan.Zero);
     private static readonly AudioLevelSample Live = new(0.6, 0.8, Now);
+
+    [Theory]
+    [InlineData(RecordingState.Idle)]
+    [InlineData(RecordingState.Stopping)]
+    [InlineData(RecordingState.Completed)]
+    [InlineData(RecordingState.Failed)]
+    public void NonActiveSession_ReportsBothSourcesOff(RecordingState state)
+    {
+        var snapshot = RecordingAudioLevelResolver.Resolve(
+            AudioSourceType.SystemAndMicrophone, state, Live, Live, Now);
+        Assert.Equal(AudioMeterState.Off, snapshot.SystemAudio.State);
+        Assert.Equal(AudioMeterState.Off, snapshot.Microphone.State);
+    }
 
     [Theory]
     [InlineData(AudioSourceType.None, AudioMeterState.Off, AudioMeterState.Off)]

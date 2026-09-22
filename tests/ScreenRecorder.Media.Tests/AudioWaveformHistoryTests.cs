@@ -1,11 +1,22 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 using ScreenRecorder.Core.Models;
 using ScreenRecorder.UI.ViewModels;
+using System.Text.Json;
 
 namespace ScreenRecorder.Media.Tests;
 
 public sealed class AudioWaveformHistoryTests
 {
+    [Fact]
+    public void ValidRecorderSnapshot_ParsesForUi()
+    {
+        var original = new AudioLevelsSnapshot(
+            new AudioSourceLevel(AudioMeterState.Off, 0, 0),
+            new AudioSourceLevel(AudioMeterState.Silent, 0, 0.1));
+        Assert.True(AudioLevelsResponseParser.TryParse(JsonSerializer.Serialize(original), out var parsed));
+        Assert.Equal(original, parsed);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("not-json")]

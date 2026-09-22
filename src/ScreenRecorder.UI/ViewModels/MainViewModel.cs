@@ -1548,11 +1548,18 @@ public partial class MainViewModel : ObservableObject
 
         if (generation == Volatile.Read(ref _audioMeterGeneration) && (IsRecording || IsPaused))
         {
-            ApplyAudioLevels(new AudioLevelsSnapshot(
-                new AudioSourceLevel(RecordSystemAudio && SupportsSystemAudio
-                    ? AudioMeterState.Unavailable : AudioMeterState.Off, 0, 0),
-                new AudioSourceLevel(RecordMicrophone
-                    ? AudioMeterState.Unavailable : AudioMeterState.Off, 0, 0)));
+            if (IsPaused)
+            {
+                SetMeterStatesForPausedSelection();
+            }
+            else
+            {
+                ApplyAudioLevels(new AudioLevelsSnapshot(
+                    new AudioSourceLevel(RecordSystemAudio && SupportsSystemAudio
+                        ? AudioMeterState.Unavailable : AudioMeterState.Off, 0, 0),
+                    new AudioSourceLevel(RecordMicrophone
+                        ? AudioMeterState.Unavailable : AudioMeterState.Off, 0, 0)));
+            }
         }
     }
 
@@ -1668,8 +1675,13 @@ public partial class MainViewModel : ObservableObject
 
     private async Task EnsureRecorderProcessAsync()
     {
-        var ping = await _ipcClient.SendCommandAsync("Ping", new { }, timeoutMs: 1000);
-        if (ping.Success) return;
+        // Never attach to a global/stale Recorder process from another app
+        // version. Only reuse the child started by this UI instance.
+        if (_recorderProcess is { HasExited: false })
+        {
+            var ping = await _ipcClient.SendCommandAsync("Ping", new { }, timeoutMs: 1000);
+            if (ping.Success) return;
+        }
 
         // Create a unique pipe name for this session to avoid zombie conflicts
         _currentPipeName = SessionPipeNameFactory.Create(OperatingSystem.IsWindows());

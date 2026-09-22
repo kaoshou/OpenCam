@@ -13,10 +13,10 @@ public sealed class AudioLevelAccumulator
     private sealed record SampleBox(AudioLevelSample Value);
     private SampleBox? _latest;
 
-    public void PublishPcm16(ReadOnlySpan<byte> pcm, DateTimeOffset capturedAt)
+    public void PublishPcm16(ReadOnlySpan<byte> pcm, DateTimeOffset capturedAt, int channels = 1)
     {
         var sampleCount = pcm.Length / sizeof(short);
-        if (sampleCount == 0)
+        if (sampleCount == 0 || channels <= 0 || sampleCount < channels)
         {
             return;
         }
@@ -24,15 +24,19 @@ public sealed class AudioLevelAccumulator
         double squaredSum = 0;
         double peak = 0;
         var measured = 0;
-        var stride = sampleCount <= PcmSampleStride ? 1 : PcmSampleStride;
-        for (var index = 0; index < sampleCount; index += stride)
+        var frameCount = sampleCount / channels;
+        var frameStride = frameCount <= PcmSampleStride ? 1 : Math.Max(1, PcmSampleStride / channels);
+        for (var frame = 0; frame < frameCount; frame += frameStride)
         {
-            var offset = index * sizeof(short);
-            var value = BinaryPrimitives.ReadInt16LittleEndian(pcm.Slice(offset, sizeof(short)));
-            var magnitude = Math.Abs((double)value) / 32768;
-            squaredSum += magnitude * magnitude;
-            peak = Math.Max(peak, magnitude);
-            measured++;
+            for (var channel = 0; channel < channels; channel++)
+            {
+                var offset = (frame * channels + channel) * sizeof(short);
+                var value = BinaryPrimitives.ReadInt16LittleEndian(pcm.Slice(offset, sizeof(short)));
+                var magnitude = Math.Abs((double)value) / 32768;
+                squaredSum += magnitude * magnitude;
+                peak = Math.Max(peak, magnitude);
+                measured++;
+            }
         }
 
         PublishNormalized(Normalize(Math.Sqrt(squaredSum / measured)), Normalize(peak), capturedAt);

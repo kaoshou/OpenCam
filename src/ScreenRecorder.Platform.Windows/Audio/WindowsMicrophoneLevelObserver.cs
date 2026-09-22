@@ -22,26 +22,31 @@ public sealed class WindowsMicrophoneLevelObserver : IMicrophoneLevelObserver
 
     public WindowsMicrophoneLevelObserver(IAudioDeviceService devices) => _devices = devices;
 
-    public Task<bool> StartAsync(string deviceId, CancellationToken cancellationToken)
+    public async Task<bool> StartAsync(string deviceId, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         StopCore();
         if (!OperatingSystem.IsWindows())
         {
-            return Task.FromResult(false);
+            return false;
         }
 
         try
         {
             _enumerator = new MMDeviceEnumerator();
             var endpoints = _enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active);
+            // A level meter is best-effort. DirectShow enumeration must never
+            // hold up the already-started FFmpeg recording pipeline.
+            var dshowDevices = await Task.Run(
+                _devices.GetRecordingDevices, cancellationToken)
+                .WaitAsync(TimeSpan.FromMilliseconds(750), cancellationToken);
             var endpointId = WindowsMicrophoneEndpointMatcher.Match(deviceId,
-                _devices.GetRecordingDevices(),
+                dshowDevices,
                 endpoints.Select(endpoint => (endpoint.ID, endpoint.FriendlyName)).ToArray());
             if (endpointId is null)
             {
                 StopCore();
-                return Task.FromResult(false);
+                return false;
             }
 
             _endpoint = endpoints.Single(endpoint => endpoint.ID == endpointId);
@@ -51,12 +56,12 @@ public sealed class WindowsMicrophoneLevelObserver : IMicrophoneLevelObserver
             _capture.StartRecording();
             Interlocked.Exchange(ref _lastLevelUpdateMs, 0);
             _running = true;
-            return Task.FromResult(true);
+            return true;
         }
         catch
         {
             StopCore();
-            return Task.FromResult(false);
+            return false;
         }
     }
 
@@ -88,23 +93,28 @@ public sealed class WindowsMicrophoneLevelObserver : IMicrophoneLevelObserver
                  format is WaveFormatExtensible { SubFormat: var floatSubtype } && floatSubtype == FloatSubFormat);
             if (pcm16)
             {
-                _levels.PublishPcm16(args.Buffer.AsSpan(0, args.BytesRecorded), DateTimeOffset.UtcNow);
+                _levels.PublishPcm16(args.Buffer.AsSpan(0, args.BytesRecorded), DateTimeOffset.UtcNow, format.Channels);
             }
             else if (float32)
             {
                 var count = args.BytesRecorded / sizeof(float);
-                var stride = count <= 16 ? 1 : 16;
+                var channels = Math.Max(1, format.Channels);
+                var frameCount = count / channels;
+                var stride = frameCount <= 16 ? 1 : Math.Max(1, 16 / channels);
                 double sum = 0;
                 double peak = 0;
                 var sampled = 0;
-                for (var index = 0; index < count; index += stride)
+                for (var frame = 0; frame < frameCount; frame += stride)
                 {
-                    var value = BitConverter.ToSingle(args.Buffer, index * sizeof(float));
-                    if (!float.IsFinite(value)) return;
-                    var amplitude = Math.Min(1, Math.Abs((double)value));
-                    sum += amplitude * amplitude;
-                    peak = Math.Max(peak, amplitude);
-                    sampled++;
+                    for (var channel = 0; channel < channels; channel++)
+                    {
+                        var value = BitConverter.ToSingle(args.Buffer, (frame * channels + channel) * sizeof(float));
+                        if (!float.IsFinite(value)) return;
+                        var amplitude = Math.Min(1, Math.Abs((double)value));
+                        sum += amplitude * amplitude;
+                        peak = Math.Max(peak, amplitude);
+                        sampled++;
+                    }
                 }
                 if (sampled > 0)
                 {

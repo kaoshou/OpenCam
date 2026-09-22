@@ -44,3 +44,26 @@ internal sealed class MacOsOnlyFactAttribute : FactAttribute
         }
     }
 }
+
+internal sealed class RealMacHelperFactAttribute : FactAttribute
+{
+    public RealMacHelperFactAttribute()
+    {
+        if (!OperatingSystem.IsMacOS() ||
+            string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("OPENCAM_REAL_MIC_HELPER")))
+        {
+            Skip = "Set OPENCAM_REAL_MIC_HELPER on macOS to run the hardware helper test.";
+        }
+    }
+}
+
+internal sealed class RealRecorderFactAttribute : FactAttribute
+{
+    public RealRecorderFactAttribute()
+    {
+        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("OPENCAM_REAL_PIPE")))
+        {
+            Skip = "Set OPENCAM_REAL_PIPE to inspect a running recorder.";
+        }
+    }
+}

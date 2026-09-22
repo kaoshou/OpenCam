@@ -111,11 +111,41 @@ public class FFmpegStartupHandshakeTests
                 new CaptureRegion(0, 0, 640, 480));
 
             Assert.True(microphoneCapture.IsCapturing);
+            Assert.Equal(0.5, engine.ReadInputLevels(DateTimeOffset.UtcNow).Microphone?.Rms);
             Assert.Equal(
                 StubMicrophoneCapture.PipeArguments,
                 provider.LastMicrophoneAudioPipeArg);
 
             await engine.StopRecordingAsync();
+
+            Assert.False(microphoneCapture.IsCapturing);
+        }
+        finally
+        {
+            File.Delete(executable);
+        }
+    }
+
+    [UnixOnlyFact]
+    public async Task FailedStartup_ReleasesMicrophoneBeforeNextAttempt()
+    {
+        var executable = CreateExecutable("echo 'input failed' >&2\nexit 1");
+        var microphoneCapture = new StubMicrophoneCapture();
+        try
+        {
+            await using var engine = new FFmpegScreenRecorderEngine(
+                new StubProvider(), null, executable, microphoneCapture);
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                engine.StartRecordingAsync(
+                    Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".mkv"),
+                    new RecordingConfiguration
+                    {
+                        EncoderType = HardwareEncoderType.SoftwareCpu,
+                        AudioSource = AudioSourceType.MicrophoneOnly,
+                        MicrophoneDeviceId = "0",
+                        Fps = 30
+                    },
+                    new CaptureRegion(0, 0, 640, 480)));
 
             Assert.False(microphoneCapture.IsCapturing);
         }
@@ -252,7 +282,7 @@ public class FFmpegStartupHandshakeTests
             string workingFilePath) => "-f null -";
     }
 
-    private sealed class StubMicrophoneCapture : IMicrophoneCapture
+    private sealed class StubMicrophoneCapture : IMicrophoneCapture, IAudioLevelSource
     {
         public const string PipeArguments =
             "-thread_queue_size 1024 -f s16le -ar 48000 -ac 1 -i \"/tmp/microphone.pcm\"";
@@ -260,6 +290,8 @@ public class FFmpegStartupHandshakeTests
         public bool IsSupported => true;
         public bool IsCapturing { get; private set; }
         public bool IsDisposed { get; private set; }
+        public AudioLevelSample? ReadLatestLevel(DateTimeOffset now) =>
+            IsCapturing ? new AudioLevelSample(0.5, 0.8, now) : null;
         private readonly Action? _onStop;
 
         public StubMicrophoneCapture(Action? onStop = null)

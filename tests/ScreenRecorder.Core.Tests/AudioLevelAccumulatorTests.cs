@@ -25,6 +25,24 @@ public sealed class AudioLevelAccumulatorTests
     }
 
     [Fact]
+    public void StereoPcm_RightOnlySoundIsNotMisreadAsSilence()
+    {
+        var meter = new AudioLevelAccumulator();
+        var pcm = new byte[1600];
+        for (var frame = 0; frame < 400; frame++)
+        {
+            pcm[frame * 4 + 2] = 0xff;
+            pcm[frame * 4 + 3] = 0x7f;
+        }
+
+        meter.PublishPcm16(pcm, Now, channels: 2);
+
+        var sample = Assert.IsType<AudioLevelSample>(meter.ReadFresh(Now, TimeSpan.FromSeconds(1)));
+        Assert.True(sample.Rms > 0.8);
+        Assert.True(sample.Peak > 0.99);
+    }
+
+    [Fact]
     public void EmptyOrOddPcm_DoesNotThrowOrInventLevel()
     {
         var meter = new AudioLevelAccumulator();

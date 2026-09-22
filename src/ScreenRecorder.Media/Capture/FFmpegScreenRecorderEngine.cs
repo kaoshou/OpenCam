@@ -124,6 +124,29 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
         CaptureRegion actualBounds, 
         CancellationToken cancellationToken = default)
     {
+        try
+        {
+            await StartRecordingCoreAsync(workingFilePath, config, actualBounds, cancellationToken);
+        }
+        catch
+        {
+            // A failed FFmpeg handshake must not leave the native FIFO producers
+            // running; the next attempt uses the same capture service instance.
+            try { await StopRecordingAsync(CancellationToken.None); }
+            catch (Exception cleanupError)
+            {
+                Log.Warning(cleanupError, "清理錄影啟動失敗的音訊擷取時發生錯誤");
+            }
+            throw;
+        }
+    }
+
+    private async Task StartRecordingCoreAsync(
+        string workingFilePath,
+        RecordingConfiguration config,
+        CaptureRegion actualBounds,
+        CancellationToken cancellationToken)
+    {
         _systemLevelActive = false;
         _microphoneLevelActive = false;
         lock (_lock)

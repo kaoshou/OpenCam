@@ -113,15 +113,20 @@ final class LevelReporter {
         let sampleCount = count / MemoryLayout<Int16>.size
         guard sampleCount > 0 else { return }
         let samples = bytes.assumingMemoryBound(to: Int16.self)
+        let channels = 2
+        let frameCount = sampleCount / channels
+        guard frameCount > 0 else { return }
         var sum = 0.0
         var peak = 0.0
         var measured = 0
-        let stride = sampleCount <= 16 ? 1 : 16
-        for index in Swift.stride(from: 0, to: sampleCount, by: stride) {
-            let magnitude = abs(Double(samples[index])) / 32768.0
-            sum += magnitude * magnitude
-            peak = max(peak, magnitude)
-            measured += 1
+        let frameStride = frameCount <= 16 ? 1 : 8
+        for frame in Swift.stride(from: 0, to: frameCount, by: frameStride) {
+            for channel in 0..<channels {
+                let magnitude = abs(Double(samples[frame * channels + channel])) / 32768.0
+                sum += magnitude * magnitude
+                peak = max(peak, magnitude)
+                measured += 1
+            }
         }
         let rms = normalize(sqrt(sum / Double(measured)))
         lock.lock()

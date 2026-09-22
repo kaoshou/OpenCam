@@ -10,6 +10,11 @@ public static class RecordingAudioLevelResolver
     public static AudioLevelsSnapshot Resolve(AudioSourceType source, RecordingState state,
         AudioLevelSample? systemSample, AudioLevelSample? microphoneSample, DateTimeOffset now)
     {
+        if (state is not (RecordingState.Recording or RecordingState.Pausing or RecordingState.Paused))
+        {
+            source = AudioSourceType.None;
+        }
+
         var systemEnabled = source is AudioSourceType.SystemOnly or AudioSourceType.SystemAndMicrophone;
         var microphoneEnabled = source is AudioSourceType.MicrophoneOnly or AudioSourceType.SystemAndMicrophone;
         return new AudioLevelsSnapshot(

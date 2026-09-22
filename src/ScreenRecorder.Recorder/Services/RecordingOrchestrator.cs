@@ -217,6 +217,22 @@ public class RecordingOrchestrator : IAsyncDisposable
         catch (Exception ex)
         {
             Log.Error(ex, "啟動錄影失敗");
+            try { await StopWatchdogAsync(); }
+            catch (Exception cleanupError)
+            {
+                Log.Warning(cleanupError, "清理啟動失敗的錄影監控時發生錯誤");
+            }
+            _diskMonitor.StopMonitoring();
+            _cursorHighlightService?.Stop();
+            if (_engine != null)
+            {
+                try { await _engine.DisposeAsync(); }
+                catch (Exception cleanupError)
+                {
+                    Log.Warning(cleanupError, "清理啟動失敗的錄影引擎時發生錯誤");
+                }
+                _engine = null;
+            }
             _stateMachine.ForceTransition(RecordingState.Failed, ex.Message);
             if (_currentSession != null)
             {

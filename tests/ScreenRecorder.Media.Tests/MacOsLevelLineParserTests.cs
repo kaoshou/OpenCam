@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 using ScreenRecorder.Platform.macOS;
+using System.Diagnostics;
 
 namespace ScreenRecorder.Media.Tests;
 
@@ -68,6 +69,49 @@ public sealed class MacOsLevelLineParserTests
         }
         finally
         {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [RealMacHelperFact]
+    public async Task RealMicrophoneHelper_WhenExplicitlyConfigured_ProducesFreshLevel()
+    {
+        var helper = Environment.GetEnvironmentVariable("OPENCAM_REAL_MIC_HELPER");
+        if (!OperatingSystem.IsMacOS() || string.IsNullOrWhiteSpace(helper)) return;
+
+        var root = Path.Combine(Path.GetTempPath(), "OpenCamRealLevelTest_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        Process? reader = null;
+        try
+        {
+            await using var capture = new MacOsMicrophoneCapture(
+                helper, () => Path.Combine(root, "capture"), UnixFifo.CreatePrivate);
+            var info = await capture.StartCaptureAsync(null);
+            Assert.NotNull(info);
+            var startInfo = new ProcessStartInfo("/bin/dd")
+            {
+                RedirectStandardError = true,
+                RedirectStandardOutput = true,
+                UseShellExecute = false
+            };
+            startInfo.ArgumentList.Add("if=" + info.PipePath);
+            startInfo.ArgumentList.Add("of=/dev/null");
+            startInfo.ArgumentList.Add("bs=4096");
+            reader = Process.Start(startInfo);
+            Assert.NotNull(reader);
+
+            var deadline = DateTimeOffset.UtcNow.AddSeconds(3);
+            while (capture.ReadLatestLevel(DateTimeOffset.UtcNow) is null && DateTimeOffset.UtcNow < deadline)
+            {
+                await Task.Delay(50);
+            }
+            Assert.NotNull(capture.ReadLatestLevel(DateTimeOffset.UtcNow));
+            await capture.StopCaptureAsync();
+        }
+        finally
+        {
+            try { if (reader is { HasExited: false }) reader.Kill(); } catch { }
+            reader?.Dispose();
             Directory.Delete(root, recursive: true);
         }
     }

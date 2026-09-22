@@ -149,7 +149,7 @@ public class WindowsWasapiLoopbackCapture : ISystemAudioLoopbackCapture, IAudioL
                             _pipeServer.Write(_conversionBuffer, 0, requiredBytes);
                             if (ShouldSampleLevel())
                             {
-                                try { _levels.PublishPcm16(_conversionBuffer.AsSpan(0, requiredBytes), DateTimeOffset.UtcNow); } catch { }
+                                try { _levels.PublishPcm16(_conversionBuffer.AsSpan(0, requiredBytes), DateTimeOffset.UtcNow, channels); } catch { }
                             }
                         }
                         else
@@ -157,7 +157,7 @@ public class WindowsWasapiLoopbackCapture : ISystemAudioLoopbackCapture, IAudioL
                             _pipeServer.Write(e.Buffer, 0, e.BytesRecorded);
                             if (waveFormat.Encoding == WaveFormatEncoding.Pcm && waveFormat.BitsPerSample == 16 && ShouldSampleLevel())
                             {
-                                try { _levels.PublishPcm16(e.Buffer.AsSpan(0, e.BytesRecorded), DateTimeOffset.UtcNow); } catch { }
+                                try { _levels.PublishPcm16(e.Buffer.AsSpan(0, e.BytesRecorded), DateTimeOffset.UtcNow, channels); } catch { }
                             }
                         }
 

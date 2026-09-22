@@ -64,7 +64,10 @@ public class Program
 
             await using var ipcServer = new NamedPipeIpcServer(pipeName, async message =>
             {
-                Log.Debug("收到 IPC 訊息: {MessageType}", message.MessageType);
+                if (message.MessageType != "GetAudioLevels")
+                {
+                    Log.Debug("收到 IPC 訊息: {MessageType}", message.MessageType);
+                }
 
                 try
                 {

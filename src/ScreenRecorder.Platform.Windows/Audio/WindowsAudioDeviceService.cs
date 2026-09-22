@@ -14,6 +14,17 @@ namespace ScreenRecorder.Platform.Windows.Audio;
 
 public class WindowsAudioDeviceService : IAudioDeviceService
 {
+    private readonly string? _ffmpegPathOverride;
+    private readonly int _probeTimeoutMs;
+
+    public WindowsAudioDeviceService() : this(null, 3000) { }
+
+    public WindowsAudioDeviceService(string? ffmpegPath, int probeTimeoutMs)
+    {
+        _ffmpegPathOverride = ffmpegPath;
+        _probeTimeoutMs = Math.Clamp(probeTimeoutMs, 100, 10000);
+    }
+
     private static readonly Regex AudioDeviceRegex = new(@"\""([^\""]+)\""\s+\(audio\)", RegexOptions.Compiled);
     private static readonly Regex AlternativeNameRegex = new(@"Alternative name\s+\""([^\""]+)\""", RegexOptions.Compiled);
 
@@ -23,7 +34,7 @@ public class WindowsAudioDeviceService : IAudioDeviceService
         
         try
         {
-            var ffmpegPath = FFmpegDiscovery.FindFFmpegExecutable();
+            var ffmpegPath = _ffmpegPathOverride ?? FFmpegDiscovery.FindFFmpegExecutable();
             if (!string.IsNullOrEmpty(ffmpegPath) && File.Exists(ffmpegPath))
             {
                 var psi = new ProcessStartInfo
@@ -39,8 +50,18 @@ public class WindowsAudioDeviceService : IAudioDeviceService
                 using var process = Process.Start(psi);
                 if (process != null)
                 {
-                    var output = process.StandardError.ReadToEnd();
-                    process.WaitForExit(3000);
+                    var outputTask = process.StandardError.ReadToEndAsync();
+                    if (!process.WaitForExit(_probeTimeoutMs))
+                    {
+                        try { process.Kill(entireProcessTree: true); } catch { }
+                        try { outputTask.Wait(500); } catch { }
+                        return [new AudioDeviceOption("default_mic", "系統預設麥克風 (Default Microphone)", true, true)];
+                    }
+                    if (!outputTask.Wait(500))
+                    {
+                        return [new AudioDeviceOption("default_mic", "系統預設麥克風 (Default Microphone)", true, true)];
+                    }
+                    var output = outputTask.Result;
 
                     var lines = output.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
                     string? currentDeviceName = null;
