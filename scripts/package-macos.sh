@@ -15,6 +15,10 @@ fail() {
 [[ -n "$publish_input" && -n "$app_input" ]] || \
   fail "usage: $0 /path/to/publish /path/to/OpenCam.app [configuration]"
 [[ -d "$publish_input" ]] || fail "publish directory does not exist: $publish_input"
+if [[ -n "$(git -C "$repo_root" status --porcelain --untracked-files=no)" ]] || \
+   [[ -n "$(git -C "$repo_root" ls-files --others --exclude-standard -- src scripts installer .github)" ]]; then
+  fail "commit source changes before packaging so SOURCE.txt identifies the exact revision"
+fi
 
 publish_dir="$(cd "$publish_input" && pwd)"
 app_name="$(basename "$app_input")"
@@ -56,10 +60,6 @@ if [[ ! "$source_revision" =~ ^[0-9a-fA-F]{40}$ ]]; then
 fi
 printf 'OpenCam 0.2.0\nSPDX-License-Identifier: AGPL-3.0-or-later\nCorresponding source: https://github.com/kaoshou/OpenCam/tree/%s\n' \
   "$source_revision" > "$app_path/Contents/Resources/SOURCE.txt"
-if [[ -n "$(git -C "$repo_root" status --porcelain)" ]]; then
-  printf 'Local build note: uncommitted changes may not be represented by the source revision above.\n' \
-    >> "$app_path/Contents/Resources/SOURCE.txt"
-fi
 
 helper="$app_path/Contents/MacOS/OpenCam.SystemAudio"
 xcrun swiftc "$source_file" \

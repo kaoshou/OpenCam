@@ -14,7 +14,7 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
-LicenseFile=..\LICENSE
+LicenseFile=publish\LICENSE.txt
 ; 預設安裝目錄 (例如: C:\Program Files\OpenCam)
 DefaultDirName={autopf}\OpenCam
 ; 開始功能表資料夾名稱

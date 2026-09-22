@@ -5,6 +5,13 @@ $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $InstallerDir = Join-Path $ProjectRoot "installer"
 $PublishDir = Join-Path $InstallerDir "publish"
 
+# SOURCE.txt must not identify HEAD when the packaged inputs differ from HEAD.
+$TrackedChanges = @(git -C $ProjectRoot status --porcelain --untracked-files=no)
+$UntrackedBuildInputs = @(git -C $ProjectRoot ls-files --others --exclude-standard -- src scripts installer .github)
+if ($LASTEXITCODE -ne 0 -or $TrackedChanges.Count -gt 0 -or $UntrackedBuildInputs.Count -gt 0) {
+    throw "發布打包前請先提交程式碼變更；SOURCE.txt 必須對應實際原始碼版本"
+}
+
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host " OpenCam v0.2.0 獨立發布打包腳本" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
@@ -31,6 +38,7 @@ dotnet publish $CsprojPath `
     -o $PublishDir
 
 Copy-Item (Join-Path $ProjectRoot "LICENSE") (Join-Path $PublishDir "LICENSE")
+Copy-Item (Join-Path $ProjectRoot "LICENSE") (Join-Path $PublishDir "LICENSE.txt")
 Copy-Item (Join-Path $ProjectRoot "NOTICE.md") (Join-Path $PublishDir "NOTICE.md")
 $Revision = (git -C $ProjectRoot rev-parse HEAD).Trim()
 if ($LASTEXITCODE -ne 0 -or $Revision -notmatch '^[0-9a-fA-F]{40}$') {

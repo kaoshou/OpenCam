@@ -51,13 +51,14 @@ jobs:
     - name: Add project license and corresponding source notice
       run: |
         Copy-Item LICENSE installer/publish/LICENSE
+        Copy-Item LICENSE installer/publish/LICENSE.txt
         Copy-Item NOTICE.md installer/publish/NOTICE.md
         @"
         OpenCam 0.2.0
         SPDX-License-Identifier: AGPL-3.0-or-later
         Corresponding source: https://github.com/kaoshou/OpenCam/tree/$env:GITHUB_SHA
         "@ | Set-Content installer/publish/SOURCE.txt -Encoding utf8
-        node scripts/check-release-notices.mjs installer/publish $env:GITHUB_SHA 0.2.0
+        node scripts/check-release-notices.mjs installer/publish $env:GITHUB_SHA 0.2.0 --installer
         
     - name: Create Windows Portable ZIP
       run: |
