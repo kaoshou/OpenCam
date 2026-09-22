@@ -39,7 +39,15 @@ public partial class App : Application
                 }
             }
 
-            var viewModel = new MainViewModel();
+            var screenshotIndex = ScreenshotArgumentIndex(desktop.Args);
+            var screenshotMode = screenshotIndex >= 0;
+            if (screenshotMode && (screenshotIndex + 1 >= desktop.Args!.Length ||
+                string.IsNullOrWhiteSpace(desktop.Args[screenshotIndex + 1]) ||
+                desktop.Args[screenshotIndex + 1].StartsWith("--", StringComparison.Ordinal)))
+            {
+                throw new ArgumentException("--screenshot requires an output file path.");
+            }
+            var viewModel = new MainViewModel(forScreenshot: screenshotMode);
             var mainWindow = new MainWindow
             {
                 DataContext = viewModel
@@ -55,9 +63,9 @@ public partial class App : Application
                 }
             };
 
-            if (desktop.Args != null && desktop.Args.Length >= 2 && desktop.Args[0] == "--screenshot")
+            if (screenshotMode)
             {
-                var outputPath = desktop.Args[1];
+                var outputPath = desktop.Args![screenshotIndex + 1];
                 ScreenRecorder.Core.Localization.AppLanguage? overrideLang = null;
                 string stateMode = "idle";
                 for (int i = 0; i < desktop.Args.Length - 1; i++)
@@ -129,7 +137,8 @@ public partial class App : Application
                             var sh = (int)settingsWin.Height;
                             if (sw <= 0) sw = 650;
                             if (sh <= 0) sh = 820;
-                            using var rtb = new RenderTargetBitmap(new PixelSize(sw, sh), new Vector(96, 96));
+                            using var rtb = new RenderTargetBitmap(
+                                new PixelSize(sw, sh), new Vector(96, 96));
                             rtb.Render(settingsWin);
                             rtb.Save(outputPath);
                         }
@@ -151,7 +160,8 @@ public partial class App : Application
                         var h = (int)mainWindow.Height;
                         if (w <= 0) w = 840;
                         if (h <= 0) h = 740;
-                        using var rtb = new RenderTargetBitmap(new PixelSize(w, h), new Vector(96, 96));
+                        using var rtb = new RenderTargetBitmap(
+                            new PixelSize(w, h), new Vector(96, 96));
                         rtb.Render(mainWindow);
                         rtb.Save(outputPath);
                     }
@@ -171,6 +181,17 @@ public partial class App : Application
     }
 
     private MainWindow? _mainWindow;
+
+    internal static int ScreenshotArgumentIndex(string[]? args)
+    {
+        if (args is null) return -1;
+        for (var index = 0; index < args.Length; index++)
+        {
+            if (args[index].Equals("--screenshot", StringComparison.OrdinalIgnoreCase))
+                return index;
+        }
+        return -1;
+    }
 
     public void OnTrayIconClicked(object? sender, EventArgs e)
     {

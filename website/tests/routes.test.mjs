@@ -36,3 +36,14 @@ test('build emits four deep links and fails for missing source assets', async ()
     await rm(out, { recursive: true, force: true });
   }
 });
+
+test('author credit appears in every published page footer', async () => {
+  const out = await mkdtemp(join(tmpdir(), 'opencam-author-'));
+  try {
+    await buildSite({ repositoryRoot: root, outputRoot: out });
+    for (const page of ['index.html', 'zh-TW/index.html', 'en-US/index.html', 'zh-TW/guide/index.html', 'en-US/guide/index.html']) {
+      const html = await readFile(join(out, page), 'utf8');
+      assert.match(html, /<footer\b[^>]*>[\s\S]*鄭郁翰 \(Yu-Han Cheng\)[\s\S]*<\/footer>/);
+    }
+  } finally { await rm(out, { recursive: true, force: true }); }
+});

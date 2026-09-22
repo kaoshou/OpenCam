@@ -61,6 +61,7 @@ public partial class MainViewModel : ObservableObject
     private readonly IDisplayService _displayService;
     private readonly IAudioDeviceService _audioDeviceService;
     private readonly ISettingsService _settingsService;
+    private readonly bool _forScreenshot;
     private readonly IEncoderDetector _encoderDetector;
     private readonly IGlobalHotkeyService? _globalHotkeyService;
     private readonly IMacOsScreenCapturePermissionService? _macOsScreenCapturePermissionService;
@@ -617,11 +618,18 @@ public partial class MainViewModel : ObservableObject
         return (long)Math.Round(value * multiplier, MidpointRounding.AwayFromZero);
     }
 
-    public MainViewModel()
+    public MainViewModel(bool forScreenshot = false)
     {
+        _forScreenshot = forScreenshot;
         _storageService = new StorageService();
-        _outputDirectory = _storageService.GetDefaultRecordingsPath();
-        _settingsService = new SettingsService();
+        _outputDirectory = forScreenshot
+            ? Path.Combine(OperatingSystem.IsMacOS() ? "/private/tmp" : Path.GetTempPath(),
+                "OpenCam-Preview", "Recordings")
+            : _storageService.GetDefaultRecordingsPath();
+        _settingsService = forScreenshot
+            ? new SettingsService(Path.Combine(Path.GetTempPath(), "OpenCam-Preview",
+                $"settings-{Environment.ProcessId}.json"))
+            : new SettingsService();
         
         IFFmpegPlatformProvider ffmpegPlatformProvider = OperatingSystem.IsWindows() ? new ScreenRecorder.Platform.Windows.WindowsFFmpegProvider() : new ScreenRecorder.Platform.macOS.MacOsFFmpegProvider();
 
@@ -692,16 +700,26 @@ public partial class MainViewModel : ObservableObject
         SelectedEncoder = AvailableEncoders[0];
 
         // 載入使用者持久化設定 (包含介面語系、FPS、音訊、儲存位置與快捷鍵)
-        LoadUserSettings();
+        if (forScreenshot)
+        {
+            // Documentation captures must not read or overwrite personal
+            // preferences, output paths, or unfinished recording sessions.
+            RecordSystemAudio = false;
+            _isLoadingSettings = false;
+        }
+        else
+        {
+            LoadUserSettings();
+        }
 
         // 非同步掃描未完成之錄影
-        _ = CheckRecoverableSessionsAsync();
+        if (!forScreenshot) _ = CheckRecoverableSessionsAsync();
 
         // 立即探測目標存放磁碟之剩餘空間 (更新介面顯示 -- GB)
         UpdateDiskSpaceRemaining();
 
         // 註冊 Windows 全域快捷鍵 (預設 F9 開始/停止，F10 暫停/繼續)
-        if (OperatingSystem.IsWindows())
+        if (!forScreenshot && OperatingSystem.IsWindows())
         {
             try
             {
@@ -1814,7 +1832,7 @@ public partial class MainViewModel : ObservableObject
 
         try
         {
-            if (_ipcClient != null)
+            if (ShouldSendGlobalShutdownOnCleanup)
             {
                 // 發送 Shutdown 通知 Recorder 正常結束常駐
                 _ = _ipcClient.SendCommandAsync("Shutdown", new { }, timeoutMs: 800);
@@ -1834,4 +1852,6 @@ public partial class MainViewModel : ObservableObject
         }
         catch { }
     }
+
+    internal bool ShouldSendGlobalShutdownOnCleanup => !_forScreenshot && _ipcClient != null;
 }

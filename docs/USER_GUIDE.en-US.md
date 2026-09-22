@@ -2,7 +2,7 @@
 
 OpenCam is a reliability-first screen recorder for Windows and macOS. During recording, it writes to interruption-resistant MKV working files and packages them as MP4 after a normal stop. If a crash, power failure, or forced termination occurs, Crash Recovery can attempt to preserve content that was already written successfully.
 
-> This guide covers the current OpenCam interface. The main workflow is the same on Windows and macOS; platform differences are called out where applicable.
+> This guide covers OpenCam v0.2.0. The main workflow is the same on Windows and macOS; platform differences are called out where applicable.
 
 ## 1. System Requirements and First Launch
 
@@ -42,7 +42,7 @@ If startup status cannot be confirmed, settings remain locked but **Stop** is av
 
 Records the complete image from the selected display. If multiple displays are connected, choose one from the monitor list.
 
-If you are unsure which physical display is “Monitor 1/2/3…”, select monitor mode and click **Identify Displays**. OpenCam briefly shows the matching number on every connected display, highlighting the selected one. This works with any number of displays. If geometry or scaling makes a match uncertain, OpenCam omits that label and shows a notice rather than risk identifying the wrong screen. Labels are dismissed when recording preparation begins and do not appear in the video.
+If you are unsure which physical display is “Monitor 1/2/3…”, select monitor mode and click the compact **Identify Displays** icon to the right of the monitor list (hover for its tooltip). OpenCam briefly shows the matching number on every connected display, highlighting the selected one. This works with any number of displays. If geometry or scaling makes a match uncertain, OpenCam omits that label and shows a notice rather than risk identifying the wrong screen. Labels are dismissed when recording preparation begins and do not appear in the video.
 
 “Complete image” means the entire selected monitor; OpenCam does not combine all displays into one video. The monitor source is locked after recording starts. Stop the current recording before switching displays.
 

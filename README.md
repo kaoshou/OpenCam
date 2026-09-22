@@ -14,14 +14,24 @@ OpenCam 是一款以可靠性為優先的跨平台桌面螢幕錄影工具。錄
 
 🌐 [OpenCam 官方網站](https://kaoshou.github.io/OpenCam/)（可切換繁體中文／English）
 
-目前原始碼版本為 **0.2.0**，採用 **AGPL-3.0-or-later**；下方的 v0.1.5 下載連結是先前發布版本，其原授權不受此次變更影響。尚未發布 0.2.0 安裝包。
+目前版本為 **0.2.0**，採用 **AGPL-3.0-or-later**。Windows 與 Apple Silicon macOS 安裝包請至 [v0.2.0 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.2.0) 下載；先前版本仍依當時的授權條款提供。
 
-> 以下為 Windows 介面預覽；macOS 使用相同的主要操作流程。
+以下為 **0.2.0** 在 macOS 上的實際畫面。點選圖片可檢視原尺寸，避免縮小後看不清選項文字。
 
-![OpenCam 主畫面](docs/images/preview_main_zhtw.png)
-![OpenCam 偏好設定](docs/images/preview_settings_zhtw.png)
+[![OpenCam 0.2.0 macOS 主畫面](docs/images/preview_main_zhtw.png)](docs/images/preview_main_zhtw.png)
+[![OpenCam 0.2.0 macOS 偏好設定](docs/images/preview_settings_zhtw.png)](docs/images/preview_settings_zhtw.png)
 
-## v0.1.5 重點更新
+## v0.2.0 重點更新
+
+- 錄製指定螢幕時，點選螢幕清單旁的辨識圖示，可在所有已連接顯示器上短暫顯示編號，並標示目前選取的螢幕。
+- 自訂矩形選取框保持透明，可拖曳移動及調整大小。
+- 錄影狀態區分開顯示系統聲音與麥克風的即時音量波形，方便確認是否收到聲音；波形不是成品音軌的品質保證。
+- 錄影啟動後會鎖定不會即時生效的選項；暫停後仍可調整系統聲音、麥克風與游標樣式。
+- 錄影期間關閉視窗會先提醒並保護工作階段，避免無意中斷。
+
+完整安裝檔請至 [OpenCam v0.2.0 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.2.0) 下載。
+
+## v0.1.5 歷史更新
 
 - 修正錄影畫質、磁碟警告門檻與成功封裝後清理 MKV 等偏好設定未完整套用到 Recorder 的問題。
 - 修正錄影正常停止後，UI 可能因最後狀態訊息而誤判為中斷的問題。
@@ -65,7 +75,7 @@ OpenCam 是一款以可靠性為優先的跨平台桌面螢幕錄影工具。錄
 
 ### macOS 13 Ventura 或以上（Apple Silicon／arm64）
 
-> v0.1.5 尚未提供 Intel Mac（x64）版本。
+> v0.2.0 尚未提供 Intel Mac（x64）版本。
 
 - 前往 [Releases](https://github.com/kaoshou/OpenCam/releases) 頁面並下載 `OpenCam_macOS_AppleSilicon.dmg`。
 - 打開 DMG，將 `OpenCam.app` 拖曳至「應用程式（Applications）」資料夾。
@@ -77,7 +87,7 @@ OpenCam 是一款以可靠性為優先的跨平台桌面螢幕錄影工具。錄
   xattr -cr /Applications/OpenCam.app
   ```
 
-### macOS v0.1.5 注意事項
+### macOS v0.2.0 注意事項
 
 - 系統音訊錄製需要 macOS 13 或以上版本，並使用 Apple ScreenCaptureKit。
 - 麥克風錄製使用 macOS 系統目前的預設輸入裝置。若要改用另一支麥克風，請先在 macOS 聲音設定中切換預設輸入裝置，再開始或暫停後繼續錄影。
@@ -109,14 +119,24 @@ OpenCam is built with .NET 8, Avalonia UI, and FFmpeg, and supports Windows and 
 
 🌐 [OpenCam official website](https://kaoshou.github.io/OpenCam/) (English / 繁體中文)
 
-The current source version is **0.2.0**, licensed under **AGPL-3.0-or-later**. The v0.1.5 download linked below is an earlier release and retains its original license. No 0.2.0 installer has been published yet.
+The current version is **0.2.0**, licensed under **AGPL-3.0-or-later**. Download the Windows and Apple Silicon macOS packages from the [v0.2.0 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.2.0). Earlier releases retain their original license terms.
 
-> The screenshots below show the Windows interface. The primary workflow is the same on macOS.
+These are actual screenshots of **0.2.0** on macOS. Select an image to view it at full size so the interface text stays legible.
 
-![OpenCam Main Window](docs/images/preview_main_enus.png)
-![OpenCam Settings Window](docs/images/preview_settings_enus.png)
+[![OpenCam 0.2.0 macOS main window](docs/images/preview_main_enus.png)](docs/images/preview_main_enus.png)
+[![OpenCam 0.2.0 macOS preferences](docs/images/preview_settings_enus.png)](docs/images/preview_settings_enus.png)
 
-## What's New in v0.1.5
+## What's New in v0.2.0
+
+- In monitor mode, use the identify icon beside the monitor list to briefly show a numbered label on every connected display and highlight the selected one.
+- The custom-region frame remains transparent and can be moved and resized.
+- Separate live level waveforms for system audio and microphone help confirm input activity; they do not guarantee the quality of the finished audio track.
+- Settings that cannot take effect mid-session lock as soon as recording starts; system audio, microphone, and cursor style remain adjustable while paused.
+- Closing the window during recording shows a warning and protects the active session against accidental interruption.
+
+Download the installers from the [OpenCam v0.2.0 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.2.0).
+
+## Earlier v0.1.5 Changes
 
 - Fixed preferences that were not fully propagated to the Recorder, including video quality, disk-warning thresholds, and MKV cleanup after successful remuxing.
 - Fixed a case where the UI could interpret the final status message after a normal stop as an interrupted recording.
@@ -159,7 +179,7 @@ Download the installers from the [OpenCam v0.1.5 Release](https://github.com/kao
 
 ### macOS 13 Ventura or later (Apple Silicon/arm64)
 
-> OpenCam v0.1.5 does not provide an Intel Mac (x64) build.
+> OpenCam v0.2.0 does not provide an Intel Mac (x64) build.
 
 - Go to the [Releases](https://github.com/kaoshou/OpenCam/releases) page and download `OpenCam_macOS_AppleSilicon.dmg`.
 - Mount the DMG and drag `OpenCam.app` to the Applications folder.
@@ -171,7 +191,7 @@ Download the installers from the [OpenCam v0.1.5 Release](https://github.com/kao
   xattr -cr /Applications/OpenCam.app
   ```
 
-### macOS v0.1.5 Notes
+### macOS v0.2.0 Notes
 
 - System-audio recording requires macOS 13 or later and uses Apple ScreenCaptureKit.
 - Microphone recording uses the current macOS default input device. To use another microphone, select it as the default input in macOS Sound settings before starting, or while the recording is paused.

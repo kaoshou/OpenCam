@@ -8,6 +8,32 @@ namespace ScreenRecorder.Media.Tests;
 public class FoolproofUiLogicTests
 {
     [Fact]
+    public void DocumentationScreenshot_UsesNeutralTemporaryProfile()
+    {
+        var vm = new MainViewModel(forScreenshot: true);
+
+        Assert.True(vm.IsMonitorSelected);
+        Assert.False(vm.IsCustomRegion);
+        Assert.False(vm.RecordMicrophone);
+        Assert.False(vm.RecordSystemAudio);
+        Assert.Equal(0, vm.RecoverableSessionCount);
+        Assert.StartsWith(OperatingSystem.IsMacOS() ? "/private/tmp" : Path.GetTempPath(),
+            vm.OutputDirectory, StringComparison.Ordinal);
+        Assert.False(vm.ShouldSendGlobalShutdownOnCleanup);
+        vm.Cleanup();
+    }
+
+    [Fact]
+    public void DocumentationScreenshot_FindsFlagRegardlessOfArgumentOrderOrCase()
+    {
+        Assert.Equal(2, ScreenRecorder.UI.App.ScreenshotArgumentIndex(
+            ["--lang", "en", "--SCREENSHOT", "/private/tmp/preview.png"]));
+        Assert.Equal(0, ScreenRecorder.UI.App.ScreenshotArgumentIndex(
+            ["--screenshot", "/private/tmp/preview.png"]));
+        Assert.Equal(-1, ScreenRecorder.UI.App.ScreenshotArgumentIndex(["--lang", "zh"]));
+    }
+
+    [Fact]
     public void UnconfirmedStartup_AllowsStopButBlocksCloseAndSettings()
     {
         var vm = new MainViewModel { IsPreparing = true };
