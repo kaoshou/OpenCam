@@ -34,6 +34,22 @@ public class FoolproofUiLogicTests
     }
 
     [Fact]
+    public void DocumentationRecordingScreenshot_ShowsActiveAudioWaveforms()
+    {
+        var vm = new MainViewModel(forScreenshot: true);
+
+        vm.SetDocumentationRecordingAudioActivity();
+
+        Assert.True(vm.RecordSystemAudio);
+        Assert.True(vm.RecordMicrophone);
+        Assert.Contains(vm.SystemWaveformBars, bar => bar.Height > 0);
+        Assert.Contains(vm.MicrophoneWaveformBars, bar => bar.Height > 0);
+        Assert.Equal("收音中", vm.SystemAudioMeterStateText);
+        Assert.Equal("收音中", vm.MicrophoneMeterStateText);
+        vm.Cleanup();
+    }
+
+    [Fact]
     public void UnconfirmedStartup_AllowsStopButBlocksCloseAndSettings()
     {
         var vm = new MainViewModel { IsPreparing = true };

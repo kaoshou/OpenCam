@@ -95,6 +95,7 @@ public partial class App : Application
                     {
                         viewModel.IsRecording = true;
                         viewModel.IsPaused = false;
+                        viewModel.SetDocumentationRecordingAudioActivity();
                         viewModel.ElapsedTimeText = "00:02:18";
                         viewModel.FileSizeText = "16.4 MB";
                         viewModel.StatusMessage = ScreenRecorder.UI.Localization.LanguageManager.Instance["StatusRecordingActive"];

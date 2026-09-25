@@ -11,10 +11,10 @@ export const content = {
     openSource: '開放原始碼 · 免費使用',
     licenseReleaseNote: '下載 v0.2.1（AGPL-3.0-or-later）；Windows 與 Apple Silicon Mac 安裝包由 GitHub Actions 建置。',
     screenshotTitle: '每一步，都清楚直覺。',
-    screenshotText: '最新版 macOS 介面：錄影範圍、音訊來源與狀態監控一目了然。點開圖片可檢視原尺寸文字。',
-    mainAlt: 'OpenCam 0.2.0 macOS 繁體中文主畫面，包含多螢幕辨識按鈕、錄影設定與狀態監控區',
+    screenshotText: '最新版 macOS 介面：錄影中可分別確認系統聲音與麥克風的收音波形。點開圖片可檢視原尺寸文字。',
+    mainAlt: 'OpenCam 0.2.1 macOS 繁體中文錄影中主畫面，右側顯示系統聲音與麥克風收音波形',
     settingsAlt: 'OpenCam 0.2.0 macOS 繁體中文偏好設定視窗',
-    mainCaption: '主畫面 · macOS 0.2.0', settingsCaption: '偏好設定 · macOS 0.2.0',
+    mainCaption: '錄影中與收音波形 · macOS 0.2.1', settingsCaption: '偏好設定 · macOS 0.2.0',
     fullSizeLabel: '開啟原尺寸圖片',
     featuresTitle: '簡單上手，細節也到位。',
     features: [
@@ -31,7 +31,7 @@ export const content = {
     platformsTitle: '選擇你的平台', windowsTitle: 'Windows', windowsText: 'Windows 10／11 · x64',
     macTitle: 'macOS', macText: 'macOS 13 以上 · Apple Silicon（arm64）',
     guideTitle: '第一次使用？從這裡開始。', guideText: '完整說明錄影模式、各項參數、檔案位置與修復救援。',
-    previewNote: '畫面由 v0.2.0 macOS 應用程式擷取；Windows 介面與裝置選項可能不同。'
+    previewNote: '主畫面由 v0.2.1 正式 UI 離線渲染，波形為收音狀態展示資料；偏好設定為 v0.2.0 實際畫面。Windows 介面與裝置選項可能不同。'
   },
   'en-US': {
     eyebrow: 'Simple screen recording for Windows and macOS',
@@ -41,10 +41,10 @@ export const content = {
     openSource: 'Open source · Free to use',
     licenseReleaseNote: 'Download v0.2.1 (AGPL-3.0-or-later). Windows and Apple Silicon Mac packages are built by GitHub Actions.',
     screenshotTitle: 'Clear from the first click.',
-    screenshotText: 'The current macOS interface puts capture, audio, and recording status in view. Open an image at full size to read its labels.',
-    mainAlt: 'OpenCam 0.2.0 macOS English main window with display identification, capture settings, and recording status',
+    screenshotText: 'The current macOS interface shows separate system-audio and microphone waveforms while recording. Open an image at full size to read its labels.',
+    mainAlt: 'OpenCam 0.2.1 macOS English Recording screen with live system-audio and microphone audio waveforms',
     settingsAlt: 'OpenCam 0.2.0 macOS English preferences window',
-    mainCaption: 'Main window · macOS 0.2.0', settingsCaption: 'Preferences · macOS 0.2.0',
+    mainCaption: 'Recording with audio waveforms · macOS 0.2.1', settingsCaption: 'Preferences · macOS 0.2.0',
     fullSizeLabel: 'Open full-size image',
     featuresTitle: 'Easy to start. Ready for the details.',
     features: [
@@ -61,7 +61,7 @@ export const content = {
     platformsTitle: 'Choose your platform', windowsTitle: 'Windows', windowsText: 'Windows 10/11 · x64',
     macTitle: 'macOS', macText: 'macOS 13 or later · Apple Silicon (arm64)',
     guideTitle: 'New to OpenCam? Start here.', guideText: 'A complete guide to capture modes, settings, file locations, and Crash Recovery.',
-    previewNote: 'Captured from the v0.2.0 macOS app; the Windows interface and device options may differ.'
+    previewNote: 'The main screen is rendered from the v0.2.1 production UI with illustrative audio-level data; the preferences image is an actual v0.2.0 capture. The Windows interface and device options may differ.'
   }
 };
 
@@ -74,8 +74,8 @@ export function renderHome(language) {
   const featureCards = c.features.map(([number, title, text]) => `<li class="feature-card"><span class="feature-number">${number}</span><h3>${escapeHtml(title)}</h3><p>${escapeHtml(text)}</p></li>`).join('');
   const mainImage = assetPath(`preview_main_${suffix}.png`);
   const settingsImage = assetPath(`preview_settings_${suffix}.png`);
-  return `<section class="hero"><div class="container hero-grid"><div class="hero-copy"><p class="eyebrow"><span class="eyebrow-dot"></span>${escapeHtml(c.eyebrow)}</p><h1>${c.heroTitle}</h1><p class="hero-text">${escapeHtml(c.heroText)}</p><div class="hero-actions"><a class="button button-primary" href="${latest}">${escapeHtml(c.downloadLabel)} <span aria-hidden="true">↗</span></a><a class="button button-secondary" href="${guide}">${escapeHtml(c.guideLabel)} <span aria-hidden="true">→</span></a></div><p class="hero-meta">${escapeHtml(c.openSource)}</p><p class="release-license-note">${escapeHtml(c.licenseReleaseNote)}</p></div><div class="hero-visual"><div class="window-halo"></div><a class="screenshot-link" href="${mainImage}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(c.fullSizeLabel)}"><img src="${mainImage}" alt="${escapeHtml(c.mainAlt)}" width="840" height="720"></a><span class="visual-caption">${escapeHtml(c.mainCaption)} · ${escapeHtml(c.fullSizeLabel)}</span></div></div></section>
-<section class="section screenshot-section" id="preview"><div class="container"><div class="section-intro"><p class="section-kicker">01 / OpenCam</p><h2>${escapeHtml(c.screenshotTitle)}</h2><p>${escapeHtml(c.screenshotText)}</p></div><div class="screenshot-grid"><figure class="screenshot-card"><a class="screenshot-link" href="${mainImage}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(c.fullSizeLabel)}"><img src="${mainImage}" alt="${escapeHtml(c.mainAlt)}" loading="lazy" width="840" height="720"></a><figcaption>${escapeHtml(c.mainCaption)} · <a href="${mainImage}" target="_blank" rel="noopener noreferrer">${escapeHtml(c.fullSizeLabel)}</a></figcaption></figure><figure class="screenshot-card settings-card"><a class="screenshot-link" href="${settingsImage}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(c.fullSizeLabel)}"><img src="${settingsImage}" alt="${escapeHtml(c.settingsAlt)}" loading="lazy" width="650" height="820"></a><figcaption>${escapeHtml(c.settingsCaption)} · <a href="${settingsImage}" target="_blank" rel="noopener noreferrer">${escapeHtml(c.fullSizeLabel)}</a></figcaption></figure></div><p class="preview-note">${escapeHtml(c.previewNote)}</p></div></section>
+  return `<section class="hero"><div class="container hero-grid"><div class="hero-copy"><p class="eyebrow"><span class="eyebrow-dot"></span>${escapeHtml(c.eyebrow)}</p><h1>${c.heroTitle}</h1><p class="hero-text">${escapeHtml(c.heroText)}</p><div class="hero-actions"><a class="button button-primary" href="${latest}">${escapeHtml(c.downloadLabel)} <span aria-hidden="true">↗</span></a><a class="button button-secondary" href="${guide}">${escapeHtml(c.guideLabel)} <span aria-hidden="true">→</span></a></div><p class="hero-meta">${escapeHtml(c.openSource)}</p><p class="release-license-note">${escapeHtml(c.licenseReleaseNote)}</p></div><div class="hero-visual"><div class="window-halo"></div><a class="screenshot-link" href="${mainImage}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(c.fullSizeLabel)}"><img src="${mainImage}" alt="${escapeHtml(c.mainAlt)}" width="840" height="740"></a><span class="visual-caption">${escapeHtml(c.mainCaption)} · ${escapeHtml(c.fullSizeLabel)}</span></div></div></section>
+<section class="section screenshot-section" id="preview"><div class="container"><div class="section-intro"><p class="section-kicker">01 / OpenCam</p><h2>${escapeHtml(c.screenshotTitle)}</h2><p>${escapeHtml(c.screenshotText)}</p></div><div class="screenshot-grid"><figure class="screenshot-card"><a class="screenshot-link" href="${mainImage}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(c.fullSizeLabel)}"><img src="${mainImage}" alt="${escapeHtml(c.mainAlt)}" loading="lazy" width="840" height="740"></a><figcaption>${escapeHtml(c.mainCaption)} · <a href="${mainImage}" target="_blank" rel="noopener noreferrer">${escapeHtml(c.fullSizeLabel)}</a></figcaption></figure><figure class="screenshot-card settings-card"><a class="screenshot-link" href="${settingsImage}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(c.fullSizeLabel)}"><img src="${settingsImage}" alt="${escapeHtml(c.settingsAlt)}" loading="lazy" width="650" height="820"></a><figcaption>${escapeHtml(c.settingsCaption)} · <a href="${settingsImage}" target="_blank" rel="noopener noreferrer">${escapeHtml(c.fullSizeLabel)}</a></figcaption></figure></div><p class="preview-note">${escapeHtml(c.previewNote)}</p></div></section>
 <section class="section features-section" id="features"><div class="container"><div class="section-intro"><p class="section-kicker">02 / Features</p><h2>${escapeHtml(c.featuresTitle)}</h2></div><ul class="feature-grid">${featureCards}</ul></div></section>
 <section class="section process-section"><div class="container process-grid"><div><p class="section-kicker">03 / ${escapeHtml(c.processEyebrow)}</p><h2>${escapeHtml(c.processTitle)}</h2><p class="process-text">${escapeHtml(c.processText)}</p><a class="text-link" href="${guide}">${escapeHtml(c.guideLabel)} →</a></div><ol class="process-steps">${c.processSteps.map((step, index) => `<li><span>0${index + 1}</span><strong>${escapeHtml(step)}</strong></li>`).join('')}</ol></div></section>
 <section class="section platform-section"><div class="container"><div class="section-intro"><p class="section-kicker">04 / Platforms</p><h2>${escapeHtml(c.platformsTitle)}</h2></div><div class="platform-grid"><div class="platform-card"><span class="platform-symbol" aria-hidden="true">▦</span><h3>${escapeHtml(c.windowsTitle)}</h3><p>${escapeHtml(c.windowsText)}</p></div><div class="platform-card"><span class="platform-symbol" aria-hidden="true">⌘</span><h3>${escapeHtml(c.macTitle)}</h3><p>${escapeHtml(c.macText)}</p></div></div></div></section>

@@ -16,11 +16,11 @@ OpenCam 是一款以可靠性為優先的跨平台桌面螢幕錄影工具。錄
 
 目前版本為 **0.2.1**，採用 **AGPL-3.0-or-later**。Windows 與 Apple Silicon macOS 安裝包請至 [v0.2.1 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.2.1) 下載；先前版本仍依當時的授權條款提供。
 
-v0.2.1 更新了 Windows、macOS 與網站共用的扁平式圖示，並在網站導覽列加入 GitHub 專案連結。下方截圖仍是 v0.2.0 時擷取的介面畫面，並非 v0.2.1 安裝檔截圖。
+v0.2.1 更新了 Windows、macOS 與網站共用的扁平式圖示，並在網站導覽列加入 GitHub 專案連結。下方主畫面顯示錄影中的收音狀態與獨立波形；偏好設定仍保留 v0.2.0 的實際畫面。
 
-以下為 **0.2.0** 在 macOS 上的實際畫面。點選圖片可檢視原尺寸，避免縮小後看不清選項文字。
+主畫面由 **0.2.1** 正式 UI 離線渲染，波形使用收音狀態展示資料；點選圖片可檢視原尺寸，避免縮小後看不清選項文字。
 
-[![OpenCam 0.2.0 macOS 主畫面](docs/images/preview_main_zhtw.png)](docs/images/preview_main_zhtw.png)
+[![OpenCam 0.2.1 macOS 錄影中與收音波形](docs/images/preview_main_zhtw.png)](docs/images/preview_main_zhtw.png)
 [![OpenCam 0.2.0 macOS 偏好設定](docs/images/preview_settings_zhtw.png)](docs/images/preview_settings_zhtw.png)
 
 ## v0.2.0 重點更新
@@ -123,11 +123,11 @@ OpenCam is built with .NET 8, Avalonia UI, and FFmpeg, and supports Windows and 
 
 The current version is **0.2.1**, licensed under **AGPL-3.0-or-later**. Download the Windows and Apple Silicon macOS packages from the [v0.2.1 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.2.1). Earlier releases retain their original license terms.
 
-v0.2.1 updates the shared flat icon on Windows, macOS, and the website, and adds a GitHub project link to the site navigation. The screenshots below were captured from v0.2.0, not the v0.2.1 installer.
+v0.2.1 updates the shared flat icon on Windows, macOS, and the website, and adds a GitHub project link to the site navigation. The main screenshot now shows recording-time audio status and separate waveforms; the preferences image remains an actual v0.2.0 capture.
 
-These are actual screenshots of **0.2.0** on macOS. Select an image to view it at full size so the interface text stays legible.
+The main screen is rendered from the **0.2.1** production UI with illustrative audio-level data. Select an image to view it at full size so the interface text stays legible.
 
-[![OpenCam 0.2.0 macOS main window](docs/images/preview_main_enus.png)](docs/images/preview_main_enus.png)
+[![OpenCam 0.2.1 macOS recording screen with audio waveforms](docs/images/preview_main_enus.png)](docs/images/preview_main_enus.png)
 [![OpenCam 0.2.0 macOS preferences](docs/images/preview_settings_enus.png)](docs/images/preview_settings_enus.png)
 
 ## What's New in v0.2.0

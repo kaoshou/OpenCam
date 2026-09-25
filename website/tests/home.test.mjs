@@ -42,6 +42,22 @@ test('each homepage offers full-size current macOS screenshots', async () => {
   } finally { await rm(out, { recursive: true, force: true }); }
 });
 
+test('localized main screenshots show the v0.2.1 recording audio waveforms', async () => {
+  const out = await mkdtemp(join(tmpdir(), 'opencam-recording-preview-'));
+  try {
+    await buildSite({ repositoryRoot: resolve(import.meta.dirname, '../..'), outputRoot: out });
+    const expectations = [
+      ['zh-TW', '錄影中', '收音波形'],
+      ['en-US', 'Recording', 'audio waveforms']
+    ];
+    for (const [lang, stateText, waveformText] of expectations) {
+      const html = await readFile(join(out, lang, 'index.html'), 'utf8');
+      assert.match(html, new RegExp(`alt="[^"]*OpenCam 0\\.2\\.1[^"]*${stateText}[^"]*${waveformText}[^"]*"`));
+      assert.match(html, /<img[^>]+preview_main_(?:zhtw|enus)\.png[^>]+width="840" height="740"/);
+    }
+  } finally { await rm(out, { recursive: true, force: true }); }
+});
+
 test('Chinese hero keeps each slogan phrase together', async () => {
   const out = await mkdtemp(join(tmpdir(), 'opencam-slogan-'));
   try {
