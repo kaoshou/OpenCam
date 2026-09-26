@@ -348,10 +348,14 @@ public class FoolproofUiLogicTests
                 failedCount).ToString());
     }
 
-    // [Fact]
+    [Fact]
     public void CustomRegion_CanConfigureOnlyWhenSelectedAndNotRecording()
     {
-        var vm = new MainViewModel();
+        var vm = new MainViewModel(forScreenshot: true);
+
+        // Start from an explicit unselected state. The documented profile
+        // intentionally defaults to the primary monitor.
+        vm.IsMonitorSelected = false;
 
         // 預設為全螢幕，調整選區按鈕應禁用 (防呆)
 
@@ -368,10 +372,12 @@ public class FoolproofUiLogicTests
         Assert.False(vm.CanConfigureCustomRegion, "錄影進行中應全面鎖定選區調整按鈕");
     }
 
-    // [Fact]
+    [Fact]
     public void MonitorSelection_CanSelectOnlyWhenOptionCheckedAndNotRecording()
     {
-        var vm = new MainViewModel();
+        var vm = new MainViewModel(forScreenshot: true);
+
+        vm.IsMonitorSelected = false;
 
         // 預設為全螢幕，指定螢幕選單應禁用
         Assert.False(vm.IsMonitorSelected);
@@ -387,10 +393,10 @@ public class FoolproofUiLogicTests
         Assert.False(vm.CanSelectMonitor);
     }
 
-    // [Fact]
+    [Fact]
     public void MicrophoneSelection_CanSelectOnlyWhenEnabledAndNotRecording()
     {
-        var vm = new MainViewModel();
+        var vm = new MainViewModel(forScreenshot: true);
 
         // 預設不錄麥克風
         vm.RecordMicrophone = false;
@@ -405,10 +411,10 @@ public class FoolproofUiLogicTests
         Assert.False(vm.CanSelectMicrophone);
     }
 
-    // [Fact]
+    [Fact]
     public void UpdateCustomRegion_ShouldSanitizeDimensionsToEvenAndAutoSelectRegion()
     {
-        var vm = new MainViewModel();
+        var vm = new MainViewModel(forScreenshot: true);
 
 
         // 傳入奇數解析度 (如 1279 x 719)
@@ -423,10 +429,10 @@ public class FoolproofUiLogicTests
 
     }
 
-    // [Fact]
+    [Fact]
     public void CursorEffect_ShouldInitializeWithAllOptionsAndLocalize()
     {
-        var vm = new MainViewModel();
+        var vm = new MainViewModel(forScreenshot: true);
 
         // 驗收：4 種模式皆存在且預設為 Default
         Assert.Equal(4, vm.AvailableCursorEffects.Count);
@@ -444,22 +450,21 @@ public class FoolproofUiLogicTests
         Assert.Equal("隱藏滑鼠游標 (不錄游標)", zhHidden.DisplayName);
     }
 
-    // [Fact]
+    [Fact]
     public async Task QueryTelemetry_OnConsecutiveFailures_ShouldStopAndPromptRecovery()
     {
-        var vm = new MainViewModel();
+        var vm = new MainViewModel(forScreenshot: true);
         vm.IsRecording = true;
 
-        // 模擬連續 3 次 IPC 輪詢逾時/失敗 (核心進程無回應或已 Crash)
-        await vm.QueryTelemetryAsync();
-        Assert.True(vm.IsRecording, "第 1 次失敗不得貿然判斷中斷");
+        // 連續失敗門檻以次數為準；IPC timeout 與排程可能使實際時間不同。
+        for (var attempt = 1; attempt < 6; attempt++)
+        {
+            await vm.QueryTelemetryAsync();
+            Assert.True(vm.IsRecording, $"第 {attempt} 次失敗不得貿然判斷中斷");
+        }
 
         await vm.QueryTelemetryAsync();
-        Assert.True(vm.IsRecording, "第 2 次失敗不得貿然判斷中斷");
-
-        await vm.QueryTelemetryAsync();
-        // 驗收：第 3 次失敗觸發看門狗防護，狀態切為非錄影中，且發出修復救援警告提示！
-        Assert.False(vm.IsRecording, "連續 3 次連線失敗時應自動安全收斂停止狀態");
+        Assert.False(vm.IsRecording, "連續 6 次連線失敗時應自動安全收斂停止狀態");
         Assert.Contains("核心無預警中斷", vm.StatusMessage);
     }
 }

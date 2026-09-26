@@ -1772,7 +1772,8 @@ public partial class MainViewModel : ObservableObject
             _telemetryFailures++;
         }
 
-        // 當連續 6 次 (3 秒) 逾時或中斷，判定錄影核心異常中止
+        // 當連續 6 次輪詢逾時或中斷，判定錄影核心異常中止。
+        // 實際經過時間會受 IPC timeout 與排程影響，不宣稱固定秒數。
         if (_telemetryFailures >= 6)
         {
             if (_startupStatusUnconfirmed && _recorderProcess?.HasExited == false)
