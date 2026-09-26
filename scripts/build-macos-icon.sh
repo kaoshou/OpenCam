@@ -10,10 +10,16 @@ set -euo pipefail
 
 source_png="$1"
 output_icns="$2"
+script_dir="$(cd "$(dirname "$0")" && pwd)"
 temp_root="$(mktemp -d)"
 trap 'rm -rf "$temp_root"' EXIT
 iconset="$temp_root/OpenCam.iconset"
-mkdir "$iconset"
+
+xcrun swiftc \
+  "$script_dir/build-macos-icon.swift" \
+  -framework AppKit \
+  -o "$temp_root/build-macos-icon"
+"$temp_root/build-macos-icon" "$source_png" "$iconset"
 
 for entry in \
   icon_16x16.png:16 \
@@ -28,7 +34,14 @@ for entry in \
   icon_512x512@2x.png:1024; do
   name="${entry%%:*}"
   size="${entry##*:}"
-  sips -z "$size" "$size" "$source_png" --out "$iconset/$name" >/dev/null
+  width="$(sips -g pixelWidth "$iconset/$name" | awk '/pixelWidth:/ { print $2 }')"
+  height="$(sips -g pixelHeight "$iconset/$name" | awk '/pixelHeight:/ { print $2 }')"
+  [[ "$width" == "$size" && "$height" == "$size" ]] || {
+    printf 'invalid generated icon size for %s: %sx%s (expected %sx%s)\n' \
+      "$name" "$width" "$height" "$size" "$size" >&2
+    exit 1
+  }
 done
 
+mkdir -p "$(dirname "$output_icns")"
 iconutil -c icns "$iconset" -o "$output_icns"

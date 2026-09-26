@@ -29,14 +29,43 @@ test('shared app icon is sharp and consistent across macOS, website, and Windows
 test('macOS icon builder packages the high-resolution PNG as ICNS', {
   skip: process.platform !== 'darwin',
 }, async () => {
+  assert.equal(process.platform, 'darwin');
   const directory = await mkdtemp(join(tmpdir(), 'opencam-icon-test-'));
   try {
     const output = join(directory, 'OpenCam.icns');
+    const extracted = join(directory, 'Extracted.iconset');
     const script = fileURLToPath(new URL('../../scripts/build-macos-icon.sh', import.meta.url));
     const source = fileURLToPath(new URL('../../src/ScreenRecorder.UI/Assets/app_icon.png', import.meta.url));
     const result = spawnSync('bash', [script, source, output], { encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
     assert.equal((await readFile(output)).subarray(0, 4).toString('ascii'), 'icns');
+
+    const extraction = spawnSync('iconutil', ['-c', 'iconset', output, '-o', extracted], {
+      encoding: 'utf8',
+    });
+    assert.equal(extraction.status, 0, extraction.stderr);
+
+    const expected = new Map([
+      ['icon_16x16.png', 16],
+      ['icon_16x16@2x.png', 32],
+      ['icon_32x32.png', 32],
+      ['icon_32x32@2x.png', 64],
+      ['icon_128x128.png', 128],
+      ['icon_128x128@2x.png', 256],
+      ['icon_256x256.png', 256],
+      ['icon_256x256@2x.png', 512],
+      ['icon_512x512.png', 512],
+      ['icon_512x512@2x.png', 1024],
+    ]);
+    for (const [name, size] of expected) {
+      const image = join(extracted, name);
+      const dimensions = spawnSync('sips', ['-g', 'pixelWidth', '-g', 'pixelHeight', image], {
+        encoding: 'utf8',
+      });
+      assert.equal(dimensions.status, 0, `${name}: ${dimensions.stderr}`);
+      assert.match(dimensions.stdout, new RegExp(`pixelWidth: ${size}\\b`));
+      assert.match(dimensions.stdout, new RegExp(`pixelHeight: ${size}\\b`));
+    }
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
