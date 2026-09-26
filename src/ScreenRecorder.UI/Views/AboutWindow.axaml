@@ -21,7 +21,7 @@
 
                 <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
                     <TextBlock Text="{Binding Strings[AppName]}" FontSize="19" FontWeight="Bold" Foreground="#0F172A" />
-                    <TextBlock Text="{Binding Strings[VersionLabel]}" FontSize="12" Foreground="#64748B" FontWeight="Medium" />
+                    <TextBlock Text="{Binding VersionLabelText}" FontSize="12" Foreground="#64748B" FontWeight="Medium" />
                     
                     <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
                         <TextBlock Text="{Binding Strings[AuthorLabel]}" FontSize="12.5" FontWeight="SemiBold" Foreground="#334155" />

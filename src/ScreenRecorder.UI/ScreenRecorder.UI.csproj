@@ -26,7 +26,6 @@
     <Nullable>enable</Nullable>
     <ApplicationIcon>Assets\app_icon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.2.1</Version>
   </PropertyGroup>
 
   <ItemGroup>

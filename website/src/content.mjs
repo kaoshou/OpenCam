@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { readFileSync } from 'node:fs';
 import { assetPath, routeFor } from './paths.mjs';
 import { escapeHtml } from './layout.mjs';
+
+const versionText = readFileSync(new URL('../../VERSION', import.meta.url), 'utf8');
+if (!/^[0-9]+\.[0-9]+\.[0-9]+\n$/.test(versionText)) {
+  throw new Error('VERSION must contain numeric SemVer and exactly one final LF');
+}
+export const productVersion = versionText.slice(0, -1);
+const displayVersion = `v${productVersion}`;
 
 export const content = {
   'zh-TW': {
@@ -9,12 +17,12 @@ export const content = {
     heroText: '選擇整個螢幕或指定範圍，一鍵開始錄影。OpenCam 先保存 MKV 工作檔，完成後再封裝成 MP4。',
     downloadLabel: '下載 OpenCam', guideLabel: '閱讀使用說明',
     openSource: '開放原始碼 · 免費使用',
-    licenseReleaseNote: '下載 v0.2.1（AGPL-3.0-or-later）；Windows 與 Apple Silicon Mac 安裝包由 GitHub Actions 建置。',
+    licenseReleaseNote: `下載 ${displayVersion}（AGPL-3.0-or-later）；Windows 與 Apple Silicon Mac 安裝包由 GitHub Actions 建置。`,
     screenshotTitle: '每一步，都清楚直覺。',
     screenshotText: '最新版 macOS 介面：錄影中可分別確認系統聲音與麥克風的收音波形。點開圖片可檢視原尺寸文字。',
-    mainAlt: 'OpenCam 0.2.1 macOS 繁體中文錄影中主畫面，右側顯示系統聲音與麥克風收音波形',
+    mainAlt: `OpenCam ${productVersion} macOS 繁體中文錄影中主畫面，右側顯示系統聲音與麥克風收音波形`,
     settingsAlt: 'OpenCam 0.2.0 macOS 繁體中文偏好設定視窗',
-    mainCaption: '錄影中與收音波形 · macOS 0.2.1', settingsCaption: '偏好設定 · macOS 0.2.0',
+    mainCaption: `錄影中與收音波形 · macOS ${productVersion}`, settingsCaption: '偏好設定 · macOS 0.2.0',
     fullSizeLabel: '開啟原尺寸圖片',
     featuresTitle: '簡單上手，細節也到位。',
     features: [
@@ -31,7 +39,7 @@ export const content = {
     platformsTitle: '選擇你的平台', windowsTitle: 'Windows', windowsText: 'Windows 10／11 · x64',
     macTitle: 'macOS', macText: 'macOS 13 以上 · Apple Silicon（arm64）',
     guideTitle: '第一次使用？從這裡開始。', guideText: '完整說明錄影模式、各項參數、檔案位置與修復救援。',
-    previewNote: '主畫面由 v0.2.1 正式 UI 離線渲染，波形為收音狀態展示資料；偏好設定為 v0.2.0 實際畫面。Windows 介面與裝置選項可能不同。'
+    previewNote: `主畫面由 ${displayVersion} 正式 UI 離線渲染，波形為收音狀態展示資料；偏好設定為 v0.2.0 實際畫面。Windows 介面與裝置選項可能不同。`
   },
   'en-US': {
     eyebrow: 'Simple screen recording for Windows and macOS',
@@ -39,12 +47,12 @@ export const content = {
     heroText: 'Choose a display or a precise region, then start recording. OpenCam saves an MKV working file first and packages it as MP4 when you finish.',
     downloadLabel: 'Download OpenCam', guideLabel: 'Read the user guide',
     openSource: 'Open source · Free to use',
-    licenseReleaseNote: 'Download v0.2.1 (AGPL-3.0-or-later). Windows and Apple Silicon Mac packages are built by GitHub Actions.',
+    licenseReleaseNote: `Download ${displayVersion} (AGPL-3.0-or-later). Windows and Apple Silicon Mac packages are built by GitHub Actions.`,
     screenshotTitle: 'Clear from the first click.',
     screenshotText: 'The current macOS interface shows separate system-audio and microphone waveforms while recording. Open an image at full size to read its labels.',
-    mainAlt: 'OpenCam 0.2.1 macOS English Recording screen with live system-audio and microphone audio waveforms',
+    mainAlt: `OpenCam ${productVersion} macOS English Recording screen with live system-audio and microphone audio waveforms`,
     settingsAlt: 'OpenCam 0.2.0 macOS English preferences window',
-    mainCaption: 'Recording with audio waveforms · macOS 0.2.1', settingsCaption: 'Preferences · macOS 0.2.0',
+    mainCaption: `Recording with audio waveforms · macOS ${productVersion}`, settingsCaption: 'Preferences · macOS 0.2.0',
     fullSizeLabel: 'Open full-size image',
     featuresTitle: 'Easy to start. Ready for the details.',
     features: [
@@ -61,7 +69,7 @@ export const content = {
     platformsTitle: 'Choose your platform', windowsTitle: 'Windows', windowsText: 'Windows 10/11 · x64',
     macTitle: 'macOS', macText: 'macOS 13 or later · Apple Silicon (arm64)',
     guideTitle: 'New to OpenCam? Start here.', guideText: 'A complete guide to capture modes, settings, file locations, and Crash Recovery.',
-    previewNote: 'The main screen is rendered from the v0.2.1 production UI with illustrative audio-level data; the preferences image is an actual v0.2.0 capture. The Windows interface and device options may differ.'
+    previewNote: `The main screen is rendered from the ${displayVersion} production UI with illustrative audio-level data; the preferences image is an actual v0.2.0 capture. The Windows interface and device options may differ.`
   }
 };
 

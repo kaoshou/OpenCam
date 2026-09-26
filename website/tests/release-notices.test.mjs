@@ -5,6 +5,11 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { verifyReleaseNotices } from '../../scripts/check-release-notices.mjs';
+import {
+  checkVersionConsistency,
+  validateVersionText,
+} from '../../scripts/check-version-consistency.mjs';
+import { productVersion, renderHome } from '../src/content.mjs';
 
 const repositoryRoot = resolve(import.meta.dirname, '../..');
 const revision = '0123456789abcdef0123456789abcdef01234567';
@@ -52,4 +57,17 @@ test('Windows installer uses an exact plaintext copy of the project license', as
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+test('canonical version is strict and drives packaging plus localized website content', async () => {
+  const raw = await readFile(join(repositoryRoot, 'VERSION'), 'utf8');
+  assert.equal(validateVersionText(raw), '0.2.1');
+  for (const invalid of ['0.2.1 \n', '0.2.1\n\n', '0.2.x\n', '0.2.1']) {
+    assert.throws(() => validateVersionText(invalid), /VERSION/);
+  }
+
+  assert.equal(productVersion, '0.2.1');
+  assert.match(renderHome('zh-TW'), /v0\.2\.1/);
+  assert.match(renderHome('en-US'), /v0\.2\.1/);
+  await checkVersionConsistency(repositoryRoot);
 });

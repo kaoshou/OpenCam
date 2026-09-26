@@ -6,6 +6,13 @@ repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 publish_input="${1:-}"
 app_input="${2:-}"
 configuration="${3:-Release}"
+version_text="$(cat "$repo_root/VERSION"; printf x)"
+version_text="${version_text%x}"
+[[ "$version_text" =~ ^[0-9]+\.[0-9]+\.[0-9]+$'\n'$ ]] || {
+  printf 'macOS packaging failed: VERSION must contain numeric SemVer and exactly one LF\n' >&2
+  exit 1
+}
+product_version="${version_text%$'\n'}"
 
 fail() {
   printf 'macOS packaging failed: %s\n' "$1" >&2
@@ -58,8 +65,8 @@ source_revision="${GITHUB_SHA:-}"
 if [[ ! "$source_revision" =~ ^[0-9a-fA-F]{40}$ ]]; then
   source_revision="$(git -C "$repo_root" rev-parse HEAD)"
 fi
-printf 'OpenCam 0.2.1\nSPDX-License-Identifier: AGPL-3.0-or-later\nCorresponding source: https://github.com/kaoshou/OpenCam/tree/%s\n' \
-  "$source_revision" > "$app_path/Contents/Resources/SOURCE.txt"
+printf 'OpenCam %s\nSPDX-License-Identifier: AGPL-3.0-or-later\nCorresponding source: https://github.com/kaoshou/OpenCam/tree/%s\n' \
+  "$product_version" "$source_revision" > "$app_path/Contents/Resources/SOURCE.txt"
 
 helper="$app_path/Contents/MacOS/OpenCam.SystemAudio"
 xcrun swiftc "$source_file" \
@@ -100,8 +107,8 @@ plist_buddy=/usr/libexec/PlistBuddy
 "$plist_buddy" -c 'Add :CFBundleIdentifier string com.kaoshou.opencam' "$plist"
 "$plist_buddy" -c 'Add :CFBundleName string OpenCam' "$plist"
 "$plist_buddy" -c 'Add :CFBundleDisplayName string OpenCam' "$plist"
-"$plist_buddy" -c 'Add :CFBundleVersion string 0.2.1' "$plist"
-"$plist_buddy" -c 'Add :CFBundleShortVersionString string 0.2.1' "$plist"
+"$plist_buddy" -c "Add :CFBundleVersion string $product_version" "$plist"
+"$plist_buddy" -c "Add :CFBundleShortVersionString string $product_version" "$plist"
 "$plist_buddy" -c 'Add :CFBundlePackageType string APPL' "$plist"
 "$plist_buddy" -c 'Add :CFBundleIconFile string OpenCam.icns' "$plist"
 "$plist_buddy" -c 'Add :CFBundleSupportedPlatforms array' "$plist"

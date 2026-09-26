@@ -1,7 +1,9 @@
 ﻿; SPDX-License-Identifier: AGPL-3.0-or-later
 #define MyAppName "OpenCam 螢幕錄影工具"
 #define MyAppShortcutName "OpenCam"
-#define MyAppVersion "0.2.1"
+#ifndef MyAppVersion
+  #error MyAppVersion must be provided with /DMyAppVersion=<version>
+#endif
 #define MyAppPublisher "Yu-Han Cheng"
 #define MyAppURL "https://github.com/kaoshou/OpenCam"
 #define MyAppExeName "OpenCam.exe"

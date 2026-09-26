@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <OpenCamVersion>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)VERSION').Trim())</OpenCamVersion>
+    <Version>$(OpenCamVersion)</Version>
+    <AssemblyVersion>$(OpenCamVersion).0</AssemblyVersion>
+    <FileVersion>$(OpenCamVersion).0</FileVersion>
+    <InformationalVersion>$(OpenCamVersion)</InformationalVersion>
+  </PropertyGroup>
+</Project>

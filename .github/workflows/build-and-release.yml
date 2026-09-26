@@ -101,6 +101,12 @@ jobs:
       with:
         node-version: '22'
 
+    - name: Load canonical product version
+      run: |
+        node scripts/check-version-consistency.mjs
+        $version = (Get-Content VERSION -Raw).Trim()
+        "OPENCAM_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
     - name: Restore Dependencies
       run: dotnet restore src/ScreenRecorder.UI/ScreenRecorder.UI.csproj
 
@@ -130,11 +136,11 @@ jobs:
         Copy-Item LICENSE installer/publish/LICENSE.txt
         Copy-Item NOTICE.md installer/publish/NOTICE.md
         @"
-        OpenCam 0.2.1
+        OpenCam $env:OPENCAM_VERSION
         SPDX-License-Identifier: AGPL-3.0-or-later
         Corresponding source: https://github.com/kaoshou/OpenCam/tree/$env:GITHUB_SHA
         "@ | Set-Content installer/publish/SOURCE.txt -Encoding utf8
-        node scripts/check-release-notices.mjs installer/publish $env:GITHUB_SHA 0.2.1 --installer
+        node scripts/check-release-notices.mjs installer/publish $env:GITHUB_SHA $env:OPENCAM_VERSION --installer
         
     - name: Create Windows Portable ZIP
       run: |
@@ -142,7 +148,7 @@ jobs:
 
     - name: Compile Inno Setup Installer
       run: |
-        & "C:\Program Files (x86)\Inno Setup 6\iscc.exe" installer\OpenCam.iss
+        & "C:\Program Files (x86)\Inno Setup 6\iscc.exe" "/DMyAppVersion=$env:OPENCAM_VERSION" installer\OpenCam.iss
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
@@ -169,6 +175,11 @@ jobs:
       with:
         node-version: '22'
 
+    - name: Load canonical product version
+      run: |
+        node scripts/check-version-consistency.mjs
+        printf 'OPENCAM_VERSION=%s\n' "$(tr -d '\n' < VERSION)" >> "$GITHUB_ENV"
+
     - name: Build and Publish macOS
       run: |
         dotnet publish src/ScreenRecorder.UI/ScreenRecorder.UI.csproj -c Release -r osx-arm64 --self-contained true -p:PublishSingleFile=false -o publish/osx-arm64
@@ -182,7 +193,7 @@ jobs:
       run: |
         chmod +x scripts/package-macos.sh scripts/verify-macos-bundle.sh
         scripts/package-macos.sh publish/osx-arm64 OpenCam.app Release
-        node scripts/check-release-notices.mjs OpenCam.app/Contents/Resources "$GITHUB_SHA" 0.2.1
+        node scripts/check-release-notices.mjs OpenCam.app/Contents/Resources "$GITHUB_SHA" "$OPENCAM_VERSION"
 
     - name: Create DMG
       run: |

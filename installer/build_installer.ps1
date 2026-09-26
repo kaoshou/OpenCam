@@ -4,6 +4,11 @@ $ErrorActionPreference = "Stop"
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $InstallerDir = Join-Path $ProjectRoot "installer"
 $PublishDir = Join-Path $InstallerDir "publish"
+$VersionText = [System.IO.File]::ReadAllText((Join-Path $ProjectRoot "VERSION"))
+if ($VersionText -notmatch '^[0-9]+\.[0-9]+\.[0-9]+\n$') {
+    throw "VERSION 必須是純數字 SemVer，且只能有一個 LF 結尾"
+}
+$Version = $VersionText.Substring(0, $VersionText.Length - 1)
 
 # SOURCE.txt must not identify HEAD when the packaged inputs differ from HEAD.
 $TrackedChanges = @(git -C $ProjectRoot status --porcelain --untracked-files=no)
@@ -13,7 +18,7 @@ if ($LASTEXITCODE -ne 0 -or $TrackedChanges.Count -gt 0 -or $UntrackedBuildInput
 }
 
 Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host " OpenCam v0.2.1 獨立發布打包腳本" -ForegroundColor Cyan
+Write-Host " OpenCam v$Version 獨立發布打包腳本" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 
 # 1. 清理舊的發布檔案
@@ -45,7 +50,7 @@ if ($LASTEXITCODE -ne 0 -or $Revision -notmatch '^[0-9a-fA-F]{40}$') {
     throw "無法確認對應的 Git 原始碼版本"
 }
 @"
-OpenCam 0.2.1
+OpenCam $Version
 SPDX-License-Identifier: AGPL-3.0-or-later
 Corresponding source: https://github.com/kaoshou/OpenCam/tree/$Revision
 "@ | Set-Content (Join-Path $PublishDir "SOURCE.txt") -Encoding utf8
@@ -56,7 +61,6 @@ Write-Host "`n==========================================" -ForegroundColor Cyan
 Write-Host "接下來，請依照以下步驟產出安裝精靈 (Setup.exe)："
 Write-Host "1. 請確保您已下載並安裝 [Inno Setup 6] (https://jrsoftware.org/isdl.php)"
 Write-Host "2. 進入 $InstallerDir 目錄"
-Write-Host "3. 點擊兩下開啟 OpenCam.iss"
-Write-Host "4. 在 Inno Setup 中點擊上方的 [Build] -> [Compile] (或按 Ctrl+F9)"
-Write-Host "5. 完成後，安裝檔將會產生在 $InstallerDir\Output\OpenCam_v0.2.1_Setup.exe"
+Write-Host "3. 執行 iscc.exe /DMyAppVersion=$Version OpenCam.iss"
+Write-Host "4. 完成後，安裝檔將會產生在 $InstallerDir\Output\OpenCam_v${Version}_Setup.exe"
 Write-Host "==========================================" -ForegroundColor Cyan

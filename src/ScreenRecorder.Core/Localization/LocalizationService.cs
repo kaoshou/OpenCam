@@ -169,12 +169,12 @@ public class LocalizationService : ILocalizationService
         ["ForceQuitConfirmDetail"] = "只有在安全停止失敗、錄影狀態無法確認時才使用。此動作無法復原。",
         ["ForceQuitCancel"] = "取消，保持開啟",
         ["ForceQuitConfirmAction"] = "確認強制結束",
-        ["VersionAndAbout"] = "OpenCam v0.2.1 · 關於",
+        ["VersionAndAbout"] = "OpenCam {0} · 關於",
 
         // 關於視窗
         ["AboutTitle"] = "關於 OpenCam",
         ["AppName"] = "OpenCam",
-        ["VersionLabel"] = "版本: v0.2.1",
+        ["VersionLabel"] = "版本: {0}",
         ["AuthorLabel"] = "作者:",
         ["AuthorName"] = "鄭郁翰 (Yu-Han Cheng)",
         ["GithubLabel"] = "GitHub 專案首頁",
@@ -398,12 +398,12 @@ public class LocalizationService : ILocalizationService
         ["ForceQuitConfirmDetail"] = "Use only when safe stop failed and recording status cannot be confirmed. This cannot be undone.",
         ["ForceQuitCancel"] = "Cancel and Keep Open",
         ["ForceQuitConfirmAction"] = "Confirm Force Quit",
-        ["VersionAndAbout"] = "OpenCam v0.2.1 · About",
+        ["VersionAndAbout"] = "OpenCam {0} · About",
 
         // 關於視窗
         ["AboutTitle"] = "About OpenCam",
         ["AppName"] = "OpenCam",
-        ["VersionLabel"] = "Version: v0.2.1",
+        ["VersionLabel"] = "Version: {0}",
         ["AuthorLabel"] = "Author:",
         ["AuthorName"] = "Yu-Han Cheng (鄭郁翰)",
         ["GithubLabel"] = "GitHub Project",

@@ -27,6 +27,7 @@ using ScreenRecorder.UI.Localization;
 using ScreenRecorder.UI.Services;
 using ScreenRecorder.UI.Views;
 using Serilog;
+using ScreenRecorder.Core;
 
 namespace ScreenRecorder.UI.ViewModels;
 
@@ -227,6 +228,9 @@ public partial class MainViewModel : ObservableObject
         SupportsSystemAudio && CanEditPausedSettings;
     public string SystemAudioLabel => Strings[
         SupportsSystemAudio ? "AudioSystem" : "AudioSystemUnsupportedMac"];
+    public string DisplayVersion => ProductInfo.DisplayVersion;
+    public string VersionLabelText => Strings.GetFormatted("VersionLabel", DisplayVersion);
+    public string VersionAndAboutText => Strings.GetFormatted("VersionAndAbout", DisplayVersion);
 
     internal static bool SupportsSystemAudioOnPlatform(
         bool isWindows,
@@ -706,6 +710,8 @@ public partial class MainViewModel : ObservableObject
             OnPropertyChanged(nameof(SystemAudioLabel));
             OnPropertyChanged(nameof(SystemAudioMeterStateText));
             OnPropertyChanged(nameof(MicrophoneMeterStateText));
+            OnPropertyChanged(nameof(VersionLabelText));
+            OnPropertyChanged(nameof(VersionAndAboutText));
             LoadMonitors();
             RefreshEncoderDisplayNames();
             RefreshCursorEffectDisplayNames();
