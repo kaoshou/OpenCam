@@ -67,12 +67,8 @@ public sealed class RecorderHealthTracker
             return;
         }
 
-        var progressed = observation.Frames > _lastFrames ||
-                         observation.RecordedTime > _lastRecordedTime ||
-                         observation.FileSizeBytes > _lastPositiveFileSize;
         var hasValidProgress = observation.Frames > 0 ||
-                               observation.RecordedTime > TimeSpan.Zero ||
-                               observation.FileSizeBytes > 0;
+                               observation.RecordedTime > TimeSpan.Zero;
 
         if (hasValidProgress)
         {
@@ -85,8 +81,8 @@ public sealed class RecorderHealthTracker
         }
 
         if (observation.FileSizeBytes > 0 &&
-            observation.FileSizeBytes == _lastPositiveFileSize &&
-            !progressed)
+            _lastPositiveFileSize > 0 &&
+            observation.FileSizeBytes == _lastPositiveFileSize)
         {
             _unchangedFileSizeObservations++;
         }

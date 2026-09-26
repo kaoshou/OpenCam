@@ -28,12 +28,16 @@ test('project documentation reports only current, evidence-backed behavior', asy
 
   assert.match(documents['ARCHITECTURE.md'], /UI.*(?:意外|異常).*(?:安全停止|safe stop)/is);
   assert.doesNotMatch(documents['ARCHITECTURE.md'], /Recorder continues recording after the UI disappears|UI 意外消失[^\n]*持續錄製/i);
+  assert.match(documents['ARCHITECTURE.md'], /畫面擷取[^\n]*AVFoundation[^\n]*FFmpeg/i);
   assert.match(documents['MANUAL_TEST_CHECKLIST.md'], /實體硬體.*人工驗證|人工驗證.*實體硬體/s);
   assert.match(documents['MANUAL_TEST_CHECKLIST.md'], /OpenCam 版本[\s\S]*Commit[\s\S]*OS[^\n]*Build[\s\S]*PASS[\s\S]*FAIL[\s\S]*BLOCKED[\s\S]*(?:產出物|Artifact)[\s\S]*Log/i);
   assert.match(documents['README.md'], new RegExp(`目前版本為 \\*\\*${version.replaceAll('.', '\\.')}`));
   assert.match(documents['README.md'], new RegExp(`current version is \\*\\*${version.replaceAll('.', '\\.')}`, 'i'));
   assert.match(documents['docs/USER_GUIDE.zh-TW.md'], new RegExp(`本說明適用於 OpenCam v${version.replaceAll('.', '\\.')}`));
   assert.match(documents['docs/USER_GUIDE.en-US.md'], new RegExp(`guide covers OpenCam v${version.replaceAll('.', '\\.')}`, 'i'));
+  assert.match(documents['ACCEPTANCE_REPORT.md'], /tests\/native\/OpenCamSystemAudioTests\.sh/);
+  assert.match(documents['ACCEPTANCE_REPORT.md'], /scripts\/build-macos-icon\.sh/);
+  assert.doesNotMatch(documents['ACCEPTANCE_REPORT.md'], /scripts\/test-macos-(?:native-audio-helper|icon-build)\.sh|--locked-mode/);
 
   for (const stale of ['45 項全數 PASS', '0 warnings', '0 警告']) {
     assert.ok(!allDocumentation.includes(stale), `stale claim remains: ${stale}`);

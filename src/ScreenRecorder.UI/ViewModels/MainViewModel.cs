@@ -639,6 +639,31 @@ public partial class MainViewModel : ObservableObject
         return currentStatus;
     }
 
+    internal static string ResolveTerminalTelemetryStatus(
+        RecorderTelemetry telemetry,
+        string currentStatus)
+    {
+        if (telemetry.State is not (RecordingState.Failed or RecordingState.Interrupted))
+        {
+            return currentStatus;
+        }
+
+        var reason = !string.IsNullOrWhiteSpace(telemetry.HealthWarning)
+            ? telemetry.HealthWarning
+            : telemetry.LastError;
+        return string.IsNullOrWhiteSpace(reason)
+            ? currentStatus
+            : LanguageManager.Instance.GetFormatted(
+                "StatusRecorderStoppedUnexpectedly",
+                reason);
+    }
+
+    internal void SetIpcClientForTesting(NamedPipeIpcClient client)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        _ipcClient = client;
+    }
+
     private static bool MatchesFormattedStatus(string value, string resourceKey)
     {
         var template = LanguageManager.Instance[resourceKey];
@@ -1776,6 +1801,9 @@ public partial class MainViewModel : ObservableObject
                     else
                     {
                         // 核心進程已完成或已結束，同步 UI 狀態
+                        StatusMessage = ResolveTerminalTelemetryStatus(
+                            telemetry,
+                            StatusMessage);
                         IsPaused = false;
                         IsRecording = false;
                         _isDiskSpaceWarningActive = false;

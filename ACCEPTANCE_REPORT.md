@@ -17,16 +17,16 @@
 
 | 命令 | 結果 | 證據摘要 |
 | :--- | :--- | :--- |
-| `dotnet restore ScreenRecorder.sln --locked-mode` | PASS | 鎖定相依版本還原成功 |
+| `DOTNET_ROLL_FORWARD=Major dotnet restore ScreenRecorder.sln --force-evaluate` | PASS | 依專案宣告重新評估並還原相依套件；本專案尚未追蹤 `packages.lock.json`，因此不宣稱 locked restore |
 | `dotnet build ScreenRecorder.sln -c Release --no-restore` | PASS | 所有方案專案建置成功，未產生編譯診斷 |
 | `dotnet test tests/ScreenRecorder.Core.Tests/ScreenRecorder.Core.Tests.csproj -c Release --no-build --no-restore` | PASS | 53 passed、0 failed、0 skipped |
-| `dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release --no-build --no-restore` | PASS with skips | 212 passed、0 failed、12 skipped；略過項目為目前主機不具備的條件，不視為通過 |
+| `dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release --no-build --no-restore` | PASS with skips | 215 passed、0 failed、12 skipped；略過項目為目前主機不具備的條件，不視為通過 |
 | `node scripts/check-nuget-vulnerabilities.mjs ScreenRecorder.sln` | PASS | 解析完整 transitive graph；未發現已知弱點套件，High/Critical 會阻擋封裝 |
 | `node scripts/check-version-consistency.mjs` | PASS | `VERSION`、組件資訊、安裝腳本、App bundle 與網站皆由同一版本來源衍生 |
-| `npm test --prefix website` | PASS | 21 passed、0 failed |
+| `npm test --prefix website` | PASS | 22 passed、0 failed |
 | `npm run build --prefix website` | PASS | 雙語首頁與使用說明成功產生 |
-| `bash scripts/test-macos-native-audio-helper.sh` | PASS | macOS 原生麥克風 helper 編譯與行為測試成功 |
-| `bash scripts/test-macos-icon-build.sh` | PASS | `.icns` 可由 `iconutil` 反解，10 個必要尺寸完整 |
+| `bash tests/native/OpenCamSystemAudioTests.sh` | PASS | macOS 原生系統音訊 helper 編譯與行為測試成功 |
+| `bash scripts/build-macos-icon.sh src/ScreenRecorder.UI/Assets/app_icon.png /tmp/OpenCam-hardening-final.icns` | PASS | 產生 117,887-byte `.icns`；網站 icon 測試另以 `iconutil` 反解並驗證 10 個必要尺寸 |
 
 ## 已由自動化覆蓋的關鍵行為
 

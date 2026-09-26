@@ -1,6 +1,8 @@
 ﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+using System.Text.Json;
 using ScreenRecorder.Core.Enums;
 using ScreenRecorder.Core.Models;
+using ScreenRecorder.Infrastructure.IPC;
 using ScreenRecorder.UI.Localization;
 using ScreenRecorder.UI.ViewModels;
 using Xunit;
@@ -468,6 +470,42 @@ public class FoolproofUiLogicTests
         await vm.QueryTelemetryAsync();
         Assert.False(vm.IsRecording, "連續 6 次連線失敗時應自動安全收斂停止狀態");
         Assert.Contains("核心無預警中斷", vm.StatusMessage);
+    }
+
+    [Fact]
+    public async Task QueryTelemetry_WhenRecorderFails_ShowsEngineFailureBeforeStoppingPolling()
+    {
+        var pipeName = SessionPipeNameFactory.Create(OperatingSystem.IsWindows());
+        var telemetry = new RecorderTelemetry
+        {
+            State = RecordingState.Failed,
+            IsEncoderHealthy = false,
+            HealthWarning = "FFmpeg exited unexpectedly."
+        };
+        await using var server = new NamedPipeIpcServer(
+            pipeName,
+            _ => Task.FromResult(new IpcResponse
+            {
+                Success = true,
+                ErrorMessage = JsonSerializer.Serialize(telemetry)
+            }));
+        server.Start();
+        await Task.Delay(100);
+        await using var client = new NamedPipeIpcClient(pipeName);
+        var readiness = await client.SendCommandAsync("GetTelemetry", new { }, timeoutMs: 1500);
+        Assert.True(readiness.Success, readiness.ErrorMessage);
+        var vm = new MainViewModel(forScreenshot: true)
+        {
+            IsRecording = true,
+            StatusMessage = "recording"
+        };
+        vm.SetIpcClientForTesting(client);
+
+        await vm.QueryTelemetryAsync();
+
+        Assert.False(vm.IsRecording);
+        Assert.Contains("FFmpeg exited unexpectedly.", vm.StatusMessage);
+        vm.Cleanup();
     }
 
     [Fact]

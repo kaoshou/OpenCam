@@ -4,11 +4,8 @@ $ErrorActionPreference = "Stop"
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $InstallerDir = Join-Path $ProjectRoot "installer"
 $PublishDir = Join-Path $InstallerDir "publish"
-$VersionText = [System.IO.File]::ReadAllText((Join-Path $ProjectRoot "VERSION"))
-if ($VersionText -notmatch '^[0-9]+\.[0-9]+\.[0-9]+\n$') {
-    throw "VERSION 必須是純數字 SemVer，且只能有一個 LF 結尾"
-}
-$Version = $VersionText.Substring(0, $VersionText.Length - 1)
+$Version = & (Join-Path $ProjectRoot "scripts\validate-version.ps1") `
+    -VersionFile (Join-Path $ProjectRoot "VERSION")
 
 # SOURCE.txt must not identify HEAD when the packaged inputs differ from HEAD.
 $TrackedChanges = @(git -C $ProjectRoot status --porcelain --untracked-files=no)

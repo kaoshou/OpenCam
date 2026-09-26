@@ -19,7 +19,7 @@ const dynamicVersionFiles = [
 ];
 
 export function validateVersionText(text) {
-  if (!/^[0-9]+\.[0-9]+\.[0-9]+\n$/.test(text)) {
+  if (!/^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\n$/.test(text)) {
     throw new Error('VERSION must contain numeric SemVer and exactly one final LF');
   }
   return text.slice(0, -1);

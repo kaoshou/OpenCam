@@ -8,7 +8,7 @@ app_input="${2:-}"
 configuration="${3:-Release}"
 version_text="$(cat "$repo_root/VERSION"; printf x)"
 version_text="${version_text%x}"
-[[ "$version_text" =~ ^[0-9]+\.[0-9]+\.[0-9]+$'\n'$ ]] || {
+[[ "$version_text" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'\n'$ ]] || {
   printf 'macOS packaging failed: VERSION must contain numeric SemVer and exactly one LF\n' >&2
   exit 1
 }

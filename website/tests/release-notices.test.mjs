@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { verifyReleaseNotices } from '../../scripts/check-release-notices.mjs';
 import {
   checkVersionConsistency,
@@ -62,7 +63,7 @@ test('Windows installer uses an exact plaintext copy of the project license', as
 test('canonical version is strict and drives packaging plus localized website content', async () => {
   const raw = await readFile(join(repositoryRoot, 'VERSION'), 'utf8');
   assert.equal(validateVersionText(raw), '0.2.1');
-  for (const invalid of ['0.2.1 \n', '0.2.1\n\n', '0.2.x\n', '0.2.1']) {
+  for (const invalid of ['0.2.1 \n', '0.2.1\n\n', '0.2.x\n', '0.2.1', '01.2.1\n']) {
     assert.throws(() => validateVersionText(invalid), /VERSION/);
   }
 
@@ -70,4 +71,33 @@ test('canonical version is strict and drives packaging plus localized website co
   assert.match(renderHome('zh-TW'), /v0\.2\.1/);
   assert.match(renderHome('en-US'), /v0\.2\.1/);
   await checkVersionConsistency(repositoryRoot);
+});
+
+test('PowerShell packaging validator enforces the same strict VERSION format', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'opencam-pwsh-version-'));
+  const fixture = join(directory, 'VERSION');
+  const validator = join(repositoryRoot, 'scripts', 'validate-version.ps1');
+  try {
+    for (const [value, succeeds] of [
+      ['0.2.1\n', true],
+      ['0.2.1\n\n', false],
+      ['0.2.1 \n', false],
+      ['01.2.1\n', false],
+      ['0.02.1\n', false],
+      ['0.2.01\n', false],
+    ]) {
+      await writeFile(fixture, value);
+      const result = spawnSync(
+        'pwsh',
+        ['-NoLogo', '-NoProfile', '-File', validator, '-VersionFile', fixture],
+        { encoding: 'utf8' });
+      assert.equal(
+        result.status === 0,
+        succeeds,
+        `${JSON.stringify(value)}: ${result.stderr || result.stdout}`);
+      if (succeeds) assert.equal(result.stdout.trim(), '0.2.1');
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });

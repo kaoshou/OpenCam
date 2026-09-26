@@ -4,7 +4,7 @@ import { assetPath, routeFor } from './paths.mjs';
 import { escapeHtml } from './layout.mjs';
 
 const versionText = readFileSync(new URL('../../VERSION', import.meta.url), 'utf8');
-if (!/^[0-9]+\.[0-9]+\.[0-9]+\n$/.test(versionText)) {
+if (!/^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\n$/.test(versionText)) {
   throw new Error('VERSION must contain numeric SemVer and exactly one final LF');
 }
 export const productVersion = versionText.slice(0, -1);

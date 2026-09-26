@@ -133,7 +133,7 @@ stateDiagram-v2
 - `Completed`: 錄影流程正常完成，MP4 檔案產生且檢驗合格。
 - `Interrupted`: 遭遇非預期例外、設備全失、磁碟不足或外部程序終止。
 - `Recoverable`: 重新啟動時發現存在上次未完成之 Session，已建立救援資訊。
-- `Failed`: 發生無法挽回的重大錯誤，但原始 MKV 資料維持唯讀保護。
+- `Failed`: 發生無法完成目前流程的重大錯誤；原始 MKV 仍予保留，供檢查或修復救援。
 
 ---
 
@@ -156,7 +156,7 @@ stateDiagram-v2
 
 | 功能領域 | 核心抽象介面 (Core) | Windows 實作 (Platform.Windows) | macOS 實作 (Platform.macOS) |
 | :--- | :--- | :--- | :--- |
-| **畫面擷取** | 錄影組態與 FFmpeg 平台參數 | Windows Graphics/GDI 相容路徑 | ScreenCaptureKit 輸入 |
+| **畫面擷取** | 錄影組態與 FFmpeg 平台參數 | Windows Graphics/GDI 相容路徑 | AVFoundation（透過 FFmpeg）輸入 |
 | **系統聲音** | `ISystemAudioLoopbackCapture` | WASAPI Loopback | ScreenCaptureKit Audio |
 | **麥克風聲音** | `IMicrophoneCapture` | Windows 音訊裝置路徑 | `AVAudioEngine` → 私有 PCM FIFO → FFmpeg |
 | **螢幕與 DPI** | `IDisplayService` | Win32 顯示器列舉 | NSScreen + CGDisplay |

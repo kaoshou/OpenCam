@@ -33,6 +33,39 @@ public class RecorderHealthTrackerTests
     }
 
     [Fact]
+    public void PositiveFileSizeBeforeFrameOrTimeProgress_RemainsUnknown()
+    {
+        var tracker = CreateTracker(AudioSourceType.None);
+
+        tracker.ObserveProgress(new(true, 0, TimeSpan.Zero, 1_024));
+
+        var health = tracker.CreateTelemetryHealth(OffAudio());
+        Assert.Null(health.VideoHealthy);
+        Assert.Null(health.EncoderHealthy);
+    }
+
+    [Fact]
+    public void UnchangedFileWithAdvancingFrames_MarksVideoAndEncoderUnhealthy()
+    {
+        var tracker = CreateTracker(AudioSourceType.None);
+        tracker.ObserveProgress(new(true, 1, TimeSpan.FromMilliseconds(20), 4_096));
+
+        for (var observation = 2; observation <= 4; observation++)
+        {
+            tracker.ObserveProgress(new(
+                true,
+                observation,
+                TimeSpan.FromMilliseconds(observation * 20),
+                4_096));
+        }
+
+        var health = tracker.CreateTelemetryHealth(OffAudio());
+        Assert.False(health.VideoHealthy);
+        Assert.False(health.EncoderHealthy);
+        Assert.Contains("stopped growing", health.Warning);
+    }
+
+    [Fact]
     public void ThreeUnchangedObservations_MarksVideoAndEncoderUnhealthy()
     {
         var tracker = CreateTracker(AudioSourceType.None);
