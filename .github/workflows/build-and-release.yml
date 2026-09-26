@@ -15,10 +15,77 @@ on:
       - 'v*'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
+  verify-portable:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Source Code
+      uses: actions/checkout@v4
+    - name: Setup .NET 8
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    - name: Setup Node.js 22
+      uses: actions/setup-node@v7
+      with:
+        node-version: '22'
+        cache: npm
+        cache-dependency-path: website/package-lock.json
+    - name: Restore and test .NET solution
+      run: |
+        dotnet restore ScreenRecorder.sln
+        dotnet test ScreenRecorder.sln -c Release --no-restore -m:1 /nodeReuse:false
+    - name: Block High and Critical NuGet vulnerabilities
+      run: node scripts/check-nuget-vulnerabilities.mjs ScreenRecorder.sln
+    - name: Test website
+      run: |
+        npm ci --prefix website
+        npm test --prefix website
+
+  verify-windows:
+    runs-on: windows-latest
+    steps:
+    - name: Checkout Source Code
+      uses: actions/checkout@v4
+    - name: Setup .NET 8
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    - name: Test Windows-compatible solution
+      run: |
+        dotnet restore ScreenRecorder.sln
+        dotnet test ScreenRecorder.sln -c Release --no-restore -m:1 /nodeReuse:false
+
+  verify-macos:
+    runs-on: macos-15
+    steps:
+    - name: Checkout Source Code
+      uses: actions/checkout@v4
+    - name: Setup .NET 8
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    - name: Setup Node.js 22
+      uses: actions/setup-node@v7
+      with:
+        node-version: '22'
+        cache: npm
+        cache-dependency-path: website/package-lock.json
+    - name: Test macOS-compatible solution
+      run: |
+        dotnet restore ScreenRecorder.sln
+        dotnet test ScreenRecorder.sln -c Release --no-restore -m:1 /nodeReuse:false
+    - name: Test website and macOS icon packaging
+      run: |
+        npm ci --prefix website
+        npm test --prefix website
+    - name: Test native system-audio helper
+      run: bash tests/native/OpenCamSystemAudioTests.sh
+
   build-windows:
+    needs: [verify-portable, verify-windows]
     runs-on: windows-latest
     steps:
     - name: Checkout Source Code
@@ -43,10 +110,19 @@ jobs:
 
     - name: Download FFmpeg for Windows
       run: |
-        Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip" -OutFile "ffmpeg.zip"
+        $ffmpegUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-09-25-15-37/ffmpeg-n8.1.3-win64-gpl-8.1.zip"
+        $expectedSha256 = "8efaa4e62db01a71580dc5a7ec0625dea7a4dfc5fac2d680f94804503d18a34c"
+        $ffmpegRoot = "ffmpeg_extracted\ffmpeg-n8.1.3-win64-gpl-8.1"
+        Invoke-WebRequest -Uri $ffmpegUrl -OutFile "ffmpeg.zip"
+        $actualSha256 = (Get-FileHash -Algorithm SHA256 "ffmpeg.zip").Hash
+        if (-not $actualSha256.Equals($expectedSha256, [System.StringComparison]::OrdinalIgnoreCase)) {
+          throw "FFmpeg archive checksum mismatch: expected $expectedSha256, got $actualSha256"
+        }
         Expand-Archive -Path "ffmpeg.zip" -DestinationPath "ffmpeg_extracted" -Force
-        Copy-Item -Path "ffmpeg_extracted\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe" -Destination "installer/publish/"
-        Copy-Item -Path "ffmpeg_extracted\ffmpeg-master-latest-win64-gpl\bin\ffprobe.exe" -Destination "installer/publish/"
+        if (-not (Test-Path "ffmpeg_extracted\ffmpeg-n8.1.3-win64-gpl-8.1\bin\ffmpeg.exe")) { throw "Pinned FFmpeg archive layout is missing bin\ffmpeg.exe" }
+        if (-not (Test-Path "ffmpeg_extracted\ffmpeg-n8.1.3-win64-gpl-8.1\bin\ffprobe.exe")) { throw "Pinned FFmpeg archive layout is missing bin\ffprobe.exe" }
+        Copy-Item -Path "$ffmpegRoot\bin\ffmpeg.exe" -Destination "installer/publish/"
+        Copy-Item -Path "$ffmpegRoot\bin\ffprobe.exe" -Destination "installer/publish/"
 
     - name: Add project license and corresponding source notice
       run: |
@@ -77,6 +153,7 @@ jobs:
           OpenCam_Windows_Portable.zip
         
   build-macos:
+    needs: [verify-portable, verify-macos]
     runs-on: macos-15
     steps:
     - name: Checkout Source Code
@@ -140,6 +217,8 @@ jobs:
       - build-macos
     if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
