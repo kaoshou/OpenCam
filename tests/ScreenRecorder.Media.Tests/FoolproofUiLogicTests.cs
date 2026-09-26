@@ -469,7 +469,11 @@ public class FoolproofUiLogicTests
 
         await vm.QueryTelemetryAsync();
         Assert.False(vm.IsRecording, "連續 6 次連線失敗時應自動安全收斂停止狀態");
-        Assert.Contains("核心無預警中斷", vm.StatusMessage);
+        Assert.Contains(vm.StatusMessage, new[]
+        {
+            "錄影核心無預警中斷！已錄製內容已安全保留，可點擊「修復救援」轉出 MP4。",
+            "Recording core disconnected! Captured data safely preserved. Click 'Recovery' to export MP4."
+        });
     }
 
     [Fact]
