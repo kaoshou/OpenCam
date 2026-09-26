@@ -22,8 +22,12 @@ internal static class RecordingStartCoordinator
         TimeSpan? confirmationTimeout = null,
         CancellationToken cancellationToken = default)
     {
-        var response = await client.SendCommandAsync(
-            "StartRecording", configuration, startTimeoutMs, cancellationToken);
+        var response = await SendWithHardTimeoutAsync(
+            client,
+            "StartRecording",
+            configuration,
+            startTimeoutMs,
+            cancellationToken);
         if (!response.TimedOut)
         {
             return response;
@@ -51,9 +55,15 @@ internal static class RecordingStartCoordinator
                 return new IpcResponse { StatusUnconfirmed = true };
             }
 
-            var telemetryResponse = await client.SendCommandAsync(
-                "GetTelemetry", new { },
-                timeoutMs: (int)Math.Clamp(remaining.TotalMilliseconds, 1, 1500),
+            var telemetryTimeoutMs = (int)Math.Clamp(
+                remaining.TotalMilliseconds,
+                1,
+                1500);
+            var telemetryResponse = await SendWithHardTimeoutAsync(
+                client,
+                "GetTelemetry",
+                new { },
+                telemetryTimeoutMs,
                 cancellationToken);
             if (telemetryResponse.Success &&
                 !string.IsNullOrWhiteSpace(telemetryResponse.ErrorMessage))
@@ -93,6 +103,36 @@ internal static class RecordingStartCoordinator
             }
 
             await Task.Delay(100, cancellationToken);
+        }
+    }
+
+    private static async Task<IpcResponse> SendWithHardTimeoutAsync(
+        NamedPipeIpcClient client,
+        string messageType,
+        object payload,
+        int timeoutMs,
+        CancellationToken cancellationToken)
+    {
+        var boundedTimeoutMs = Math.Max(1, timeoutMs);
+        try
+        {
+            return await client.SendCommandAsync(
+                    messageType,
+                    payload,
+                    boundedTimeoutMs,
+                    cancellationToken)
+                .WaitAsync(
+                    TimeSpan.FromMilliseconds(boundedTimeoutMs),
+                    cancellationToken);
+        }
+        catch (TimeoutException)
+        {
+            return new IpcResponse
+            {
+                Success = false,
+                TimedOut = true,
+                ErrorMessage = $"{messageType} did not respond within {boundedTimeoutMs} ms."
+            };
         }
     }
 }

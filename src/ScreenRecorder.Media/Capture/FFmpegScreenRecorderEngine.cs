@@ -360,7 +360,10 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
             // A hardware encoder failure can leave an empty working file
             // before the software fallback starts. Keep fallback launches
             // non-interactive so FFmpeg never blocks on an overwrite prompt.
-            var args = $"-y {inputArgs} {outputArgs}";
+            // FFmpeg's interactive stats use carriage-return updates on some
+            // Windows builds, which ReadLineAsync cannot observe reliably.
+            // The progress protocol is newline-delimited on every platform.
+            var args = $"-y -progress pipe:2 -nostats {inputArgs} {outputArgs}";
 
             Log.Information("啟動 FFmpeg 錄影程序，完整引數: {Args}", args);
 

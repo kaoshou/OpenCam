@@ -62,6 +62,7 @@ public class FFmpegStartupHandshakeTests
     {
         var executable = CreateExecutable(
             "[ \"$1\" = '-y' ] || { echo 'missing -y' >&2; exit 1; }\n" +
+            "case \"$*\" in *'-progress pipe:2 -nostats'*) ;; *) echo 'missing progress protocol' >&2; exit 1;; esac\n" +
             "echo 'frame=    1 fps=0.0 time=00:00:00.03' >&2\n" +
             "while IFS= read -r line; do [ \"$line\" = q ] && exit 0; done");
         try
