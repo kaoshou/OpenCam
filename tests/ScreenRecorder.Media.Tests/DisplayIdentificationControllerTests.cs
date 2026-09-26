@@ -27,7 +27,7 @@ public sealed class DisplayIdentificationControllerTests
 
         Assert.Equal(0, unresolved);
         Assert.Equal(Enumerable.Range(1, count), presenter.Active.Select(item => item.Badge.Number).Order());
-        Assert.Single(presenter.Active.Where(item => item.Badge.IsSelected));
+        Assert.Single(presenter.Active, item => item.Badge.IsSelected);
         Assert.Equal(count, presenter.Active.Single(item => item.Badge.IsSelected).Badge.Number);
         Assert.Equal(1, timer.ActiveCount);
     }

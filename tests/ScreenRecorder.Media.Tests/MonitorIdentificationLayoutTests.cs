@@ -15,9 +15,10 @@ public class MonitorIdentificationLayoutTests
             .Single(element => element.Name.LocalName == "ComboBox" &&
                                element.Attribute("ItemsSource")?.Value == "{Binding AvailableMonitors}");
         var row = Assert.IsType<XElement>(monitorSelector.Parent);
-        var identifyButton = Assert.Single(row.Elements()
-            .Where(element => element.Name.LocalName == "Button" &&
-                              element.Attribute("Click")?.Value == "OnIdentifyDisplaysClicked"));
+        var identifyButton = Assert.Single(
+            row.Elements(),
+            element => element.Name.LocalName == "Button" &&
+                       element.Attribute("Click")?.Value == "OnIdentifyDisplaysClicked");
 
         Assert.Equal("Grid", row.Name.LocalName);
         Assert.Equal("Auto,*,Auto", row.Attribute("ColumnDefinitions")?.Value);

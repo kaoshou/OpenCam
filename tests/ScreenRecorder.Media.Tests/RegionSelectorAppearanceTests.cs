@@ -17,8 +17,9 @@ public class RegionSelectorAppearanceTests
         var dragArea = document.Descendants()
             .Single(element => element.Name.LocalName == "Border" &&
                                element.Attribute("Grid.Row")?.Value == "1");
-        var instructionBackdrop = Assert.Single(dragArea.Elements()
-            .Where(element => element.Name.LocalName == "Border"));
+        var instructionBackdrop = Assert.Single(
+            dragArea.Elements(),
+            element => element.Name.LocalName == "Border");
 
         Assert.Equal("Transparent", dragArea.Attribute("Background")?.Value);
         Assert.Equal("OnDragMovePointerPressed", dragArea.Attribute("PointerPressed")?.Value);
