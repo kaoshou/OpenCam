@@ -8,7 +8,10 @@ namespace ScreenRecorder.Core.Interfaces;
 /// <summary>
 /// 系統音訊擷取輸出資訊 (包含本機音訊管道與 PCM 取樣格式)
 /// </summary>
-public record SystemAudioCaptureInfo(string PipePath, int SampleRate, int Channels, string FfmpegInputArgs);
+public record SystemAudioCaptureInfo(string PipePath, int SampleRate, int Channels, string FfmpegInputArgs)
+{
+    public Stream? PcmStream { get; init; }
+}
 
 /// <summary>
 /// 跨平台系統聲音擷取抽象介面 (Windows 下由 WASAPI Loopback 實作)

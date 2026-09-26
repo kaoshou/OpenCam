@@ -31,27 +31,8 @@ public class MacOsSystemAudioSupportTests : IDisposable
             _directory));
     }
 
-    [MacOsOnlyFact]
-    public void CreatePrivate_CreatesUserOnlyFifo()
-    {
-        if (!OperatingSystem.IsMacOS()) return;
-
-        Directory.CreateDirectory(_directory);
-        var fifoPath = Path.Combine(_directory, "system-audio.pcm");
-
-        UnixFifo.CreatePrivate(fifoPath);
-
-        Assert.True(File.Exists(fifoPath));
-        var mode = File.GetUnixFileMode(fifoPath);
-        Assert.True(mode.HasFlag(UnixFileMode.UserRead));
-        Assert.True(mode.HasFlag(UnixFileMode.UserWrite));
-        Assert.Equal(
-            UnixFileMode.None,
-            mode & (UnixFileMode.GroupRead |
-                    UnixFileMode.GroupWrite |
-                    UnixFileMode.OtherRead |
-                    UnixFileMode.OtherWrite));
-    }
+    // The removed filesystem FIFO is covered by AnonymousAudioTransportTests
+    // and capture lifecycle tests that require no filesystem audio endpoint.
 
     public void Dispose()
     {

@@ -5,7 +5,11 @@ public record MicrophoneCaptureInfo(
     string PipePath,
     int SampleRate,
     int Channels,
-    string FfmpegInputArgs);
+    string FfmpegInputArgs)
+{
+    // Owned by capture service; do not consume or dispose in the UI.
+    public Stream? PcmStream { get; init; }
+}
 
 public interface IMicrophoneCapture : IAsyncDisposable
 {

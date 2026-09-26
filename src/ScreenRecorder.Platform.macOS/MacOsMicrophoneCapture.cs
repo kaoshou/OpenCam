@@ -12,34 +12,25 @@ public sealed class MacOsMicrophoneCapture : IMicrophoneCapture, IAudioLevelSour
         "READY sample-rate=48000 channels=1 format=s16le";
 
     private readonly string _helperPath;
-    private readonly Func<string> _createTempDirectory;
-    private readonly Action<string> _createFifo;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly AudioLevelAccumulator _levels = new();
 
     private Process? _helperProcess;
     private CancellationTokenSource? _monitorCts;
     private Task? _stderrMonitorTask;
-    private string? _captureDirectory;
     private bool _isCapturing;
     private bool _isDisposed;
 
     public MacOsMicrophoneCapture()
         : this(
-            MacOsMicrophoneSupport.HelperPath(AppContext.BaseDirectory),
-            CreateDefaultTempDirectory,
-            UnixFifo.CreatePrivate)
+            MacOsMicrophoneSupport.HelperPath(AppContext.BaseDirectory))
     {
     }
 
     internal MacOsMicrophoneCapture(
-        string helperPath,
-        Func<string> createTempDirectory,
-        Action<string> createFifo)
+        string helperPath)
     {
         _helperPath = helperPath;
-        _createTempDirectory = createTempDirectory;
-        _createFifo = createFifo;
     }
 
     public bool IsSupported =>
@@ -72,26 +63,15 @@ public sealed class MacOsMicrophoneCapture : IMicrophoneCapture, IAudioLevelSour
                 return null;
             }
 
-            _captureDirectory = _createTempDirectory();
-            Directory.CreateDirectory(_captureDirectory);
-            File.SetUnixFileMode(
-                _captureDirectory,
-                UnixFileMode.UserRead |
-                UnixFileMode.UserWrite |
-                UnixFileMode.UserExecute);
-            var fifoPath = Path.Combine(_captureDirectory, "microphone.pcm");
-            _createFifo(fifoPath);
-
             var startInfo = new ProcessStartInfo
             {
                 FileName = _helperPath,
                 UseShellExecute = false,
                 RedirectStandardError = true,
-                RedirectStandardOutput = false,
+                RedirectStandardOutput = true,
                 CreateNoWindow = true
             };
-            startInfo.ArgumentList.Add("--fifo");
-            startInfo.ArgumentList.Add(fifoPath);
+            startInfo.ArgumentList.Add("--stdout");
 
             _helperProcess = Process.Start(startInfo) ??
                 throw new InvalidOperationException(
@@ -131,12 +111,12 @@ public sealed class MacOsMicrophoneCapture : IMicrophoneCapture, IAudioLevelSour
             _isCapturing = true;
 
             var ffmpegInputArgs =
-                $"-thread_queue_size 1024 -f s16le -ar 48000 -ac 1 -i \"{fifoPath}\" ";
+                $"-thread_queue_size 1024 -f s16le -ar 48000 -ac 1 -i \"pipe:0\" ";
             return new MicrophoneCaptureInfo(
-                fifoPath,
+                string.Empty,
                 48000,
                 1,
-                ffmpegInputArgs);
+                ffmpegInputArgs) { PcmStream = _helperProcess.StandardOutput.BaseStream };
         }
         catch (Exception ex)
         {
@@ -257,27 +237,9 @@ public sealed class MacOsMicrophoneCapture : IMicrophoneCapture, IAudioLevelSour
         _monitorCts?.Dispose();
         _monitorCts = null;
 
-        if (!string.IsNullOrWhiteSpace(_captureDirectory) &&
-            Directory.Exists(_captureDirectory))
-        {
-            try
-            {
-                Directory.Delete(_captureDirectory, recursive: true);
-            }
-            catch (Exception ex)
-            {
-                AudioErrorOccurred?.Invoke(
-                    this,
-                    $"Unable to remove microphone capture directory: {ex.Message}");
-            }
-        }
-        _captureDirectory = null;
+
     }
 
-    private static string CreateDefaultTempDirectory() =>
-        Path.Combine(
-            Path.GetTempPath(),
-            "OpenCamMicrophone_" + Guid.NewGuid().ToString("N"));
 
     public async ValueTask DisposeAsync()
     {

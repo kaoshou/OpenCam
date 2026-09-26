@@ -92,4 +92,17 @@ for executable in ffmpeg ffprobe; do
   fi
 done
 
+notice_dir="$output_dir/ffmpeg-notices"
+mkdir -p "$notice_dir/sources"
+for executable in ffmpeg ffprobe; do
+  "$output_dir/$executable" -hide_banner -L > "$notice_dir/${executable}-license.txt"
+  "$output_dir/$executable" -version > "$notice_dir/${executable}-version.txt"
+done
+# Preserve exact, checksum-verified inputs and reproducible build instructions.
+cp "$build_root/ffmpeg.tar.xz" "$notice_dir/sources/ffmpeg-${ffmpeg_version}.tar.xz"
+cp "$build_root/x264.tar.gz" "$notice_dir/sources/x264-${x264_commit}.tar.gz"
+cp "$0" "$notice_dir/sources/build-ffmpeg-macos-arm64.sh"
+cp "$build_root/ffmpeg-${ffmpeg_version}/LICENSE.md" "$notice_dir/FFmpeg-LICENSE.md"
+cp "$build_root/x264-${x264_commit}/COPYING" "$notice_dir/x264-COPYING.txt"
+
 printf 'Built self-contained Apple Silicon FFmpeg tools in %s\n' "$output_dir"

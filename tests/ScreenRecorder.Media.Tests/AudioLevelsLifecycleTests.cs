@@ -11,19 +11,15 @@ namespace ScreenRecorder.Media.Tests;
 public sealed class AudioLevelsLifecycleTests
 {
     [RealRecorderFact]
-    public async Task RealRecorder_WhenExplicitlyConfigured_ReturnsMeasuredMicrophoneState()
+    public async Task RealRecorder_RejectsExternalTelemetryProbe()
     {
         var pipe = Environment.GetEnvironmentVariable("OPENCAM_REAL_PIPE");
         if (string.IsNullOrWhiteSpace(pipe)) return;
-        await using var client = new NamedPipeIpcClient(pipe);
+        // This external probe must not impersonate the UI. A running recorder is
+        // now intentionally inaccessible even when its pipe name is known.
+        await using var client = new NamedPipeIpcClient(pipe, AuthenticatedIpc.CreateKey());
         var response = await client.SendCommandAsync("GetAudioLevels", new { }, timeoutMs: 1500);
-        Assert.True(response.Success, response.ErrorMessage);
-        Assert.True(AudioLevelsResponseParser.TryParse(response.ErrorMessage, out var snapshot), response.ErrorMessage);
-        var expectingMicrophone = Environment.GetEnvironmentVariable("OPENCAM_EXPECT_MIC") == "1";
-        Assert.True(expectingMicrophone
-                ? snapshot.Microphone.State is AudioMeterState.Silent or AudioMeterState.Live
-                : snapshot.Microphone.State == AudioMeterState.Off,
-            response.ErrorMessage);
+        Assert.False(response.Success);
     }
 
     private static readonly DateTimeOffset Now = new(2026, 9, 22, 10, 0, 0, TimeSpan.Zero);

@@ -8,7 +8,6 @@ enum MicrophoneHelperError: LocalizedError {
     case permissionDenied
     case invalidInputFormat
     case conversionFailed(String)
-    case fifoUnavailable(String)
 
     var errorDescription: String? {
         switch self {
@@ -20,24 +19,16 @@ enum MicrophoneHelperError: LocalizedError {
             return "The selected microphone returned an unsupported audio format"
         case .conversionFailed(let message):
             return "Unable to convert microphone samples: \(message)"
-        case .fifoUnavailable(let path):
-            return "Unable to open microphone FIFO: \(path)"
         }
     }
 }
 
 struct MicrophoneOptions {
-    let fifoPath: String
-
     static func parse(_ arguments: [String]) throws -> MicrophoneOptions {
-        guard arguments.count == 2,
-              arguments[0] == "--fifo",
-              arguments[1].hasPrefix("/") else {
-            throw MicrophoneHelperError.invalidArguments(
-                "Required arguments: --fifo <absolute-path>")
+        guard arguments == ["--stdout"] else {
+            throw MicrophoneHelperError.invalidArguments("Required argument: --stdout")
         }
-
-        return MicrophoneOptions(fifoPath: arguments[1])
+        return MicrophoneOptions()
     }
 }
 
@@ -97,7 +88,6 @@ final class LevelReporter {
 }
 
 final class MicrophonePCMWriter {
-    private let fifoPath: String
     private let targetFormat = AVAudioFormat(
         commonFormat: .pcmFormatInt16,
         sampleRate: 48_000,
@@ -105,12 +95,10 @@ final class MicrophonePCMWriter {
         interleaved: true)!
     private var sourceFormat: AVAudioFormat?
     private var converter: AVAudioConverter?
-    private var fifoHandle: FileHandle?
+    private var fifoHandle: FileHandle? = FileHandle.standardOutput
     let levelReporter = LevelReporter()
 
-    init(fifoPath: String) {
-        self.fifoPath = fifoPath
-    }
+    init() {}
 
     func write(_ input: AVAudioPCMBuffer) throws {
         if sourceFormat == nil || !sourceFormat!.isEqual(input.format) {
@@ -153,12 +141,7 @@ final class MicrophonePCMWriter {
         }
 
         guard output.frameLength > 0 else { return }
-        if fifoHandle == nil {
-            fifoHandle = FileHandle(forWritingAtPath: fifoPath)
-        }
-        guard let fifoHandle else {
-            throw MicrophoneHelperError.fifoUnavailable(fifoPath)
-        }
+        guard let fifoHandle else { return }
 
         let audioBuffer = output.audioBufferList.pointee.mBuffers
         guard let bytes = audioBuffer.mData else { return }
@@ -181,7 +164,7 @@ final class MicrophoneCapture {
     private var tapInstalled = false
 
     init(options: MicrophoneOptions) {
-        writer = MicrophonePCMWriter(fifoPath: options.fifoPath)
+        writer = MicrophonePCMWriter()
     }
 
     func start() async throws {

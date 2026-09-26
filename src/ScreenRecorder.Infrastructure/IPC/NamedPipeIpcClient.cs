@@ -8,10 +8,14 @@ namespace ScreenRecorder.Infrastructure.IPC;
 public class NamedPipeIpcClient : IAsyncDisposable
 {
     private readonly string _pipeName;
+    private readonly byte[] _key;
+    private readonly int _serverPid;
 
-    public NamedPipeIpcClient(string pipeName)
+    public NamedPipeIpcClient(string pipeName, byte[] key, int? serverPid = null)
     {
         _pipeName = pipeName;
+        _key = AuthenticatedIpc.CopyKey(key);
+        _serverPid = serverPid ?? Environment.ProcessId;
     }
 
     public async Task<IpcResponse> SendCommandAsync(string messageType, object payload, int timeoutMs = 3000, CancellationToken cancellationToken = default)
@@ -24,9 +28,9 @@ public class NamedPipeIpcClient : IAsyncDisposable
         try
         {
             await pipeClient.ConnectAsync(linkedCts.Token);
+            IpcPeerIdentity.Verify(pipeClient, _serverPid, server: false);
 
-            using var writer = new StreamWriter(pipeClient, Encoding.UTF8, leaveOpen: true);
-            using var reader = new StreamReader(pipeClient, Encoding.UTF8, leaveOpen: true);
+            var nonce = await AuthenticatedIpc.ReadChallengeAsync(pipeClient, _key, linkedCts.Token);
 
             var message = new IpcMessage
             {
@@ -34,18 +38,8 @@ public class NamedPipeIpcClient : IAsyncDisposable
                 PayloadJson = JsonSerializer.Serialize(payload)
             };
 
-            await writer.WriteLineAsync(JsonSerializer.Serialize(message));
-            await writer.FlushAsync(linkedCts.Token);
-
-            var responseLine = await reader.ReadLineAsync(linkedCts.Token);
-
-            if (string.IsNullOrEmpty(responseLine))
-            {
-                return new IpcResponse { Success = false, ErrorMessage = "空回應或管道中斷" };
-            }
-
-            return JsonSerializer.Deserialize<IpcResponse>(responseLine) 
-                ?? new IpcResponse { Success = false, ErrorMessage = "無法解析回應" };
+            await AuthenticatedIpc.WriteAsync(pipeClient, _key, nonce, false, message, linkedCts.Token);
+            return await AuthenticatedIpc.ReadAsync<IpcResponse>(pipeClient, _key, nonce, true, linkedCts.Token);
         }
         catch (OperationCanceledException ex) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {
@@ -59,6 +53,7 @@ public class NamedPipeIpcClient : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
+        System.Security.Cryptography.CryptographicOperations.ZeroMemory(_key);
         return ValueTask.CompletedTask;
     }
 }

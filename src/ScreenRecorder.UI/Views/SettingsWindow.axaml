@@ -345,17 +345,24 @@
 
                             <!-- Serilog -->
                             <StackPanel Spacing="2">
-                                <TextBlock Text="• Serilog" FontWeight="SemiBold" FontSize="11.5" Foreground="#1E293B" />
+                                <TextBlock Text="• Serilog / Serilog.Sinks.Console / Serilog.Sinks.File" FontWeight="SemiBold" FontSize="11.5" Foreground="#1E293B" />
                                 <TextBlock Text="{Binding Strings[LicenseSerilogDesc]}" 
                                            FontSize="10.5" Foreground="#64748B" TextWrapping="Wrap" />
                             </StackPanel>
 
-                            <!-- FFmpeg -->
                             <StackPanel Spacing="2">
-                                <TextBlock Text="• FFmpeg" FontWeight="SemiBold" FontSize="11.5" Foreground="#1E293B" />
-                                <TextBlock Text="{Binding Strings[LicenseFfmpegCodeDesc]}" 
-                                           FontSize="10.5" Foreground="#64748B" TextWrapping="Wrap" />
+                                <TextBlock Text="• NAudio / Microsoft .NET / Tmds.DBus / MicroCom" FontWeight="SemiBold" FontSize="11.5" Foreground="#1E293B" />
+                                <TextBlock Text="{Binding Strings[LicenseOtherManagedDesc]}" FontSize="10.5" Foreground="#64748B" TextWrapping="Wrap" />
                             </StackPanel>
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="• SkiaSharp / HarfBuzzSharp / ANGLE" FontWeight="SemiBold" FontSize="11.5" Foreground="#1E293B" />
+                                <TextBlock Text="{Binding Strings[LicenseGraphicsDesc]}" FontSize="10.5" Foreground="#64748B" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="• Inter" FontWeight="SemiBold" FontSize="11.5" Foreground="#1E293B" />
+                                <TextBlock Text="{Binding Strings[LicenseInterDesc]}" FontSize="10.5" Foreground="#64748B" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding Strings[ThirdPartyNoticesDetail]}" FontSize="10.5" Foreground="#64748B" TextWrapping="Wrap" />
                         </StackPanel>
                     </Border>
 

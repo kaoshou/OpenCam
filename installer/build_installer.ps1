@@ -9,7 +9,7 @@ $Version = & (Join-Path $ProjectRoot "scripts\validate-version.ps1") `
 
 # SOURCE.txt must not identify HEAD when the packaged inputs differ from HEAD.
 $TrackedChanges = @(git -C $ProjectRoot status --porcelain --untracked-files=no)
-$UntrackedBuildInputs = @(git -C $ProjectRoot ls-files --others --exclude-standard -- src scripts installer .github)
+$UntrackedBuildInputs = @(git -C $ProjectRoot ls-files --others --exclude-standard -- src scripts installer .github third-party THIRD-PARTY-NOTICES.md)
 if ($LASTEXITCODE -ne 0 -or $TrackedChanges.Count -gt 0 -or $UntrackedBuildInputs.Count -gt 0) {
     throw "發布打包前請先提交程式碼變更；SOURCE.txt 必須對應實際原始碼版本"
 }
@@ -42,6 +42,9 @@ dotnet publish $CsprojPath `
 Copy-Item (Join-Path $ProjectRoot "LICENSE") (Join-Path $PublishDir "LICENSE")
 Copy-Item (Join-Path $ProjectRoot "LICENSE") (Join-Path $PublishDir "LICENSE.txt")
 Copy-Item (Join-Path $ProjectRoot "NOTICE.md") (Join-Path $PublishDir "NOTICE.md")
+& (Join-Path $ProjectRoot "scripts\install-windows-ffmpeg.ps1") -Destination $PublishDir | Out-Null
+node (Join-Path $ProjectRoot "scripts\assemble-third-party-notices.mjs") $PublishDir win-x64 (Join-Path $PublishDir "ffmpeg-notices")
+if ($LASTEXITCODE -ne 0) { throw "Third-party notice assembly failed" }
 $Revision = (git -C $ProjectRoot rev-parse HEAD).Trim()
 if ($LASTEXITCODE -ne 0 -or $Revision -notmatch '^[0-9a-fA-F]{40}$') {
     throw "無法確認對應的 Git 原始碼版本"

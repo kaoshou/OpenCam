@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { noticePath } from './assemble-third-party-notices.mjs';
 
 const officialLicenseSha256 = '0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0';
 
@@ -51,6 +52,37 @@ export async function verifyReleaseNotices(directory, revision, version, { insta
   if (!notice.includes('Copyright (C) 2026 Yu-Han Cheng') || !notice.includes('AGPL-3.0-or-later')) {
     throw new Error('NOTICE.md has the wrong copyright or license');
   }
+  await verifyThirdPartyNotices(directory);
+}
+
+export async function verifyThirdPartyNotices(directory) {
+  try {
+    const summary = await readFile(join(directory, 'THIRD-PARTY-NOTICES.md'), 'utf8');
+    if (!summary.trim()) throw new Error('Empty summary');
+    const base = join(directory, 'third-party');
+    const manifest = JSON.parse(await readFile(join(base, 'manifest.json'), 'utf8'));
+    const catalog = JSON.parse(await readFile(join(base, 'catalog.json'), 'utf8'));
+    if (manifest.schema !== 1 || !['win-x64', 'osx-arm64'].includes(manifest.rid)
+      || !manifest.runtime?.startsWith(`microsoft.netcore.app.runtime.${manifest.rid}/`)
+      || !Array.isArray(manifest.packages) || !manifest.packages.length
+      || !Array.isArray(catalog.files) || !catalog.files.length) throw new Error('Incomplete manifest');
+    for (const name of manifest.packages) if (!catalog.packages.includes(name)) throw new Error(`Unreviewed dependency: ${name}`);
+    const paths = new Set();
+    for (const file of manifest.files) {
+      const path = noticePath(file.path);
+      if (paths.has(path)) throw new Error('Duplicate notice path');
+      paths.add(path);
+      const bytes = await readFile(join(base, path));
+      if (!bytes.length || createHash('sha256').update(bytes).digest('hex') !== file.sha256) throw new Error(`Changed notice: ${path}`);
+    }
+    for (const file of catalog.files) {
+      if (!manifest.files.some(f => f.path === file.path && f.sha256 === file.sha256)) throw new Error(`Missing upstream notice: ${file.path}`);
+    }
+    for (const path of ['runtime/LICENSE.TXT', 'runtime/THIRD-PARTY-NOTICES.TXT',
+      'ffmpeg/ffmpeg-license.txt', 'ffmpeg/ffmpeg-version.txt', 'ffmpeg/ffprobe-license.txt', 'ffmpeg/ffprobe-version.txt']) {
+      if (!paths.has(path)) throw new Error(`Missing ${path}`);
+    }
+  } catch (error) { throw new Error(`Invalid third-party notices: ${error.message}`, { cause: error }); }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

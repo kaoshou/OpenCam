@@ -12,7 +12,7 @@ internal class Program
     {
         if (Array.IndexOf(args, "--daemon") >= 0)
         {
-            ScreenRecorder.Recorder.Program.Main(args).GetAwaiter().GetResult();
+            Environment.ExitCode = ScreenRecorder.Recorder.Program.Main(args).GetAwaiter().GetResult();
             return;
         }
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);

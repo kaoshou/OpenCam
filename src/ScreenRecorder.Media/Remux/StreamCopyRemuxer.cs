@@ -41,17 +41,16 @@ public class StreamCopyRemuxer : IStreamCopyRemuxer
         }
 
         // 使用 stream copy，絕不重新編碼：-c copy -movflags +faststart
-        var arguments = $"-y -i \"{mkvInputPath}\" -c copy -movflags +faststart \"{mp4OutputPath}\"";
-
         var startInfo = new ProcessStartInfo
         {
             FileName = _ffmpegPath,
-            Arguments = arguments,
             RedirectStandardError = true,
             RedirectStandardOutput = true,
             UseShellExecute = false,
             CreateNoWindow = true
         };
+        foreach (var argument in new[] { "-y", "-i", Path.GetFullPath(mkvInputPath), "-c", "copy", "-movflags", "+faststart", Path.GetFullPath(mp4OutputPath) })
+            startInfo.ArgumentList.Add(argument);
 
         using var timeoutCts = _operationTimeout.HasValue
             ? new CancellationTokenSource(_operationTimeout.Value)
@@ -113,6 +112,8 @@ public class StreamCopyRemuxer : IStreamCopyRemuxer
         {
             throw new ArgumentException("來源 MKV 清單不得為空", nameof(mkvInputPaths));
         }
+        if (mkvInputPaths.Any(path => path.IndexOfAny(['\r', '\n', '\0']) >= 0))
+            throw new ArgumentException("Concat paths cannot contain line breaks.", nameof(mkvInputPaths));
 
         var validPaths = mkvInputPaths.Where(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p) && new FileInfo(p).Length > 0).ToList();
         if (validPaths.Count == 0)
@@ -145,17 +146,16 @@ public class StreamCopyRemuxer : IStreamCopyRemuxer
             await File.WriteAllLinesAsync(listFilePath, lines, cancellationToken);
 
             // 使用 concat demuxer 執行無損流式拼接 (絕不二次重新編碼)
-            var arguments = $"-y -f concat -safe 0 -i \"{listFilePath}\" -c copy -movflags +faststart \"{mp4OutputPath}\"";
-
             var startInfo = new ProcessStartInfo
             {
                 FileName = _ffmpegPath,
-                Arguments = arguments,
                 RedirectStandardError = true,
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
+            foreach (var argument in new[] { "-y", "-f", "concat", "-safe", "0", "-i", Path.GetFullPath(listFilePath), "-c", "copy", "-movflags", "+faststart", Path.GetFullPath(mp4OutputPath) })
+                startInfo.ArgumentList.Add(argument);
 
             using var timeoutCts = _operationTimeout.HasValue
                 ? new CancellationTokenSource(_operationTimeout.Value)

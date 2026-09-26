@@ -35,12 +35,10 @@ public class MacOsMicrophoneCaptureTests : IDisposable
     }
 
     [MacOsOnlyFact]
-    public async Task StartAndStop_ManagesNativeHelperAndPrivateFifo()
+    public async Task StartAndStop_ManagesNativeHelperAndAnonymousPcm()
     {
         await using var capture = new MacOsMicrophoneCapture(
-            _helperPath,
-            () => _captureDirectory,
-            UnixFifo.CreatePrivate);
+            _helperPath);
 
         var info = await capture.StartCaptureAsync("0");
 
@@ -48,11 +46,13 @@ public class MacOsMicrophoneCaptureTests : IDisposable
         Assert.Equal(48000, info.SampleRate);
         Assert.Equal(1, info.Channels);
         Assert.Contains("-f s16le -ar 48000 -ac 1", info.FfmpegInputArgs);
-        Assert.True(File.Exists(info.PipePath));
+        Assert.Empty(info.PipePath);
+        Assert.NotNull(info.PcmStream);
+        Assert.False(Directory.Exists(_captureDirectory));
         Assert.True(capture.IsCapturing);
 
         var helperArguments = await File.ReadAllTextAsync(_helperPath + ".args");
-        Assert.Equal("--fifo\n" + info.PipePath + "\n", helperArguments);
+        Assert.Equal("--stdout\n", helperArguments);
 
         await capture.StopCaptureAsync();
 
@@ -71,9 +71,7 @@ public class MacOsMicrophoneCaptureTests : IDisposable
             "while true; do sleep 1; done\n");
 
         await using var capture = new MacOsMicrophoneCapture(
-            _helperPath,
-            () => _captureDirectory,
-            UnixFifo.CreatePrivate);
+            _helperPath);
 
         var info = await capture.StartCaptureAsync("0");
 

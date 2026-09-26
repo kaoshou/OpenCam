@@ -11,6 +11,7 @@ namespace ScreenRecorder.Media.Tests;
 
 public class FoolproofUiLogicTests
 {
+    private static readonly byte[] IpcKey = AuthenticatedIpc.CreateKey();
     [Fact]
     public void DocumentationScreenshot_UsesNeutralTemporaryProfile()
     {
@@ -486,8 +487,7 @@ public class FoolproofUiLogicTests
             IsEncoderHealthy = false,
             HealthWarning = "FFmpeg exited unexpectedly."
         };
-        await using var server = new NamedPipeIpcServer(
-            pipeName,
+        await using var server = new NamedPipeIpcServer(pipeName, IpcKey,
             _ => Task.FromResult(new IpcResponse
             {
                 Success = true,
@@ -495,7 +495,7 @@ public class FoolproofUiLogicTests
             }));
         server.Start();
         await Task.Delay(100);
-        await using var client = new NamedPipeIpcClient(pipeName);
+        await using var client = new NamedPipeIpcClient(pipeName, IpcKey);
         var readiness = await client.SendCommandAsync("GetTelemetry", new { }, timeoutMs: 1500);
         Assert.True(readiness.Success, readiness.ErrorMessage);
         var vm = new MainViewModel(forScreenshot: true)

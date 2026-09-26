@@ -7,6 +7,7 @@ namespace ScreenRecorder.Core.Tests;
 
 public class IpcTests
 {
+    private static readonly byte[] IpcKey = AuthenticatedIpc.CreateKey();
     [Fact]
     public void SessionPipeName_OnUnix_FitsMacOsUnixSocketPath()
     {
@@ -29,14 +30,13 @@ public class IpcTests
     public async Task UnixSafeSessionPipe_Communicates()
     {
         var name = SessionPipeNameFactory.Create(isWindows: false);
-        await using var server = new NamedPipeIpcServer(
-            name,
+        await using var server = new NamedPipeIpcServer(name, IpcKey,
             _ => Task.FromResult(new IpcResponse { Success = true }));
 
         server.Start();
         await Task.Delay(100);
 
-        await using var client = new NamedPipeIpcClient(name);
+        await using var client = new NamedPipeIpcClient(name, IpcKey);
         var response = await client.SendCommandAsync("Ping", new { }, 2000);
 
         Assert.True(response.Success, response.ErrorMessage);
@@ -46,8 +46,7 @@ public class IpcTests
     public async Task NamedPipe_BackToBackConnections_DoNotBreakBetweenCommands()
     {
         var name = SessionPipeNameFactory.Create(OperatingSystem.IsWindows());
-        await using var server = new NamedPipeIpcServer(
-            name,
+        await using var server = new NamedPipeIpcServer(name, IpcKey,
             message => Task.FromResult(new IpcResponse
             {
                 Success = true,
@@ -57,7 +56,7 @@ public class IpcTests
         server.Start();
         await Task.Delay(100);
 
-        await using var client = new NamedPipeIpcClient(name);
+        await using var client = new NamedPipeIpcClient(name, IpcKey);
         for (var index = 0; index < 500; index++)
         {
             var command = "Command" + index;
@@ -78,7 +77,7 @@ public class IpcTests
     {
         var pipeName = SessionPipeNameFactory.Create(OperatingSystem.IsWindows());
 
-        await using var server = new NamedPipeIpcServer(pipeName, message =>
+        await using var server = new NamedPipeIpcServer(pipeName, IpcKey, message =>
         {
             if (message.MessageType == "Ping")
             {
@@ -96,7 +95,7 @@ public class IpcTests
         // 等待伺服器管線初始化就緒
         await Task.Delay(100);
 
-        await using var client = new NamedPipeIpcClient(pipeName);
+        await using var client = new NamedPipeIpcClient(pipeName, IpcKey);
 
         // 測試 Ping
         var pingResponse = await client.SendCommandAsync("Ping", new { }, timeoutMs: 2000);

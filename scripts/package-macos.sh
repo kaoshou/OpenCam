@@ -23,7 +23,7 @@ fail() {
   fail "usage: $0 /path/to/publish /path/to/OpenCam.app [configuration]"
 [[ -d "$publish_input" ]] || fail "publish directory does not exist: $publish_input"
 if [[ -n "$(git -C "$repo_root" status --porcelain --untracked-files=no)" ]] || \
-   [[ -n "$(git -C "$repo_root" ls-files --others --exclude-standard -- src scripts installer .github)" ]]; then
+   [[ -n "$(git -C "$repo_root" ls-files --others --exclude-standard -- src scripts installer .github third-party THIRD-PARTY-NOTICES.md)" ]]; then
   fail "commit source changes before packaging so SOURCE.txt identifies the exact revision"
 fi
 
@@ -60,6 +60,8 @@ cp -R "$publish_dir"/. "$app_path/Contents/MacOS/"
 cp "$temp_root/OpenCam.icns" "$app_path/Contents/Resources/OpenCam.icns"
 cp "$repo_root/LICENSE" "$app_path/Contents/Resources/LICENSE"
 cp "$repo_root/NOTICE.md" "$app_path/Contents/Resources/NOTICE.md"
+node "$repo_root/scripts/assemble-third-party-notices.mjs" \
+  "$app_path/Contents/Resources" osx-arm64 "$publish_dir/ffmpeg-notices"
 
 source_revision="${GITHUB_SHA:-}"
 if [[ ! "$source_revision" =~ ^[0-9a-fA-F]{40}$ ]]; then

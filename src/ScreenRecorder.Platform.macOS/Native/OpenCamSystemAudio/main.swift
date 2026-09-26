@@ -12,7 +12,6 @@ enum HelperError: LocalizedError {
     case invalidAudioFormat
     case copyFailed(OSStatus)
     case conversionFailed(String)
-    case fifoUnavailable(String)
 
     var errorDescription: String? {
         switch self {
@@ -26,35 +25,32 @@ enum HelperError: LocalizedError {
             return "Unable to copy PCM samples (OSStatus \(status))"
         case .conversionFailed(let message):
             return "Unable to convert PCM samples: \(message)"
-        case .fifoUnavailable(let path):
-            return "Unable to open audio FIFO: \(path)"
         }
     }
 }
 
 struct Options {
-    let fifoPath: String
     let displayID: CGDirectDisplayID
 
     static func parse(_ arguments: [String]) throws -> Options {
-        var fifoPath: String?
+        var useStdout = false
         var displayID: CGDirectDisplayID?
         var index = 0
 
         while index < arguments.count {
             let flag = arguments[index]
+            if flag == "--stdout" {
+                guard !useStdout else { throw HelperError.invalidArguments("Duplicate --stdout") }
+                useStdout = true
+                index += 1
+                continue
+            }
             guard index + 1 < arguments.count else {
                 throw HelperError.invalidArguments("Missing value for \(flag)")
             }
 
             let value = arguments[index + 1]
             switch flag {
-            case "--fifo":
-                guard fifoPath == nil, value.hasPrefix("/") else {
-                    throw HelperError.invalidArguments(
-                        "--fifo must be supplied once with an absolute path")
-                }
-                fifoPath = value
             case "--display-id":
                 guard displayID == nil, let parsed = UInt32(value) else {
                     throw HelperError.invalidArguments(
@@ -67,12 +63,12 @@ struct Options {
             index += 2
         }
 
-        guard let fifoPath, let displayID else {
+        guard useStdout, let displayID else {
             throw HelperError.invalidArguments(
-                "Required arguments: --fifo <absolute-path> --display-id <UInt32>")
+                "Required arguments: --stdout --display-id <UInt32>")
         }
 
-        return Options(fifoPath: fifoPath, displayID: displayID)
+        return Options(displayID: displayID)
     }
 }
 
@@ -165,7 +161,6 @@ final class LevelReporter {
 }
 
 final class PCMWriter {
-    private let fifoPath: String
     private let targetFormat = AVAudioFormat(
         commonFormat: .pcmFormatInt16,
         sampleRate: 48_000,
@@ -173,12 +168,10 @@ final class PCMWriter {
         interleaved: true)!
     private var sourceFormat: AVAudioFormat?
     private var converter: AVAudioConverter?
-    private var fifoHandle: FileHandle?
+    private var fifoHandle: FileHandle? = FileHandle.standardOutput
     let levelReporter = LevelReporter()
 
-    init(fifoPath: String) {
-        self.fifoPath = fifoPath
-    }
+    init() {}
 
     func write(_ sampleBuffer: CMSampleBuffer) throws {
         let input = try sampleBuffer.makePCMBuffer()
@@ -220,12 +213,7 @@ final class PCMWriter {
         }
 
         guard output.frameLength > 0 else { return }
-        if fifoHandle == nil {
-            fifoHandle = FileHandle(forWritingAtPath: fifoPath)
-        }
-        guard let fifoHandle else {
-            throw HelperError.fifoUnavailable(fifoPath)
-        }
+        guard let fifoHandle else { return }
 
         let audioBuffer = output.audioBufferList.pointee.mBuffers
         guard let bytes = audioBuffer.mData else { return }
@@ -251,7 +239,7 @@ final class SystemAudioCapture: NSObject, SCStreamOutput, SCStreamDelegate {
 
     init(options: Options) {
         self.options = options
-        self.writer = PCMWriter(fifoPath: options.fifoPath)
+        self.writer = PCMWriter()
     }
 
     func start() async throws {

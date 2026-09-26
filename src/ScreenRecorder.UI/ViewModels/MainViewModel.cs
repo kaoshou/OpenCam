@@ -707,7 +707,7 @@ public partial class MainViewModel : ObservableObject
             ? new MacOsScreenCapturePermissionService()
             : null;
 
-        _ipcClient = new NamedPipeIpcClient(NamedPipeConstants.PipeBaseName);
+        _ipcClient = new NamedPipeIpcClient(NamedPipeConstants.PipeBaseName, AuthenticatedIpc.CreateKey());
 
         // 注入 Recovery 服務
         _recoveryService = new RecordingRecoveryService(
@@ -1898,7 +1898,7 @@ public partial class MainViewModel : ObservableObject
 
         // Create a unique pipe name for this session to avoid zombie conflicts
         _currentPipeName = SessionPipeNameFactory.Create(OperatingSystem.IsWindows());
-        _ipcClient = new NamedPipeIpcClient(_currentPipeName);
+        var ipcKey = AuthenticatedIpc.CreateKey();
 
         var recorderExe = Environment.ProcessPath;
         if (string.IsNullOrEmpty(recorderExe) || !File.Exists(recorderExe))
@@ -1911,9 +1911,24 @@ public partial class MainViewModel : ObservableObject
             FileName = recorderExe,
             Arguments = $"--daemon --pipe {_currentPipeName} --parent-pid {Environment.ProcessId}",
             UseShellExecute = false,
+            RedirectStandardInput = true,
             CreateNoWindow = true
         };
         _recorderProcess = System.Diagnostics.Process.Start(psi);
+        if (_recorderProcess == null) throw new IOException("Unable to start recorder.");
+        await _ipcClient.DisposeAsync();
+        _ipcClient = new NamedPipeIpcClient(_currentPipeName, ipcKey, _recorderProcess.Id);
+        try
+        {
+            using var bootstrapTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            await _recorderProcess.StandardInput.BaseStream.WriteAsync(ipcKey, bootstrapTimeout.Token);
+            await _recorderProcess.StandardInput.BaseStream.FlushAsync(bootstrapTimeout.Token);
+            _recorderProcess.StandardInput.Close();
+        }
+        finally
+        {
+            System.Security.Cryptography.CryptographicOperations.ZeroMemory(ipcKey);
+        }
         
         // Poll to wait for extraction and startup (up to 10 seconds)
         for (int i = 0; i < 20; i++)

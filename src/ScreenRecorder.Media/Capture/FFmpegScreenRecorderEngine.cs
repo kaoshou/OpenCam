@@ -36,6 +36,8 @@ public interface IRecordingAudioLevelSource
 
 public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudioLevelSource
 {
+    private Stream? _systemPcm;
+    private Stream? _microphonePcm;
     private readonly IFFmpegPlatformProvider _ffmpegPlatformProvider;
     private readonly ISystemAudioLoopbackCapture? _systemAudioLoopbackCapture;
     private readonly IMicrophoneCapture? _microphoneCapture;
@@ -154,6 +156,8 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
         CaptureRegion actualBounds,
         CancellationToken cancellationToken)
     {
+        _systemPcm = null;
+        _microphonePcm = null;
         _systemLevelActive = false;
         _microphoneLevelActive = false;
         lock (_lock)
@@ -209,6 +213,7 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
                 if (microphoneInfo != null)
                 {
                     microphoneAudioPipeArg = microphoneInfo.FfmpegInputArgs;
+                    _microphonePcm = microphoneInfo.PcmStream;
                     _microphoneLevelActive = _microphoneCapture is IAudioLevelSource;
                     hasDirectShowMic = false;
                     Log.Information(
@@ -257,6 +262,7 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
                 if (sysAudioInfo != null)
                 {
                     systemAudioPipeArg = sysAudioInfo.FfmpegInputArgs;
+                    _systemPcm = sysAudioInfo.PcmStream;
                     _systemLevelActive = _systemAudioLoopbackCapture is IAudioLevelSource;
                     Log.Information("系統聲音 Loopback 擷取已啟動，傳遞參數: {Args}", systemAudioPipeArg);
                 }
@@ -346,6 +352,10 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
                 _process = null;
             }
 
+            using var systemDescriptor = InheritedAudioDescriptor.Duplicate(_systemPcm);
+            using var microphoneDescriptor = InheritedAudioDescriptor.Duplicate(_microphonePcm);
+            systemAudioPipeArg = systemDescriptor?.Input(2) ?? systemAudioPipeArg;
+            microphoneAudioPipeArg = microphoneDescriptor?.Input(1) ?? microphoneAudioPipeArg;
             var inputArgs = _ffmpegPlatformProvider.BuildInputArguments(
                 config,
                 x,
@@ -380,6 +390,8 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
 
             var proc = new Process { StartInfo = startInfo };
             proc.Start();
+            systemDescriptor?.Dispose();
+            microphoneDescriptor?.Dispose();
 
             lock (_lock)
             {

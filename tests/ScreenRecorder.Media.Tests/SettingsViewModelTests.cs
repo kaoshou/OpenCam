@@ -28,6 +28,40 @@ public class MockSettingsService : ISettingsService
 public class SettingsViewModelTests
 {
     [Fact]
+    public void AboutVersionBindingsResolveToNonEmptyVersion()
+    {
+        // SettingsWindow's runtime binding must resolve against SettingsViewModel,
+        // not the similarly named properties on MainViewModel.
+        var vm = new SettingsViewModel(new MockSettingsService());
+        foreach (var name in new[] { "DisplayVersion", "VersionLabelText" })
+        {
+            var property = typeof(SettingsViewModel).GetProperty(name);
+            Assert.NotNull(property);
+            var text = Assert.IsType<string>(property.GetValue(vm));
+            Assert.Contains(ScreenRecorder.Core.ProductInfo.DisplayVersion, text);
+            Assert.Matches(@"v\d+\.\d+\.\d+", text);
+        }
+    }
+
+    [Fact]
+    public void AboutVersionLabelRefreshesWhenLanguageChanges()
+    {
+        var vm = new SettingsViewModel(new MockSettingsService());
+        var original = vm.Strings.CurrentLanguage;
+        try
+        {
+            vm.Strings.CurrentLanguage = AppLanguage.ZhTw;
+            var changed = new List<string?>();
+            vm.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+            vm.Strings.CurrentLanguage = AppLanguage.EnUs;
+            Assert.Contains("VersionLabelText", changed);
+            var property = typeof(SettingsViewModel).GetProperty("VersionLabelText");
+            Assert.StartsWith("Version: v", Assert.IsType<string>(property!.GetValue(vm)));
+        }
+        finally { vm.Strings.CurrentLanguage = original; }
+    }
+
+    [Fact]
     public async Task SettingsViewModel_LoadSettings_ShouldBindPropertiesCorrectly()
     {
         var mockService = new MockSettingsService

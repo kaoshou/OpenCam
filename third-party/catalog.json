@@ -1,0 +1,136 @@
+{
+  "schema": 1,
+  "description": "Reviewed managed dependency versions; retain upstream aggregate notices unchanged. Native assets are platform-conditional.",
+  "files": [
+    {
+      "path": "licenses/ANGLE-LICENSE.txt",
+      "sha256": "bf4da21bd20bcfb5b60b7ecc67fa864a79be049e21d6178076887f178dd6c71a",
+      "source": "NuGet avalonia.angle.windows.natives/2.1.22045.20230930/LICENSE"
+    },
+    {
+      "path": "licenses/Avalonia-LICENSE.md",
+      "sha256": "213814d306090074d234d760239ff0f67eb9b8d20eefb4d5631bb39dbe0b769b",
+      "source": "https://raw.githubusercontent.com/AvaloniaUI/Avalonia/4971681c59776d340171196dd86784ce081aa4c4/licence.md"
+    },
+    {
+      "path": "licenses/Avalonia-NOTICE.md",
+      "sha256": "0e1ecea8b94eaacec8ade631994149d678940d05163b21d6f4be3d5dccb0a08d",
+      "source": "https://raw.githubusercontent.com/AvaloniaUI/Avalonia/4971681c59776d340171196dd86784ce081aa4c4/NOTICE.md"
+    },
+    {
+      "path": "licenses/CommunityToolkit-LICENSE.md",
+      "sha256": "1e1101b893f295b4526da2c167e4234610f1078e2fe43a0e814c1a883656877b",
+      "source": "NuGet communitytoolkit.mvvm/8.4.2/License.md"
+    },
+    {
+      "path": "licenses/FFmpeg-LICENSE.md",
+      "sha256": "cb48bf09a11f5fb576cddb0431c8f5ed0a60157a9ec942adffc13907cbe083f2",
+      "source": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/n7.1.2/LICENSE.md"
+    },
+    {
+      "path": "licenses/GPL-2.0.txt",
+      "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+      "source": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/n7.1.2/COPYING.GPLv2"
+    },
+    {
+      "path": "licenses/GPL-3.0.txt",
+      "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+      "source": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/n7.1.2/COPYING.GPLv3"
+    },
+    {
+      "path": "licenses/HarfBuzzSharp-LICENSE.txt",
+      "sha256": "bc2eb4f37d574f9b1b67da2b17e14d151618850527d78f7323239e7518df5b77",
+      "source": "NuGet harfbuzzsharp/7.3.0.3/LICENSE.txt"
+    },
+    {
+      "path": "licenses/Inter-LICENSE.txt",
+      "sha256": "4d7d9c95e7d7f2f0ebf76d5e0b344826b74e903a34028ee18ab54bb639e45906",
+      "source": "https://raw.githubusercontent.com/rsms/inter/0a5106e0b/LICENSE.txt"
+    },
+    {
+      "path": "licenses/MicroCom-LICENSE.txt",
+      "sha256": "6ee769c9ac4dac9abb16b98b1341e9528ff9f4ab685481410d3376d14148f3a9",
+      "source": "https://raw.githubusercontent.com/kekekeks/MicroCom/4b8a38f773c109bad558ee3713d9f16d80776e42/LICENSE"
+    },
+    {
+      "path": "licenses/Microsoft-LICENSE.txt",
+      "sha256": "cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310",
+      "source": "NuGet microsoft.netcore.app.runtime.osx-arm64/8.0.29/LICENSE.TXT"
+    },
+    {
+      "path": "licenses/NAudio-LICENSE.txt",
+      "sha256": "b3b45984823d8604640d080a0254627e95d238f674dbaaf1a6d06196a420da7c",
+      "source": "https://raw.githubusercontent.com/naudio/NAudio/v2.2.1/license.txt"
+    },
+    {
+      "path": "licenses/Serilog-Console-LICENSE.txt",
+      "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1",
+      "source": "https://raw.githubusercontent.com/serilog/serilog-sinks-console/b3cb1f042f5636161b831fa8816d70d865a5eec4/LICENSE"
+    },
+    {
+      "path": "licenses/Serilog-File-LICENSE.txt",
+      "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1",
+      "source": "https://raw.githubusercontent.com/serilog/serilog-sinks-file/23c732a8658a0df2a5434fe69b0011800b14f0da/LICENSE"
+    },
+    {
+      "path": "licenses/Serilog-LICENSE.txt",
+      "sha256": "73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68",
+      "source": "https://raw.githubusercontent.com/serilog/serilog/497f80fda4f9e8f98b9c13ba34b1f0530f8c4449/LICENSE"
+    },
+    {
+      "path": "licenses/Skia-HarfBuzz-NOTICES.txt",
+      "sha256": "98acf9d4d6083959988c884f630cdff760f94bfeb9acf57774653e08c23d1e45",
+      "source": "NuGet skiasharp/2.88.9/THIRD-PARTY-NOTICES.txt"
+    },
+    {
+      "path": "licenses/SkiaSharp-LICENSE.txt",
+      "sha256": "bc2eb4f37d574f9b1b67da2b17e14d151618850527d78f7323239e7518df5b77",
+      "source": "NuGet skiasharp/2.88.9/LICENSE.txt"
+    },
+    {
+      "path": "licenses/Tmds-DBus-LICENSE.txt",
+      "sha256": "2a86afd8f0173998b01c9af8bdfd7c703cae1db6cc5e57e7043a2b67fa0b2116",
+      "source": "https://raw.githubusercontent.com/tmds/Tmds.DBus/8cb04f66c330b64244e996ff68f685f27f7381a0/COPYING"
+    },
+    {
+      "path": "licenses/x264-COPYING.txt",
+      "sha256": "32b1062f7da84967e7019d01ab805935caa7ab7321a7ced0e30ebe75e5df1670",
+      "source": "https://raw.githubusercontent.com/mirror/x264/b35605ace3ddf7c1a5d67a2eb553f034aef41d55/COPYING"
+    }
+  ],
+  "packages": [
+    "Avalonia/11.2.5",
+    "Avalonia.Angle.Windows.Natives/2.1.22045.20230930",
+    "Avalonia.Desktop/11.2.5",
+    "Avalonia.Fonts.Inter/11.2.5",
+    "Avalonia.FreeDesktop/11.2.5",
+    "Avalonia.Native/11.2.5",
+    "Avalonia.Remote.Protocol/11.2.5",
+    "Avalonia.Skia/11.2.5",
+    "Avalonia.Themes.Fluent/11.2.5",
+    "Avalonia.Win32/11.2.5",
+    "Avalonia.X11/11.2.5",
+    "CommunityToolkit.Mvvm/8.4.2",
+    "HarfBuzzSharp/7.3.0.3",
+    "HarfBuzzSharp.NativeAssets.Linux/7.3.0.3",
+    "HarfBuzzSharp.NativeAssets.macOS/7.3.0.3",
+    "HarfBuzzSharp.NativeAssets.WebAssembly/7.3.0.3",
+    "HarfBuzzSharp.NativeAssets.Win32/7.3.0.3",
+    "MicroCom.Runtime/0.11.0",
+    "Microsoft.Extensions.DependencyInjection/10.0.12",
+    "Microsoft.Extensions.DependencyInjection.Abstractions/10.0.12",
+    "Microsoft.Win32.SystemEvents/10.0.12",
+    "NAudio.Core/2.2.1",
+    "NAudio.Wasapi/2.2.1",
+    "Serilog/4.4.0",
+    "Serilog.Sinks.Console/6.1.1",
+    "Serilog.Sinks.File/7.0.0",
+    "SkiaSharp/2.88.9",
+    "SkiaSharp.NativeAssets.Linux/2.88.9",
+    "SkiaSharp.NativeAssets.macOS/2.88.9",
+    "SkiaSharp.NativeAssets.WebAssembly/2.88.9",
+    "SkiaSharp.NativeAssets.Win32/2.88.9",
+    "System.IO.Pipelines/8.0.0",
+    "Tmds.DBus.Protocol/0.21.3"
+  ]
+}

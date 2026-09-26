@@ -11,8 +11,7 @@ public class RegionSelectorAppearanceTests
     [Fact]
     public void InstructionBackdrop_ContrastsTextWithoutBlockingTransparentDragArea()
     {
-        var xamlPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
-            "../../../../../src/ScreenRecorder.UI/Views/RegionSelectWindow.axaml"));
+        var xamlPath = RepositoryTestFiles.Find("src/ScreenRecorder.UI/Views/RegionSelectWindow.axaml");
         var document = XDocument.Load(xamlPath);
         var dragArea = document.Descendants()
             .Single(element => element.Name.LocalName == "Border" &&

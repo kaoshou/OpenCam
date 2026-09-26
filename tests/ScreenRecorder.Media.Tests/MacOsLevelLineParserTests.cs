@@ -48,7 +48,7 @@ public sealed class MacOsLevelLineParserTests
             File.SetUnixFileMode(helper, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
 
             await using var capture = new MacOsMicrophoneCapture(
-                helper, () => Path.Combine(root, "capture"), UnixFifo.CreatePrivate);
+                helper);
             var errors = new List<string>();
             capture.AudioErrorOccurred += (_, error) => errors.Add(error);
             Assert.NotNull(await capture.StartCaptureAsync("0"));
@@ -78,24 +78,16 @@ public sealed class MacOsLevelLineParserTests
 
         var root = Path.Combine(Path.GetTempPath(), "OpenCamRealLevelTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
-        Process? reader = null;
+        using var readCancellation = new CancellationTokenSource();
+        Task? drain = null;
         try
         {
             await using var capture = new MacOsMicrophoneCapture(
-                helper, () => Path.Combine(root, "capture"), UnixFifo.CreatePrivate);
+                helper);
             var info = await capture.StartCaptureAsync(null);
             Assert.NotNull(info);
-            var startInfo = new ProcessStartInfo("/bin/dd")
-            {
-                RedirectStandardError = true,
-                RedirectStandardOutput = true,
-                UseShellExecute = false
-            };
-            startInfo.ArgumentList.Add("if=" + info.PipePath);
-            startInfo.ArgumentList.Add("of=/dev/null");
-            startInfo.ArgumentList.Add("bs=4096");
-            reader = Process.Start(startInfo);
-            Assert.NotNull(reader);
+            Assert.NotNull(info.PcmStream);
+            drain = info.PcmStream.CopyToAsync(Stream.Null, readCancellation.Token);
 
             var deadline = DateTimeOffset.UtcNow.AddSeconds(3);
             while (capture.ReadLatestLevel(DateTimeOffset.UtcNow) is null && DateTimeOffset.UtcNow < deadline)
@@ -107,8 +99,8 @@ public sealed class MacOsLevelLineParserTests
         }
         finally
         {
-            try { if (reader is { HasExited: false }) reader.Kill(); } catch { }
-            reader?.Dispose();
+            readCancellation.Cancel();
+            if (drain != null) { try { await drain; } catch (OperationCanceledException) { } }
             Directory.Delete(root, recursive: true);
         }
     }

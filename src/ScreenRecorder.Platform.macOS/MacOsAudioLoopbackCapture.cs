@@ -13,15 +13,12 @@ public sealed class MacOsAudioLoopbackCapture : ISystemAudioLoopbackCapture, IAu
 
     private readonly string _helperPath;
     private readonly Func<int, uint?> _resolveDisplayId;
-    private readonly Func<string> _createTempDirectory;
-    private readonly Action<string> _createFifo;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly AudioLevelAccumulator _levels = new();
 
     private Process? _helperProcess;
     private CancellationTokenSource? _monitorCts;
     private Task? _stderrMonitorTask;
-    private string? _captureDirectory;
     private bool _isCapturing;
     private bool _isDisposed;
 
@@ -29,22 +26,16 @@ public sealed class MacOsAudioLoopbackCapture : ISystemAudioLoopbackCapture, IAu
         : this(
             MacOsSystemAudioSupport.HelperPath(AppContext.BaseDirectory),
             monitorIndex =>
-                new MacOsDisplayService().GetNativeDisplayId(monitorIndex),
-            CreateDefaultTempDirectory,
-            UnixFifo.CreatePrivate)
+                new MacOsDisplayService().GetNativeDisplayId(monitorIndex))
     {
     }
 
     internal MacOsAudioLoopbackCapture(
         string helperPath,
-        Func<int, uint?> resolveDisplayId,
-        Func<string> createTempDirectory,
-        Action<string> createFifo)
+        Func<int, uint?> resolveDisplayId)
     {
         _helperPath = helperPath;
         _resolveDisplayId = resolveDisplayId;
-        _createTempDirectory = createTempDirectory;
-        _createFifo = createFifo;
     }
 
     public bool IsSupported =>
@@ -85,28 +76,15 @@ public sealed class MacOsAudioLoopbackCapture : ISystemAudioLoopbackCapture, IAu
                     "No active macOS display is available for system audio capture.");
             }
 
-            _captureDirectory = _createTempDirectory();
-            Directory.CreateDirectory(_captureDirectory);
-            File.SetUnixFileMode(
-                _captureDirectory,
-                UnixFileMode.UserRead |
-                UnixFileMode.UserWrite |
-                UnixFileMode.UserExecute);
-            var fifoPath = Path.Combine(
-                _captureDirectory,
-                "system-audio.pcm");
-            _createFifo(fifoPath);
-
             var startInfo = new ProcessStartInfo
             {
                 FileName = _helperPath,
                 UseShellExecute = false,
                 RedirectStandardError = true,
-                RedirectStandardOutput = false,
+                RedirectStandardOutput = true,
                 CreateNoWindow = true
             };
-            startInfo.ArgumentList.Add("--fifo");
-            startInfo.ArgumentList.Add(fifoPath);
+            startInfo.ArgumentList.Add("--stdout");
             startInfo.ArgumentList.Add("--display-id");
             startInfo.ArgumentList.Add(displayId.Value.ToString());
 
@@ -148,12 +126,12 @@ public sealed class MacOsAudioLoopbackCapture : ISystemAudioLoopbackCapture, IAu
             _isCapturing = true;
 
             var ffmpegInputArgs =
-                $"-thread_queue_size 1024 -f s16le -ar 48000 -ac 2 -i \"{fifoPath}\" ";
+                $"-thread_queue_size 1024 -f s16le -ar 48000 -ac 2 -i \"pipe:0\" ";
             return new SystemAudioCaptureInfo(
-                fifoPath,
+                string.Empty,
                 48000,
                 2,
-                ffmpegInputArgs);
+                ffmpegInputArgs) { PcmStream = _helperProcess.StandardOutput.BaseStream };
         }
         catch (Exception ex)
         {
@@ -262,25 +240,9 @@ public sealed class MacOsAudioLoopbackCapture : ISystemAudioLoopbackCapture, IAu
         _monitorCts?.Dispose();
         _monitorCts = null;
 
-        if (!string.IsNullOrWhiteSpace(_captureDirectory) &&
-            Directory.Exists(_captureDirectory))
-        {
-            try
-            {
-                Directory.Delete(_captureDirectory, recursive: true);
-            }
-            catch
-            {
-            }
-        }
 
-        _captureDirectory = null;
     }
 
-    private static string CreateDefaultTempDirectory() =>
-        Path.Combine(
-            Path.GetTempPath(),
-            "OpenCamAudio_" + Guid.NewGuid().ToString("N"));
 
     public async ValueTask DisposeAsync()
     {

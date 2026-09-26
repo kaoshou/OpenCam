@@ -4,6 +4,7 @@ using ScreenRecorder.Core.Enums;
 using ScreenRecorder.Core.Interfaces;
 using ScreenRecorder.Core.Models;
 using Serilog;
+using ScreenRecorder.Infrastructure.Session;
 
 namespace ScreenRecorder.Infrastructure.Recovery;
 
@@ -48,7 +49,13 @@ public class RecordingRecoveryService : IRecordingRecoveryService
                 continue;
             }
 
-            var segments = FindRecoverableSegments(session);
+            List<FileInfo> segments;
+            try { segments = FindRecoverableSegments(session); }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or ArgumentException)
+            {
+                Log.Warning(ex, "略過不安全的救援工作階段: {Directory}", session.WorkingDirectory);
+                continue;
+            }
             var fileSize = segments.Sum(segment => segment.Length);
 
             // 只要至少一個分段存在且非 0 byte，即具備救援價值
@@ -74,7 +81,38 @@ public class RecordingRecoveryService : IRecordingRecoveryService
         string sessionDirectory, 
         CancellationToken cancellationToken = default)
     {
-        var session = await _sessionStore.LoadSessionAsync(sessionDirectory, cancellationToken);
+        BoundDirectory bound;
+        BoundDirectory destination;
+        try
+        {
+            bound = BoundDirectory.Open(sessionDirectory);
+            try
+            {
+                var parent = Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(Path.GetFullPath(sessionDirectory)))!;
+                var root = string.Equals(Path.GetFileName(parent), "Sessions", StringComparison.OrdinalIgnoreCase)
+                    ? Path.GetDirectoryName(parent)! : parent;
+                destination = BoundDirectory.Open(root);
+            }
+            catch { bound.Dispose(); throw; }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        { return (false, false, $"無法安全開啟救援目錄: {ex.Message}", null); }
+        using var boundScope = bound;
+        using var destinationScope = destination;
+        if (_sessionStore is not JsonRecordingSessionStore boundStore)
+            return (false, false, "工作階段儲存服務不支援安全救援", null);
+        RecordingSession? session;
+        try
+        {
+            sessionDirectory = SessionPathPolicy.DirectoryPath(sessionDirectory);
+            foreach (var leaf in new[] { ".recovery.lock", "recovery.json", "session.json", "session.json.bak", "session.json.tmp" })
+                SessionPathPolicy.RejectLink(Path.Combine(sessionDirectory, leaf));
+            session = SessionPathPolicy.Bind(await boundStore.LoadBoundAsync(sessionDirectory, bound, cancellationToken), sessionDirectory);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException)
+        {
+            return (false, false, $"不安全或無法讀取的救援路徑: {ex.Message}", null);
+        }
         if (session == null)
         {
             return (false, false, "找不到指定的 Session 資料", null);
@@ -85,7 +123,12 @@ public class RecordingRecoveryService : IRecordingRecoveryService
             return (false, false, "錄影工作階段仍在執行，暫不允許救援", null);
         }
 
-        var expectedSegments = FindRecoverySegmentPaths(session);
+        List<string> expectedSegments;
+        try { expectedSegments = FindRecoverySegmentPaths(session); }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or ArgumentException)
+        {
+            return (false, false, $"不安全的救援分段: {ex.Message}", null);
+        }
         var segments = FindRecoverableSegments(expectedSegments)
             .Select(segment => segment.FullName)
             .ToList();
@@ -98,15 +141,11 @@ public class RecordingRecoveryService : IRecordingRecoveryService
         FileStream recoveryClaim;
         try
         {
-            recoveryClaim = new FileStream(
-                Path.Combine(sessionDirectory, ".recovery.lock"),
-                FileMode.OpenOrCreate,
-                FileAccess.ReadWrite,
-                FileShare.None);
+            recoveryClaim = bound.Claim();
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
         {
-            return (false, false, "此工作階段正在由另一個 OpenCam 實例救援", null);
+            return (false, false, "此工作階段正在由另一個 OpenCam 實例救援，或救援鎖檔不安全／無法存取", null);
         }
         using var recoveryClaimScope = recoveryClaim;
 
@@ -118,18 +157,36 @@ public class RecordingRecoveryService : IRecordingRecoveryService
         }
         rootDir ??= _storageService.GetDefaultRecordingsPath();
 
-        var outputMp4 = Path.Combine(rootDir, $"Recovered_{session.SessionId}.mp4");
+        // Never let FFmpeg's overwrite flag operate in the user-selected output
+        // directory. Publish a verified result with a no-overwrite move instead.
+        var staging = Directory.CreateTempSubdirectory("OpenCam-recovery-");
+        var outputMp4 = Path.Combine(staging.FullName, "recovered.mp4");
+        var publishedMp4 = Path.Combine(rootDir, $"Recovered_{session.SessionId}.mp4");
         int counter = 1;
-        while (File.Exists(outputMp4))
+        while (Path.Exists(publishedMp4) || new FileInfo(publishedMp4).LinkTarget != null)
         {
-            outputMp4 = Path.Combine(rootDir, $"Recovered_{session.SessionId}_{counter}.mp4");
+            publishedMp4 = Path.Combine(rootDir, $"Recovered_{session.SessionId}_{counter}.mp4");
             counter++;
         }
 
+        string? preservedOutput = null;
         try
         {
+            // Probe and FFmpeg see only private snapshots, never names that may
+            // be replaced on shared storage between validation and remux.
+            var originalPaths = new Dictionary<string, string>();
+            var snapshots = new List<string>();
+            foreach (var source in segments)
+            {
+                var snapshot = Path.Combine(staging.FullName, $"segment_{snapshots.Count:D6}.mkv");
+                using var input = bound.Read(Path.GetFileName(source));
+                await using var output = new FileStream(snapshot, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                await input.CopyToAsync(output, cancellationToken);
+                snapshots.Add(snapshot);
+                originalPaths.Add(snapshot, source);
+            }
             var usableSegments = await FindUsableSegmentsAsync(
-                segments,
+                snapshots,
                 cancellationToken);
             if (usableSegments.Count == 0)
             {
@@ -167,6 +224,8 @@ public class RecordingRecoveryService : IRecordingRecoveryService
             }
 
             var isPartial = recoveredSegments.Count < expectedSegments.Count;
+            outputMp4 = await destination.PublishAsync(outputMp4, Path.GetFileName(publishedMp4), cancellationToken);
+            preservedOutput = outputMp4;
 
             // 記錄 recovery.json
             var recoveryMetadata = new
@@ -174,7 +233,7 @@ public class RecordingRecoveryService : IRecordingRecoveryService
                 RecoveredAt = DateTimeOffset.Now,
                 OriginalSessionId = session.SessionId,
                 WorkingFilePaths = expectedSegments,
-                RecoveredSegmentPaths = recoveredSegments,
+                RecoveredSegmentPaths = recoveredSegments.Select(path => originalPaths[path]).ToList(),
                 IsPartial = isPartial,
                 OutputMp4Path = outputMp4,
                 Duration = probeResult.Duration,
@@ -182,7 +241,7 @@ public class RecordingRecoveryService : IRecordingRecoveryService
             };
 
             var recoveryJsonPath = Path.Combine(sessionDirectory, "recovery.json");
-            await File.WriteAllTextAsync(recoveryJsonPath, JsonSerializer.Serialize(recoveryMetadata, new JsonSerializerOptions { WriteIndented = true }), cancellationToken);
+            await bound.WriteTextAsync("recovery.json", JsonSerializer.Serialize(recoveryMetadata, new JsonSerializerOptions { WriteIndented = true }), cancellationToken);
 
             // 更新 session.json
             session.State = RecordingState.Completed;
@@ -191,7 +250,7 @@ public class RecordingRecoveryService : IRecordingRecoveryService
             session.StopReason = isPartial
                 ? $"Crash Recovery 部分救回 ({recoveredSegments.Count}/{expectedSegments.Count} 個分段)"
                 : "Crash Recovery 完整救回";
-            await _sessionStore.SaveSessionAsync(session, cancellationToken);
+            await boundStore.SaveBoundAsync(session, bound, cancellationToken);
 
             Log.Information("Crash Recovery 救援成功: {Mp4}, 時長 {Dur}", outputMp4, probeResult.Duration);
             var warning = isPartial
@@ -206,7 +265,12 @@ public class RecordingRecoveryService : IRecordingRecoveryService
         catch (Exception ex)
         {
             Log.Error(ex, "Crash Recovery 執行失敗");
-            return (false, false, ex.Message, null);
+            return (false, false, preservedOutput == null ? ex.Message : $"MP4 已保留於 {preservedOutput}，但救援紀錄更新失敗: {ex.Message}", preservedOutput);
+        }
+        finally
+        {
+            try { staging.Delete(recursive: true); }
+            catch (IOException ex) { Log.Warning(ex, "無法清除救援暫存目錄"); }
         }
     }
 
@@ -367,6 +431,7 @@ public class RecordingRecoveryService : IRecordingRecoveryService
 
         return paths
             .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Select(path => SessionPathPolicy.SegmentPath(session.WorkingDirectory, path))
             .Distinct(comparer)
             .ToList();
     }

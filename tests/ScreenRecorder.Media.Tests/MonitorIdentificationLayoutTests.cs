@@ -8,8 +8,7 @@ public class MonitorIdentificationLayoutTests
     [Fact]
     public void IdentifyDisplays_IsCompactAndSharesTheMonitorSelectorRow()
     {
-        var xamlPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
-            "../../../../../src/ScreenRecorder.UI/Views/MainWindow.axaml"));
+        var xamlPath = RepositoryTestFiles.Find("src/ScreenRecorder.UI/Views/MainWindow.axaml");
         var document = XDocument.Load(xamlPath);
         var monitorSelector = document.Descendants()
             .Single(element => element.Name.LocalName == "ComboBox" &&

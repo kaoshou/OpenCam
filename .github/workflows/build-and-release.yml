@@ -135,6 +135,8 @@ jobs:
         Copy-Item LICENSE installer/publish/LICENSE
         Copy-Item LICENSE installer/publish/LICENSE.txt
         Copy-Item NOTICE.md installer/publish/NOTICE.md
+        node scripts/assemble-third-party-notices.mjs installer/publish win-x64 installer/publish/ffmpeg-notices
+        if ($LASTEXITCODE -ne 0) { throw "Third-party notice assembly failed" }
         @"
         OpenCam $env:OPENCAM_VERSION
         SPDX-License-Identifier: AGPL-3.0-or-later

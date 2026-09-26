@@ -9,6 +9,9 @@ namespace ScreenRecorder.Infrastructure.IPC;
 public class NamedPipeIpcServer : IAsyncDisposable
 {
     private readonly string _pipeName;
+    private readonly byte[] _key;
+    private readonly int _clientPid;
+    private readonly SemaphoreSlim _connectionSlots = new(16, 16);
     private readonly Func<IpcMessage, Task<IpcResponse>> _messageHandler;
     private CancellationTokenSource? _cts;
     private Task? _listenerTask;
@@ -19,9 +22,11 @@ public class NamedPipeIpcServer : IAsyncDisposable
 
     public event EventHandler<bool>? ClientConnectionChanged;
 
-    public NamedPipeIpcServer(string pipeName, Func<IpcMessage, Task<IpcResponse>> messageHandler)
+    public NamedPipeIpcServer(string pipeName, byte[] key, Func<IpcMessage, Task<IpcResponse>> messageHandler, int? clientPid = null)
     {
         _pipeName = pipeName;
+        _key = AuthenticatedIpc.CopyKey(key);
+        _clientPid = clientPid ?? Environment.ProcessId;
         _messageHandler = messageHandler;
     }
 
@@ -57,6 +62,11 @@ public class NamedPipeIpcServer : IAsyncDisposable
                 acceptTask = acceptingServer.WaitForConnectionAsync(
                     cancellationToken);
 
+                if (!_connectionSlots.Wait(0))
+                {
+                    connectedServer.Dispose();
+                    continue;
+                }
                 TrackConnection(
                     HandleConnectionAsync(
                         connectedServer,
@@ -103,7 +113,7 @@ public class NamedPipeIpcServer : IAsyncDisposable
             PipeDirection.InOut,
             NamedPipeServerStream.MaxAllowedServerInstances,
             PipeTransmissionMode.Byte,
-            PipeOptions.Asynchronous);
+            PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
 
     private void SetAcceptingServer(NamedPipeServerStream? server)
     {
@@ -142,31 +152,20 @@ public class NamedPipeIpcServer : IAsyncDisposable
             var enteredMessageGate = false;
             try
             {
+                // Incomplete or unauthenticated peers must never own the command gate.
+                IpcPeerIdentity.Verify(pipeServer, _clientPid, server: true);
+                using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                deadline.CancelAfter(TimeSpan.FromSeconds(2));
+                var nonce = await AuthenticatedIpc.SendChallengeAsync(pipeServer, _key, deadline.Token);
+                var message = await AuthenticatedIpc.ReadAsync<IpcMessage>(pipeServer, _key, nonce, false, deadline.Token);
+                deadline.CancelAfter(Timeout.InfiniteTimeSpan);
                 await _messageGate.WaitAsync(cancellationToken);
                 enteredMessageGate = true;
                 ClientConnectionChanged?.Invoke(this, true);
 
-                using var reader = new StreamReader(
-                    pipeServer,
-                    Encoding.UTF8,
-                    leaveOpen: true);
-                using var writer = new StreamWriter(
-                    pipeServer,
-                    Encoding.UTF8,
-                    leaveOpen: true);
-
-                var line = await reader.ReadLineAsync(cancellationToken);
-                if (line is not null)
-                {
-                    var message = JsonSerializer.Deserialize<IpcMessage>(line);
-                    if (message is not null)
-                    {
-                        var response = await _messageHandler(message);
-                        await writer.WriteLineAsync(
-                            JsonSerializer.Serialize(response));
-                        await writer.FlushAsync(cancellationToken);
-                    }
-                }
+                var response = await _messageHandler(message);
+                deadline.CancelAfter(TimeSpan.FromSeconds(2));
+                await AuthenticatedIpc.WriteAsync(pipeServer, _key, nonce, true, response, deadline.Token);
             }
             catch (OperationCanceledException)
             {
@@ -186,6 +185,7 @@ public class NamedPipeIpcServer : IAsyncDisposable
             }
             finally
             {
+                _connectionSlots.Release();
                 ClientConnectionChanged?.Invoke(this, false);
                 if (enteredMessageGate)
                 {
@@ -219,6 +219,8 @@ public class NamedPipeIpcServer : IAsyncDisposable
             }
             _cts.Dispose();
             _messageGate.Dispose();
+            _connectionSlots.Dispose();
+            System.Security.Cryptography.CryptographicOperations.ZeroMemory(_key);
         }
     }
 }

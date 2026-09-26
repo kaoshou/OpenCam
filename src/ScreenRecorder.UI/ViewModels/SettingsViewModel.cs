@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ScreenRecorder.Core.Interfaces;
+using ScreenRecorder.Core;
 using ScreenRecorder.Core.Localization;
 using ScreenRecorder.Core.Models;
 using ScreenRecorder.UI.Localization;
@@ -12,6 +13,8 @@ namespace ScreenRecorder.UI.ViewModels;
 public partial class SettingsViewModel : ObservableObject
 {
     public LanguageManager Strings => LanguageManager.Instance;
+    public string DisplayVersion => ProductInfo.DisplayVersion;
+    public string VersionLabelText => Strings.GetFormatted("VersionLabel", DisplayVersion);
 
     private readonly ISettingsService _settingsService;
     private UserSettings _currentSettings = new();
@@ -183,6 +186,7 @@ public partial class SettingsViewModel : ObservableObject
 
     private void RefreshOptionLabels()
     {
+        OnPropertyChanged(nameof(VersionLabelText));
         var lang = SelectedLanguage?.Language ?? AppLanguage.ZhTw;
         AvailableLanguages.Clear();
         AvailableLanguages.Add(new LanguageOption(AppLanguage.ZhTw, Strings["LanguageOptionZhTw"]));

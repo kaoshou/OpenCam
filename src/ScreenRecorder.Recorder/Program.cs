@@ -42,6 +42,7 @@ public class Program
 
         try
         {
+            var bootstrap = await RecorderBootstrap.ReadAsync(args);
             var services = new ServiceCollection();
             ConfigureServices(services);
             using var serviceProvider = services.BuildServiceProvider();
@@ -62,7 +63,7 @@ public class Program
                 cts.Cancel();
             };
 
-            await using var ipcServer = new NamedPipeIpcServer(pipeName, async message =>
+            await using var ipcServer = new NamedPipeIpcServer(pipeName, bootstrap.Key, async message =>
             {
                 if (message.MessageType != "GetAudioLevels")
                 {
@@ -166,7 +167,8 @@ public class Program
                     Log.Error(ex, "處理 IPC 訊息時發生例外: {MessageType}", message.MessageType);
                     return new IpcResponse { Success = false, ErrorMessage = ex.Message };
                 }
-            });
+            }, bootstrap.ParentPid);
+            System.Security.Cryptography.CryptographicOperations.ZeroMemory(bootstrap.Key);
 
             ipcServer.Start();
             Log.Information("IPC Server 已啟動，等待 UI 連線... Pipe: {PipeName}", pipeName);

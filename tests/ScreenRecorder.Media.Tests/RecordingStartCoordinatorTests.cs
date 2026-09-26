@@ -10,12 +10,13 @@ namespace ScreenRecorder.Media.Tests;
 
 public class RecordingStartCoordinatorTests
 {
+    private static readonly byte[] IpcKey = AuthenticatedIpc.CreateKey();
     [Fact]
     public async Task TimedOutStart_ConfirmsRecordingBeforeReportingSuccess()
     {
         var pipeName = "OcSt" + Guid.NewGuid().ToString("N")[..10];
         var state = RecordingState.Idle;
-        await using var server = new NamedPipeIpcServer(pipeName, async message =>
+        await using var server = new NamedPipeIpcServer(pipeName, IpcKey, async message =>
         {
             if (message.MessageType == "StartRecording")
             {
@@ -27,7 +28,7 @@ public class RecordingStartCoordinatorTests
             return TelemetryResponse(state);
         });
         server.Start();
-        await using var client = new NamedPipeIpcClient(pipeName);
+        await using var client = new NamedPipeIpcClient(pipeName, IpcKey);
 
         var result = await RecordingStartCoordinator.StartAsync(
             client, new RecordingConfiguration(), 250, () => false);
@@ -41,7 +42,7 @@ public class RecordingStartCoordinatorTests
     {
         var pipeName = "OcSt" + Guid.NewGuid().ToString("N")[..10];
         var state = RecordingState.Idle;
-        await using var server = new NamedPipeIpcServer(pipeName, async message =>
+        await using var server = new NamedPipeIpcServer(pipeName, IpcKey, async message =>
         {
             if (message.MessageType == "StartRecording")
             {
@@ -53,7 +54,7 @@ public class RecordingStartCoordinatorTests
             return TelemetryResponse(state, "encoder failed");
         });
         server.Start();
-        await using var client = new NamedPipeIpcClient(pipeName);
+        await using var client = new NamedPipeIpcClient(pipeName, IpcKey);
 
         var result = await RecordingStartCoordinator.StartAsync(
             client, new RecordingConfiguration(), 250, () => false);
@@ -66,7 +67,7 @@ public class RecordingStartCoordinatorTests
     public async Task UnresponsiveRecorder_ReturnsUnconfirmedWithoutDeclaringFailure()
     {
         var pipeName = "OcSt" + Guid.NewGuid().ToString("N")[..10];
-        await using var server = new NamedPipeIpcServer(pipeName, async message =>
+        await using var server = new NamedPipeIpcServer(pipeName, IpcKey, async message =>
         {
             if (message.MessageType == "StartRecording")
             {
@@ -77,7 +78,7 @@ public class RecordingStartCoordinatorTests
             return TelemetryResponse(RecordingState.Recording);
         });
         server.Start();
-        await using var client = new NamedPipeIpcClient(pipeName);
+        await using var client = new NamedPipeIpcClient(pipeName, IpcKey);
         var stopwatch = Stopwatch.StartNew();
 
         var result = await RecordingStartCoordinator.StartAsync(

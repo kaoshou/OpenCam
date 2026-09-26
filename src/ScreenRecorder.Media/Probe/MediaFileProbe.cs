@@ -27,17 +27,16 @@ public class MediaFileProbe : IMediaProbeService
             return new MediaProbeResult(false, string.Empty, TimeSpan.Zero, 0, 0, 0, null, 0, 0, 0, null, 0, null);
         }
 
-        var arguments = $"-v error -show_entries format=duration,size,format_name -show_entries stream=codec_type,codec_name,width,height,r_frame_rate,sample_rate -of json \"{mediaFilePath}\"";
-
         var startInfo = new ProcessStartInfo
         {
             FileName = _ffprobePath,
-            Arguments = arguments,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
         };
+        foreach (var argument in new[] { "-v", "error", "-show_entries", "format=duration,size,format_name", "-show_entries", "stream=codec_type,codec_name,width,height,r_frame_rate,sample_rate", "-of", "json", Path.GetFullPath(mediaFilePath) })
+            startInfo.ArgumentList.Add(argument);
 
         using var process = new Process { StartInfo = startInfo };
         process.Start();

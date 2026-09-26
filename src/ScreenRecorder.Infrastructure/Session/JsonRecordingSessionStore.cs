@@ -17,35 +17,48 @@ public class JsonRecordingSessionStore : IRecordingSessionStore
 
     public async Task SaveSessionAsync(RecordingSession session, CancellationToken cancellationToken = default)
     {
-        var dir = session.WorkingDirectory;
-        if (!Directory.Exists(dir))
-        {
-            Directory.CreateDirectory(dir);
-        }
+        var dir = SessionPathPolicy.DirectoryPath(session.WorkingDirectory);
 
         var sessionFilePath = Path.Combine(dir, "session.json");
         var tempFilePath = Path.Combine(dir, "session.json.tmp");
         var backupFilePath = Path.Combine(dir, "session.json.bak");
 
+        foreach (var path in new[] { sessionFilePath, tempFilePath, backupFilePath })
+            SessionPathPolicy.RejectLink(path);
+
+        using var bound = BoundDirectory.Open(dir, create: true);
+        await SaveBoundAsync(session, bound, cancellationToken);
+    }
+
+    internal async Task SaveBoundAsync(RecordingSession session, BoundDirectory bound, CancellationToken cancellationToken)
+    {
         var json = JsonSerializer.Serialize(session, JsonOptions);
 
-        // 先寫入臨時檔案並 Flush 至磁碟
-        await File.WriteAllTextAsync(tempFilePath, json, cancellationToken);
-
         // 如果現有 session.json 存在，先備份
-        if (File.Exists(sessionFilePath))
+        string? previous = null;
+        try { previous = await bound.ReadTextAsync("session.json", cancellationToken); }
+        catch (FileNotFoundException) { }
+        if (previous != null)
         {
-            File.Copy(sessionFilePath, backupFilePath, overwrite: true);
+            await bound.WriteTextAsync("session.json.bak", previous, cancellationToken);
         }
 
-        // 移動/替換為正式 session.json
-        File.Move(tempFilePath, sessionFilePath, overwrite: true);
+        await bound.WriteTextAsync("session.json", json, cancellationToken);
     }
 
     public async Task<RecordingSession?> LoadSessionAsync(string sessionDirectory, CancellationToken cancellationToken = default)
     {
+        sessionDirectory = SessionPathPolicy.DirectoryPath(sessionDirectory);
+        using var bound = BoundDirectory.Open(sessionDirectory);
+        return await LoadBoundAsync(sessionDirectory, bound, cancellationToken);
+    }
+
+    internal async Task<RecordingSession?> LoadBoundAsync(string sessionDirectory, BoundDirectory bound, CancellationToken cancellationToken)
+    {
         var sessionFilePath = Path.Combine(sessionDirectory, "session.json");
         var backupFilePath = Path.Combine(sessionDirectory, "session.json.bak");
+        SessionPathPolicy.RejectLink(sessionFilePath);
+        SessionPathPolicy.RejectLink(backupFilePath);
 
         if (!File.Exists(sessionFilePath))
         {
@@ -61,8 +74,8 @@ public class JsonRecordingSessionStore : IRecordingSessionStore
 
         try
         {
-            var json = await File.ReadAllTextAsync(sessionFilePath, cancellationToken);
-            return JsonSerializer.Deserialize<RecordingSession>(json, JsonOptions);
+            var json = await bound.ReadTextAsync(Path.GetFileName(sessionFilePath), cancellationToken);
+            return SessionPathPolicy.Bind(JsonSerializer.Deserialize<RecordingSession>(json, JsonOptions), sessionDirectory);
         }
         catch (OperationCanceledException)
         {
@@ -79,8 +92,8 @@ public class JsonRecordingSessionStore : IRecordingSessionStore
             {
                 try
                 {
-                    var backupJson = await File.ReadAllTextAsync(backupFilePath, cancellationToken);
-                    var backupSession = JsonSerializer.Deserialize<RecordingSession>(backupJson, JsonOptions);
+                    var backupJson = await bound.ReadTextAsync("session.json.bak", cancellationToken);
+                    var backupSession = SessionPathPolicy.Bind(JsonSerializer.Deserialize<RecordingSession>(backupJson, JsonOptions), sessionDirectory);
                     if (backupSession != null)
                     {
                         return backupSession;
@@ -144,6 +157,7 @@ public class JsonRecordingSessionStore : IRecordingSessionStore
     {
         try
         {
+            directory = SessionPathPolicy.DirectoryPath(directory);
             var segments = Directory
                 .EnumerateFiles(directory, "segment_*.mkv")
                 .OrderBy(path => path, StringComparer.Ordinal)
@@ -155,6 +169,7 @@ public class JsonRecordingSessionStore : IRecordingSessionStore
             }
 
             segments = segments
+                .Select(path => SessionPathPolicy.SegmentPath(directory, path))
                 .Where(path => new FileInfo(path).Length > 0)
                 .Distinct(OperatingSystem.IsWindows()
                     ? StringComparer.OrdinalIgnoreCase

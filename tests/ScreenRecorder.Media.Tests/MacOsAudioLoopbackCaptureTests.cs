@@ -35,13 +35,11 @@ public class MacOsAudioLoopbackCaptureTests : IDisposable
     }
 
     [MacOsOnlyFact]
-    public async Task StartAndStop_ManagesHelperAndPrivateFifo()
+    public async Task StartAndStop_ManagesHelperAndAnonymousPcm()
     {
         await using var capture = new MacOsAudioLoopbackCapture(
             _helperPath,
-            _ => 42,
-            () => _captureDirectory,
-            UnixFifo.CreatePrivate);
+            _ => 42);
 
         var info = await capture.StartCaptureAsync(1);
 
@@ -49,12 +47,14 @@ public class MacOsAudioLoopbackCaptureTests : IDisposable
         Assert.Equal(48000, info.SampleRate);
         Assert.Equal(2, info.Channels);
         Assert.Contains("-f s16le -ar 48000 -ac 2", info.FfmpegInputArgs);
-        Assert.True(File.Exists(info.PipePath));
+        Assert.Empty(info.PipePath);
+        Assert.NotNull(info.PcmStream);
+        Assert.False(Directory.Exists(_captureDirectory));
         Assert.True(capture.IsCapturing);
 
         var helperArguments = await File.ReadAllTextAsync(_helperPath + ".args");
         Assert.Contains("--display-id\n42", helperArguments);
-        Assert.Contains("--fifo\n" + info.PipePath, helperArguments);
+        Assert.Contains("--stdout\n", helperArguments);
 
         await capture.StopCaptureAsync();
 

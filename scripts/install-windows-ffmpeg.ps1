@@ -30,6 +30,30 @@ try {
     New-Item -ItemType Directory -Path $Destination -Force | Out-Null
     Copy-Item "$ExtractRoot\ffmpeg-n8.1.3-win64-gpl-8.1\bin\ffmpeg.exe" $Destination -Force
     Copy-Item "$ExtractRoot\ffmpeg-n8.1.3-win64-gpl-8.1\bin\ffprobe.exe" $Destination -Force
+    $NoticeDir = Join-Path (Resolve-Path $Destination).Path "ffmpeg-notices"
+    New-Item -ItemType Directory -Path "$NoticeDir\upstream" -Force | Out-Null
+    # Retain the archive's documentation/licenses, not just its executables.
+    Get-ChildItem "$ExtractRoot\ffmpeg-n8.1.3-win64-gpl-8.1" |
+        Where-Object { $_.Name -ne "bin" } |
+        Copy-Item -Destination "$NoticeDir\upstream" -Recurse -Force
+    foreach ($Tool in @("ffmpeg", "ffprobe")) {
+        foreach ($Kind in @("license", "version")) {
+            $ToolArgument = if ($Kind -eq "license") { "-hide_banner -L" } else { "-version" }
+            $Process = Start-Process -FilePath (Join-Path (Resolve-Path $Destination).Path "$Tool.exe") `
+                -ArgumentList $ToolArgument -NoNewWindow -Wait -PassThru `
+                -RedirectStandardOutput "$NoticeDir\$Tool-$Kind.txt" `
+                -RedirectStandardError "$TempRoot\$Tool-$Kind-error.txt"
+            if ($Process.ExitCode -ne 0) { throw "Cannot collect $Tool $Kind notice" }
+        }
+    }
+    @"
+Binary archive: $FfmpegUrl
+SHA-256: $ExpectedSha256
+Upstream: https://github.com/BtbN/FFmpeg-Builds
+Corresponding-source review: PENDING. The upstream homepage and OpenCam SOURCE.txt
+do not constitute verified complete corresponding sources for this binary's external libraries.
+Release maintainers must complete the source-provision check in THIRD-PARTY-NOTICES.md.
+"@ | Set-Content "$NoticeDir\SOURCE-STATUS.txt" -Encoding utf8
     (Resolve-Path $Destination).Path
 }
 finally {

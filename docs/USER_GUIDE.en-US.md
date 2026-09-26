@@ -2,7 +2,7 @@
 
 OpenCam is a reliability-first screen recorder for Windows and macOS. During recording, it writes to interruption-resistant MKV working files and packages them as MP4 after a normal stop. If a crash, power failure, or forced termination occurs, Crash Recovery can attempt to preserve content that was already written successfully.
 
-> This guide covers OpenCam v0.2.2. The main workflow is the same on Windows and macOS; platform differences are called out where applicable.
+> This guide covers OpenCam v0.2.3 source candidate; it does not imply that installers have been released or live acceptance completed. The main workflow is the same on Windows and macOS; platform differences are called out where applicable.
 
 ## 1. System Requirements and First Launch
 

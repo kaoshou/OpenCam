@@ -11,6 +11,7 @@ import {
   validateVersionText,
 } from '../../scripts/check-version-consistency.mjs';
 import { productVersion, renderHome } from '../src/content.mjs';
+import { addThirdPartyFixture } from './helpers/notices.mjs';
 
 const repositoryRoot = resolve(import.meta.dirname, '../..');
 const revision = '0123456789abcdef0123456789abcdef01234567';
@@ -18,6 +19,7 @@ const revision = '0123456789abcdef0123456789abcdef01234567';
 test('release notices identify AGPL and exact corresponding source revision', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'opencam-notices-'));
   try {
+    await addThirdPartyFixture(directory);
     const license = await readFile(join(repositoryRoot, 'LICENSE'));
     await writeFile(join(directory, 'LICENSE'), license);
     await writeFile(join(directory, 'SOURCE.txt'),
@@ -44,6 +46,7 @@ test('release notices identify AGPL and exact corresponding source revision', as
 test('Windows installer uses an exact plaintext copy of the project license', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'opencam-installer-license-'));
   try {
+    await addThirdPartyFixture(directory, 'win-x64');
     const license = await readFile(join(repositoryRoot, 'LICENSE'));
     await writeFile(join(directory, 'LICENSE'), license);
     await writeFile(join(directory, 'SOURCE.txt'),
