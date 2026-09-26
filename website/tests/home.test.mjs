@@ -5,6 +5,10 @@ import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { buildSite } from '../build.mjs';
+import { mainScreenshotVersion, productVersion } from '../src/content.mjs';
+
+const escapedProductVersion = productVersion.replaceAll('.', '\\.');
+const escapedScreenshotVersion = mainScreenshotVersion.replaceAll('.', '\\.');
 
 test('localized homepages include genuine previews, guide, and current download', async () => {
   const out = await mkdtemp(join(tmpdir(), 'opencam-home-'));
@@ -20,7 +24,7 @@ test('localized homepages include genuine previews, guide, and current download'
       assert.match(html, /Apple Silicon/);
       assert.match(html, /AGPL-3\.0-or-later/);
       assert.match(html, /https:\/\/github\.com\/kaoshou\/OpenCam\/blob\/master\/LICENSE/);
-      assert.match(html, /Download v0\.2\.1|下載 v0\.2\.1/);
+      assert.match(html, new RegExp(`Download v${escapedProductVersion}|下載 v${escapedProductVersion}`));
       assert.doesNotMatch(html, /download still points to v0\.1\.5|下載連結仍指向 v0\.1\.5/);
       assert.doesNotMatch(html, /fonts\.googleapis|google-analytics|gtag\(/);
     }
@@ -42,7 +46,7 @@ test('each homepage offers full-size current macOS screenshots', async () => {
   } finally { await rm(out, { recursive: true, force: true }); }
 });
 
-test('localized main screenshots show the v0.2.1 recording audio waveforms', async () => {
+test('localized main screenshots show the current recording audio waveforms', async () => {
   const out = await mkdtemp(join(tmpdir(), 'opencam-recording-preview-'));
   try {
     await buildSite({ repositoryRoot: resolve(import.meta.dirname, '../..'), outputRoot: out });
@@ -52,7 +56,7 @@ test('localized main screenshots show the v0.2.1 recording audio waveforms', asy
     ];
     for (const [lang, stateText, waveformText] of expectations) {
       const html = await readFile(join(out, lang, 'index.html'), 'utf8');
-      assert.match(html, new RegExp(`alt="[^"]*OpenCam 0\\.2\\.1[^"]*${stateText}[^"]*${waveformText}[^"]*"`));
+      assert.match(html, new RegExp(`alt="[^"]*OpenCam ${escapedScreenshotVersion}[^"]*${stateText}[^"]*${waveformText}[^"]*"`));
       assert.match(html, /<img[^>]+preview_main_(?:zhtw|enus)\.png[^>]+width="840" height="740"/);
     }
   } finally { await rm(out, { recursive: true, force: true }); }

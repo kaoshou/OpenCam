@@ -9,8 +9,8 @@ public class ProductInfoTests
     [Fact]
     public void AssemblyMetadata_UsesCanonicalProductVersion()
     {
-        Assert.Equal("0.2.1", ProductInfo.Version);
-        Assert.Equal("v0.2.1", ProductInfo.DisplayVersion);
+        Assert.Matches(new Regex(@"^[0-9]+\.[0-9]+\.[0-9]+$"), ProductInfo.Version);
+        Assert.Equal($"v{ProductInfo.Version}", ProductInfo.DisplayVersion);
     }
 
     [Fact]

@@ -62,14 +62,14 @@ test('Windows installer uses an exact plaintext copy of the project license', as
 
 test('canonical version is strict and drives packaging plus localized website content', async () => {
   const raw = await readFile(join(repositoryRoot, 'VERSION'), 'utf8');
-  assert.equal(validateVersionText(raw), '0.2.1');
+  const version = validateVersionText(raw);
   for (const invalid of ['0.2.1 \n', '0.2.1\n\n', '0.2.x\n', '0.2.1', '01.2.1\n']) {
     assert.throws(() => validateVersionText(invalid), /VERSION/);
   }
 
-  assert.equal(productVersion, '0.2.1');
-  assert.match(renderHome('zh-TW'), /v0\.2\.1/);
-  assert.match(renderHome('en-US'), /v0\.2\.1/);
+  assert.equal(productVersion, version);
+  assert.match(renderHome('zh-TW'), new RegExp(`v${version.replaceAll('.', '\\.')}`));
+  assert.match(renderHome('en-US'), new RegExp(`v${version.replaceAll('.', '\\.')}`));
   await checkVersionConsistency(repositoryRoot);
 });
 
