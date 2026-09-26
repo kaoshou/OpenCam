@@ -6,7 +6,7 @@
 
 - 日期：2026-09-26（Asia/Taipei）
 - OpenCam：0.2.1
-- Commit under test：`a3804e326100fb82b3633c1faa1b91dead6e7fae`
+- Commit under test：`9e2a2c8962a461c1d21205df061a965001cb2bc0`
 - 主機：Apple Silicon (`arm64`)
 - 作業系統：macOS 26.5.2，Build 25F84
 - .NET SDK：10.0.302（專案目標 `net8.0`）
