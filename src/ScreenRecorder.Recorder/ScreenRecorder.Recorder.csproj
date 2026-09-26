@@ -16,6 +16,9 @@
     <ApplicationIcon>app_icon.ico</ApplicationIcon>
   </PropertyGroup>
 
-</Project>
+  <ItemGroup>
+    <InternalsVisibleTo Include="ScreenRecorder.Media.Tests" />
+  </ItemGroup>
 
+</Project>
 

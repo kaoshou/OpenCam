@@ -1,5 +1,7 @@
 ﻿// SPDX-License-Identifier: AGPL-3.0-or-later
 using ScreenRecorder.Core.Enums;
+using ScreenRecorder.Core.Models;
+using ScreenRecorder.UI.Localization;
 using ScreenRecorder.UI.ViewModels;
 using Xunit;
 
@@ -466,5 +468,41 @@ public class FoolproofUiLogicTests
         await vm.QueryTelemetryAsync();
         Assert.False(vm.IsRecording, "連續 6 次連線失敗時應自動安全收斂停止狀態");
         Assert.Contains("核心無預警中斷", vm.StatusMessage);
+    }
+
+    [Fact]
+    public void ResolveRecorderHealthStatus_UsesWarningWithoutOverwritingDiskWarning()
+    {
+        var telemetry = new RecorderTelemetry
+        {
+            State = RecordingState.Recording,
+            IsVideoCaptureHealthy = false,
+            IsEncoderHealthy = false,
+            HealthWarning = "Recording output has stopped growing."
+        };
+        var diskWarning = LanguageManager.Instance.GetFormatted(
+            "StatusDiskSpaceWarning", 1.5);
+
+        Assert.Equal(
+            diskWarning,
+            MainViewModel.ResolveRecorderHealthStatus(telemetry, diskWarning));
+        Assert.Contains(
+            telemetry.HealthWarning,
+            MainViewModel.ResolveRecorderHealthStatus(telemetry, "recording"));
+    }
+
+    [Fact]
+    public void ResolveRecorderHealthStatus_LeavesHealthyRecordingStatusUnchanged()
+    {
+        var telemetry = new RecorderTelemetry
+        {
+            State = RecordingState.Recording,
+            IsVideoCaptureHealthy = true,
+            IsEncoderHealthy = true
+        };
+
+        Assert.Equal(
+            "recording",
+            MainViewModel.ResolveRecorderHealthStatus(telemetry, "recording"));
     }
 }

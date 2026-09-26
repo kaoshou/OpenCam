@@ -39,6 +39,9 @@ public class RecordingOrchestrator : IAsyncDisposable
     private readonly object _lock = new();
     private readonly SemaphoreSlim _sessionStoreGate = new(1, 1);
     private readonly SemaphoreSlim _lifecycleGate = new(1, 1);
+    private readonly RecorderHealthTracker _healthTracker = new();
+    private readonly object _healthLock = new();
+    private string? _lastPublishedHealthWarning;
 
     public bool UseSyntheticCaptureSource { get; set; }
 
@@ -137,6 +140,7 @@ public class RecordingOrchestrator : IAsyncDisposable
             // enabling or disabling audio while paused never changes the
             // stream layout and silently drops later audio during concat.
             config.MaintainSegmentAudioTrack = true;
+            ResetRecorderHealth(config);
 
             // 計算實際擷取幾何範圍
             var actualBounds = ResolveCaptureBounds(config);
@@ -179,12 +183,17 @@ public class RecordingOrchestrator : IAsyncDisposable
             _engine.EngineErrorOccurred += (s, err) =>
             {
                 Log.Error("錄影引擎報告錯誤: {Error}", err);
+                RecordRecorderEngineError(err);
                 _stateMachine.ForceTransition(RecordingState.Failed, err);
                 if (_currentSession != null)
                 {
                     _currentSession.State = RecordingState.Failed;
                     _currentSession.ErrorMessage = err;
-                    try { SaveSessionAsync(_currentSession).GetAwaiter().GetResult(); } catch { }
+                    try { SaveSessionAsync(_currentSession).GetAwaiter().GetResult(); }
+                    catch (Exception saveError)
+                    {
+                        Log.Warning(saveError, "錄影引擎失敗後儲存工作階段狀態失敗");
+                    }
                 }
             };
             _engine.EngineWarningOccurred += (s, warn) =>
@@ -216,6 +225,7 @@ public class RecordingOrchestrator : IAsyncDisposable
         }
         catch (Exception ex)
         {
+            RecordRecorderEngineError(ex.Message);
             Log.Error(ex, "啟動錄影失敗");
             try { await StopWatchdogAsync(); }
             catch (Exception cleanupError)
@@ -238,7 +248,11 @@ public class RecordingOrchestrator : IAsyncDisposable
             {
                 _currentSession.State = RecordingState.Failed;
                 _currentSession.ErrorMessage = ex.Message;
-                try { await SaveSessionAsync(_currentSession, cancellationToken); } catch { }
+                try { await SaveSessionAsync(_currentSession, cancellationToken); }
+                catch (Exception saveError)
+                {
+                    Log.Warning(saveError, "啟動錄影失敗後儲存工作階段狀態失敗");
+                }
             }
             return (false, ex.Message, null);
         }
@@ -280,6 +294,7 @@ public class RecordingOrchestrator : IAsyncDisposable
             }
 
             _currentSession.Configuration.ApplyPausedSettings(updates);
+            ResetRecorderHealth(_currentSession.Configuration);
             session = _currentSession;
         }
 
@@ -397,6 +412,7 @@ public class RecordingOrchestrator : IAsyncDisposable
             var nextSegment = Path.Combine(session.WorkingDirectory, $"segment_{_segmentIndex:D3}.mkv");
             session.SegmentFilePaths.Add(nextSegment);
             session.WorkingFilePath = nextSegment;
+            BeginRecorderHealthSegment();
 
             var actualBounds = ResolveCaptureBounds(session.Configuration);
 
@@ -411,6 +427,7 @@ public class RecordingOrchestrator : IAsyncDisposable
             _engine.EngineErrorOccurred += (s, err) =>
             {
                 Log.Error("錄影引擎報告錯誤: {Error}", err);
+                RecordRecorderEngineError(err);
                 _stateMachine.ForceTransition(RecordingState.Failed, err);
             };
             _engine.EngineWarningOccurred += (s, warn) => Log.Warning("錄影引擎發出警告: {Warning}", warn);
@@ -441,6 +458,7 @@ public class RecordingOrchestrator : IAsyncDisposable
         }
         catch (Exception ex)
         {
+            RecordRecorderEngineError(ex.Message);
             Log.Error(ex, "繼續錄影失敗");
             _stateMachine.ForceTransition(RecordingState.Failed, ex.Message);
             return (false, ex.Message);
@@ -565,7 +583,11 @@ public class RecordingOrchestrator : IAsyncDisposable
             _stateMachine.ForceTransition(RecordingState.Failed, ex.Message);
             session.State = RecordingState.Failed;
             session.ErrorMessage = ex.Message;
-            try { await SaveSessionAsync(session, cancellationToken); } catch { }
+            try { await SaveSessionAsync(session, cancellationToken); }
+            catch (Exception saveError)
+            {
+                Log.Warning(saveError, "停止或封裝失敗後儲存工作階段狀態失敗");
+            }
 
             // 確保原始 MKV 被保留
             return (false, ex.Message, null);
@@ -593,7 +615,10 @@ public class RecordingOrchestrator : IAsyncDisposable
                 input = source.ReadInputLevels(now);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "讀取錄影音訊健康樣本失敗");
+        }
 
         return RecordingAudioLevelResolver.Resolve(session.Configuration.AudioSource,
             _stateMachine.CurrentState, input.SystemAudio, input.Microphone, now);
@@ -618,11 +643,16 @@ public class RecordingOrchestrator : IAsyncDisposable
         {
             if (File.Exists(seg))
             {
-                try { totalFileSize += new FileInfo(seg).Length; } catch { }
+                try { totalFileSize += new FileInfo(seg).Length; }
+                catch (Exception ex)
+                {
+                    Log.Debug(ex, "讀取錄影分段大小失敗: {SegmentPath}", seg);
+                }
             }
         }
 
         var freeSpace = _storageService.GetAvailableFreeSpaceBytes(session.WorkingDirectory);
+        var health = SnapshotRecorderHealth(DateTimeOffset.UtcNow);
 
         return new RecorderTelemetry
         {
@@ -632,12 +662,13 @@ public class RecordingOrchestrator : IAsyncDisposable
             WorkingFilePath = session.WorkingFilePath,
             FinalFilePath = session.FinalFilePath,
             CurrentFileSizeBytes = totalFileSize,
-            DroppedFrames = 0,
+            DroppedFrames = health.DroppedFrames,
             AvailableDiskSpaceBytes = freeSpace,
-            IsVideoCaptureHealthy = true,
-            IsSystemAudioHealthy = true,
-            IsMicrophoneHealthy = true,
-            IsEncoderHealthy = true
+            IsVideoCaptureHealthy = health.VideoHealthy,
+            IsSystemAudioHealthy = health.SystemAudioHealthy,
+            IsMicrophoneHealthy = health.MicrophoneHealthy,
+            IsEncoderHealthy = health.EncoderHealthy,
+            HealthWarning = health.Warning
         };
     }
 
@@ -685,6 +716,7 @@ public class RecordingOrchestrator : IAsyncDisposable
             }
 
             Log.Warning("偵測到音訊裝置拔除或異常崩潰，準備觸發安全靜音補償接續錄製...");
+            RecordAudioDeviceLost();
 
             var session = _currentSession;
             session.Configuration.IsRecoverySilenceMode = true;
@@ -700,6 +732,7 @@ public class RecordingOrchestrator : IAsyncDisposable
             var nextSegment = Path.Combine(session.WorkingDirectory, $"segment_{_segmentIndex:D3}.mkv");
             session.SegmentFilePaths.Add(nextSegment);
             session.WorkingFilePath = nextSegment;
+            BeginRecorderHealthSegment();
 
             var actualBounds = ResolveCaptureBounds(session.Configuration);
 
@@ -714,6 +747,7 @@ public class RecordingOrchestrator : IAsyncDisposable
             _engine.EngineErrorOccurred += (s, err) =>
             {
                 Log.Error("錄影引擎報告錯誤: {Error}", err);
+                RecordRecorderEngineError(err);
                 _stateMachine.ForceTransition(RecordingState.Failed, err);
             };
             _engine.EngineWarningOccurred += (s, warn) => Log.Warning("錄影引擎發出警告: {Warning}", warn);
@@ -727,6 +761,7 @@ public class RecordingOrchestrator : IAsyncDisposable
         }
         catch (Exception ex)
         {
+            RecordRecorderEngineError(ex.Message);
             Log.Error(ex, "音訊裝置拔除自動恢復發生錯誤");
             EmergencyStopTriggered?.Invoke(this, $"音訊裝置拔除後無法自動恢復錄影: {ex.Message}");
             requiresEmergencyStop = true;
@@ -758,9 +793,6 @@ public class RecordingOrchestrator : IAsyncDisposable
 
     private async Task WatchdogLoopAsync(RecordingSession session, CancellationToken ct)
     {
-        long lastSize = -1;
-        int stallCount = 0;
-
         try
         {
             while (!ct.IsCancellationRequested)
@@ -796,29 +828,33 @@ public class RecordingOrchestrator : IAsyncDisposable
 
                 if (currentState != RecordingState.Recording)
                 {
-                    stallCount = 0;
                     continue;
                 }
 
-                if (File.Exists(session.WorkingFilePath))
+                long currentSize = 0;
+                try
                 {
-                    long currentSize = 0;
-                    try { currentSize = new FileInfo(session.WorkingFilePath).Length; } catch { }
+                    if (File.Exists(session.WorkingFilePath))
+                    {
+                        currentSize = new FileInfo(session.WorkingFilePath).Length;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "看門狗讀取目前錄影分段大小失敗: {Path}", session.WorkingFilePath);
+                }
 
-                    if (currentSize == lastSize && currentSize > 0)
-                    {
-                        stallCount++;
-                        if (stallCount >= 3)
-                        {
-                            Log.Warning("看門狗監測：錄影檔案大小已逾 6 秒無增長 ({Bytes} bytes)", currentSize);
-                            WatchdogWarningOccurred?.Invoke(this, "錄影管線寫入出現遲滯，看門狗正全力維護錄影資料安全");
-                        }
-                    }
-                    else
-                    {
-                        stallCount = 0;
-                    }
-                    lastSize = currentSize;
+                var health = ObserveRecorderHealth(new RecorderProgressObservation(
+                    _engine?.IsRunning == true,
+                    _engine?.CurrentFramesRecorded ?? 0,
+                    _engine?.CurrentRecordedTime ?? TimeSpan.Zero,
+                    currentSize));
+                if (!string.IsNullOrWhiteSpace(health.Warning) &&
+                    !string.Equals(health.Warning, _lastPublishedHealthWarning, StringComparison.Ordinal))
+                {
+                    _lastPublishedHealthWarning = health.Warning;
+                    Log.Warning("看門狗監測：{HealthWarning}", health.Warning);
+                    WatchdogWarningOccurred?.Invoke(this, health.Warning);
                 }
 
                 var ws = Environment.WorkingSet;
@@ -832,6 +868,62 @@ public class RecordingOrchestrator : IAsyncDisposable
         catch (Exception ex)
         {
             Log.Warning(ex, "看門狗背景監測發生非致命例外");
+        }
+    }
+
+    internal RecorderTelemetryHealth ObserveRecorderHealth(RecorderProgressObservation observation)
+    {
+        if (_stateMachine.CurrentState == RecordingState.Recording)
+        {
+            lock (_healthLock)
+            {
+                _healthTracker.ObserveProgress(observation);
+            }
+        }
+
+        return SnapshotRecorderHealth(DateTimeOffset.UtcNow);
+    }
+
+    private void ResetRecorderHealth(RecordingConfiguration configuration)
+    {
+        lock (_healthLock)
+        {
+            _healthTracker.Reset(configuration);
+            _lastPublishedHealthWarning = null;
+        }
+    }
+
+    private void BeginRecorderHealthSegment()
+    {
+        lock (_healthLock)
+        {
+            _healthTracker.BeginSegment();
+            _lastPublishedHealthWarning = null;
+        }
+    }
+
+    private void RecordRecorderEngineError(string message)
+    {
+        lock (_healthLock)
+        {
+            _healthTracker.RecordEngineError(message);
+        }
+    }
+
+    private void RecordAudioDeviceLost()
+    {
+        lock (_healthLock)
+        {
+            _healthTracker.RecordAudioDeviceLost();
+        }
+    }
+
+    private RecorderTelemetryHealth SnapshotRecorderHealth(DateTimeOffset now)
+    {
+        var audioLevels = GetAudioLevels(now);
+        lock (_healthLock)
+        {
+            return _healthTracker.CreateTelemetryHealth(audioLevels);
         }
     }
 

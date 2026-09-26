@@ -605,6 +605,44 @@ public partial class MainViewModel : ObservableObject
         warningThresholdBytes > 0 &&
         availableBytes <= warningThresholdBytes;
 
+    internal static string ResolveRecorderHealthStatus(
+        RecorderTelemetry telemetry,
+        string currentStatus)
+    {
+        if (MatchesFormattedStatus(currentStatus, "StatusDiskSpaceWarning"))
+        {
+            return currentStatus;
+        }
+
+        var hasConfirmedFailure = telemetry.IsVideoCaptureHealthy == false ||
+                                  telemetry.IsSystemAudioHealthy == false ||
+                                  telemetry.IsMicrophoneHealthy == false ||
+                                  telemetry.IsEncoderHealthy == false;
+        if (hasConfirmedFailure && !string.IsNullOrWhiteSpace(telemetry.HealthWarning))
+        {
+            return LanguageManager.Instance.GetFormatted(
+                "StatusRecorderHealthWarning",
+                telemetry.HealthWarning);
+        }
+
+        if (MatchesFormattedStatus(currentStatus, "StatusRecorderHealthWarning"))
+        {
+            return telemetry.State == RecordingState.Paused
+                ? LanguageManager.Instance["StatusPausedMsg"]
+                : LanguageManager.Instance["StatusRecordingActive"];
+        }
+
+        return currentStatus;
+    }
+
+    private static bool MatchesFormattedStatus(string value, string resourceKey)
+    {
+        var template = LanguageManager.Instance[resourceKey];
+        var placeholder = template.IndexOf('{');
+        var prefix = placeholder >= 0 ? template[..placeholder] : template;
+        return prefix.Length > 0 && value.StartsWith(prefix, StringComparison.Ordinal);
+    }
+
     private static long ConvertThresholdToBytes(
         double value,
         double multiplier,
@@ -1754,12 +1792,19 @@ public partial class MainViewModel : ObservableObject
                             "StatusDiskSpaceWarning",
                             telemetry.AvailableDiskSpaceBytes / (1024.0 * 1024.0 * 1024.0));
                     }
-                    else if (_isDiskSpaceWarningActive)
+                    else
                     {
-                        _isDiskSpaceWarningActive = false;
-                        StatusMessage = telemetry.State == RecordingState.Paused
-                            ? Strings["StatusPausedMsg"]
-                            : Strings["StatusRecordingActive"];
+                        if (_isDiskSpaceWarningActive)
+                        {
+                            _isDiskSpaceWarningActive = false;
+                            StatusMessage = telemetry.State == RecordingState.Paused
+                                ? Strings["StatusPausedMsg"]
+                                : Strings["StatusRecordingActive"];
+                        }
+
+                        StatusMessage = ResolveRecorderHealthStatus(
+                            telemetry,
+                            StatusMessage);
                     }
                     return;
                 }

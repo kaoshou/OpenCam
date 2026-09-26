@@ -327,6 +327,73 @@ public class ActualRecordingIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task SyntheticRecording_TelemetryTransitionsFromUnknownToHealthy()
+    {
+        await using var orchestrator = CreateSyntheticOrchestrator();
+        var (startSuccess, startError, _) = await orchestrator.StartRecordingAsync(
+            CreateSyntheticConfiguration(deleteWorkingFiles: false));
+        Assert.True(startSuccess, startError);
+
+        var beforeObservation = orchestrator.GetTelemetry();
+        Assert.Null(beforeObservation.IsVideoCaptureHealthy);
+        Assert.Null(beforeObservation.IsEncoderHealthy);
+
+        orchestrator.ObserveRecorderHealth(new RecorderProgressObservation(
+            true, 1, TimeSpan.FromMilliseconds(33), 1_024));
+
+        var afterObservation = orchestrator.GetTelemetry();
+        Assert.True(afterObservation.IsVideoCaptureHealthy);
+        Assert.True(afterObservation.IsEncoderHealthy);
+        await orchestrator.StopRecordingAsync();
+    }
+
+    [Fact]
+    public async Task PausedRecording_TelemetryDoesNotReportFalseStall()
+    {
+        await using var orchestrator = CreateSyntheticOrchestrator();
+        var (startSuccess, startError, _) = await orchestrator.StartRecordingAsync(
+            CreateSyntheticConfiguration(deleteWorkingFiles: false));
+        Assert.True(startSuccess, startError);
+        var observation = new RecorderProgressObservation(
+            true, 10, TimeSpan.FromSeconds(1), 4_096);
+        orchestrator.ObserveRecorderHealth(observation);
+
+        var (pauseSuccess, pauseError) = await orchestrator.PauseRecordingAsync();
+        Assert.True(pauseSuccess, pauseError);
+        orchestrator.ObserveRecorderHealth(observation);
+        orchestrator.ObserveRecorderHealth(observation);
+        orchestrator.ObserveRecorderHealth(observation);
+
+        var telemetry = orchestrator.GetTelemetry();
+        Assert.NotEqual(false, telemetry.IsVideoCaptureHealthy);
+        Assert.NotEqual(false, telemetry.IsEncoderHealthy);
+        Assert.Null(telemetry.HealthWarning);
+        await orchestrator.StopRecordingAsync();
+    }
+
+    [Fact]
+    public async Task HealthWarning_IsIncludedInTelemetryAfterConfirmedStall()
+    {
+        await using var orchestrator = CreateSyntheticOrchestrator();
+        var (startSuccess, startError, _) = await orchestrator.StartRecordingAsync(
+            CreateSyntheticConfiguration(deleteWorkingFiles: false));
+        Assert.True(startSuccess, startError);
+        var observation = new RecorderProgressObservation(
+            true, 10, TimeSpan.FromSeconds(1), 4_096);
+
+        orchestrator.ObserveRecorderHealth(observation);
+        orchestrator.ObserveRecorderHealth(observation);
+        orchestrator.ObserveRecorderHealth(observation);
+        orchestrator.ObserveRecorderHealth(observation);
+
+        var telemetry = orchestrator.GetTelemetry();
+        Assert.False(telemetry.IsVideoCaptureHealthy);
+        Assert.False(telemetry.IsEncoderHealthy);
+        Assert.NotNull(telemetry.HealthWarning);
+        await orchestrator.StopRecordingAsync();
+    }
+
+    [Fact]
     public async Task SessionHeartbeat_ContinuesWhileFinalizing()
     {
         var stateMachine = new RecordingStateMachine();
@@ -684,6 +751,24 @@ public class ActualRecordingIntegrationTests : IDisposable
             OutputDirectory = _tempDir,
             DeleteWorkingFileAfterSuccessfulRemux = deleteWorkingFiles
         };
+
+    private RecordingOrchestrator CreateSyntheticOrchestrator()
+    {
+        var storageService = new StorageService();
+        var displayService = new FixedDisplayService();
+        return new RecordingOrchestrator(
+            new RecordingStateMachine(),
+            storageService,
+            new JsonRecordingSessionStore(),
+            new DiskSpaceMonitor(storageService),
+            new StreamCopyRemuxer(),
+            new MediaFileProbe(),
+            displayService,
+            new MacOsFFmpegProvider(displayService))
+        {
+            UseSyntheticCaptureSource = true
+        };
+    }
 
     private sealed class FixedDisplayService : IDisplayService
     {
