@@ -29,13 +29,10 @@ public sealed class MacOsLevelLineParserTests
         }
     }
 
-    [UnixOnlyFact]
+    [MacOsOnlyFact]
     public async Task HelperLevelLines_UpdateLatestAndClearAfterStop()
     {
-        if (OperatingSystem.IsWindows())
-        {
-            return;
-        }
+        if (!OperatingSystem.IsMacOS()) return;
 
         var root = Path.Combine(Path.GetTempPath(), "OpenCamLevelTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);

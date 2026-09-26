@@ -34,7 +34,7 @@ public class MacOsMicrophoneCaptureTests : IDisposable
         }
     }
 
-    [UnixOnlyFact]
+    [MacOsOnlyFact]
     public async Task StartAndStop_ManagesNativeHelperAndPrivateFifo()
     {
         await using var capture = new MacOsMicrophoneCapture(

@@ -421,14 +421,14 @@ public class FoolproofUiLogicTests
         var vm = new MainViewModel(forScreenshot: true);
 
 
-        // 傳入奇數解析度 (如 1279 x 719)
-        vm.UpdateCustomRegion(50, 60, 1279, 719);
+        // 傳入可放入 CI 虛擬顯示器的奇數解析度，避免測試被正確的螢幕邊界裁切干擾。
+        vm.UpdateCustomRegion(50, 60, 639, 479);
 
-        // 驗收：自動轉為偶數 (1278 x 718)，且狀態切換為自訂區域
+        // 驗收：自動轉為偶數 (638 x 478)，且狀態切換為自訂區域
         Assert.True(vm.RegionWidth % 2 == 0);
         Assert.True(vm.RegionHeight % 2 == 0);
-        Assert.Equal(1278, vm.RegionWidth);
-        Assert.Equal(718, vm.RegionHeight);
+        Assert.Equal(638, vm.RegionWidth);
+        Assert.Equal(478, vm.RegionHeight);
         Assert.True(vm.IsCustomRegion, "更新選區後必須自動將錄影範圍設置為自訂區域");
 
     }

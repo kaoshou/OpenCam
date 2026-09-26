@@ -31,13 +31,10 @@ public class MacOsSystemAudioSupportTests : IDisposable
             _directory));
     }
 
-    [UnixOnlyFact]
+    [MacOsOnlyFact]
     public void CreatePrivate_CreatesUserOnlyFifo()
     {
-        if (OperatingSystem.IsWindows())
-        {
-            throw new PlatformNotSupportedException();
-        }
+        if (!OperatingSystem.IsMacOS()) return;
 
         Directory.CreateDirectory(_directory);
         var fifoPath = Path.Combine(_directory, "system-audio.pcm");

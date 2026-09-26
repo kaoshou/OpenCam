@@ -34,7 +34,7 @@ public class MacOsAudioLoopbackCaptureTests : IDisposable
         }
     }
 
-    [UnixOnlyFact]
+    [MacOsOnlyFact]
     public async Task StartAndStop_ManagesHelperAndPrivateFifo()
     {
         await using var capture = new MacOsAudioLoopbackCapture(
