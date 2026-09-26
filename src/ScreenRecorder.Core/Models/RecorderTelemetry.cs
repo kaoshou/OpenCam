@@ -24,15 +24,17 @@ public class RecorderTelemetry
 
     public double CurrentFps { get; set; }
 
-    public long DroppedFrames { get; set; }
+    public long? DroppedFrames { get; set; }
 
-    public bool IsVideoCaptureHealthy { get; set; } = true;
+    public bool? IsVideoCaptureHealthy { get; set; }
 
-    public bool IsSystemAudioHealthy { get; set; } = true;
+    public bool? IsSystemAudioHealthy { get; set; }
 
-    public bool IsMicrophoneHealthy { get; set; } = true;
+    public bool? IsMicrophoneHealthy { get; set; }
 
-    public bool IsEncoderHealthy { get; set; } = true;
+    public bool? IsEncoderHealthy { get; set; }
+
+    public string? HealthWarning { get; set; }
 
     public string? LastError { get; set; }
 }

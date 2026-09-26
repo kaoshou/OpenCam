@@ -82,7 +82,10 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
                 system = source.ReadLatestLevel(now);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "讀取系統音訊即時音量失敗");
+        }
         try
         {
             if (_microphoneLevelActive)
@@ -91,7 +94,10 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
                     _microphoneLevelObserver?.ReadLatestLevel(now);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "讀取麥克風即時音量失敗");
+        }
         return (system, microphone);
     }
 
