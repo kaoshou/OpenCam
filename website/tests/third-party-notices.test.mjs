@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, writeFile, cp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { join, resolve } from 'node:path';
 import { verifyReleaseNotices, verifyThirdPartyNotices } from '../../scripts/check-release-notices.mjs';
 import { assembleThirdPartyNotices } from '../../scripts/assemble-third-party-notices.mjs';
@@ -9,6 +11,22 @@ import { addThirdPartyFixture } from './helpers/notices.mjs';
 
 const root = resolve(import.meta.dirname, '../..');
 const revision = '0123456789abcdef0123456789abcdef01234567';
+
+test('Windows Git checkout preserves every catalogued license hash', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'opencam-notice-checkout-'));
+  try {
+    await cp(join(root, '.gitattributes'), join(dir, '.gitattributes'));
+    await cp(join(root, 'third-party'), join(dir, 'third-party'), { recursive: true });
+    const git = args => execFileSync('git', args, { cwd: dir });
+    git(['init', '--quiet']);
+    git(['-c', 'core.autocrlf=false', 'add', '.gitattributes', 'third-party']);
+    const catalog = JSON.parse(await readFile(join(dir, 'third-party/catalog.json'), 'utf8'));
+    for (const file of catalog.files) {
+      const data = git(['-c', 'core.autocrlf=true', 'cat-file', '--filters', `:third-party/${file.path}`]);
+      assert.equal(createHash('sha256').update(data).digest('hex'), file.sha256, file.path);
+    }
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
 
 test('release rejects missing third-party notices even when project notices are valid', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'opencam-third-party-'));

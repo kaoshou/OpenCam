@@ -1,3 +1,5 @@
 # Keep the canonical AGPL text byte-identical in Windows release packages.
 LICENSE text eol=lf
 VERSION text eol=lf
+# Preserve the exact bytes verified by third-party/catalog.json on every OS.
+third-party/licenses/** text eol=lf
