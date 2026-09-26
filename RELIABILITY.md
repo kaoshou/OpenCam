@@ -18,8 +18,8 @@
 ## 2. MKV 容器防護原則 (Continuous Container Flushing)
 
 1. **零延遲寫入**: 擷取之影音幀必須以流式 (Streaming) 寫入 MKV 封裝管道，禁止將大量數據長久滯留在記憶體中「等按下停止時再寫入」。
-2. **EBML Cluster 獨立性**: 每個 Cluster 包含獨立時間基準。若系統突然斷電，最後一個未寫完的 Cluster 頂多損失 1~2 秒，在此之前的所有內容百分之百完整可播。
-3. **唯讀保護**: 錄影停止或中斷時，`recording.mkv` 立即以唯讀模式保護，直到 Remux 轉出之 MP4 經檢驗無誤前，嚴禁任何程式碼刪除或覆寫該 MKV。
+2. **中斷耐受性**: MKV 的分段與 Cluster 結構可提高中斷後保留已寫入內容的機會；最後尚未完成的區塊仍可能遺失或損壞，實際可救回範圍須由 ffprobe/Remux 結果判定，不承諾固定秒數或完整比例。
+3. **保留原檔**: 在 MP4 建立並驗證成功前，程式不得刪除或覆寫 `segment_*.mkv`（舊版 Session 可能是 `recording.mkv`）。這是程式生命週期規則，不代表作業系統檔案屬性會被設成唯讀。
 
 ---
 
@@ -31,7 +31,8 @@ Recordings/
 └── Sessions/
     └── 20260915_010000_A1B2C3/
         ├── session.json      (當前狀態: Interrupted / Recording / Completed)
-        ├── recording.mkv     (安全工作影音檔)
+        ├── segment_000.mkv   (目前格式的第一段工作影音檔)
+        ├── segment_001.mkv   (暫停後繼續時可能新增)
         ├── recording.log     (該 Session 專屬結構化日誌)
         └── recovery.json     (若需要進一步修復之元資料)
 ```
@@ -39,11 +40,8 @@ Recordings/
 ### 救援流程
 1. **啟動偵測**: 程式啟動時自動掃描 `Sessions/` 目錄，比對 `session.json` 中的 `RecordingState`。
 2. **異常辨別**: 若狀態為 `Recording`、`Preparing`、`Interrupted` 或未標註 `Completed`，即認定為非正常結束之錄影工作階段。
-3. **救援介面**: UI 主動跳出「偵測到未正常完成的錄影」，提供使用者以下選項：
-   - **[安全轉換為 MP4]**: 調用 Stream Copy Remux 將現有 MKV 轉出為完整 MP4。
-   - **[開啟原始工作檔目錄]**: 直接開啟資料夾檢視原始 MKV。
-   - **[保留現狀]**: 不刪除任何檔案。
-4. **絕對原則**: 任何救援操作均不得刪除原始 MKV 檔。
+3. **救援介面**: UI 啟動及儲存位置變更時掃描 Session，於狀態區提示可救援數量；使用者按「修復救援」後，程式以 Stream Copy Remux 嘗試把可讀分段封裝為 MP4。原始工作檔可直接由儲存位置下的 `Sessions` 目錄檢視，未按救援時維持原狀。
+4. **保留原則**: 救援操作不刪除原始 MKV；可讀分段會重新封裝，損壞或空白尾段則保留並在結果中標示部分救回或失敗。
 
 ---
 
@@ -66,3 +64,10 @@ Recordings/
 - `OpenCam.Microphone` 使用 Apple `AVAudioEngine` 取得輸入，轉為 48 kHz、16-bit、單聲道 PCM，再經使用者專用 FIFO 串流給 FFmpeg。
 - helper 初始化或權限失敗時，錄影引擎保留畫面錄製並回退靜音軌；錯誤透過 structured log 與 `AudioDeviceLost` 通知上層。
 - Stop 與 Dispose 均會終止 helper、關閉 FIFO 並刪除暫存目錄，避免背景行程與管道殘留。
+
+## 6. UI 結束與錄影健康狀態
+
+- 一般錄影中按下視窗關閉按鈕時，UI 會攔截關閉並提醒先停止錄影，不會中斷目前工作。
+- 若 UI 被作業系統強制終止或異常消失，Recorder 監看父行程並執行安全停止：先結束目前 MKV、再依正常流程嘗試封裝，最後退出，避免無人知情的背景錄影。
+- Recorder 健康狀態以實際檔案成長、影格進度、編碼器錯誤與所選音訊來源的即時樣本判定。剛開始錄影或證據不足時回報「未知」而非假設健康；只有連續無進度或明確錯誤才回報異常。
+- 健康警告不取代工作檔救援。只要 MP4 尚未驗證成功，就應保留 Session 內的 MKV，並可從「修復救援」重新封裝。

@@ -7,6 +7,39 @@ import { join, resolve } from 'node:path';
 import { renderGuide } from '../src/guide.mjs';
 import { buildSite } from '../build.mjs';
 
+const repositoryRoot = resolve(import.meta.dirname, '../..');
+
+test('project documentation reports only current, evidence-backed behavior', async () => {
+  const version = (await readFile(join(repositoryRoot, 'VERSION'), 'utf8')).trim();
+  const files = [
+    'ARCHITECTURE.md',
+    'ROADMAP.md',
+    'TESTING.md',
+    'RELIABILITY.md',
+    'ACCEPTANCE_REPORT.md',
+    'MANUAL_TEST_CHECKLIST.md',
+    'README.md',
+    'docs/USER_GUIDE.zh-TW.md',
+    'docs/USER_GUIDE.en-US.md',
+  ];
+  const entries = await Promise.all(files.map(async file => [file, await readFile(join(repositoryRoot, file), 'utf8')]));
+  const documents = Object.fromEntries(entries);
+  const allDocumentation = entries.map(([, content]) => content).join('\n');
+
+  assert.match(documents['ARCHITECTURE.md'], /UI.*(?:意外|異常).*(?:安全停止|safe stop)/is);
+  assert.doesNotMatch(documents['ARCHITECTURE.md'], /Recorder continues recording after the UI disappears|UI 意外消失[^\n]*持續錄製/i);
+  assert.match(documents['MANUAL_TEST_CHECKLIST.md'], /實體硬體.*人工驗證|人工驗證.*實體硬體/s);
+  assert.match(documents['MANUAL_TEST_CHECKLIST.md'], /OpenCam 版本[\s\S]*Commit[\s\S]*OS[^\n]*Build[\s\S]*PASS[\s\S]*FAIL[\s\S]*BLOCKED[\s\S]*(?:產出物|Artifact)[\s\S]*Log/i);
+  assert.match(documents['README.md'], new RegExp(`目前版本為 \\*\\*${version.replaceAll('.', '\\.')}`));
+  assert.match(documents['README.md'], new RegExp(`current version is \\*\\*${version.replaceAll('.', '\\.')}`, 'i'));
+  assert.match(documents['docs/USER_GUIDE.zh-TW.md'], new RegExp(`本說明適用於 OpenCam v${version.replaceAll('.', '\\.')}`));
+  assert.match(documents['docs/USER_GUIDE.en-US.md'], new RegExp(`guide covers OpenCam v${version.replaceAll('.', '\\.')}`, 'i'));
+
+  for (const stale of ['45 項全數 PASS', '0 warnings', '0 警告']) {
+    assert.ok(!allDocumentation.includes(stale), `stale claim remains: ${stale}`);
+  }
+});
+
 test('canonical links and duplicate headings resolve safely', () => {
   const markdown = '## Recording\n## Recording\n[README](../README.md) [License](../LICENSE) [中文](USER_GUIDE.zh-TW.md) [External](https://example.com)\n\n```html\n<script>bad</script>\n```';
   const { html, toc } = renderGuide(markdown, 'en-US');
@@ -24,7 +57,7 @@ test('canonical links and duplicate headings resolve safely', () => {
 test('full guides retain modes, settings, locations, and recovery', async () => {
   const out = await mkdtemp(join(tmpdir(), 'opencam-guides-'));
   try {
-    await buildSite({ repositoryRoot: resolve(import.meta.dirname, '../..'), outputRoot: out });
+    await buildSite({ repositoryRoot, outputRoot: out });
     for (const [lang, headings] of [['zh-TW', ['錄影模式', '偏好設定', '修復救援']], ['en-US', ['Recording Modes', 'Preferences', 'Crash Recovery']]]) {
       const html = await readFile(join(out, lang, 'guide', 'index.html'), 'utf8');
       for (const heading of headings) assert.ok(html.includes(heading), `${lang}: ${heading}`);

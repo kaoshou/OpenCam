@@ -44,7 +44,7 @@ graph TD
         Rec_Host --> AudSvc
         
         subgraph Storage_IO ["存儲與安全工作檔"]
-            MKV["工作檔: recording.mkv (連續 Cluster 寫入)"]
+            MKV["工作檔: segment_*.mkv (連續 Cluster 寫入)"]
             Sess["狀態檔: session.json (獨立工作目錄)"]
             Enc --> MKV
             SM --> Sess
@@ -147,17 +147,18 @@ stateDiagram-v2
 2. **ScreenRecorder.Recorder**
    - Headless 行程，掌控所有非同步任務與底層資源生命週期。
    - 具備獨立的 Unhandled Exception 捕捉與日誌記錄。
-   - 若 UI 意外消失：Recorder 持續錄製並每 3 秒自動持久化狀態至 `session.json`。
+   - Recorder 以 `--parent-pid` 監看啟動它的 UI 行程。若 UI 意外或異常結束，Recorder 會取消常駐工作，要求目前錄影安全停止、收尾 MKV 並嘗試完成封裝後才退出；不會在 UI 消失後無限背景錄影。
+   - 遙測中的影像、編碼器、系統聲音與麥克風健康欄位都是可空值：`null` 表示尚無足夠觀察資料，`true` 表示已觀察到正常進度，`false` 才是已確認異常。未選用的音訊來源保持 `null`，不得誤報正常或故障。
 
 ---
 
 ## 5. 跨平台抽象界限 (Windows vs macOS)
 
-| 功能領域 | 核心抽象介面 (Core) | Windows 實作 (Platform.Windows) | 未來 macOS 實作規劃 |
+| 功能領域 | 核心抽象介面 (Core) | Windows 實作 (Platform.Windows) | macOS 實作 (Platform.macOS) |
 | :--- | :--- | :--- | :--- |
-| **畫面擷取** | `IVideoCaptureService` | Windows.Graphics.Capture + D3D11 | ScreenCaptureKit |
-| **系統聲音** | `IAudioCaptureService` | WASAPI Loopback (NAudio/COM) | ScreenCaptureKit Audio / CoreAudio |
-| **麥克風聲音** | `IMicrophoneCapture` | DirectShow（既有路徑） | `AVAudioEngine` → 私有 PCM FIFO → FFmpeg |
-| **螢幕與 DPI** | `IDisplayService` | Win32 EnumDisplayMonitors + GetDpiForMonitor | NSScreen + CGDisplay |
+| **畫面擷取** | 錄影組態與 FFmpeg 平台參數 | Windows Graphics/GDI 相容路徑 | ScreenCaptureKit 輸入 |
+| **系統聲音** | `ISystemAudioLoopbackCapture` | WASAPI Loopback | ScreenCaptureKit Audio |
+| **麥克風聲音** | `IMicrophoneCapture` | Windows 音訊裝置路徑 | `AVAudioEngine` → 私有 PCM FIFO → FFmpeg |
+| **螢幕與 DPI** | `IDisplayService` | Win32 顯示器列舉 | NSScreen + CGDisplay |
 | **檔案轉碼** | `IStreamCopyRemuxer` | FFmpeg Process (`-c copy`) | FFmpeg Process (`-c copy`) |
 | **音畫探針** | `IMediaProbeService` | ffprobe Process | ffprobe Process |

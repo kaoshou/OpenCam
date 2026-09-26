@@ -49,7 +49,7 @@ v0.2.0 的完整安裝檔請至 [OpenCam v0.2.0 Release](https://github.com/kaos
 - 官方封裝優先使用 App 內附的 FFmpeg 與 FFprobe，避免系統 PATH 中的其他版本造成相容性問題。
 - 修正 macOS 無音訊錄影時 FFmpeg 參數順序錯誤，指定螢幕與自訂區域皆可正常開始錄影。
 
-完整安裝檔請至 [OpenCam v0.1.5 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.1.5) 下載。
+完整安裝檔請至 [OpenCam Releases](https://github.com/kaoshou/OpenCam/releases) 下載。
 
 ## 🌟 核心特色
 
@@ -57,9 +57,11 @@ v0.2.0 的完整安裝檔請至 [OpenCam v0.2.0 Release](https://github.com/kaos
 - **多螢幕辨識**：可在每台已連接的顯示器上短暫顯示對應編號，辨認選中的錄影來源。
 - **系統聲音與麥克風**：可分別開啟或關閉系統聲音及麥克風，並支援四種音訊組合。
 - **分開的即時音量波形**：錄影時分別查看系統聲音與麥克風的收音狀態。
+- **實際錄影健康監控**：狀態區依工作檔、影格、編碼器與已選音訊來源的實際進度顯示警告；剛開始或資料不足時維持未知，不會把尚未觀察到的來源誤報為正常。
 - **游標效果**：可使用原始游標、光暈、光暈加點擊漣漪，或在影片中隱藏游標。
 - **防中斷安全機制（Crash Recovery）**：強制使用 MKV 作為工作檔；若錄影途中斷電或崩潰，下次啟動可嘗試恢復已寫入的內容。
 - **防誤關保護**：錄影中按 X 不會中斷錄影；只有在啟動狀態無法確認且安全停止失敗後，才提供需二次確認的強制結束選項。
+- **異常退出安全停止**：若 UI 被系統強制終止，Recorder 會停止並收尾目前工作檔後退出，不會在使用者不知情時持續背景錄影。
 - **音訊熱拔插防護（Audio Hotplug Watchdog）**：Windows 錄影途中若麥克風中斷，系統會使用虛擬靜音音軌盡可能維持錄影流程。
 - **暫停期間調整**：暫停錄影後可調整系統聲音、麥克風開關及游標樣式；錄影來源、解析度、FPS 等固定設定仍保持鎖定。
 - **硬體加速支援（Hardware Encoding）**：支援 NVIDIA NVENC、Intel QSV、AMD AMF 以及 Apple VideoToolbox，並在不可用時回退至 CPU 編碼。
@@ -156,7 +158,7 @@ Download the v0.2.0 installers from the [OpenCam v0.2.0 Release](https://github.
 - Official packages prefer the bundled FFmpeg and FFprobe before falling back to versions found on the system PATH.
 - Fixed the FFmpeg argument order for silent macOS recordings so monitor and custom-region capture both start correctly.
 
-Download the installers from the [OpenCam v0.1.5 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.1.5).
+Download the installers from [OpenCam Releases](https://github.com/kaoshou/OpenCam/releases).
 
 ## 🌟 Key Features
 
@@ -164,8 +166,10 @@ Download the installers from the [OpenCam v0.1.5 Release](https://github.com/kao
 - **Identify Displays**: Briefly show the matching number on every connected monitor so you can choose the right capture target.
 - **System Audio and Microphone**: Enable or disable system audio and microphone recording independently, supporting all four audio combinations.
 - **Separate Live Level Waveforms**: Check system-audio and microphone activity independently while recording.
+- **Evidence-Based Recorder Health**: The status area monitors working-file growth, frames, the encoder, and selected audio sources. Insufficient startup evidence stays unknown instead of being reported as healthy.
 - **Cursor Effects**: Use the native cursor, add a halo, add a halo with click ripples, or hide the cursor from the recording.
 - **Crash Recovery**: Uses MKV as a resilient working container. After an interruption, OpenCam attempts to recover content that was already written.
+- **Close and Exit Protection**: The normal close button is blocked during active work. If the UI is terminated abnormally, the Recorder safely stops and finalizes the current working file instead of continuing unnoticed in the background.
 - **Audio Hotplug Protection**: On Windows, if a microphone disappears during recording, OpenCam uses a virtual silence track to keep the recording pipeline running whenever possible.
 - **Paused-Session Adjustments**: While paused, system audio, microphone, and cursor settings can be changed. Fixed settings such as capture source, resolution, and FPS remain locked.
 - **Hardware Acceleration**: Supports NVIDIA NVENC, Intel QSV, AMD AMF, and Apple VideoToolbox, with CPU encoding as a fallback.

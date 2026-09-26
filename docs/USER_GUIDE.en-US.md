@@ -2,7 +2,7 @@
 
 OpenCam is a reliability-first screen recorder for Windows and macOS. During recording, it writes to interruption-resistant MKV working files and packages them as MP4 after a normal stop. If a crash, power failure, or forced termination occurs, Crash Recovery can attempt to preserve content that was already written successfully.
 
-> This guide covers OpenCam v0.2.0. The main workflow is the same on Windows and macOS; platform differences are called out where applicable.
+> This guide covers OpenCam v0.2.1. The main workflow is the same on Windows and macOS; platform differences are called out where applicable.
 
 ## 1. System Requirements and First Launch
 
@@ -33,6 +33,8 @@ OpenCam is a reliability-first screen recorder for Windows and macOS. During rec
 7. After selecting **Stop Recording**, wait for OpenCam to validate the MKV data and package the MP4. The completed MP4 appears in the root of the output location.
 
 If you try to close the window while OpenCam is preparing, recording, or paused, it displays a warning and cancels the close request. Stop the recording and wait for finalization before closing the application.
+
+If the operating system terminates the UI or it exits abnormally, the background Recorder detects that its parent process has gone away, safely stops and closes the current MKV, attempts finalization, and then exits. It does not keep recording unnoticed after the UI disappears. If finalization did not finish, reopen OpenCam and use **Crash Recovery**.
 
 If startup status cannot be confirmed, settings remain locked but **Stop** is available for a safe-stop attempt. Only if that attempt fails does the close warning offer **Force Quit…**, followed by a second confirmation. Force quitting may interrupt MKV writing. If no MP4 appears after reopening, run **Crash Recovery** using the original output location. An ordinary click on the window close button never forces the recorder to quit.
 
@@ -321,5 +323,11 @@ If no recoverable content appears, check the following in order:
 - Do not force-quit OpenCam, disconnect the output drive, or delete `Sessions` content while recording.
 - Manually remove MKV working files only after the final MP4 exists and plays correctly.
 - Before recording other people, meetings, copyrighted material, or confidential information, ensure that you comply with applicable laws and permissions.
+
+### Reading Recorder Health
+
+- A live waveform means OpenCam is receiving level samples; a flat line in a quiet room does not by itself mean failure.
+- Health may remain unknown during startup, immediately after resume, or whenever there is not enough evidence. This conservative state is not a confirmed failure.
+- A **Recorder health warning** means the working file or frames stopped progressing repeatedly, the encoder reported an error, or a selected audio source has no usable samples. Check the preview and meters; if the warning persists, stop safely and preserve the Session and logs.
 
 Return to the [README](../README.md) | [繁體中文使用說明](USER_GUIDE.zh-TW.md)
