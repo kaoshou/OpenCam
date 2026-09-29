@@ -6,6 +6,18 @@ namespace ScreenRecorder.Core.Tests;
 
 public class LocalizationTests
 {
+    [Theory]
+    [InlineData("ActualEncoderPending")]
+    [InlineData("ActualEncoderFormat")]
+    [InlineData("EncoderFallbackNoHardware")]
+    [InlineData("EncoderFallbackRequested")]
+    [InlineData("EncoderFallbackStartup")]
+    public void EncoderDiagnostics_HaveBilingualKeys(string key)
+    {
+        Assert.True(LocalizationService.ZhTwDictionary.ContainsKey(key));
+        Assert.True(LocalizationService.EnUsDictionary.ContainsKey(key));
+    }
+
     [Fact]
     public void BothDictionaries_ShouldContainIdenticalKeySets()
     {

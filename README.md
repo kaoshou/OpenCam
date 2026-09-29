@@ -34,6 +34,12 @@ OpenCam 是一款以可靠性為優先的跨平台桌面螢幕錄影工具。錄
 
 **驗證狀態**：已加入 IPC 認證、救援路徑／目錄替換與匿名音訊傳輸自動化測試；匿名管線亦以實際 FFmpeg 驗證雙輸入混音及非零音訊。這不等於真實裝置收音驗收。實際錄影、系統音訊、麥克風、暫停／繼續與強制中斷救援的發布驗收，以及 Windows／Linux 執行驗證仍待完成；略過不代表通過。詳見 [手動驗收表](MANUAL_TEST_CHECKLIST.md)。應用程式簽章與 macOS 公證狀態未因本次修改而改變。
 
+## 尚未發布：編碼器診斷改善
+
+開發分支統一有時限的編碼器探測與快取，錄影狀態區會顯示 Recorder 真正使用的編碼器及 CPU 回退原因；「自動」不是硬體加速保證。首段成功後續錄固定同一編碼器，失敗候選使用新檔名、保留已錄內容。詳見[使用說明](docs/USER_GUIDE.zh-TW.md#編碼器)與[驗證報告](docs/verification/2026-09-29-encoder-diagnostics.md)。
+
+此階段不改 GDI 擷取、音訊格式、解析度或 FPS；Windows 實機 CPU 比較與游標閃爍驗收仍待完成，不能將自動化通過解讀為已解決所有效能問題。版本維持 0.2.3，未發布新安裝包。
+
 ## 歷史更新
 
 v0.2.2 加強錄影狀態監控、錯誤提示、版本一致性、套件安全檢查與 GitHub Actions 發布防護，並提升 macOS 新版系統的圖示封裝相容性。
@@ -145,6 +151,12 @@ OpenCam is built with .NET 8, Avalonia UI, and FFmpeg, and supports Windows and 
 📖 [Complete User Guide](docs/USER_GUIDE.en-US.md) | [繁體中文使用說明](docs/USER_GUIDE.zh-TW.md)
 
 🌐 [OpenCam official website](https://kaoshou.github.io/OpenCam/) (English / 繁體中文)
+
+### Unreleased encoder diagnostics
+
+The development branch adds bounded encoder probes and caching, actual Recorder encoder/fallback status, and encoder continuity across segments. Auto is not a hardware-encoding guarantee. Failed attempts use fresh files and retain valid recordings. See the [guide](docs/USER_GUIDE.en-US.md#encoder) and [verification report](docs/verification/2026-09-29-encoder-diagnostics.md).
+
+This stage does not replace GDI capture or change audio formats, resolution, or FPS. Real Windows CPU comparisons and cursor-flicker validation remain pending; automated tests do not establish a performance or flicker fix. The version remains 0.2.3; no new installer is released.
 
 The current source version is **0.2.3**, licensed under **AGPL-3.0-or-later**. Download published Windows and Apple Silicon macOS packages from [Releases](https://github.com/kaoshou/OpenCam/releases).
 

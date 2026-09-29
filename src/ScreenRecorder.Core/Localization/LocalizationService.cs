@@ -228,6 +228,11 @@ public class LocalizationService : ILocalizationService
         // 視訊編碼器與硬體加速
         ["EncoderTitle"] = "視訊編碼器:",
         ["EncoderAuto"] = "自動選擇 (優先硬體加速)",
+        ["ActualEncoderPending"] = "實際編碼器：尚未決定",
+        ["ActualEncoderFormat"] = "實際編碼器：{0}",
+        ["EncoderFallbackNoHardware"] = "未驗證到可用硬體",
+        ["EncoderFallbackRequested"] = "指定硬體暫不可用",
+        ["EncoderFallbackStartup"] = "硬體啟動失敗，使用 CPU",
         ["EncoderCpu"] = "CPU 軟體編碼 (libx264 相容穩定)",
         ["EncoderNvenc"] = "NVIDIA NVENC (硬體加速)",
         ["EncoderQsv"] = "Intel Quick Sync (QSV 硬體加速)",
@@ -461,6 +466,11 @@ public class LocalizationService : ILocalizationService
         // 視訊編碼器與硬體加速
         ["EncoderTitle"] = "Video Encoder:",
         ["EncoderAuto"] = "Auto (Hardware Accelerated)",
+        ["ActualEncoderPending"] = "Actual encoder: pending",
+        ["ActualEncoderFormat"] = "Actual encoder: {0}",
+        ["EncoderFallbackNoHardware"] = "No validated hardware encoder",
+        ["EncoderFallbackRequested"] = "Requested hardware unavailable",
+        ["EncoderFallbackStartup"] = "Hardware startup failed; using CPU",
         ["EncoderCpu"] = "CPU Software (libx264 Compatible)",
         ["EncoderNvenc"] = "NVIDIA NVENC (Hardware)",
         ["EncoderQsv"] = "Intel Quick Sync (QSV Hardware)",

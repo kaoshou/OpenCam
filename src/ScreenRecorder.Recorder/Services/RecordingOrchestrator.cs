@@ -748,6 +748,7 @@ public class RecordingOrchestrator : IAsyncDisposable
         return new RecorderTelemetry
         {
             SessionId = session.SessionId,
+            EncoderSelection = session.EncoderSelection,
             State = _stateMachine.CurrentState,
             ElapsedTime = elapsed,
             WorkingFilePath = session.WorkingFilePath,

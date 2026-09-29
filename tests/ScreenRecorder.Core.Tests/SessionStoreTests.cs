@@ -34,6 +34,7 @@ public class SessionStoreTests : IDisposable
             OutputWidth = 1920,
             OutputHeight = 1080,
             TotalVideoFramesRecorded = 300,
+            EncoderSelection = new(HardwareEncoderType.IntelQsv, EncoderFallbackReason.None),
             Configuration = new RecordingConfiguration
             {
                 Fps = 60,
@@ -51,6 +52,7 @@ public class SessionStoreTests : IDisposable
         Assert.Equal(1920, loaded.OutputWidth);
         Assert.Equal(60, loaded.Configuration.Fps);
         Assert.Equal(300, loaded.TotalVideoFramesRecorded);
+        Assert.Equal(session.EncoderSelection, loaded.EncoderSelection);
 
         // 驗證備份檔案是否已正確產生
         var backupPath = Path.Combine(sessionDir, "session.json.bak");

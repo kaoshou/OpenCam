@@ -12,6 +12,8 @@ public class RecorderTelemetry
 
     public RecordingState State { get; set; } = RecordingState.Idle;
 
+    public EncoderSelection? EncoderSelection { get; set; }
+
     public TimeSpan ElapsedTime { get; set; }
 
     public string WorkingFilePath { get; set; } = string.Empty;

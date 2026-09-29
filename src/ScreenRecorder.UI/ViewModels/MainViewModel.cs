@@ -154,6 +154,23 @@ public partial class MainViewModel : ObservableObject
     public ObservableCollection<int> FpsOptions { get; } = new() { 30, 60 };
 
     public record EncoderOption(HardwareEncoderType Type, string DisplayName);
+    private EncoderSelection? _actualEncoder;
+    public string ActualEncoderText => EncoderStatusFormatter.Format(_actualEncoder, LocalizationService.Instance);
+
+    internal void ApplyEncoderTelemetry(RecorderTelemetry telemetry)
+    {
+        // A late response from the previous session must not repopulate a new start.
+        if (IsPreparing && !IsRecording && !IsPaused) return;
+        SetActualEncoder(telemetry.State is RecordingState.Recording or RecordingState.Paused &&
+            !string.IsNullOrEmpty(telemetry.SessionId) ? telemetry.EncoderSelection : null);
+    }
+
+    private void SetActualEncoder(EncoderSelection? value)
+    {
+        if (_actualEncoder == value) return;
+        _actualEncoder = value;
+        OnPropertyChanged(nameof(ActualEncoderText));
+    }
     public ObservableCollection<EncoderOption> AvailableEncoders { get; } = new();
 
     [ObservableProperty]
@@ -469,6 +486,7 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnIsPreparingChanged(bool value)
     {
+        if (value && !IsRecording && !IsPaused) SetActualEncoder(null);
         OnPropertyChanged(nameof(CanStartRecording));
         OnPropertyChanged(nameof(CanStopRecording));
         OnPropertyChanged(nameof(CanPauseOrResume));
@@ -737,6 +755,7 @@ public partial class MainViewModel : ObservableObject
             OnPropertyChanged(nameof(MicrophoneMeterStateText));
             OnPropertyChanged(nameof(VersionLabelText));
             OnPropertyChanged(nameof(VersionAndAboutText));
+            OnPropertyChanged(nameof(ActualEncoderText));
             LoadMonitors();
             RefreshEncoderDisplayNames();
             RefreshCursorEffectDisplayNames();
@@ -1391,6 +1410,7 @@ public partial class MainViewModel : ObservableObject
             {
                 ClearUnconfirmedStartup();
                 LastOutputFilePath = response.SessionId;
+                SetActualEncoder(null);
                 StatusMessage = Strings["StatusSuccess"];
 
                 if (MinimizeOnRecord)
@@ -1766,6 +1786,7 @@ public partial class MainViewModel : ObservableObject
                 var telemetry = JsonSerializer.Deserialize<RecorderTelemetry>(response.ErrorMessage);
                 if (telemetry != null)
                 {
+                    ApplyEncoderTelemetry(telemetry);
                     _telemetryFailures = 0;
                     if (_startupStatusUnconfirmed)
                     {

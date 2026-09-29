@@ -72,7 +72,15 @@ OpenCam converts the region to physical screen pixels and, when necessary, adjus
 - **CPU (libx264)**: Highly compatible, but generally uses more CPU.
 - **Hardware encoding**: Depending on the platform and hardware, OpenCam may use NVIDIA NVENC, Intel QSV, AMD AMF, or Apple VideoToolbox.
 
-If hardware encoding fails during startup, OpenCam attempts to fall back to CPU encoding. For a heavily loaded computer, start with Auto, 30 FPS, and Standard quality.
+The following encoder diagnostics are **unreleased development-branch changes** and may not be present in existing installers:
+
+- **Auto does not guarantee hardware encoding.** Windows validates NVENC → QSV → AMF; macOS validates VideoToolbox. The first successful candidate is selected. An unavailable explicitly requested encoder falls back to CPU, not another hardware vendor.
+- Look for **Actual encoder** below the audio meters in the right-hand status panel. It is pending before startup; after startup it reports the Recorder's actual libx264 (CPU), NVENC, QSV, AMF, or VideoToolbox selection, including the CPU fallback reason. The user's Auto preference is not replaced.
+- Each probe has a 3-second limit, within a 9-second overall work budget, with up to 2 additional seconds for required cleanup. Successful results are cached for 10 minutes; failures cool down for 30 seconds. An FFmpeg file change or hardware startup failure invalidates relevant successful results. Cancellation does not permanently mark hardware unavailable.
+- A failed hardware start permits **one CPU retry only before the first successful segment**. After that, the session keeps its actual encoder, including after paused audio/cursor changes. A failed resume retains valid segments and the paused state: retry or Stop to finalize them. Use recovery after an interruption. Failed candidates never overwrite existing files or enter the normal concatenation list.
+- [Application logs](#settings-file-and-application-logs) distinguish successful probes, nonzero exits, timeouts, cancellation, and failure to launch, as well as cache/fallback decisions. A failed or timed-out probe does **not establish that integrated graphics lack support**. Check paths and device details before sharing logs.
+
+Real Windows CPU comparisons and recording-time cursor flicker remain unverified on affected hardware. This stage does not replace GDI capture or claim a flicker fix or measured performance gain. It does not silently reduce resolution, FPS, or quality.
 
 ### Quality
 

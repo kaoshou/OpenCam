@@ -373,6 +373,9 @@
                             </Border>
                         </StackPanel>
 
+                        <TextBlock Text="{Binding ActualEncoderText}" Foreground="#CBD5E1"
+                                   FontSize="11" TextWrapping="Wrap" />
+
                         <!-- 檔案大小與磁碟空間雙方塊卡片 (獨立磨砂黑金屬卡片) -->
                         <Grid ColumnDefinitions="*,*" Margin="0,4,0,0">
                             <!-- 檔案大小 -->
