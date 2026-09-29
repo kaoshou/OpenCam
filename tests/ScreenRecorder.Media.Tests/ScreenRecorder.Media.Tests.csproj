@@ -21,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\ScreenRecorder.TestChild\ScreenRecorder.TestChild.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\src\ScreenRecorder.Core\ScreenRecorder.Core.csproj" />
     <ProjectReference Include="..\..\src\ScreenRecorder.Media\ScreenRecorder.Media.csproj" />
     <ProjectReference Include="..\..\src\ScreenRecorder.Platform.macOS\ScreenRecorder.Platform.macOS.csproj" />
@@ -29,4 +30,10 @@
     <ProjectReference Include="..\..\src\ScreenRecorder.UI\ScreenRecorder.UI.csproj" />
   </ItemGroup>
 
+  <Target Name="CopyProbeTestChild" AfterTargets="Build">
+    <ItemGroup>
+      <ProbeTestChildFiles Include="$(MSBuildThisFileDirectory)../ScreenRecorder.TestChild/bin/$(Configuration)/net8.0/ScreenRecorder.TestChild.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ProbeTestChildFiles)" DestinationFolder="$(OutDir)probe-child" />
+  </Target>
 </Project>
