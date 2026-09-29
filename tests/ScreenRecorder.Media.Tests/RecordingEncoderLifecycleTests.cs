@@ -6,6 +6,7 @@ using ScreenRecorder.Core.Interfaces;
 using ScreenRecorder.Core.Models;
 using ScreenRecorder.Core.State;
 using ScreenRecorder.Infrastructure.Session;
+using ScreenRecorder.Infrastructure.Recovery;
 using ScreenRecorder.Infrastructure.Diagnostics;
 using ScreenRecorder.Infrastructure.Storage;
 using ScreenRecorder.Media.Capture;
@@ -20,6 +21,109 @@ namespace ScreenRecorder.Media.Tests;
 
 public class RecordingEncoderLifecycleTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task EngineDeathDuringCommit_CannotPublishRecording(bool resume)
+    {
+        await using var scope = new RecordingScope();
+        if (resume)
+        {
+            Assert.True((await scope.Recorder.StartRecordingAsync(scope.Configuration)).Success);
+            Assert.True((await scope.Recorder.PauseRecordingAsync()).Success);
+        }
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        scope.Store.OnSave = async session =>
+        {
+            if (session.SegmentFilePaths.Count != (resume ? 2 : 1)) return;
+            scope.Store.OnSave = null;
+            entered.SetResult();
+            await release.Task;
+        };
+        async Task<bool> Start() => resume
+            ? (await scope.Recorder.ResumeRecordingAsync()).Success
+            : (await scope.Recorder.StartRecordingAsync(scope.Configuration)).Success;
+        var operation = Start();
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        scope.Factory.Created[^1].FailWhileRecording();
+        release.SetResult();
+        Assert.False(await operation);
+        Assert.NotEqual(RecordingState.Recording, scope.Recorder.CurrentState);
+        Assert.Equal(resume ? 2 : 1, scope.Recorder.CurrentSession!.SegmentFilePaths.Count);
+        Assert.DoesNotContain(HardwareEncoderType.SoftwareCpu, scope.Factory.Requested);
+        Assert.All(scope.Recorder.CurrentSession.SegmentFilePaths, file => Assert.True(File.Exists(file)));
+    }
+
+    [Fact]
+    public async Task AudioLossCleanupFailure_IsContainedAndBlocksAnotherLaunch()
+    {
+        await using var scope = new RecordingScope();
+        Assert.True((await scope.Recorder.StartRecordingAsync(scope.Configuration)).Success);
+        scope.Factory.FailCleanup = true;
+        var context = new ExceptionCatchingContext();
+        var previous = SynchronizationContext.Current;
+        try
+        {
+            SynchronizationContext.SetSynchronizationContext(context);
+            scope.Factory.Created[0].LoseAudio();
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(previous); }
+        await UntilAsync(() => context.Error != null || scope.Store.LastSavedState == RecordingState.Failed);
+        Assert.Null(context.Error);
+        Assert.Equal(RecordingState.Failed, scope.Recorder.CurrentState);
+        var saved = await scope.Store.LoadSessionAsync(scope.Recorder.CurrentSession!.WorkingDirectory);
+        Assert.Equal(RecordingState.Failed, saved!.State);
+        Assert.False((await scope.Recorder.StartRecordingAsync(scope.Configuration)).Success);
+        Assert.Single(scope.Factory.Created);
+        Assert.Single(saved.SegmentFilePaths);
+    }
+
+    [Fact]
+    public async Task ResumeCleanupFailure_ReturnsFailureAndPreservesEngineOwnership()
+    {
+        await using var scope = new RecordingScope();
+        Assert.True((await scope.Recorder.StartRecordingAsync(scope.Configuration)).Success);
+        Assert.True((await scope.Recorder.PauseRecordingAsync()).Success);
+        scope.Factory.FailNext = scope.Factory.FailCleanup = true;
+        Assert.False((await scope.Recorder.ResumeRecordingAsync()).Success);
+        Assert.Equal(RecordingState.Failed, scope.Recorder.CurrentState);
+        Assert.False((await scope.Recorder.StartRecordingAsync(scope.Configuration)).Success);
+        Assert.Equal(2, scope.Factory.Created.Count);
+        Assert.Single(scope.Recorder.CurrentSession!.SegmentFilePaths);
+    }
+
+    [Fact]
+    public async Task Recovery_ExcludesSafelyClosedFailedAttempts()
+    {
+        await using var scope = new RecordingScope();
+        scope.Factory.FailNext = true;
+        Assert.True((await scope.Recorder.StartRecordingAsync(scope.Configuration)).Success);
+        Assert.True((await scope.Recorder.PauseRecordingAsync()).Success);
+        var session = scope.Recorder.CurrentSession!;
+        // The probe deliberately recognizes BOTH attempts as valid video.
+        session.State = RecordingState.Interrupted;
+        session.LastHeartbeatTime = DateTimeOffset.UtcNow.AddMinutes(-5);
+        await scope.Store.SaveSessionAsync(session);
+        var recoveredRemux = new RemuxStub();
+        var recovery = new RecordingRecoveryService(new JsonRecordingSessionStore(),
+            recoveredRemux, new ProbeStub(), new StorageService());
+        var result = await recovery.RecoverSessionAsync(session.WorkingDirectory);
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Single(recoveredRemux.Inputs);
+        Assert.Single(Directory.GetFiles(session.WorkingDirectory, "failed_attempt_*.mkv"));
+    }
+
+    private sealed class ExceptionCatchingContext : SynchronizationContext
+    {
+        public Exception? Error;
+        public override void Post(SendOrPostCallback callback, object? state)
+        {
+            try { callback(state); }
+            catch (Exception ex) { Error = ex; }
+        }
+    }
+
     [Fact]
     public async Task MetadataFailureAfterHandshake_PreservesValidSegmentWithoutCpuRetry()
     {
@@ -77,7 +181,9 @@ public class RecordingEncoderLifecycleTests
         Assert.Single(scope.Recorder.CurrentSession.SegmentFilePaths);
         Assert.Equal(HardwareEncoderType.Auto, scope.Configuration.EncoderType);
         Assert.Equal(new[] { HardwareEncoderType.IntelQsv }, scope.Selection.Failed);
-        Assert.All(scope.Factory.Paths, p => Assert.True(File.Exists(p)));
+        Assert.True(File.Exists(scope.Factory.Paths[1]));
+        var diagnostic = Assert.Single(Directory.GetFiles(scope.Recorder.CurrentSession.WorkingDirectory, "failed_attempt_*.mkv"));
+        Assert.Equal(new byte[] { 1, 2, 3, 4 }, File.ReadAllBytes(diagnostic));
         Assert.NotEqual(scope.Factory.Paths[0], scope.Factory.Paths[1]);
     }
 
@@ -183,8 +289,10 @@ public class RecordingEncoderLifecycleTests
         Assert.True((await scope.Recorder.ResumeRecordingAsync()).Success);
     }
 
-    [Fact]
-    public async Task RealSyntheticSegments_KeepCodecAndRemuxDecodableOutput()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RealSyntheticSegments_KeepCodecAndRemuxDecodableOutput(bool windowsProvider)
     {
         var root = Directory.CreateTempSubdirectory("OpenCam-encoder-integration-").FullName;
         try
@@ -194,7 +302,8 @@ public class RecordingEncoderLifecycleTests
             var probe = new MediaFileProbe();
             await using var recorder = new RecordingOrchestrator(new RecordingStateMachine(), storage,
                 new JsonRecordingSessionStore(), new DiskSpaceMonitor(storage), new StreamCopyRemuxer(), probe,
-                display, new MacOsFFmpegProvider(display)) { UseSyntheticCaptureSource = true };
+                display, windowsProvider ? new ScreenRecorder.Platform.Windows.WindowsFFmpegProvider() : new MacOsFFmpegProvider(display))
+                { UseSyntheticCaptureSource = true };
             var config = new RecordingConfiguration { OutputDirectory = root, AudioSource = AudioSourceType.None,
                 EncoderType = HardwareEncoderType.SoftwareCpu, Fps = 30 };
             var start = await recorder.StartRecordingAsync(config);
@@ -252,14 +361,18 @@ public class RecordingEncoderLifecycleTests
     {
         private readonly JsonRecordingSessionStore _inner = new();
         public bool FailNextCommittedSave;
-        public Task SaveSessionAsync(RecordingSession session, CancellationToken token = default)
+        public Func<RecordingSession, Task>? OnSave;
+        public RecordingState LastSavedState;
+        public async Task SaveSessionAsync(RecordingSession session, CancellationToken token = default)
         {
+            if (OnSave != null) await OnSave(session);
             if (FailNextCommittedSave && session.SegmentFilePaths.Count > 0)
             {
                 FailNextCommittedSave = false;
                 throw new IOException("injected post-handshake persistence failure");
             }
-            return _inner.SaveSessionAsync(session, token);
+            await _inner.SaveSessionAsync(session, token);
+            LastSavedState = session.State;
         }
         public Task<RecordingSession?> LoadSessionAsync(string directory, CancellationToken token = default) => _inner.LoadSessionAsync(directory, token);
         public Task<IReadOnlyList<RecordingSession>> FindAllSessionsAsync(string root, CancellationToken token = default) => _inner.FindAllSessionsAsync(root, token);

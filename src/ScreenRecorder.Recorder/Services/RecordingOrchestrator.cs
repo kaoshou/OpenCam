@@ -33,6 +33,8 @@ public class RecordingOrchestrator : IAsyncDisposable
 
     private IScreenRecorderEngine? _engine;
     private volatile bool _startingSegment;
+    private string? _startupEngineError;
+    private string? _unconfirmedAttemptPath;
     private readonly IEncoderSelectionService _encoderSelectionService;
     private readonly IRecordingEngineFactory _engineFactory;
     private RecordingSession? _currentSession;
@@ -117,7 +119,7 @@ public class RecordingOrchestrator : IAsyncDisposable
         RecordingConfiguration config,
         CancellationToken cancellationToken)
     {
-        if (_engine != null && _stateMachine.CurrentState == RecordingState.Failed)
+        if ((_engine != null || _unconfirmedAttemptPath != null) && _stateMachine.CurrentState == RecordingState.Failed)
         {
             try { await DisposeCurrentEngineAsync(); }
             catch (Exception ex)
@@ -192,9 +194,8 @@ public class RecordingOrchestrator : IAsyncDisposable
 
             await StartSegmentAsync(session, actualBounds, cancellationToken);
 
-            _stateMachine.TryTransition(RecordingState.Recording, "錄影引擎已啟動");
-            session.State = RecordingState.Recording;
             await SaveSessionAsync(session, cancellationToken);
+            EnsureRecordingIsLive();
 
             ApplyDiskGuardThresholds(config);
             _diskMonitor.StartMonitoring(rootPath, TimeSpan.FromSeconds(2));
@@ -249,7 +250,7 @@ public class RecordingOrchestrator : IAsyncDisposable
     private async Task StartSegmentAsync(RecordingSession session, CaptureRegion bounds, CancellationToken token)
     {
         // An unsuccessful cleanup retains ownership; never overlap it with a new encoder.
-        if (_engine != null) await DisposeCurrentEngineAsync();
+        if (_engine != null || _unconfirmedAttemptPath != null) await DisposeCurrentEngineAsync();
         var selection = session.EncoderSelection ??
             await _encoderSelectionService.SelectAsync(session.Configuration.EncoderType, token);
         try
@@ -279,7 +280,7 @@ public class RecordingOrchestrator : IAsyncDisposable
         do { path = Path.Combine(session.WorkingDirectory, $"segment_{++_segmentIndex:D3}.mkv"); }
         while (Path.Exists(path) || new FileInfo(path).LinkTarget != null);
         var confirmed = false;
-        _startingSegment = true;
+        lock (_lock) { _startingSegment = true; _startupEngineError = null; }
         try
         {
             token.ThrowIfCancellationRequested();
@@ -287,6 +288,7 @@ public class RecordingOrchestrator : IAsyncDisposable
             // Durable pending path allows crash recovery before the first-frame commit.
             await SaveSessionAsync(session, token);
             BeginRecorderHealthSegment();
+            _unconfirmedAttemptPath = path;
             _engine = _engineFactory.Create(selection.Encoder);
             _engine.UseSyntheticCaptureSource = UseSyntheticCaptureSource;
             _engine.EngineErrorOccurred += OnEngineError;
@@ -298,8 +300,19 @@ public class RecordingOrchestrator : IAsyncDisposable
             session.EncoderSelection ??= selection with { Encoder = _engine.ActiveEncoder };
             session.SegmentFilePaths.Add(path);
             confirmed = true;
+            _unconfirmedAttemptPath = null;
             session.ErrorMessage = null;
             await SaveSessionAsync(session, token);
+            lock (_lock)
+            {
+                if (_startupEngineError != null || !_engine.IsRunning)
+                    throw new InvalidOperationException(_startupEngineError ?? "Encoder exited before recording could be confirmed.");
+                if (!_stateMachine.TryTransition(RecordingState.Recording, "錄影分段確認成功"))
+                    throw new InvalidOperationException("Recording state changed during startup.");
+                session.State = RecordingState.Recording;
+                // Handoff and error-event routing share the same lock.
+                _startingSegment = false;
+            }
             Log.Information("Recording segment started: encoder={Encoder}; fallback={FallbackReason}; path={SegmentPath}",
                 session.EncoderSelection.Encoder, session.EncoderSelection.FallbackReason, path);
         }
@@ -318,14 +331,24 @@ public class RecordingOrchestrator : IAsyncDisposable
             await TrySaveAfterFailureAsync(session);
             throw;
         }
-        finally { _startingSegment = false; }
+        finally { lock (_lock) _startingSegment = false; }
+    }
+
+    private void EnsureRecordingIsLive()
+    {
+        if (_stateMachine.CurrentState != RecordingState.Recording || _engine?.IsRunning != true)
+            throw new InvalidOperationException("Encoder stopped before startup confirmation finished.");
     }
 
     private void OnEngineError(object? sender, string error)
     {
         Log.Error("錄影引擎報告錯誤: {Error}", error);
         // Startup owns its error path. A failed attempt must not poison CPU fallback or resume.
-        if (_startingSegment || !ReferenceEquals(sender, _engine)) return;
+        lock (_lock)
+        {
+            if (!ReferenceEquals(sender, _engine)) return;
+            if (_startingSegment) { _startupEngineError = error; return; }
+        }
         RecordRecorderEngineError(error);
         _stateMachine.ForceTransition(RecordingState.Failed, error);
         if (_currentSession != null)
@@ -342,7 +365,12 @@ public class RecordingOrchestrator : IAsyncDisposable
     private async Task DisposeCurrentEngineAsync()
     {
         var engine = _engine;
-        if (engine == null) return;
+        if (engine == null)
+        {
+            if (QuarantineFailedAttempt() && _currentSession != null)
+                await TrySaveAfterFailureAsync(_currentSession);
+            return;
+        }
         engine.EngineErrorOccurred -= OnEngineError;
         engine.EngineWarningOccurred -= OnEngineWarning;
         engine.AudioDeviceLost -= OnAudioDeviceLost;
@@ -350,11 +378,56 @@ public class RecordingOrchestrator : IAsyncDisposable
         {
             await engine.DisposeAsync();
             if (ReferenceEquals(_engine, engine)) _engine = null;
+            if (QuarantineFailedAttempt() && _currentSession != null)
+                await TrySaveAfterFailureAsync(_currentSession);
         }
         catch (Exception ex)
         {
             // Do not start a second encoder while cleanup of the first is uncertain.
             throw new InvalidOperationException("Recording engine cleanup failed; no fallback was started.", ex);
+        }
+    }
+
+    private bool QuarantineFailedAttempt()
+    {
+        var path = _unconfirmedAttemptPath;
+        if (path == null) return false;
+        // Only reached after successful engine cleanup. Unknown crash-time candidates
+        // retain segment_* names and remain discoverable by existing recovery.
+        if (File.Exists(path))
+        {
+            var diagnostic = Path.Combine(Path.GetDirectoryName(path)!,
+                $"failed_attempt_{Path.GetFileNameWithoutExtension(path)}_{Guid.NewGuid():N}.mkv");
+            File.Move(path, diagnostic, overwrite: false);
+            Log.Warning("Unconfirmed attempt retained for diagnosis: {DiagnosticPath}", diagnostic);
+        }
+        if (_currentSession?.WorkingFilePath == path)
+            _currentSession.WorkingFilePath = _currentSession.SegmentFilePaths.LastOrDefault() ??
+                Path.Combine(_currentSession.WorkingDirectory, "recording.mkv");
+        _unconfirmedAttemptPath = null;
+        return true;
+    }
+
+    private async Task<bool> TryCleanupAfterFailureAsync()
+    {
+        try { await DisposeCurrentEngineAsync(); return true; }
+        catch (Exception cleanupError)
+        {
+            await PreserveCleanupFailureAsync(cleanupError);
+            return false;
+        }
+    }
+
+    private async Task PreserveCleanupFailureAsync(Exception error)
+    {
+        Log.Error(error, "錄影清理尚未完成，保留引擎所有權並阻止新錄影");
+        RecordRecorderEngineError(error.Message);
+        _stateMachine.ForceTransition(RecordingState.Failed, error.Message);
+        if (_currentSession != null)
+        {
+            _currentSession.State = RecordingState.Failed;
+            _currentSession.ErrorMessage = error.Message;
+            await TrySaveAfterFailureAsync(_currentSession);
         }
     }
 
@@ -519,13 +592,8 @@ public class RecordingOrchestrator : IAsyncDisposable
             await StartSegmentAsync(session, actualBounds, cancellationToken);
             var nextSegment = session.WorkingFilePath;
 
-            lock (_lock)
-            {
-                _stateMachine.TryTransition(RecordingState.Recording, "繼續錄影成功");
-                session.State = RecordingState.Recording;
-            }
-
             await SaveSessionAsync(session, cancellationToken);
+            EnsureRecordingIsLive();
 
             if (_watchdogTask == null || _watchdogTask.IsCompleted)
             {
@@ -544,7 +612,7 @@ public class RecordingOrchestrator : IAsyncDisposable
         {
             RecordRecorderEngineError(ex.Message);
             Log.Error(ex, "繼續錄影失敗；保留既有片段並維持暫停");
-            await DisposeCurrentEngineAsync();
+            if (!await TryCleanupAfterFailureAsync()) return (false, _currentSession?.ErrorMessage ?? ex.Message);
             _stateMachine.ForceTransition(RecordingState.Paused, ex.Message);
             if (_currentSession != null)
             {
@@ -790,6 +858,16 @@ public class RecordingOrchestrator : IAsyncDisposable
 
     private async void OnAudioDeviceLost(object? sender, EventArgs e)
     {
+        try { await RecoverFromAudioDeviceLossAsync(sender); }
+        catch (Exception ex)
+        {
+            // No secondary cleanup or notification failure may escape an async-void event.
+            await PreserveCleanupFailureAsync(ex);
+        }
+    }
+
+    private async Task RecoverFromAudioDeviceLossAsync(object? sender)
+    {
         if (Interlocked.CompareExchange(ref _audioRecoveryInFlight, 1, 0) != 0)
         {
             return;
@@ -826,9 +904,8 @@ public class RecordingOrchestrator : IAsyncDisposable
             var actualBounds = ResolveCaptureBounds(session.Configuration);
             await StartSegmentAsync(session, actualBounds, CancellationToken.None);
             var nextSegment = session.WorkingFilePath;
-            _stateMachine.TryTransition(RecordingState.Recording, "音訊失效接續成功");
-            session.State = RecordingState.Recording;
             await SaveSessionAsync(session);
+            EnsureRecordingIsLive();
 
             Log.Information("已成功切換至靜音補償模式，繼續錄製分段 {Index}: {Path}", _segmentIndex, nextSegment);
         }
@@ -836,9 +913,14 @@ public class RecordingOrchestrator : IAsyncDisposable
         {
             RecordRecorderEngineError(ex.Message);
             Log.Error(ex, "音訊裝置拔除自動恢復發生錯誤");
-            await DisposeCurrentEngineAsync();
+            if (!await TryCleanupAfterFailureAsync()) return;
             _stateMachine.ForceTransition(RecordingState.Paused, ex.Message);
-            if (_currentSession != null) _currentSession.State = RecordingState.Paused;
+            if (_currentSession != null)
+            {
+                _currentSession.State = RecordingState.Paused;
+                _currentSession.ErrorMessage = ex.Message;
+                await TrySaveAfterFailureAsync(_currentSession);
+            }
             EmergencyStopTriggered?.Invoke(this, $"音訊裝置拔除後無法自動恢復錄影: {ex.Message}");
             requiresEmergencyStop = true;
         }
@@ -1111,11 +1193,8 @@ public class RecordingOrchestrator : IAsyncDisposable
                 await StopRecordingCoreAsync("Orchestrator 處置退出", default);
             }
 
-            if (_engine != null)
-            {
-                await _engine.DisposeAsync();
-                _engine = null;
-            }
+            if (_engine != null || _unconfirmedAttemptPath != null)
+                await DisposeCurrentEngineAsync();
 
             await StopWatchdogAsync();
             _diskMonitor.Dispose();

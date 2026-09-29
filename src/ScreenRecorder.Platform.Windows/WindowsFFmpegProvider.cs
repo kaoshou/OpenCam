@@ -32,28 +32,28 @@ public class WindowsFFmpegProvider : IFFmpegPlatformProvider
             return config.AudioSource switch
             {
                 AudioSourceType.None when !includeAudioTrack =>
-                    $"-y -f lavfi -i testsrc=size={width}x{height}:rate={config.Fps} ",
+                    $"-f lavfi -i testsrc=size={width}x{height}:rate={config.Fps} ",
 
                 AudioSourceType.None =>
-                    $"-y -f lavfi -i testsrc=size={width}x{height}:rate={config.Fps} " +
+                    $"-f lavfi -i testsrc=size={width}x{height}:rate={config.Fps} " +
                     "-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000 ",
 
                 AudioSourceType.SystemOnly or AudioSourceType.MicrophoneOnly =>
-                    $"-y -f lavfi -i testsrc=size={width}x{height}:rate={config.Fps} " +
+                    $"-f lavfi -i testsrc=size={width}x{height}:rate={config.Fps} " +
                     $"-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000 ",
 
                 AudioSourceType.SystemAndMicrophone =>
-                    $"-y -f lavfi -i testsrc=size={width}x{height}:rate={config.Fps} " +
+                    $"-f lavfi -i testsrc=size={width}x{height}:rate={config.Fps} " +
                     $"-f lavfi -i sine=frequency=440:sample_rate=48000 " +
                     $"-f lavfi -i sine=frequency=880:sample_rate=48000 " +
                     $"-filter_complex \"[1:a][2:a]amix=inputs=2:duration=longest[aout]\" -map 0:v -map \"[aout]\" ",
 
-                _ => $"-y -f lavfi -i testsrc=size={width}x{height}:rate={config.Fps} "
+                _ => $"-f lavfi -i testsrc=size={width}x{height}:rate={config.Fps} "
             };
         }
 
         var drawMouseParam = config.CursorEffect == CursorEffectMode.Hidden ? "-draw_mouse 0 " : "-draw_mouse 1 ";
-        var baseVideo = $"-y -rtbufsize 100M -f gdigrab {drawMouseParam}-framerate {config.Fps} -offset_x {x} -offset_y {y} -video_size {width}x{height} -i desktop ";
+        var baseVideo = $"-rtbufsize 100M -f gdigrab {drawMouseParam}-framerate {config.Fps} -offset_x {x} -offset_y {y} -video_size {width}x{height} -i desktop ";
 
         if (config.AudioSource == AudioSourceType.None && !includeAudioTrack)
         {

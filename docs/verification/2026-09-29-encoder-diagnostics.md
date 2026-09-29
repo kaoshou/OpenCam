@@ -33,7 +33,7 @@ git diff --check
 | --- | --- |
 | Release solution build | PASS：0 warnings / 0 errors |
 | Core tests | PASS：80 passed / 0 failed |
-| Media tests | PASS：268 passed / 0 failed / 12 skipped |
+| Media tests（審查修正後） | PASS：274 passed / 0 failed / 12 skipped |
 | Website tests + build | PASS：27 passed / 0 failed；建置成功 |
 | Native audio helper compile / argument checks | PASS：兩個 Swift helper 編譯與錯誤輸入檢查通過 |
 | Diff whitespace | PASS |
@@ -67,7 +67,7 @@ TDD 證據：
 
 - **BLOCKED（缺 Windows 機器）**：使用者的 1080p／30 FPS／Auto／原始游標組合；Intel QSV、NVENC、AMF、混合顯卡、多螢幕與 CPU 前後比較。不能把探測失敗稱為「內顯不支援」。
 - **待實機人工驗收**：正常說話的麥克風音質、長時間 A/V 同步、GUI 完整按鈕流程、啟動／停止過渡畫面與最長回退文案、實機強制中斷後救援。分段、救援及 UI 狀態邏輯已自動化測試，但不能取代上述項目。
-- Mac 含原生音訊的停止／暫停觀察到約 6 秒收尾，遙測累計時間與成品時長不同；本階段未改音訊停止協定，不宣稱此項已改善，需另行比較基準版本。
+- Mac 含原生音訊的停止／暫停觀察到約 6 秒收尾，遙測累計時間與成品時長不同；本階段未改音訊停止協定，不宣稱此項已改善。後續基準版本比較因 AVFoundation 回報 `Video device not found` 無法啟動；重新列舉只見相機、沒有 Capture screen，因此未完成匹配比較，也未冒用相機替代螢幕。審查修正後的桌面重驗同樣受此限制。
 - 第二階段 IPC 分流、第三階段 GDI／游標擷取尚未實作。簽章、發布驗收與 Windows FFmpeg 對應原始碼核對限制維持不變。
 
 ## 實作裁決
@@ -75,4 +75,17 @@ TDD 證據：
 1. 使用本機 .NET 10 roll-forward 測試，不改產品 target；代價是精確 .NET 8 回歸仍待 CI。
 2. 自動 CPU 重試僅限明確 `EncoderStartupException`，不把設定／保存／清理例外視為硬體失敗；避免已錄資料或未清乾淨時再開程序。代價是非編碼器的暫時性錯誤需要使用者手動重試。
 
-獨立審查結果與必要修正於後續提交補記。
+## 獨立審查與修正
+
+獨立 reviewer 只讀審查 `04ec571..0d95d84`，確認四個主要問題；加入六個失敗案例後，全部觀察到 RED，再進行同一輪修正：
+
+1. Windows provider 的 `-y` 與引擎的 `-n` 衝突：只由引擎管理防覆寫。新增 Windows provider 的可攜式真實 FFmpeg 雙段錄影／合併／解碼驗證，不以 macOS provider 代替。
+2. 保存成功片段中途引擎死亡：啟動錯誤先記錄，狀態交接在同一鎖內完成；發布錄影成功前再次確認。不因確認後故障改用 CPU，已確認片段保留。初次與續錄兩種 save-barrier 故障注入均覆蓋。
+3. 音源失效或續錄時二次清理失敗：捕捉例外、保存 Failed 狀態、保留引擎所有權並阻止新程序，不讓例外逃出事件處理。清理完成前不宣稱 Paused／安全停止。
+4. 救援誤接失敗片段：安全關閉但未確認的候選改名為 `failed_attempt_*.mkv`；位元組保留，排除既有 `segment_*.mkv` 自動掃描。明確不移動已確認／尚未清理完成／當機前狀態未明的檔案。不更改既有救援路徑安全政策及 legacy/orphan 掃描。實際呼叫 recovery service 的回歸確認失敗候選不進入成品。
+
+針對性回歸：33 passed / 0 failed，涵蓋生命週期、原有救援與首畫格握手。審查後完整 suite：**Core 80 + Media 274 = 354 passed / 0 failed / 12 skipped**；網站 27 passed + build 成功。四個主要項目以 RED → GREEN 及完整回歸驗證；未另外宣稱 reviewer 已二次審查。
+
+**延後的兩個輕微項目**：探測測試假設子程序 500 ms 內輸出 PID，慢速 CI 可能誤判失敗；連續六次遙測斷線後，編碼器文字可能暫留上一筆直到下一場。未把它們描述為已修復。
+
+審查未涵蓋項目裁決：缺少 FFmpeg 時 UI 無法建立屬基準既有行為；Windows 效能／游標、精確 .NET 8、長時間音質／GUI／實機救援驗收及原生停止延遲維持上述限制。IPC 分流／新擷取後端仍屬後續階段，不在此次擴充修改範圍。

@@ -82,6 +82,8 @@ The following encoder diagnostics are **unreleased development-branch changes** 
 
 Real Windows CPU comparisons and recording-time cursor flicker remain unverified on affected hardware. This stage does not replace GDI capture or claim a flicker fix or measured performance gain. It does not silently reduce resolution, FPS, or quality.
 
+After successful process cleanup, unconfirmed failed attempts are retained in the same session directory as `failed_attempt_*.mkv` for diagnosis or expert manual inspection, not automatic concatenation into normal or recovered output. Cleanup or quarantine failure blocks another launch. Confirmed segments and unknown crash-time working files retain the existing recovery behavior.
+
 ### Quality
 
 - The default quality is selected in Preferences and applies when the next recording starts.
