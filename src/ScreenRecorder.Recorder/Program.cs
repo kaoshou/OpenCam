@@ -238,6 +238,9 @@ public class Program
         services.AddSingleton<IDiskSpaceMonitor, DiskSpaceMonitor>();
         services.AddSingleton<IStreamCopyRemuxer, StreamCopyRemuxer>();
         services.AddSingleton<IMediaProbeService, MediaFileProbe>();
+        services.AddSingleton<IEncoderSelectionService>(sp => new ScreenRecorder.Media.Encoders.FFmpegEncoderDetector(
+            sp.GetRequiredService<IFFmpegPlatformProvider>()));
+        services.AddSingleton<IRecordingEngineFactory, RecordingEngineFactory>();
         services.AddSingleton<RecordingOrchestrator>();
 
         if (OperatingSystem.IsWindows())

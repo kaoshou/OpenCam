@@ -10,6 +10,7 @@ using ScreenRecorder.Core.Interfaces;
 using ScreenRecorder.Core.Models;
 using ScreenRecorder.Core.State;
 using ScreenRecorder.Media.Capture;
+using ScreenRecorder.Media.Encoders;
 using Serilog;
 
 namespace ScreenRecorder.Recorder.Services;
@@ -31,6 +32,9 @@ public class RecordingOrchestrator : IAsyncDisposable
     private readonly ICursorHighlightService? _cursorHighlightService;
 
     private IScreenRecorderEngine? _engine;
+    private volatile bool _startingSegment;
+    private readonly IEncoderSelectionService _encoderSelectionService;
+    private readonly IRecordingEngineFactory _engineFactory;
     private RecordingSession? _currentSession;
     private CancellationTokenSource? _watchdogCts;
     private Task? _watchdogTask;
@@ -64,7 +68,9 @@ public class RecordingOrchestrator : IAsyncDisposable
         IDisplayChangeMonitor? displayChangeMonitor = null,
         ICursorHighlightService? cursorHighlightService = null,
         IMicrophoneCapture? microphoneCapture = null,
-        IMicrophoneLevelObserver? microphoneLevelObserver = null)
+        IMicrophoneLevelObserver? microphoneLevelObserver = null,
+        IEncoderSelectionService? encoderSelectionService = null,
+        IRecordingEngineFactory? engineFactory = null)
     {
         _stateMachine = stateMachine;
         _storageService = storageService;
@@ -77,6 +83,9 @@ public class RecordingOrchestrator : IAsyncDisposable
         _systemAudioLoopbackCapture = systemAudioLoopbackCapture;
         _microphoneCapture = microphoneCapture;
         _microphoneLevelObserver = microphoneLevelObserver;
+        _encoderSelectionService = encoderSelectionService ?? new FFmpegEncoderDetector(ffmpegPlatformProvider);
+        _engineFactory = engineFactory ?? new RecordingEngineFactory(ffmpegPlatformProvider,
+            _encoderSelectionService, systemAudioLoopbackCapture, microphoneCapture, microphoneLevelObserver);
         _displayChangeMonitor = displayChangeMonitor;
         _cursorHighlightService = cursorHighlightService;
 
@@ -108,6 +117,15 @@ public class RecordingOrchestrator : IAsyncDisposable
         RecordingConfiguration config,
         CancellationToken cancellationToken)
     {
+        if (_engine != null && _stateMachine.CurrentState == RecordingState.Failed)
+        {
+            try { await DisposeCurrentEngineAsync(); }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "先前錄影引擎尚未清理完成，不啟動另一個工作階段");
+                return (false, ex.Message, null);
+            }
+        }
         lock (_lock)
         {
             if (_stateMachine.CurrentState == RecordingState.Completed || _stateMachine.CurrentState == RecordingState.Failed)
@@ -148,8 +166,8 @@ public class RecordingOrchestrator : IAsyncDisposable
             var sessionId = DateTimeOffset.Now.ToString("yyyyMMdd_HHmmss") + "_" + Guid.NewGuid().ToString("N")[..6];
             var sessionDir = _storageService.CreateSessionDirectory(rootPath, sessionId);
             _accumulatedDuration = TimeSpan.Zero;
-            _segmentIndex = 0;
-            var workingMvk = Path.Combine(sessionDir, $"segment_{_segmentIndex:D3}.mkv");
+            _segmentIndex = -1;
+            var workingMvk = Path.Combine(sessionDir, "segment_000.mkv");
             var finalMp4 = _storageService.GetFinalFilePath(rootPath, DateTimeOffset.Now);
             var sessionLog = _storageService.GetSessionLogFilePath(sessionDir);
 
@@ -164,7 +182,7 @@ public class RecordingOrchestrator : IAsyncDisposable
                 OutputHeight = actualBounds.Height,
                 WorkingDirectory = sessionDir,
                 WorkingFilePath = workingMvk,
-                SegmentFilePaths = new List<string> { workingMvk },
+                SegmentFilePaths = new List<string>(),
                 FinalFilePath = finalMp4,
                 LogFilePath = sessionLog
             };
@@ -172,37 +190,7 @@ public class RecordingOrchestrator : IAsyncDisposable
             await SaveSessionAsync(session, cancellationToken);
             _currentSession = session;
 
-            _engine = new FFmpegScreenRecorderEngine(
-                _ffmpegPlatformProvider,
-                _systemAudioLoopbackCapture,
-                microphoneCapture: _microphoneCapture,
-                microphoneLevelObserver: _microphoneLevelObserver)
-            {
-                UseSyntheticCaptureSource = UseSyntheticCaptureSource
-            };
-            _engine.EngineErrorOccurred += (s, err) =>
-            {
-                Log.Error("錄影引擎報告錯誤: {Error}", err);
-                RecordRecorderEngineError(err);
-                _stateMachine.ForceTransition(RecordingState.Failed, err);
-                if (_currentSession != null)
-                {
-                    _currentSession.State = RecordingState.Failed;
-                    _currentSession.ErrorMessage = err;
-                    try { SaveSessionAsync(_currentSession).GetAwaiter().GetResult(); }
-                    catch (Exception saveError)
-                    {
-                        Log.Warning(saveError, "錄影引擎失敗後儲存工作階段狀態失敗");
-                    }
-                }
-            };
-            _engine.EngineWarningOccurred += (s, warn) =>
-            {
-                Log.Warning("錄影引擎發出警告: {Warning}", warn);
-            };
-            _engine.AudioDeviceLost += OnAudioDeviceLost;
-
-            await _engine.StartRecordingAsync(workingMvk, config, actualBounds, cancellationToken);
+            await StartSegmentAsync(session, actualBounds, cancellationToken);
 
             _stateMachine.TryTransition(RecordingState.Recording, "錄影引擎已啟動");
             session.State = RecordingState.Recording;
@@ -236,19 +224,18 @@ public class RecordingOrchestrator : IAsyncDisposable
             _cursorHighlightService?.Stop();
             if (_engine != null)
             {
-                try { await _engine.DisposeAsync(); }
+                try { await DisposeCurrentEngineAsync(); }
                 catch (Exception cleanupError)
                 {
                     Log.Warning(cleanupError, "清理啟動失敗的錄影引擎時發生錯誤");
                 }
-                _engine = null;
             }
             _stateMachine.ForceTransition(RecordingState.Failed, ex.Message);
             if (_currentSession != null)
             {
                 _currentSession.State = RecordingState.Failed;
                 _currentSession.ErrorMessage = ex.Message;
-                try { await SaveSessionAsync(_currentSession, cancellationToken); }
+                try { await TrySaveAfterFailureAsync(_currentSession); }
                 catch (Exception saveError)
                 {
                     Log.Warning(saveError, "啟動錄影失敗後儲存工作階段狀態失敗");
@@ -256,6 +243,126 @@ public class RecordingOrchestrator : IAsyncDisposable
             }
             return (false, ex.Message, null);
         }
+    }
+
+
+    private async Task StartSegmentAsync(RecordingSession session, CaptureRegion bounds, CancellationToken token)
+    {
+        // An unsuccessful cleanup retains ownership; never overlap it with a new encoder.
+        if (_engine != null) await DisposeCurrentEngineAsync();
+        var selection = session.EncoderSelection ??
+            await _encoderSelectionService.SelectAsync(session.Configuration.EncoderType, token);
+        try
+        {
+            await StartSegmentAttemptAsync(session, bounds, selection, token);
+        }
+        catch (EncoderStartupException) when (!token.IsCancellationRequested &&
+            session.EncoderSelection == null && selection.Encoder != HardwareEncoderType.SoftwareCpu)
+        {
+            _encoderSelectionService.ReportStartupFailure(selection.Encoder);
+            Log.Warning("Initial encoder {Encoder} startup failed; one fresh-path CPU fallback", selection.Encoder);
+            await StartSegmentAttemptAsync(session, bounds,
+                new(HardwareEncoderType.SoftwareCpu, EncoderFallbackReason.HardwareStartupFailed), token);
+        }
+        catch (EncoderStartupException)
+        {
+            _encoderSelectionService.ReportStartupFailure(selection.Encoder);
+            throw;
+        }
+    }
+
+    private async Task StartSegmentAttemptAsync(RecordingSession session, CaptureRegion bounds,
+        EncoderSelection selection, CancellationToken token)
+    {
+        var previousPath = session.WorkingFilePath;
+        string path;
+        do { path = Path.Combine(session.WorkingDirectory, $"segment_{++_segmentIndex:D3}.mkv"); }
+        while (Path.Exists(path) || new FileInfo(path).LinkTarget != null);
+        var confirmed = false;
+        _startingSegment = true;
+        try
+        {
+            token.ThrowIfCancellationRequested();
+            session.WorkingFilePath = path;
+            // Durable pending path allows crash recovery before the first-frame commit.
+            await SaveSessionAsync(session, token);
+            BeginRecorderHealthSegment();
+            _engine = _engineFactory.Create(selection.Encoder);
+            _engine.UseSyntheticCaptureSource = UseSyntheticCaptureSource;
+            _engine.EngineErrorOccurred += OnEngineError;
+            _engine.EngineWarningOccurred += OnEngineWarning;
+            _engine.AudioDeviceLost += OnAudioDeviceLost;
+            await _engine.StartRecordingAsync(path, session.Configuration, bounds, token);
+            token.ThrowIfCancellationRequested();
+            if (!_engine.IsRunning) throw new EncoderStartupException("Encoder exited during startup.");
+            session.EncoderSelection ??= selection with { Encoder = _engine.ActiveEncoder };
+            session.SegmentFilePaths.Add(path);
+            confirmed = true;
+            session.ErrorMessage = null;
+            await SaveSessionAsync(session, token);
+            Log.Information("Recording segment started: encoder={Encoder}; fallback={FallbackReason}; path={SegmentPath}",
+                session.EncoderSelection.Encoder, session.EncoderSelection.FallbackReason, path);
+        }
+        catch
+        {
+            if (confirmed && _engine != null)
+            {
+                // A metadata-save failure after the first frame must not discard a valid segment.
+                await _engine.StopRecordingAsync();
+                _accumulatedDuration += _engine.CurrentRecordedTime;
+                session.TotalVideoFramesRecorded += _engine.CurrentFramesRecorded;
+            }
+            await DisposeCurrentEngineAsync();
+            if (!confirmed && session.SegmentFilePaths.Count != 0)
+                session.WorkingFilePath = previousPath;
+            await TrySaveAfterFailureAsync(session);
+            throw;
+        }
+        finally { _startingSegment = false; }
+    }
+
+    private void OnEngineError(object? sender, string error)
+    {
+        Log.Error("錄影引擎報告錯誤: {Error}", error);
+        // Startup owns its error path. A failed attempt must not poison CPU fallback or resume.
+        if (_startingSegment || !ReferenceEquals(sender, _engine)) return;
+        RecordRecorderEngineError(error);
+        _stateMachine.ForceTransition(RecordingState.Failed, error);
+        if (_currentSession != null)
+        {
+            _currentSession.State = RecordingState.Failed;
+            _currentSession.ErrorMessage = error;
+            TrySaveAfterFailureAsync(_currentSession).GetAwaiter().GetResult();
+        }
+    }
+
+    private static void OnEngineWarning(object? sender, string warning) =>
+        Log.Warning("錄影引擎發出警告: {Warning}", warning);
+
+    private async Task DisposeCurrentEngineAsync()
+    {
+        var engine = _engine;
+        if (engine == null) return;
+        engine.EngineErrorOccurred -= OnEngineError;
+        engine.EngineWarningOccurred -= OnEngineWarning;
+        engine.AudioDeviceLost -= OnAudioDeviceLost;
+        try
+        {
+            await engine.DisposeAsync();
+            if (ReferenceEquals(_engine, engine)) _engine = null;
+        }
+        catch (Exception ex)
+        {
+            // Do not start a second encoder while cleanup of the first is uncertain.
+            throw new InvalidOperationException("Recording engine cleanup failed; no fallback was started.", ex);
+        }
+    }
+
+    private async Task TrySaveAfterFailureAsync(RecordingSession session)
+    {
+        using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        try { await SaveSessionAsync(session, cleanup.Token); }
+        catch (Exception ex) { Log.Warning(ex, "失敗後保留工作階段中繼資料時發生錯誤"); }
     }
 
     private void ApplyDiskGuardThresholds(RecordingConfiguration config)
@@ -353,7 +460,7 @@ public class RecordingOrchestrator : IAsyncDisposable
                 {
                     _currentSession.TotalVideoFramesRecorded += _engine.CurrentFramesRecorded;
                 }
-                _engine = null;
+                await DisposeCurrentEngineAsync();
             }
 
             lock (_lock)
@@ -408,32 +515,9 @@ public class RecordingOrchestrator : IAsyncDisposable
         try
         {
             var session = _currentSession!;
-            _segmentIndex++;
-            var nextSegment = Path.Combine(session.WorkingDirectory, $"segment_{_segmentIndex:D3}.mkv");
-            session.SegmentFilePaths.Add(nextSegment);
-            session.WorkingFilePath = nextSegment;
-            BeginRecorderHealthSegment();
-
             var actualBounds = ResolveCaptureBounds(session.Configuration);
-
-            _engine = new FFmpegScreenRecorderEngine(
-                _ffmpegPlatformProvider,
-                _systemAudioLoopbackCapture,
-                microphoneCapture: _microphoneCapture,
-                microphoneLevelObserver: _microphoneLevelObserver)
-            {
-                UseSyntheticCaptureSource = UseSyntheticCaptureSource
-            };
-            _engine.EngineErrorOccurred += (s, err) =>
-            {
-                Log.Error("錄影引擎報告錯誤: {Error}", err);
-                RecordRecorderEngineError(err);
-                _stateMachine.ForceTransition(RecordingState.Failed, err);
-            };
-            _engine.EngineWarningOccurred += (s, warn) => Log.Warning("錄影引擎發出警告: {Warning}", warn);
-            _engine.AudioDeviceLost += OnAudioDeviceLost;
-
-            await _engine.StartRecordingAsync(nextSegment, session.Configuration, actualBounds, cancellationToken);
+            await StartSegmentAsync(session, actualBounds, cancellationToken);
+            var nextSegment = session.WorkingFilePath;
 
             lock (_lock)
             {
@@ -459,8 +543,15 @@ public class RecordingOrchestrator : IAsyncDisposable
         catch (Exception ex)
         {
             RecordRecorderEngineError(ex.Message);
-            Log.Error(ex, "繼續錄影失敗");
-            _stateMachine.ForceTransition(RecordingState.Failed, ex.Message);
+            Log.Error(ex, "繼續錄影失敗；保留既有片段並維持暫停");
+            await DisposeCurrentEngineAsync();
+            _stateMachine.ForceTransition(RecordingState.Paused, ex.Message);
+            if (_currentSession != null)
+            {
+                _currentSession.State = RecordingState.Paused;
+                _currentSession.ErrorMessage = ex.Message;
+                await TrySaveAfterFailureAsync(_currentSession);
+            }
             return (false, ex.Message);
         }
     }
@@ -512,7 +603,7 @@ public class RecordingOrchestrator : IAsyncDisposable
                 await _engine.StopRecordingAsync(cancellationToken);
                 _accumulatedDuration += _engine.CurrentRecordedTime;
                 session.TotalVideoFramesRecorded += _engine.CurrentFramesRecorded;
-                _engine = null;
+                await DisposeCurrentEngineAsync();
             }
 
             // 2. 切換為 Finalizing
@@ -721,48 +812,32 @@ public class RecordingOrchestrator : IAsyncDisposable
             var session = _currentSession;
             session.Configuration.IsRecoverySilenceMode = true;
 
+            _stateMachine.TryTransition(RecordingState.Pausing, "音訊失效，準備接續分段");
             if (_engine != null)
             {
-                await _engine.StopRecordingAsync(default);
+                await _engine.StopRecordingAsync();
                 _accumulatedDuration += _engine.CurrentRecordedTime;
                 session.TotalVideoFramesRecorded += _engine.CurrentFramesRecorded;
+                await DisposeCurrentEngineAsync();
             }
-
-            _segmentIndex++;
-            var nextSegment = Path.Combine(session.WorkingDirectory, $"segment_{_segmentIndex:D3}.mkv");
-            session.SegmentFilePaths.Add(nextSegment);
-            session.WorkingFilePath = nextSegment;
-            BeginRecorderHealthSegment();
-
+            _stateMachine.TryTransition(RecordingState.Paused, "音訊失效，已保留目前分段");
+            session.State = RecordingState.Paused;
             var actualBounds = ResolveCaptureBounds(session.Configuration);
+            await StartSegmentAsync(session, actualBounds, CancellationToken.None);
+            var nextSegment = session.WorkingFilePath;
+            _stateMachine.TryTransition(RecordingState.Recording, "音訊失效接續成功");
+            session.State = RecordingState.Recording;
+            await SaveSessionAsync(session);
 
-            _engine = new FFmpegScreenRecorderEngine(
-                _ffmpegPlatformProvider,
-                _systemAudioLoopbackCapture,
-                microphoneCapture: _microphoneCapture,
-                microphoneLevelObserver: _microphoneLevelObserver)
-            {
-                UseSyntheticCaptureSource = UseSyntheticCaptureSource
-            };
-            _engine.EngineErrorOccurred += (s, err) =>
-            {
-                Log.Error("錄影引擎報告錯誤: {Error}", err);
-                RecordRecorderEngineError(err);
-                _stateMachine.ForceTransition(RecordingState.Failed, err);
-            };
-            _engine.EngineWarningOccurred += (s, warn) => Log.Warning("錄影引擎發出警告: {Warning}", warn);
-            _engine.AudioDeviceLost += OnAudioDeviceLost;
-
-            await _engine.StartRecordingAsync(nextSegment, session.Configuration, actualBounds, default);
-            
-            await SaveSessionAsync(session, default);
-            
             Log.Information("已成功切換至靜音補償模式，繼續錄製分段 {Index}: {Path}", _segmentIndex, nextSegment);
         }
         catch (Exception ex)
         {
             RecordRecorderEngineError(ex.Message);
             Log.Error(ex, "音訊裝置拔除自動恢復發生錯誤");
+            await DisposeCurrentEngineAsync();
+            _stateMachine.ForceTransition(RecordingState.Paused, ex.Message);
+            if (_currentSession != null) _currentSession.State = RecordingState.Paused;
             EmergencyStopTriggered?.Invoke(this, $"音訊裝置拔除後無法自動恢復錄影: {ex.Message}");
             requiresEmergencyStop = true;
         }

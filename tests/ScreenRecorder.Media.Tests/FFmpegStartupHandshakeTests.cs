@@ -18,7 +18,7 @@ public class FFmpegStartupHandshakeTests
             await using var engine = new FFmpegScreenRecorderEngine(
                 new StubProvider(), null, executable);
 
-            var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            var error = await Assert.ThrowsAsync<EncoderStartupException>(() =>
                 engine.StartRecordingAsync(
                     Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".mkv"),
                     Config(),
@@ -58,10 +58,10 @@ public class FFmpegStartupHandshakeTests
     }
 
     [UnixOnlyFact]
-    public async Task Launch_UsesNonInteractiveOverwriteForEncoderFallback()
+    public async Task Launch_RefusesOverwriteAndEmitsProgressProtocol()
     {
         var executable = CreateExecutable(
-            "[ \"$1\" = '-y' ] || { echo 'missing -y' >&2; exit 1; }\n" +
+            "[ \"$1\" = '-n' ] || { echo 'missing -n' >&2; exit 1; }\n" +
             "case \"$*\" in *'-progress pipe:2 -nostats'*) ;; *) echo 'missing progress protocol' >&2; exit 1;; esac\n" +
             "echo 'frame=    1 fps=0.0 time=00:00:00.03' >&2\n" +
             "while IFS= read -r line; do [ \"$line\" = q ] && exit 0; done");
@@ -169,7 +169,7 @@ public class FFmpegStartupHandshakeTests
         {
             await using var engine = new FFmpegScreenRecorderEngine(
                 new StubProvider(), null, executable, microphoneCapture);
-            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            await Assert.ThrowsAsync<EncoderStartupException>(() =>
                 engine.StartRecordingAsync(
                     Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".mkv"),
                     new RecordingConfiguration

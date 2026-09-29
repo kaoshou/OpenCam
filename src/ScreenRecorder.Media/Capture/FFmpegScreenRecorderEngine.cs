@@ -11,6 +11,7 @@ using ScreenRecorder.Core.Enums;
 using ScreenRecorder.Core.Interfaces;
 using ScreenRecorder.Core.Models;
 using ScreenRecorder.Media.FFmpeg;
+using ScreenRecorder.Media.Encoders;
 using Serilog;
 
 namespace ScreenRecorder.Media.Capture;
@@ -45,6 +46,8 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
     private bool _systemLevelActive;
     private bool _microphoneLevelActive;
     private readonly string _ffmpegPath;
+    private readonly IEncoderSelectionService _encoderSelectionService;
+    private readonly HardwareEncoderType? _pinnedEncoder;
     private Process? _process;
     private Task? _stderrReadingTask;
     private TimeSpan _recordedTime = TimeSpan.Zero;
@@ -112,7 +115,9 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
         ISystemAudioLoopbackCapture? systemAudioLoopbackCapture = null,
         string? ffmpegPath = null,
         IMicrophoneCapture? microphoneCapture = null,
-        IMicrophoneLevelObserver? microphoneLevelObserver = null)
+        IMicrophoneLevelObserver? microphoneLevelObserver = null,
+        IEncoderSelectionService? encoderSelectionService = null,
+        HardwareEncoderType? pinnedEncoder = null)
     {
         _ffmpegPlatformProvider = ffmpegPlatformProvider ?? throw new ArgumentNullException(nameof(ffmpegPlatformProvider));
         _systemAudioLoopbackCapture = systemAudioLoopbackCapture;
@@ -120,6 +125,10 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
         _microphoneLevelObserver = microphoneLevelObserver;
         _ffmpegPath = ffmpegPath ?? FFmpegDiscovery.FindFFmpegExecutable()
             ?? throw new FileNotFoundException("未在系統中探測到 FFmpeg 執行檔");
+        if (pinnedEncoder.HasValue && (pinnedEncoder == HardwareEncoderType.Auto || !Enum.IsDefined(pinnedEncoder.Value)))
+            throw new ArgumentOutOfRangeException(nameof(pinnedEncoder));
+        _pinnedEncoder = pinnedEncoder;
+        _encoderSelectionService = encoderSelectionService ?? new FFmpegEncoderDetector(ffmpegPlatformProvider, _ffmpegPath);
 
         if (_microphoneCapture != null)
         {
@@ -189,6 +198,12 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
             throw new ArgumentException($"錄影範圍尺寸無效: {actualBounds.Width}x{actualBounds.Height}");
         }
 
+        if (Path.Exists(workingFilePath) || new FileInfo(workingFilePath).LinkTarget != null)
+            throw new IOException("Recording output already exists; refusing to overwrite it.");
+        // Select before opening native PCM producers: probing must not fill their pipes.
+        var targetEncoder = _pinnedEncoder ?? (await _encoderSelectionService.SelectAsync(config.EncoderType, cancellationToken)).Encoder;
+        cancellationToken.ThrowIfCancellationRequested();
+
         var requestsMicrophone =
             config.AudioSource == AudioSourceType.MicrophoneOnly ||
             config.AudioSource == AudioSourceType.SystemAndMicrophone;
@@ -228,6 +243,7 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
                         "原生麥克風擷取初始化失敗，已回退至靜音軌以維持畫面錄製。");
                 }
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
             catch (Exception ex)
             {
                 hasDirectShowMic = false;
@@ -267,6 +283,7 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
                     Log.Information("系統聲音 Loopback 擷取已啟動，傳遞參數: {Args}", systemAudioPipeArg);
                 }
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
             catch (Exception ex)
             {
                 Log.Warning(ex, "啟動系統音訊 Loopback 擷取失敗，回退至靜音軌以確保畫面錄影不受影響");
@@ -274,14 +291,7 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
             }
         }
 
-        // 解析欲使用之編碼器
-        var targetEncoder = config.EncoderType;
-        if (targetEncoder == HardwareEncoderType.Auto)
-        {
-            targetEncoder = DetectBestHardwareEncoder();
-        }
-
-        // 啟動錄影進程（具備失敗自動安全 Fallback 機制）
+        // One attempt only. The orchestrator owns fresh-path fallback before the first segment.
         bool launched = await LaunchProcessAsync(
             workingFilePath,
             config,
@@ -294,27 +304,10 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
             systemAudioPipeArg,
             microphoneAudioPipeArg,
             cancellationToken);
-        if (!launched && targetEncoder != HardwareEncoderType.SoftwareCpu)
-        {
-            EngineWarningOccurred?.Invoke(this, $"硬體編碼器 ({targetEncoder}) 初始化失敗，已自動安全回退至 CPU 軟體編碼 (libx264)。");
-            targetEncoder = HardwareEncoderType.SoftwareCpu;
-            launched = await LaunchProcessAsync(
-                workingFilePath,
-                config,
-                actualBounds.X,
-                actualBounds.Y,
-                width,
-                height,
-                hasDirectShowMic,
-                targetEncoder,
-                systemAudioPipeArg,
-                microphoneAudioPipeArg,
-                cancellationToken);
-        }
 
         if (!launched)
         {
-            throw new InvalidOperationException("FFmpeg 錄影引擎初始化失敗，無法啟動錄影進程。請檢查視訊/音訊設備與輸出路徑權限。");
+            throw new EncoderStartupException("FFmpeg 錄影引擎初始化失敗，無法啟動錄影進程。請檢查視訊/音訊設備與輸出路徑權限。");
         }
 
         ActiveEncoder = targetEncoder;
@@ -367,13 +360,12 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
                 systemAudioPipeArg,
                 microphoneAudioPipeArg);
             var outputArgs = _ffmpegPlatformProvider.BuildOutputArguments(config, encoderType, workingFilePath);
-            // A hardware encoder failure can leave an empty working file
-            // before the software fallback starts. Keep fallback launches
-            // non-interactive so FFmpeg never blocks on an overwrite prompt.
+            // Each attempt has its own fresh path. Refuse overwrite even if a
+            // file appears after the caller's existence check.
             // FFmpeg's interactive stats use carriage-return updates on some
             // Windows builds, which ReadLineAsync cannot observe reliably.
             // The progress protocol is newline-delimited on every platform.
-            var args = $"-y -progress pipe:2 -nostats {inputArgs} {outputArgs}";
+            var args = $"-n -progress pipe:2 -nostats {inputArgs} {outputArgs}";
 
             Log.Information("啟動 FFmpeg 錄影程序，完整引數: {Args}", args);
 
@@ -448,46 +440,13 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
             proc.Dispose();
             return false;
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception ex)
         {
             Log.Error(ex, "啟動錄影進程遭遇例外");
             EngineErrorOccurred?.Invoke(this, $"啟動錄影程序失敗: {ex.Message}");
             return false;
         }
-    }
-
-    private HardwareEncoderType DetectBestHardwareEncoder()
-    {
-        var probes = _ffmpegPlatformProvider.GetHardwareEncoderProbes();
-        foreach (var probe in probes)
-        {
-            if (QuickProbeEncoder(probe.EncoderName, probe.ExtraArgs))
-                return probe.Type;
-        }
-        
-        return HardwareEncoderType.SoftwareCpu;
-    }
-
-    private bool QuickProbeEncoder(string encoderName, string extraArgs)
-    {
-        try
-        {
-            var psi = new ProcessStartInfo
-            {
-                FileName = _ffmpegPath,
-                Arguments = $"-y -f lavfi -i testsrc=size=256x256:rate=30 -t 0.05 -c:v {encoderName} {extraArgs} -f null -",
-                UseShellExecute = false,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            };
-            using var p = Process.Start(psi);
-            if (p != null && p.WaitForExit(1500))
-            {
-                return p.ExitCode == 0;
-            }
-        }
-        catch { }
-        return false;
     }
 
     private static bool IsAudioDeviceAvailable(string ffmpegPath, string deviceName)
@@ -711,9 +670,9 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
     public async ValueTask DisposeAsync()
     {
         if (_isDisposed) return;
-        _isDisposed = true;
 
         await StopRecordingAsync();
+        _isDisposed = true;
 
         if (_microphoneCapture != null)
         {

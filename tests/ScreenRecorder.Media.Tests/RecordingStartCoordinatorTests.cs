@@ -5,6 +5,7 @@ using ScreenRecorder.Core.Enums;
 using ScreenRecorder.Core.Models;
 using ScreenRecorder.Infrastructure.IPC;
 using ScreenRecorder.UI.Services;
+using ScreenRecorder.UI.ViewModels;
 
 namespace ScreenRecorder.Media.Tests;
 
@@ -12,14 +13,16 @@ public class RecordingStartCoordinatorTests
 {
     private static readonly byte[] IpcKey = AuthenticatedIpc.CreateKey();
     [Fact]
-    public async Task TimedOutStart_ConfirmsRecordingBeforeReportingSuccess()
+    public async Task StartupBeyondInitialIpcDeadline_RemainsLockedAndDoesNotResend()
     {
         var pipeName = "OcSt" + Guid.NewGuid().ToString("N")[..10];
         var state = RecordingState.Idle;
+        var starts = 0;
         await using var server = new NamedPipeIpcServer(pipeName, IpcKey, async message =>
         {
             if (message.MessageType == "StartRecording")
             {
+                Interlocked.Increment(ref starts);
                 await Task.Delay(800);
                 state = RecordingState.Recording;
                 return new IpcResponse { Success = true, SessionId = "session-1" };
@@ -30,11 +33,17 @@ public class RecordingStartCoordinatorTests
         server.Start();
         await using var client = new NamedPipeIpcClient(pipeName, IpcKey);
 
-        var result = await RecordingStartCoordinator.StartAsync(
+        var pending = RecordingStartCoordinator.StartAsync(
             client, new RecordingConfiguration(), 250, () => false);
+
+        await Task.Delay(400);
+        Assert.False(pending.IsCompleted);
+        Assert.False(MainViewModel.CanEditRecordingSettingsForState(false, false, true));
+        var result = await pending;
 
         Assert.True(result.Success);
         Assert.Equal("session-1", result.SessionId);
+        Assert.Equal(1, starts);
     }
 
     [Fact]
