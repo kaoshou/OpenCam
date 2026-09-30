@@ -2,13 +2,13 @@
 
 OpenCam 是一款以錄影可靠性為優先的 Windows／macOS 螢幕錄影工具。錄影期間先把內容寫入較耐中斷的 MKV 工作檔，正常停止後再封裝成 MP4；若遇到當機、停電或強制關閉，也可使用「修復救援」嘗試保留已成功寫入的內容。
 
-> 本說明適用於 OpenCam v0.2.4；實機驗收限制仍以 README 與驗證報告為準。Windows 與 macOS 的主要流程相同；平台差異會在各章節中特別標示。
+> 本說明適用於 OpenCam v0.2.5；實機驗收限制仍以 README 與驗證報告為準。Windows 與 macOS 的主要流程相同；平台差異會在各章節中特別標示。
 
 ## 1. 系統需求與首次啟動
 
-### 開發分支限定：Windows 游標閃爍測試模式
+### v0.2.5：Windows 游標閃爍測試模式
 
-已發布 v0.2.4 不包含此功能。此開發分支在「設定 → 錄影品質與行為 → Windows 畫面擷取」提供「相容擷取（GDI）」及「新版擷取（測試）」。預設仍為 GDI；如果錄影時實體螢幕游標閃爍、但 MP4 正常，可嘗試新版模式，再錄相同內容比較實體螢幕及 MP4。
+v0.2.5 起在「設定 → 錄影品質與行為 → Windows 畫面擷取」提供「相容擷取（GDI）」及「新版擷取（測試）」。預設仍為 GDI；如果錄影時實體螢幕游標閃爍、但 MP4 正常，可嘗試新版模式，再錄相同內容比較實體螢幕及 MP4。
 
 錄影後查看右側「實際擷取」。顯示 Desktop Duplication 才代表採用新版；顯示 GDI 時請看回退原因。初版支援只有一個硬體圖形裝置時，其上的多個未旋轉螢幕，各次選一台或其內部選區；多硬體 GPU（含未接螢幕的 GPU）、跨螢幕、旋轉、不明對應或缺少 FFmpeg 能力時採 GDI。這可避免 OpenCam 與 FFmpeg 的個別 GPU 偏好不同而錄錯螢幕。模式僅能於待機修改，暫停時仍不能改；音源與游標原有暫停調整不變。
 
@@ -18,14 +18,14 @@ OpenCam 是一款以錄影可靠性為優先的 Windows／macOS 螢幕錄影工�
 
 - Windows 10 或 Windows 11，x64。
 - 安裝版與免安裝版都已包含執行所需元件。
-- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v0.2.4_Windows_x64_Setup.exe` 或 `OpenCam_v0.2.4_Windows_x64_Portable.zip`。檔名會標示版本、Windows 及 x64 架構。
+- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v0.2.5_Windows_x64_Setup.exe` 或 `OpenCam_v0.2.5_Windows_x64_Portable.zip`。檔名會標示版本、Windows 及 x64 架構。
 - 系統音訊使用 Windows 音訊回送擷取；麥克風可在 OpenCam 中選擇。
 
 ### macOS
 
 - macOS 13 Ventura 或以上。
 - 官方版本目前支援 Apple Silicon（arm64）；尚未提供 Intel Mac（x64）版本。
-- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v0.2.4_macOS_arm64.dmg`；檔名中的 arm64 表示 Apple Silicon。
+- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v0.2.5_macOS_arm64.dmg`；檔名中的 arm64 表示 Apple Silicon。
 - 第一次啟動後，請到「系統設定 → 隱私權與安全性」允許 OpenCam 使用：
   - 螢幕與系統音訊錄製
   - 麥克風（需要錄製麥克風時）

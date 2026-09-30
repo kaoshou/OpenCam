@@ -1,8 +1,8 @@
 # OpenCam Complete User Guide (English)
 
-## Development branch: experimental Windows capture
+## New in v0.2.5: experimental Windows capture
 
-This option is **not included in the published v0.2.4 packages**. In this development branch, Settings → Video Quality & Actions → Windows screen capture offers Compatible capture (GDI), the unchanged default, and Modern capture (experimental).
+Starting with v0.2.5, Settings → Video Quality & Actions → Windows screen capture offers Compatible capture (GDI), the unchanged default, and Modern capture (experimental).
 
 If the live pointer flickers while the resulting MP4 looks normal, try the experimental mode and compare both the physical screen and the recording. The status panel must say **Desktop Duplication** to confirm it is active; GDI status includes a fallback reason. Initial support requires exactly one hardware graphics adapter with uniquely mapped, unrotated outputs and regions contained in one output. Multiple monitors on that adapter are supported, not limited to two. Multiple hardware GPUs (including headless GPUs), cross-monitor regions, rotated outputs, ambiguous mappings, and missing FFmpeg capabilities use GDI. This avoids selecting the wrong screen when Recorder and FFmpeg have different per-executable GPU preferences.
 
@@ -10,7 +10,7 @@ Change capture mode only while idle, not while paused. Existing audio/cursor con
 
 OpenCam is a reliability-first screen recorder for Windows and macOS. During recording, it writes to interruption-resistant MKV working files and packages them as MP4 after a normal stop. If a crash, power failure, or forced termination occurs, Crash Recovery can attempt to preserve content that was already written successfully.
 
-> This guide covers OpenCam v0.2.4. Live-acceptance limitations remain documented in the README and verification report. The main workflow is the same on Windows and macOS; platform differences are called out where applicable.
+> This guide covers OpenCam v0.2.5. Live-acceptance limitations remain documented in the README and verification report. The main workflow is the same on Windows and macOS; platform differences are called out where applicable.
 
 ## 1. System Requirements and First Launch
 
@@ -18,14 +18,14 @@ OpenCam is a reliability-first screen recorder for Windows and macOS. During rec
 
 - Windows 10 or Windows 11, x64.
 - Both the installer and portable package include the required runtime components.
-- Download `OpenCam_v0.2.4_Windows_x64_Setup.exe` or `OpenCam_v0.2.4_Windows_x64_Portable.zip` from [Releases](https://github.com/kaoshou/OpenCam/releases). Filenames identify the version, Windows platform, and x64 architecture.
+- Download `OpenCam_v0.2.5_Windows_x64_Setup.exe` or `OpenCam_v0.2.5_Windows_x64_Portable.zip` from [Releases](https://github.com/kaoshou/OpenCam/releases). Filenames identify the version, Windows platform, and x64 architecture.
 - System audio uses Windows loopback capture. A microphone can be selected in OpenCam.
 
 ### macOS
 
 - macOS 13 Ventura or later.
 - The official build currently supports Apple Silicon (arm64). An Intel Mac (x64) build is not currently provided.
-- Download `OpenCam_v0.2.4_macOS_arm64.dmg` from [Releases](https://github.com/kaoshou/OpenCam/releases); arm64 identifies Apple Silicon.
+- Download `OpenCam_v0.2.5_macOS_arm64.dmg` from [Releases](https://github.com/kaoshou/OpenCam/releases); arm64 identifies Apple Silicon.
 - After first launch, open **System Settings → Privacy & Security** and allow OpenCam to use:
   - Screen & System Audio Recording
   - Microphone, when microphone recording is needed
