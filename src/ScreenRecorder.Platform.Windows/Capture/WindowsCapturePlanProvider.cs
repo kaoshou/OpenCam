@@ -40,7 +40,7 @@ public sealed class WindowsCapturePlanProvider(WindowsFFmpegProvider provider, I
         }
         var selection = WindowsCapturePlanner.Select(selectionConfig, bounds, currentMonitors, outputs, available);
         if (pinned != null && (selection.Backend != pinned.Backend || selection.DeviceName != pinned.DeviceName
-                || selection.AdapterLuid != pinned.AdapterLuid))
+                || selection.AdapterLuid != pinned.AdapterLuid || selection.OutputBounds != pinned.OutputBounds))
             throw new InvalidOperationException("The original capture output is no longer available.");
         if (selection.Backend == CaptureBackend.Gdi) return Gdi(selection, config);
         var output = outputs.Single(o => o.AdapterLuid == selection.AdapterLuid && o.OutputIndex == selection.OutputIndex);

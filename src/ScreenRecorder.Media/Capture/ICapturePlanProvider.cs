@@ -12,3 +12,8 @@ public interface ICapturePlanProvider
     string BuildInputArguments(CaptureLaunchPlan plan, RecordingConfiguration config, bool hasDirectShowMic,
         string? systemAudioPipeArg, string? microphoneAudioPipeArg);
 }
+
+public interface ICaptureHealthMonitor
+{
+    bool Check(CaptureSelection selection);
+}

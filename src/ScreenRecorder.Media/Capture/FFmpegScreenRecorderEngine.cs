@@ -23,6 +23,7 @@ public interface IScreenRecorderEngine : IAsyncDisposable
     TimeSpan CurrentRecordedTime { get; }
     long CurrentFramesRecorded { get; }
     HardwareEncoderType ActiveEncoder { get; }
+    CaptureSelection? ActiveCapture { get; }
     Task StartRecordingAsync(string workingFilePath, RecordingConfiguration config, CaptureRegion actualBounds, CancellationToken cancellationToken = default);
     Task StopRecordingAsync(CancellationToken cancellationToken = default);
     event EventHandler<string>? EngineErrorOccurred;
@@ -48,6 +49,11 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
     private readonly string _ffmpegPath;
     private readonly IEncoderSelectionService _encoderSelectionService;
     private readonly HardwareEncoderType? _pinnedEncoder;
+    private readonly CaptureSelection? _pinnedCapture;
+    private readonly ICapturePlanProvider? _capturePlanProvider;
+    private CaptureLaunchPlan? _capturePlan;
+    private string _startupError = "";
+    public CaptureSelection? ActiveCapture { get; private set; }
     private Process? _process;
     private Task? _stderrReadingTask;
     private TimeSpan _recordedTime = TimeSpan.Zero;
@@ -117,7 +123,9 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
         IMicrophoneCapture? microphoneCapture = null,
         IMicrophoneLevelObserver? microphoneLevelObserver = null,
         IEncoderSelectionService? encoderSelectionService = null,
-        HardwareEncoderType? pinnedEncoder = null)
+        HardwareEncoderType? pinnedEncoder = null,
+        ICapturePlanProvider? capturePlanProvider = null,
+        CaptureSelection? pinnedCapture = null)
     {
         _ffmpegPlatformProvider = ffmpegPlatformProvider ?? throw new ArgumentNullException(nameof(ffmpegPlatformProvider));
         _systemAudioLoopbackCapture = systemAudioLoopbackCapture;
@@ -128,6 +136,8 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
         if (pinnedEncoder.HasValue && (pinnedEncoder == HardwareEncoderType.Auto || !Enum.IsDefined(pinnedEncoder.Value)))
             throw new ArgumentOutOfRangeException(nameof(pinnedEncoder));
         _pinnedEncoder = pinnedEncoder;
+        _pinnedCapture = pinnedCapture;
+        _capturePlanProvider = capturePlanProvider;
         _encoderSelectionService = encoderSelectionService ?? new FFmpegEncoderDetector(ffmpegPlatformProvider, _ffmpegPath);
 
         if (_microphoneCapture != null)
@@ -203,6 +213,13 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
         // Select before opening native PCM producers: probing must not fill their pipes.
         var targetEncoder = _pinnedEncoder ?? (await _encoderSelectionService.SelectAsync(config.EncoderType, cancellationToken)).Encoder;
         cancellationToken.ThrowIfCancellationRequested();
+
+        ActiveCapture = null;
+        _startupError = "";
+        _capturePlan = !UseSyntheticCaptureSource && _capturePlanProvider != null
+            ? await _capturePlanProvider.PrepareAsync(config,
+                new(actualBounds.X, actualBounds.Y, width, height), _pinnedCapture, cancellationToken)
+            : null;
 
         var requestsMicrophone =
             config.AudioSource == AudioSourceType.MicrophoneOnly ||
@@ -307,10 +324,21 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
 
         if (!launched)
         {
+            if (_capturePlan?.Selection.Backend == CaptureBackend.DesktopDuplication)
+            {
+                // Only identified DDA initialization failures may change capture backend.
+                if (_startupError.Contains("ddagrab", StringComparison.OrdinalIgnoreCase)
+                    && (_startupError.Contains("Failed to", StringComparison.OrdinalIgnoreCase)
+                        || _startupError.Contains("Error initializing", StringComparison.OrdinalIgnoreCase)
+                        || _startupError.Contains("DuplicateOutput", StringComparison.OrdinalIgnoreCase)))
+                    throw new CaptureStartupException("Desktop Duplication initialization failed.");
+                throw new InvalidOperationException("Modern capture could not start; see recording diagnostics. No automatic backend switch was made.");
+            }
             throw new EncoderStartupException("FFmpeg 錄影引擎初始化失敗，無法啟動錄影進程。請檢查視訊/音訊設備與輸出路徑權限。");
         }
 
         ActiveEncoder = targetEncoder;
+        ActiveCapture = _capturePlan?.Selection;
         if (hasDirectShowMic && _microphoneLevelObserver != null &&
             !string.IsNullOrWhiteSpace(config.MicrophoneDeviceId))
         {
@@ -349,7 +377,9 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
             using var microphoneDescriptor = InheritedAudioDescriptor.Duplicate(_microphonePcm);
             systemAudioPipeArg = systemDescriptor?.Input(2) ?? systemAudioPipeArg;
             microphoneAudioPipeArg = microphoneDescriptor?.Input(1) ?? microphoneAudioPipeArg;
-            var inputArgs = _ffmpegPlatformProvider.BuildInputArguments(
+            var inputArgs = _capturePlan != null
+                ? _capturePlanProvider!.BuildInputArguments(_capturePlan, config, hasDirectShowMic, systemAudioPipeArg, microphoneAudioPipeArg)
+                : _ffmpegPlatformProvider.BuildInputArguments(
                 config,
                 x,
                 y,
@@ -430,6 +460,7 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
             lock (_lock)
             {
                 errorTail = string.Join(Environment.NewLine, _stderrTail);
+                _startupError = errorTail;
                 if (ReferenceEquals(_process, proc))
                 {
                     _process = null;

@@ -36,6 +36,7 @@ public class RecordingOrchestrator : IAsyncDisposable
     private string? _startupEngineError;
     private string? _unconfirmedAttemptPath;
     private readonly IEncoderSelectionService _encoderSelectionService;
+    private readonly ICaptureHealthMonitor? _captureHealthMonitor;
     private readonly IRecordingEngineFactory _engineFactory;
     private RecordingSession? _currentSession;
     private CancellationTokenSource? _watchdogCts;
@@ -72,7 +73,8 @@ public class RecordingOrchestrator : IAsyncDisposable
         IMicrophoneCapture? microphoneCapture = null,
         IMicrophoneLevelObserver? microphoneLevelObserver = null,
         IEncoderSelectionService? encoderSelectionService = null,
-        IRecordingEngineFactory? engineFactory = null)
+        IRecordingEngineFactory? engineFactory = null,
+        ICaptureHealthMonitor? captureHealthMonitor = null)
     {
         _stateMachine = stateMachine;
         _storageService = storageService;
@@ -86,6 +88,7 @@ public class RecordingOrchestrator : IAsyncDisposable
         _microphoneCapture = microphoneCapture;
         _microphoneLevelObserver = microphoneLevelObserver;
         _encoderSelectionService = encoderSelectionService ?? new FFmpegEncoderDetector(ffmpegPlatformProvider);
+        _captureHealthMonitor = captureHealthMonitor;
         _engineFactory = engineFactory ?? new RecordingEngineFactory(ffmpegPlatformProvider,
             _encoderSelectionService, systemAudioLoopbackCapture, microphoneCapture, microphoneLevelObserver);
         _displayChangeMonitor = displayChangeMonitor;
@@ -253,27 +256,41 @@ public class RecordingOrchestrator : IAsyncDisposable
         if (_engine != null || _unconfirmedAttemptPath != null) await DisposeCurrentEngineAsync();
         var selection = session.EncoderSelection ??
             await _encoderSelectionService.SelectAsync(session.Configuration.EncoderType, token);
-        try
+        var capture = session.CaptureSelection;
+        var captureRetried = false;
+        var encoderRetried = false;
+        while (true)
         {
-            await StartSegmentAttemptAsync(session, bounds, selection, token);
-        }
-        catch (EncoderStartupException) when (!token.IsCancellationRequested &&
-            session.EncoderSelection == null && selection.Encoder != HardwareEncoderType.SoftwareCpu)
-        {
-            _encoderSelectionService.ReportStartupFailure(selection.Encoder);
-            Log.Warning("Initial encoder {Encoder} startup failed; one fresh-path CPU fallback", selection.Encoder);
-            await StartSegmentAttemptAsync(session, bounds,
-                new(HardwareEncoderType.SoftwareCpu, EncoderFallbackReason.HardwareStartupFailed), token);
-        }
-        catch (EncoderStartupException)
-        {
-            _encoderSelectionService.ReportStartupFailure(selection.Encoder);
-            throw;
+            try
+            {
+                await StartSegmentAttemptAsync(session, bounds, selection, token, capture);
+                return;
+            }
+            catch (CaptureStartupException) when (!token.IsCancellationRequested &&
+                session.SegmentFilePaths.Count == 0 && !captureRetried)
+            {
+                captureRetried = true;
+                capture = new(CaptureBackend.Gdi, CaptureFallbackReason.StartupFailed, null, null, null,
+                    new(bounds.X, bounds.Y, bounds.Width & ~1, bounds.Height & ~1));
+                Log.Warning("Initial Desktop Duplication startup failed; one fresh-path GDI fallback.");
+            }
+            catch (EncoderStartupException) when (!token.IsCancellationRequested &&
+                session.SegmentFilePaths.Count == 0 && !encoderRetried && selection.Encoder != HardwareEncoderType.SoftwareCpu)
+            {
+                encoderRetried = true;
+                _encoderSelectionService.ReportStartupFailure(selection.Encoder);
+                selection = new(HardwareEncoderType.SoftwareCpu, EncoderFallbackReason.HardwareStartupFailed);
+            }
+            catch (EncoderStartupException)
+            {
+                _encoderSelectionService.ReportStartupFailure(selection.Encoder);
+                throw;
+            }
         }
     }
 
     private async Task StartSegmentAttemptAsync(RecordingSession session, CaptureRegion bounds,
-        EncoderSelection selection, CancellationToken token)
+        EncoderSelection selection, CancellationToken token, CaptureSelection? capture = null)
     {
         var previousPath = session.WorkingFilePath;
         string path;
@@ -289,7 +306,7 @@ public class RecordingOrchestrator : IAsyncDisposable
             await SaveSessionAsync(session, token);
             BeginRecorderHealthSegment();
             _unconfirmedAttemptPath = path;
-            _engine = _engineFactory.Create(selection.Encoder);
+            _engine = _engineFactory.Create(selection.Encoder, capture);
             _engine.UseSyntheticCaptureSource = UseSyntheticCaptureSource;
             _engine.EngineErrorOccurred += OnEngineError;
             _engine.EngineWarningOccurred += OnEngineWarning;
@@ -298,6 +315,7 @@ public class RecordingOrchestrator : IAsyncDisposable
             token.ThrowIfCancellationRequested();
             if (!_engine.IsRunning) throw new EncoderStartupException("Encoder exited during startup.");
             session.EncoderSelection ??= selection with { Encoder = _engine.ActiveEncoder };
+            session.CaptureSelection = _engine.ActiveCapture;
             session.SegmentFilePaths.Add(path);
             confirmed = true;
             _unconfirmedAttemptPath = null;
@@ -817,6 +835,7 @@ public class RecordingOrchestrator : IAsyncDisposable
         {
             SessionId = session.SessionId,
             EncoderSelection = session.EncoderSelection,
+            CaptureSelection = session.CaptureSelection,
             State = _stateMachine.CurrentState,
             ElapsedTime = elapsed,
             WorkingFilePath = session.WorkingFilePath,
@@ -989,6 +1008,14 @@ public class RecordingOrchestrator : IAsyncDisposable
                     continue;
                 }
 
+                if (session.CaptureSelection?.Backend == CaptureBackend.DesktopDuplication &&
+                    _captureHealthMonitor != null && !_captureHealthMonitor.Check(session.CaptureSelection))
+                {
+                    // Do not await stop from this watchdog: stop joins the watchdog.
+                    _ = StopLostCaptureAsync(session);
+                    return;
+                }
+
                 long currentSize = 0;
                 try
                 {
@@ -1040,6 +1067,21 @@ public class RecordingOrchestrator : IAsyncDisposable
         }
 
         return SnapshotRecorderHealth(DateTimeOffset.UtcNow);
+    }
+
+    private async Task StopLostCaptureAsync(RecordingSession session)
+    {
+        await _lifecycleGate.WaitAsync();
+        try
+        {
+            if (!ReferenceEquals(_currentSession, session) || CurrentState != RecordingState.Recording) return;
+            const string reason = "Capture output or interactive desktop became unavailable; recording safely stopped.";
+            Log.Warning("{CaptureWarning}", reason);
+            WatchdogWarningOccurred?.Invoke(this, reason);
+            await StopRecordingCoreAsync(reason, CancellationToken.None);
+        }
+        catch (Exception ex) { Log.Error(ex, "Failed to safely stop unavailable capture output."); }
+        finally { _lifecycleGate.Release(); }
     }
 
     private void ResetRecorderHealth(RecordingConfiguration configuration)

@@ -19,7 +19,7 @@ using ScreenRecorder.Recorder.Services;
 
 namespace ScreenRecorder.Media.Tests;
 
-public class RecordingEncoderLifecycleTests
+public partial class RecordingEncoderLifecycleTests
 {
     [Theory]
     [InlineData(false)]
@@ -343,6 +343,7 @@ public class RecordingEncoderLifecycleTests
         public readonly EngineFactoryStub Factory = new();
         public readonly FaultableStore Store = new();
         public readonly RemuxStub Remuxer = new();
+        public readonly HealthStub Health = new();
         public RecordingOrchestrator Recorder { get; }
         public RecordingConfiguration Configuration { get; }
         public RecordingScope()
@@ -351,7 +352,7 @@ public class RecordingEncoderLifecycleTests
             var display = new FixedDisplay();
             Recorder = new(new RecordingStateMachine(), storage, Store, new DiskSpaceMonitor(storage),
                 Remuxer, new ProbeStub(), display, new MacOsFFmpegProvider(display),
-                encoderSelectionService: Selection, engineFactory: Factory);
+                encoderSelectionService: Selection, engineFactory: Factory, captureHealthMonitor: Health);
             Configuration = new() { OutputDirectory = _root, AudioSource = AudioSourceType.None, EncoderType = HardwareEncoderType.Auto };
         }
         public async ValueTask DisposeAsync() { Factory.FailCleanup = false; await Recorder.DisposeAsync(); Directory.Delete(_root, true); }
@@ -379,6 +380,12 @@ public class RecordingEncoderLifecycleTests
         public Task DeleteSessionAsync(string directory, CancellationToken token = default) => _inner.DeleteSessionAsync(directory, token);
     }
 
+    private sealed class HealthStub : ICaptureHealthMonitor
+    {
+        public bool Healthy = true;
+        public bool Check(CaptureSelection selection) => Healthy;
+    }
+
     private sealed class SelectionStub : IEncoderSelectionService
     {
         public int Selections;
@@ -398,24 +405,29 @@ public class RecordingEncoderLifecycleTests
         public bool FailNext;
         public bool FailCleanup;
         public Action? BeforeStart;
-        public IScreenRecorderEngine Create(HardwareEncoderType? pinnedEncoder)
+        public bool UseModern;
+        public bool FailCapture;
+        public readonly List<CaptureSelection?> Captures = new();
+        public IScreenRecorderEngine Create(HardwareEncoderType? pinnedEncoder, CaptureSelection? pinnedCapture = null)
         {
+            Captures.Add(pinnedCapture);
             Assert.NotNull(pinnedEncoder);
             Requested.Add(pinnedEncoder.Value);
-            var engine = new EngineStub(pinnedEncoder.Value, this, FailNext);
+            var engine = new EngineStub(pinnedEncoder.Value, this, FailNext, pinnedCapture);
             FailNext = false;
             Created.Add(engine);
             return engine;
         }
     }
 
-    private sealed class EngineStub(HardwareEncoderType encoder, EngineFactoryStub owner, bool fail) : IScreenRecorderEngine
+    private sealed class EngineStub(HardwareEncoderType encoder, EngineFactoryStub owner, bool fail, CaptureSelection? pinned) : IScreenRecorderEngine
     {
         public bool IsRunning { get; private set; }
         public bool UseSyntheticCaptureSource { get; set; }
         public TimeSpan CurrentRecordedTime => TimeSpan.FromSeconds(1);
         public long CurrentFramesRecorded => 30;
         public HardwareEncoderType ActiveEncoder => encoder;
+        public CaptureSelection? ActiveCapture { get; private set; }
         public bool Disposed;
         public event EventHandler<string>? EngineErrorOccurred;
         public event EventHandler<string>? EngineWarningOccurred { add { } remove { } }
@@ -428,6 +440,12 @@ public class RecordingEncoderLifecycleTests
             token.ThrowIfCancellationRequested();
             owner.Paths.Add(path);
             using (var file = new FileStream(path, FileMode.CreateNew)) file.Write(new byte[] { 1, 2, 3, 4 });
+            if (owner.UseModern)
+            {
+                ActiveCapture = pinned ?? new(CaptureBackend.DesktopDuplication, CaptureFallbackReason.None, "Test display", 7, 0, bounds);
+                if (owner.FailCapture && ActiveCapture.Backend == CaptureBackend.DesktopDuplication)
+                    throw new CaptureStartupException("injected DDA initialization failure");
+            }
             if (fail)
             {
                 EngineErrorOccurred?.Invoke(this, "injected startup failure");

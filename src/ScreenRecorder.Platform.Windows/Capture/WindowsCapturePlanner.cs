@@ -27,7 +27,7 @@ public static class WindowsCapturePlanner
         if (!output.Attached || !output.IdentityRotation || !output.IsDefaultAdapter || output.OutputIndex < 0)
             return Gdi(CaptureFallbackReason.UnsupportedTopology);
         return new(CaptureBackend.DesktopDuplication, CaptureFallbackReason.None, output.DeviceName,
-            output.AdapterLuid, output.OutputIndex, normalizedBounds);
+            output.AdapterLuid, output.OutputIndex, normalizedBounds) { OutputBounds = output.Bounds };
     }
 
     internal static bool Valid(CaptureRegion r) => r.IsValid

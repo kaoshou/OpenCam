@@ -250,6 +250,16 @@ public class Program
             services.AddSingleton<ICursorHighlightService, ScreenRecorder.Platform.Windows.Cursor.WindowsCursorHighlightService>();
             services.AddSingleton<IAudioDeviceService, ScreenRecorder.Platform.Windows.Audio.WindowsAudioDeviceService>();
             services.AddSingleton<IFFmpegPlatformProvider, ScreenRecorder.Platform.Windows.WindowsFFmpegProvider>();
+            services.AddSingleton<ScreenRecorder.Platform.Windows.Capture.IDxgiOutputCatalog, ScreenRecorder.Platform.Windows.Capture.DxgiOutputCatalog>();
+            services.AddSingleton<ScreenRecorder.Media.Capture.ICaptureHealthMonitor, ScreenRecorder.Platform.Windows.Capture.WindowsCaptureHealthMonitor>();
+            services.AddSingleton<ScreenRecorder.Media.Capture.ICapturePlanProvider>(sp =>
+                new ScreenRecorder.Platform.Windows.Capture.WindowsCapturePlanProvider(
+                    (ScreenRecorder.Platform.Windows.WindowsFFmpegProvider)sp.GetRequiredService<IFFmpegPlatformProvider>(),
+                    sp.GetRequiredService<ScreenRecorder.Platform.Windows.Capture.IDxgiOutputCatalog>(),
+                    sp.GetRequiredService<IDisplayService>().GetMonitors,
+                    token => new ScreenRecorder.Platform.Windows.Capture.DdagrabCapabilityProbe().IsAvailableAsync(
+                        ScreenRecorder.Media.FFmpeg.FFmpegDiscovery.FindFFmpegExecutable()
+                            ?? throw new FileNotFoundException("FFmpeg not found."), token)));
             services.AddSingleton<ISystemAudioLoopbackCapture, ScreenRecorder.Platform.Windows.Audio.WindowsWasapiLoopbackCapture>();
             services.AddSingleton<IMicrophoneLevelObserver, ScreenRecorder.Platform.Windows.Audio.WindowsMicrophoneLevelObserver>();
         }
