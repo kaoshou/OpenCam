@@ -59,4 +59,23 @@ public partial class FFmpegStartupHandshakeTests
         }
         finally { File.Delete(executable); }
     }
+
+    [UnixOnlyFact]
+    public async Task UpstreamDuplicationInitializationErrorsAllowCaptureFallback()
+    {
+        foreach (var diagnostic in new[] { "Selected output not supported", "Too many open duplication sessions",
+            "Failed duplicating output: 0x887a0004", "Failed querying IDXGIDevice", "Failed getting parent IDXGIAdapter",
+            "Failed getting output description" })
+        {
+            var executable = CreateExecutable($"echo '[Parsed_ddagrab_0 @ 0x123] {diagnostic}' >&2\nexit 1");
+            try
+            {
+                await using var engine = new FFmpegScreenRecorderEngine(new StubProvider(), ffmpegPath: executable,
+                    capturePlanProvider: new ModernPlan());
+                await Assert.ThrowsAsync<CaptureStartupException>(() => engine.StartRecordingAsync(
+                    Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".mkv"), Config(), new(0, 0, 640, 480)));
+            }
+            finally { File.Delete(executable); }
+        }
+    }
 }

@@ -332,7 +332,13 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
                         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant) &&
                     (line.Contains("Failed to", StringComparison.OrdinalIgnoreCase)
                         || line.Contains("Error initializing", StringComparison.OrdinalIgnoreCase)
-                        || line.Contains("DuplicateOutput failed", StringComparison.OrdinalIgnoreCase))))
+                        || line.Contains("DuplicateOutput failed", StringComparison.OrdinalIgnoreCase)
+                        || line.Contains("Selected output not supported", StringComparison.OrdinalIgnoreCase)
+                        || line.Contains("Too many open duplication sessions", StringComparison.OrdinalIgnoreCase)
+                        || line.Contains("Failed duplicating output", StringComparison.OrdinalIgnoreCase)
+                        || line.Contains("Failed querying IDXGIDevice", StringComparison.OrdinalIgnoreCase)
+                        || line.Contains("Failed getting parent IDXGIAdapter", StringComparison.OrdinalIgnoreCase)
+                        || line.Contains("Failed getting output description", StringComparison.OrdinalIgnoreCase))))
                     throw new CaptureStartupException("Desktop Duplication initialization failed.");
                 throw new InvalidOperationException("Modern capture could not start; see recording diagnostics. No automatic backend switch was made.");
             }

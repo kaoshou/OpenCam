@@ -35,6 +35,32 @@ public class WindowsCapturePlannerTests
         Assert.Equal(Left, result.Bounds);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void MultipleHardwareAdaptersCannotAttestFfmpegDefault(bool otherAdapterHasOutput)
+    {
+        // FFmpeg may receive a different per-executable GPU profile, even with a headless GPU.
+        DxgiOutputInfo[] outputs = otherAdapterHasOutput
+            ? [.. Outputs, new(8, 0, "OTHER", new(3840, 0, 1920, 1080), true, true, false)]
+            : Outputs;
+        var eligible = DxgiOutputCatalog.ValidateAdapterIdentity(outputs, [new(7, false), new(8, false)]);
+        Assert.Equal(CaptureFallbackReason.UnsupportedTopology,
+            WindowsCapturePlanner.Select(Config, Left, Monitors, eligible, true).FallbackReason);
+        Assert.All(eligible, o => Assert.False(o.IsDefaultAdapter));
+    }
+
+    [Fact]
+    public void UniqueHardwareAdapterMustMatchButSoftwareAdapterDoesNotCreateAmbiguity()
+    {
+        var eligible = DxgiOutputCatalog.ValidateAdapterIdentity(Outputs, [new(7, false), new(8, true)]);
+        Assert.Equal(CaptureBackend.DesktopDuplication,
+            WindowsCapturePlanner.Select(Config, Left, Monitors, eligible, true).Backend);
+        foreach (var adapters in new DxgiAdapterInfo[][] { [], [new(8, false)], [new(7, true)] })
+            Assert.Equal(CaptureBackend.Gdi, WindowsCapturePlanner.Select(Config, Left, Monitors,
+                DxgiOutputCatalog.ValidateAdapterIdentity(Outputs, adapters), true).Backend);
+    }
+
     [Fact]
     public void PhysicalNegativeRegionIsNotScaledAgain()
     {

@@ -14,6 +14,17 @@ public class WindowsCaptureHealthTests
         public IReadOnlyList<DxgiOutputInfo> GetOutputs() => Outputs;
     }
     [Fact]
+    public void NewlyAmbiguousAdapterIdentityStopsPinnedCapture()
+    {
+        var catalog = new Catalog();
+        var selection = new CaptureSelection(CaptureBackend.DesktopDuplication, CaptureFallbackReason.None,
+            "LEFT", 7, 2, new(-1800, 100, 640, 480));
+        Assert.True(new WindowsCaptureHealthMonitor(catalog, () => true).Check(selection));
+        catalog.Outputs = DxgiOutputCatalog.ValidateAdapterIdentity(catalog.Outputs, [new(7, false), new(8, false)]);
+        Assert.False(new WindowsCaptureHealthMonitor(catalog, () => true).Check(selection));
+    }
+
+    [Fact]
     public void LockedDesktopOrChangedOutputIsUnhealthyEvenWithAdvancingFrames()
     {
         var catalog = new Catalog();
