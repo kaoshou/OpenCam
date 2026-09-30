@@ -13,6 +13,7 @@ public class RecorderTelemetry
     public RecordingState State { get; set; } = RecordingState.Idle;
 
     public EncoderSelection? EncoderSelection { get; set; }
+    public CaptureSelection? CaptureSelection { get; set; }
 
     public TimeSpan ElapsedTime { get; set; }
 

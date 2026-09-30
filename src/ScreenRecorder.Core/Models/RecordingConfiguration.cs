@@ -9,6 +9,13 @@ namespace ScreenRecorder.Core.Models;
 /// </summary>
 public class RecordingConfiguration
 {
+    private WindowsCaptureMode _windowsCaptureMode;
+    public WindowsCaptureMode WindowsCaptureMode
+    {
+        get => _windowsCaptureMode;
+        set => _windowsCaptureMode = Enum.IsDefined(value) ? value : WindowsCaptureMode.CompatibleGdi;
+    }
+
     public const long DefaultDiskWarningThresholdBytes = 2L * 1024 * 1024 * 1024;
     public const long DefaultDiskCriticalThresholdBytes = 500L * 1024 * 1024;
 

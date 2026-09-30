@@ -21,6 +21,7 @@ public class RecordingSession
     public RecordingConfiguration Configuration { get; set; } = new();
 
     public EncoderSelection? EncoderSelection { get; set; }
+    public CaptureSelection? CaptureSelection { get; set; }
 
     public int OutputWidth { get; set; }
 

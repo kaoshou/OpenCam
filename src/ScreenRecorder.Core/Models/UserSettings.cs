@@ -6,6 +6,13 @@ namespace ScreenRecorder.Core.Models;
 
 public class UserSettings
 {
+    private WindowsCaptureMode _windowsCaptureMode;
+    public WindowsCaptureMode WindowsCaptureMode
+    {
+        get => _windowsCaptureMode;
+        set => _windowsCaptureMode = Enum.IsDefined(value) ? value : WindowsCaptureMode.CompatibleGdi;
+    }
+
     public AppLanguage Language { get; set; } = AppLanguage.ZhTw;
     public HardwareEncoderType EncoderType { get; set; } = HardwareEncoderType.Auto;
     public CursorEffectMode CursorEffect { get; set; } = CursorEffectMode.Default;
