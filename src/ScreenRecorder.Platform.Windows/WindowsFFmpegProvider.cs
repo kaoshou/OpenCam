@@ -54,7 +54,13 @@ public class WindowsFFmpegProvider : IFFmpegPlatformProvider
 
         var drawMouseParam = config.CursorEffect == CursorEffectMode.Hidden ? "-draw_mouse 0 " : "-draw_mouse 1 ";
         var baseVideo = $"-rtbufsize 100M -f gdigrab {drawMouseParam}-framerate {config.Fps} -offset_x {x} -offset_y {y} -video_size {width}x{height} -i desktop ";
+        return BuildAudioInputArguments(baseVideo, config, hasDirectShowMic, systemAudioPipeArg);
+    }
 
+    public string BuildAudioInputArguments(string baseVideo, RecordingConfiguration config,
+        bool hasDirectShowMic, string? systemAudioPipeArg)
+    {
+        var includeAudioTrack = config.AudioSource != AudioSourceType.None || config.MaintainSegmentAudioTrack;
         if (config.AudioSource == AudioSourceType.None && !includeAudioTrack)
         {
             return baseVideo;
