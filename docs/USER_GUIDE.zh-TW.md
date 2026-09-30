@@ -2,7 +2,7 @@
 
 OpenCam 是一款以錄影可靠性為優先的 Windows／macOS 螢幕錄影工具。錄影期間先把內容寫入較耐中斷的 MKV 工作檔，正常停止後再封裝成 MP4；若遇到當機、停電或強制關閉，也可使用「修復救援」嘗試保留已成功寫入的內容。
 
-> 本說明適用於 OpenCam v0.2.3 原始碼候選版本；不代表安裝包已發布或實機驗收已完成。Windows 與 macOS 的主要流程相同；平台差異會在各章節中特別標示。
+> 本說明適用於 OpenCam v0.2.4；實機驗收限制仍以 README 與驗證報告為準。Windows 與 macOS 的主要流程相同；平台差異會在各章節中特別標示。
 
 ## 1. 系統需求與首次啟動
 
@@ -10,12 +10,14 @@ OpenCam 是一款以錄影可靠性為優先的 Windows／macOS 螢幕錄影工�
 
 - Windows 10 或 Windows 11，x64。
 - 安裝版與免安裝版都已包含執行所需元件。
+- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v0.2.4_Windows_x64_Setup.exe` 或 `OpenCam_v0.2.4_Windows_x64_Portable.zip`。檔名會標示版本、Windows 及 x64 架構。
 - 系統音訊使用 Windows 音訊回送擷取；麥克風可在 OpenCam 中選擇。
 
 ### macOS
 
 - macOS 13 Ventura 或以上。
 - 官方版本目前支援 Apple Silicon（arm64）；尚未提供 Intel Mac（x64）版本。
+- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v0.2.4_macOS_arm64.dmg`；檔名中的 arm64 表示 Apple Silicon。
 - 第一次啟動後，請到「系統設定 → 隱私權與安全性」允許 OpenCam 使用：
   - 螢幕與系統音訊錄製
   - 麥克風（需要錄製麥克風時）
@@ -72,7 +74,7 @@ OpenCam 會將選區轉換成實際畫面像素，並在必要時調整成編碼
 - **CPU（libx264）**：相容性高，但通常使用較多 CPU。
 - **硬體編碼**：依平台與電腦硬體，可能使用 NVIDIA NVENC、Intel QSV、AMD AMF 或 Apple VideoToolbox。
 
-以下編碼器診斷改善為尚未發布的開發分支功能，現有安裝包不一定包含：
+v0.2.4 起提供以下編碼器診斷改善：
 
 - **自動不保證硬體加速**：Windows 按 NVENC → QSV → AMF、macOS 按 VideoToolbox 依序驗證，第一個成功者才用於錄影。指定硬體失敗則回 CPU，不改選其他品牌。
 - 在右側「錄影狀態監控」的音量波形下方查看**實際編碼器**。開始前顯示「尚未決定」；開始後以 Recorder 的結果顯示 libx264 (CPU)、NVENC、QSV、AMF 或 VideoToolbox，CPU 回退會附上原因。選單中的「自動」仍保持原設定。

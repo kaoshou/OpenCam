@@ -28,7 +28,7 @@ UsePreviousGroup=no
 DisableProgramGroupPage=yes
 ; 輸出的安裝檔位置與名稱
 OutputDir=.\Output
-OutputBaseFilename=OpenCam_v{#MyAppVersion}_Setup
+OutputBaseFilename=OpenCam_v{#MyAppVersion}_Windows_x64_Setup
 ; 壓縮方式 (高壓縮率)
 Compression=lzma2/ultra64
 SolidCompression=yes

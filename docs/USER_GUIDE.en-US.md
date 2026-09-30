@@ -2,7 +2,7 @@
 
 OpenCam is a reliability-first screen recorder for Windows and macOS. During recording, it writes to interruption-resistant MKV working files and packages them as MP4 after a normal stop. If a crash, power failure, or forced termination occurs, Crash Recovery can attempt to preserve content that was already written successfully.
 
-> This guide covers OpenCam v0.2.3 source candidate; it does not imply that installers have been released or live acceptance completed. The main workflow is the same on Windows and macOS; platform differences are called out where applicable.
+> This guide covers OpenCam v0.2.4. Live-acceptance limitations remain documented in the README and verification report. The main workflow is the same on Windows and macOS; platform differences are called out where applicable.
 
 ## 1. System Requirements and First Launch
 
@@ -10,12 +10,14 @@ OpenCam is a reliability-first screen recorder for Windows and macOS. During rec
 
 - Windows 10 or Windows 11, x64.
 - Both the installer and portable package include the required runtime components.
+- Download `OpenCam_v0.2.4_Windows_x64_Setup.exe` or `OpenCam_v0.2.4_Windows_x64_Portable.zip` from [Releases](https://github.com/kaoshou/OpenCam/releases). Filenames identify the version, Windows platform, and x64 architecture.
 - System audio uses Windows loopback capture. A microphone can be selected in OpenCam.
 
 ### macOS
 
 - macOS 13 Ventura or later.
 - The official build currently supports Apple Silicon (arm64). An Intel Mac (x64) build is not currently provided.
+- Download `OpenCam_v0.2.4_macOS_arm64.dmg` from [Releases](https://github.com/kaoshou/OpenCam/releases); arm64 identifies Apple Silicon.
 - After first launch, open **System Settings → Privacy & Security** and allow OpenCam to use:
   - Screen & System Audio Recording
   - Microphone, when microphone recording is needed
@@ -72,7 +74,7 @@ OpenCam converts the region to physical screen pixels and, when necessary, adjus
 - **CPU (libx264)**: Highly compatible, but generally uses more CPU.
 - **Hardware encoding**: Depending on the platform and hardware, OpenCam may use NVIDIA NVENC, Intel QSV, AMD AMF, or Apple VideoToolbox.
 
-The following encoder diagnostics are **unreleased development-branch changes** and may not be present in existing installers:
+The following encoder diagnostics are available starting with v0.2.4:
 
 - **Auto does not guarantee hardware encoding.** Windows validates NVENC → QSV → AMF; macOS validates VideoToolbox. The first successful candidate is selected. An unavailable explicitly requested encoder falls back to CPU, not another hardware vendor.
 - Look for **Actual encoder** below the audio meters in the right-hand status panel. It is pending before startup; after startup it reports the Recorder's actual libx264 (CPU), NVENC, QSV, AMF, or VideoToolbox selection, including the CPU fallback reason. The user's Auto preference is not replaced.

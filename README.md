@@ -14,13 +14,13 @@ OpenCam 是一款以可靠性為優先的跨平台桌面螢幕錄影工具。錄
 
 🌐 [OpenCam 官方網站](https://kaoshou.github.io/OpenCam/)（可切換繁體中文／English）
 
-目前原始碼版本為 **0.2.3**，採用 **AGPL-3.0-or-later**。已發布的 Windows 與 Apple Silicon macOS 安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。
+目前原始碼版本為 **0.2.4**，採用 **AGPL-3.0-or-later**。已發布的 Windows 與 Apple Silicon macOS 安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。
 
 ## v0.2.3 安全修補與驗證狀態
 
-本次修改針對本機錄影控制通訊與修復救援的檔案處理加強防護；這不代表所有安全問題已解決。目前仍待完成發布驗收，原始碼版本不代表安裝包已發布。
+v0.2.3 起針對本機錄影控制通訊與修復救援的檔案處理加強防護，v0.2.4 延續這些保護；這不代表所有安全問題已解決。安裝包發布與實機驗收是不同事項，下列驗證限制仍需注意。
 
-**影響範圍**：本次修補涵蓋 v0.2.2 的本機程序控制、救援工作階段檔案處理，以及 macOS 音訊傳輸。風險涉及同一台電腦上的其他程序或遭竄改的工作階段資料，並非已確認的遠端攻擊事件。待 v0.2.3 安裝包完成驗收並發布後，建議舊版使用者更新；更新前請保留尚未完成救援的原始 MKV 與工作階段資料。
+**影響範圍**：修補涵蓋 v0.2.2 的本機程序控制、救援工作階段檔案處理，以及 macOS 音訊傳輸。風險涉及同一台電腦上的其他程序或遭竄改的工作階段資料，並非已確認的遠端攻擊事件。更新前請保留尚未完成救援的原始 MKV 與工作階段資料。
 
 - **錄影程序控制**：原本僅靠 pipe 名稱區分工作階段，無法充分驗證指令來源。現在透過私有啟動通道傳遞每次啟動的金鑰，檢查通訊雙方程序身分，並對訊息加入 HMAC 驗證、重播防護、大小及認證時間限制。未取得合法 UI 啟動資訊的 daemon 不允許直接啟動。
 - **修復救援路徑**：工作階段中繼資料不再能指定其他目錄的 MKV；載入的資料綁定實際工作階段目錄，拒絕不安全路徑與已偵測到的連結檔。救援先透過檔案控制代碼建立暫存快照，再交給媒體工具處理，降低檢查後來源檔案被替換的風險。
@@ -34,11 +34,11 @@ OpenCam 是一款以可靠性為優先的跨平台桌面螢幕錄影工具。錄
 
 **驗證狀態**：已加入 IPC 認證、救援路徑／目錄替換與匿名音訊傳輸自動化測試；匿名管線亦以實際 FFmpeg 驗證雙輸入混音及非零音訊。這不等於真實裝置收音驗收。實際錄影、系統音訊、麥克風、暫停／繼續與強制中斷救援的發布驗收，以及 Windows／Linux 執行驗證仍待完成；略過不代表通過。詳見 [手動驗收表](MANUAL_TEST_CHECKLIST.md)。應用程式簽章與 macOS 公證狀態未因本次修改而改變。
 
-## 尚未發布：編碼器診斷改善
+## v0.2.4 編碼器診斷與錄影啟動改善
 
-開發分支統一有時限的編碼器探測與快取，錄影狀態區會顯示 Recorder 真正使用的編碼器及 CPU 回退原因；「自動」不是硬體加速保證。首段成功後續錄固定同一編碼器，失敗候選使用新檔名、保留已錄內容。詳見[使用說明](docs/USER_GUIDE.zh-TW.md#編碼器)與[驗證報告](docs/verification/2026-09-29-encoder-diagnostics.md)。
+統一有時限的編碼器探測與快取，錄影狀態區會顯示 Recorder 真正使用的編碼器及 CPU 回退原因；「自動」不是硬體加速保證。首段成功後續錄固定同一編碼器，失敗候選使用新檔名、保留已錄內容。修正 Windows 錄影輸出參數衝突、啟動期間程序退出的狀態判斷，以及失敗候選片段誤入救援合併的問題。詳見[使用說明](docs/USER_GUIDE.zh-TW.md#編碼器)、[驗證報告](docs/verification/2026-09-29-encoder-diagnostics.md)與[本版更新說明](docs/releases/v0.2.4.md)。
 
-此階段不改 GDI 擷取、音訊格式、解析度或 FPS；Windows 實機 CPU 比較與游標閃爍驗收仍待完成，不能將自動化通過解讀為已解決所有效能問題。版本維持 0.2.3，未發布新安裝包。
+此階段不改 GDI 擷取、音訊格式、解析度或 FPS；Windows 實機 CPU 比較與游標閃爍驗收仍待完成，不能將自動化通過解讀為已解決所有效能問題。下載檔名新增版本、作業系統與架構資訊：Windows 為 x64，macOS 為 arm64（Apple Silicon）。
 
 ## 歷史更新
 
@@ -102,14 +102,14 @@ v0.2.0 的完整安裝檔請至 [OpenCam v0.2.0 Release](https://github.com/kaos
 ### Windows 10/11（x64）
 
 - 前往 [Releases](https://github.com/kaoshou/OpenCam/releases) 頁面。
-- 下載 `OpenCam_*_Setup.exe`（安裝版）或 `OpenCam_Windows_Portable.zip`（免安裝版）。
+- 下載 `OpenCam_v0.2.4_Windows_x64_Setup.exe`（安裝版）或 `OpenCam_v0.2.4_Windows_x64_Portable.zip`（免安裝版）；後續版本會使用對應版本號。
 - 執行應用程式。套件已包含所需的 .NET Runtime，無須另外安裝。
 
 ### macOS 13 Ventura 或以上（Apple Silicon／arm64）
 
 > 目前尚未提供 Intel Mac（x64）版本。
 
-- 前往 [Releases](https://github.com/kaoshou/OpenCam/releases) 頁面並下載 `OpenCam_macOS_AppleSilicon.dmg`。
+- 前往 [Releases](https://github.com/kaoshou/OpenCam/releases) 頁面並下載 `OpenCam_v0.2.4_macOS_arm64.dmg`；後續版本會使用對應版本號。
 - 打開 DMG，將 `OpenCam.app` 拖曳至「應用程式（Applications）」資料夾。
 - 第一次啟動時，請依 macOS 提示在「系統設定 → 隱私權與安全性」中允許 OpenCam 使用「螢幕與系統音訊錄製」及「麥克風」。變更權限後若功能尚未生效，請完全結束並重新開啟 OpenCam。
 - 若 Gatekeeper 阻擋啟動，請先在 Finder 對 `OpenCam.app` 按右鍵並選擇「打開」，或在「系統設定 → 隱私權與安全性」選擇「仍要打開」。
@@ -152,19 +152,19 @@ OpenCam is built with .NET 8, Avalonia UI, and FFmpeg, and supports Windows and 
 
 🌐 [OpenCam official website](https://kaoshou.github.io/OpenCam/) (English / 繁體中文)
 
-### Unreleased encoder diagnostics
+### v0.2.4 Encoder Diagnostics and Recording Startup Improvements
 
-The development branch adds bounded encoder probes and caching, actual Recorder encoder/fallback status, and encoder continuity across segments. Auto is not a hardware-encoding guarantee. Failed attempts use fresh files and retain valid recordings. See the [guide](docs/USER_GUIDE.en-US.md#encoder) and [verification report](docs/verification/2026-09-29-encoder-diagnostics.md).
+This version adds bounded encoder probes and caching, actual Recorder encoder/fallback status, and encoder continuity across segments. Auto is not a hardware-encoding guarantee. Failed attempts use fresh files and retain valid recordings. It also fixes conflicting Windows recording output arguments, process-exit handling during startup, and failed candidate segments entering recovery concatenation. See the [guide](docs/USER_GUIDE.en-US.md#encoder), [verification report](docs/verification/2026-09-29-encoder-diagnostics.md), and [release notes](docs/releases/v0.2.4.md).
 
-This stage does not replace GDI capture or change audio formats, resolution, or FPS. Real Windows CPU comparisons and cursor-flicker validation remain pending; automated tests do not establish a performance or flicker fix. The version remains 0.2.3; no new installer is released.
+This stage does not replace GDI capture or change audio formats, resolution, or FPS. Real Windows CPU comparisons and cursor-flicker validation remain pending; automated tests do not establish a performance or flicker fix. Download filenames now identify the version, operating system, and architecture: Windows x64 or macOS arm64 (Apple Silicon).
 
-The current source version is **0.2.3**, licensed under **AGPL-3.0-or-later**. Download published Windows and Apple Silicon macOS packages from [Releases](https://github.com/kaoshou/OpenCam/releases).
+The current source version is **0.2.4**, licensed under **AGPL-3.0-or-later**. Download published Windows and Apple Silicon macOS packages from [Releases](https://github.com/kaoshou/OpenCam/releases).
 
 ## v0.2.3 Security Changes and Validation Status
 
-This update hardens local recorder control and recovery file handling; it does not resolve every security issue. Release acceptance is still pending. The source version does not imply that installers have been published.
+Starting with v0.2.3, local recorder control and recovery file handling are hardened; v0.2.4 retains these protections. This does not resolve every security issue. Publishing installers does not establish live acceptance; the validation limitations below still apply.
 
-**Scope**: These fixes cover v0.2.2 local process control, recovery-session file handling, and macOS audio transport. The risks involve other processes on the same computer or tampered session data; they are not confirmed remote attacks. Users of older versions should update after v0.2.3 installers pass acceptance and are published. Preserve original MKVs and session data awaiting recovery before updating.
+**Scope**: These fixes cover v0.2.2 local process control, recovery-session file handling, and macOS audio transport. The risks involve other processes on the same computer or tampered session data; they are not confirmed remote attacks. Preserve original MKVs and session data awaiting recovery before updating.
 
 - **Recorder control**: A pipe name alone did not adequately authenticate command senders. The recorder now receives a per-launch key through a private bootstrap channel, checks both IPC peer processes, and authenticates messages with HMAC, replay protection, frame-size limits, and authentication deadlines. Direct daemon startup without a valid UI bootstrap is rejected.
 - **Recovery paths**: Session metadata cannot select MKVs outside the actual session directory. Loaded metadata is bound to that directory, and unsafe paths and detected links are rejected. Recovery snapshots source media through opened file handles before invoking media tools, reducing source-substitution risks between validation and use.
@@ -239,14 +239,14 @@ Download the installers from [OpenCam Releases](https://github.com/kaoshou/OpenC
 ### Windows 10/11 (x64)
 
 - Go to the [Releases](https://github.com/kaoshou/OpenCam/releases) page.
-- Download `OpenCam_*_Setup.exe` (installer) or `OpenCam_Windows_Portable.zip` (portable).
+- Download `OpenCam_v0.2.4_Windows_x64_Setup.exe` (installer) or `OpenCam_v0.2.4_Windows_x64_Portable.zip` (portable); later releases use their corresponding version numbers.
 - Run OpenCam. The required .NET Runtime is included.
 
 ### macOS 13 Ventura or later (Apple Silicon/arm64)
 
 > OpenCam does not currently provide an Intel Mac (x64) build.
 
-- Go to the [Releases](https://github.com/kaoshou/OpenCam/releases) page and download `OpenCam_macOS_AppleSilicon.dmg`.
+- Go to the [Releases](https://github.com/kaoshou/OpenCam/releases) page and download `OpenCam_v0.2.4_macOS_arm64.dmg`; later releases use their corresponding version numbers.
 - Mount the DMG and drag `OpenCam.app` to the Applications folder.
 - On first launch, follow the macOS prompts and allow OpenCam access to **Screen & System Audio Recording** and **Microphone** under **System Settings → Privacy & Security**. If a permission change does not take effect immediately, quit OpenCam completely and reopen it.
 - If Gatekeeper blocks the app, first Control-click `OpenCam.app` in Finder and select **Open**, or select **Open Anyway** under **System Settings → Privacy & Security**.

@@ -62,5 +62,5 @@ Write-Host "接下來，請依照以下步驟產出安裝精靈 (Setup.exe)："
 Write-Host "1. 請確保您已下載並安裝 [Inno Setup 6] (https://jrsoftware.org/isdl.php)"
 Write-Host "2. 進入 $InstallerDir 目錄"
 Write-Host "3. 執行 iscc.exe /DMyAppVersion=$Version OpenCam.iss"
-Write-Host "4. 完成後，安裝檔將會產生在 $InstallerDir\Output\OpenCam_v${Version}_Setup.exe"
+Write-Host "4. 完成後，安裝檔將會產生在 $InstallerDir\Output\OpenCam_v${Version}_Windows_x64_Setup.exe"
 Write-Host "==========================================" -ForegroundColor Cyan

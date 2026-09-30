@@ -115,8 +115,9 @@ jobs:
     - name: Load canonical product version
       run: |
         node scripts/check-version-consistency.mjs
-        $version = (Get-Content VERSION -Raw).Trim()
-        "OPENCAM_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        if ($LASTEXITCODE -ne 0) { throw "Version consistency check failed" }
+        node scripts/release-artifact-names.mjs | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        if ($LASTEXITCODE -ne 0) { throw "Artifact name generation failed" }
 
     - name: Restore Dependencies
       run: dotnet restore src/ScreenRecorder.UI/ScreenRecorder.UI.csproj
@@ -146,19 +147,24 @@ jobs:
         
     - name: Create Windows Portable ZIP
       run: |
-        Compress-Archive -Path "installer/publish/*" -DestinationPath "OpenCam_Windows_Portable.zip" -Force
+        Compress-Archive -Path "installer/publish/*" -DestinationPath $env:WINDOWS_PORTABLE -Force
 
     - name: Compile Inno Setup Installer
       run: |
         & "C:\Program Files (x86)\Inno Setup 6\iscc.exe" "/DMyAppVersion=$env:OPENCAM_VERSION" installer\OpenCam.iss
+        if ($LASTEXITCODE -ne 0) { throw "Installer compilation failed" }
+        foreach ($asset in @("installer/Output/$env:WINDOWS_SETUP", $env:WINDOWS_PORTABLE)) {
+          if (!(Test-Path -LiteralPath $asset -PathType Leaf)) { throw "Missing expected artifact: $asset" }
+        }
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: OpenCam-Windows-Builds
+        name: OpenCam-v${{ env.OPENCAM_VERSION }}-Windows-x64
+        if-no-files-found: error
         path: |
-          installer/Output/OpenCam_*_Setup.exe
-          OpenCam_Windows_Portable.zip
+          installer/Output/${{ env.WINDOWS_SETUP }}
+          ${{ env.WINDOWS_PORTABLE }}
         
   build-macos:
     needs: [verify-portable, verify-macos]
@@ -180,7 +186,7 @@ jobs:
     - name: Load canonical product version
       run: |
         node scripts/check-version-consistency.mjs
-        printf 'OPENCAM_VERSION=%s\n' "$(tr -d '\n' < VERSION)" >> "$GITHUB_ENV"
+        node scripts/release-artifact-names.mjs >> "$GITHUB_ENV"
 
     - name: Build and Publish macOS
       run: |
@@ -206,7 +212,7 @@ jobs:
         cp -R OpenCam.app dmg_staging/
         ln -s /Applications dmg_staging/Applications
         for attempt in 1 2 3; do
-          if hdiutil create -volname "OpenCam" -srcfolder "$PWD/dmg_staging" -ov -format UDZO OpenCam_macOS_AppleSilicon.dmg; then
+          if hdiutil create -volname "OpenCam" -srcfolder "$PWD/dmg_staging" -ov -format UDZO "$MACOS_DMG"; then
             break
           fi
           if [ "$attempt" -eq 3 ]; then
@@ -214,14 +220,15 @@ jobs:
           fi
           sleep 5
         done
-        hdiutil verify OpenCam_macOS_AppleSilicon.dmg
+        hdiutil verify "$MACOS_DMG"
         rm -rf dmg_staging
 
     - name: Upload macOS DMG as Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: OpenCam-macOS-DMG
-        path: OpenCam_macOS_AppleSilicon.dmg
+        name: OpenCam-v${{ env.OPENCAM_VERSION }}-macOS-arm64
+        if-no-files-found: error
+        path: ${{ env.MACOS_DMG }}
         
 
   publish-release:
@@ -237,22 +244,45 @@ jobs:
       GH_REPO: ${{ github.repository }}
       RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
     steps:
+    - name: Checkout Source Code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js for artifact names
+      uses: actions/setup-node@v7
+      with:
+        node-version: '22'
+
+    - name: Load canonical artifact names
+      run: |
+        node scripts/check-version-consistency.mjs
+        node scripts/release-artifact-names.mjs >> "$GITHUB_ENV"
+
+    - name: Verify release tag matches this build
+      run: |
+        test "$RELEASE_TAG" = "v$OPENCAM_VERSION"
+        git fetch --no-tags origin "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+        test "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$GITHUB_SHA"
+
     - name: Download Windows Builds
       uses: actions/download-artifact@v4
       with:
-        name: OpenCam-Windows-Builds
+        name: OpenCam-v${{ env.OPENCAM_VERSION }}-Windows-x64
         path: release-assets/windows
 
     - name: Download macOS DMG
       uses: actions/download-artifact@v4
       with:
-        name: OpenCam-macOS-DMG
+        name: OpenCam-v${{ env.OPENCAM_VERSION }}-macOS-arm64
         path: release-assets/macos
 
     - name: Create or Update GitHub Release
       shell: bash
       run: |
         set -euo pipefail
+
+        test -s "release-assets/windows/installer/Output/$WINDOWS_SETUP"
+        test -s "release-assets/windows/$WINDOWS_PORTABLE"
+        test -s "release-assets/macos/$MACOS_DMG"
 
         if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
           gh release create "$RELEASE_TAG" --verify-tag --generate-notes --title "$RELEASE_TAG"
@@ -271,6 +301,6 @@ jobs:
           done
         }
 
-        upload_asset release-assets/windows/installer/Output/OpenCam_*_Setup.exe
-        upload_asset release-assets/windows/OpenCam_Windows_Portable.zip
-        upload_asset release-assets/macos/OpenCam_macOS_AppleSilicon.dmg
+        upload_asset "release-assets/windows/installer/Output/$WINDOWS_SETUP"
+        upload_asset "release-assets/windows/$WINDOWS_PORTABLE"
+        upload_asset "release-assets/macos/$MACOS_DMG"
