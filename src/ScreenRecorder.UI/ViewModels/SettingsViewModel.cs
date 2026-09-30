@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ScreenRecorder.Core.Interfaces;
+using ScreenRecorder.Core.Enums;
 using ScreenRecorder.Core;
 using ScreenRecorder.Core.Localization;
 using ScreenRecorder.Core.Models;
@@ -28,6 +29,11 @@ public partial class SettingsViewModel : ObservableObject
     public record LanguageOption(AppLanguage Language, string DisplayName);
     public record QualityOption(string PresetKey, string DisplayName);
     public record DiskThresholdOption(double Value, string DisplayName);
+    public record CaptureModeOption(WindowsCaptureMode Mode, string DisplayName);
+    public bool SupportsWindowsCapture { get; }
+    public ObservableCollection<CaptureModeOption> AvailableCaptureModes { get; } = new();
+    [ObservableProperty] private CaptureModeOption? _selectedCaptureMode;
+    [ObservableProperty] private bool _canEditCaptureMode = true;
 
     public ObservableCollection<ModifierOption> AvailableModifiers { get; } = new();
     public ObservableCollection<KeyOption> AvailableKeys { get; } = new();
@@ -119,8 +125,9 @@ public partial class SettingsViewModel : ObservableObject
         catch { }
     }
 
-    public SettingsViewModel(ISettingsService settingsService)
+    public SettingsViewModel(ISettingsService settingsService, bool? supportsWindowsCapture = null)
     {
+        SupportsWindowsCapture = supportsWindowsCapture ?? OperatingSystem.IsWindows();
         _settingsService = settingsService;
         InitializeOptions();
         Strings.PropertyChanged += (s, e) => RefreshOptionLabels();
@@ -128,6 +135,7 @@ public partial class SettingsViewModel : ObservableObject
 
     private void InitializeOptions()
     {
+        RefreshCaptureModes();
         // 1. 修飾鍵清單 (0=None, 1=Alt, 2=Ctrl, 4=Shift, 3=Ctrl+Alt, 6=Ctrl+Shift, 5=Alt+Shift)
         AvailableModifiers.Clear();
         AvailableModifiers.Add(new ModifierOption(0, "None"));
@@ -186,6 +194,7 @@ public partial class SettingsViewModel : ObservableObject
 
     private void RefreshOptionLabels()
     {
+        RefreshCaptureModes();
         OnPropertyChanged(nameof(VersionLabelText));
         var lang = SelectedLanguage?.Language ?? AppLanguage.ZhTw;
         AvailableLanguages.Clear();
@@ -206,6 +215,7 @@ public partial class SettingsViewModel : ObservableObject
     public async Task LoadSettingsAsync()
     {
         _currentSettings = await _settingsService.LoadSettingsAsync();
+        SelectedCaptureMode = AvailableCaptureModes.Single(o => o.Mode == _currentSettings.WindowsCaptureMode);
 
         SelectedStartStopModifier = AvailableModifiers.FirstOrDefault(m => m.Value == _currentSettings.StartStopHotkeyModifiers)
                                     ?? AvailableModifiers[0];
@@ -258,6 +268,8 @@ public partial class SettingsViewModel : ObservableObject
 
         _currentSettings.Language = SelectedLanguage?.Language ?? AppLanguage.ZhTw;
         _currentSettings.VideoQualityPreset = SelectedQuality?.PresetKey ?? "Standard";
+        if (SupportsWindowsCapture && CanEditCaptureMode)
+            _currentSettings.WindowsCaptureMode = SelectedCaptureMode?.Mode ?? WindowsCaptureMode.CompatibleGdi;
         _currentSettings.DiskWarningThresholdGb = SelectedWarningThreshold?.Value ?? 2.0;
         _currentSettings.DiskCriticalThresholdMb = SelectedCriticalThreshold?.Value ?? 500.0;
         _currentSettings.OpenFolderOnFinished = OpenFolderOnFinished;
@@ -285,6 +297,7 @@ public partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     public void ResetToDefaults()
     {
+        if (CanEditCaptureMode) SelectedCaptureMode = AvailableCaptureModes[0];
         SelectedStartStopModifier = AvailableModifiers[0]; // None
         SelectedStartStopKey = AvailableKeys.FirstOrDefault(k => k.KeyName == "F9");
 
@@ -308,5 +321,14 @@ public partial class SettingsViewModel : ObservableObject
     public void Cancel()
     {
         RequestClose?.Invoke();
+    }
+
+    private void RefreshCaptureModes()
+    {
+        var selected = SelectedCaptureMode?.Mode ?? WindowsCaptureMode.CompatibleGdi;
+        AvailableCaptureModes.Clear();
+        AvailableCaptureModes.Add(new(WindowsCaptureMode.CompatibleGdi, Strings["CaptureModeGdi"]));
+        AvailableCaptureModes.Add(new(WindowsCaptureMode.ModernExperimental, Strings["CaptureModeModern"]));
+        SelectedCaptureMode = AvailableCaptureModes.Single(o => o.Mode == selected);
     }
 }

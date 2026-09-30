@@ -6,7 +6,7 @@ using ScreenRecorder.Media.Capture;
 
 namespace ScreenRecorder.Media.Tests;
 
-public class FFmpegStartupHandshakeTests
+public partial class FFmpegStartupHandshakeTests
 {
     [UnixOnlyFact]
     public async Task DelayedExitBeforeFirstFrame_IsRejected()

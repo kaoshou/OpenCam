@@ -16,6 +16,17 @@ OpenCam 是一款以可靠性為優先的跨平台桌面螢幕錄影工具。錄
 
 目前原始碼版本為 **0.2.4**，採用 **AGPL-3.0-or-later**。已發布的 Windows 與 Apple Silicon macOS 安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。
 
+## 開發中：Windows 新版擷取（尚未發布）
+
+本分支增加「設定 → 錄影品質與行為 → Windows 畫面擷取」測試選項，用 Desktop Duplication 嘗試改善部分電腦錄影當下的游標閃爍。**已發布的 v0.2.4 尚不包含此選項；尚未證實受影響實機的閃爍已消失。**
+
+- 原有 GDI 維持預設。選擇「新版擷取（測試）」後，請查看右側「實際擷取」：只有顯示 Desktop Duplication 才是新版路徑；GDI 會顯示回退原因。
+- 初版限預設圖形裝置上可唯一對應的未旋轉單一螢幕／螢幕內選區；多螢幕不限定兩台。跨螢幕、其他 GPU、旋轉或無法確認對應時使用 GDI。
+- 開始前可調整，錄影與暫停期間鎖定。已確認的分段不會無聲切換擷取後端；輸出或互動桌面失效時安全停止並保留工作檔。
+- 音訊與 macOS 擷取流程不更換。不保證 CPU 使用率降低；效能與游標仍需同機實測。詳見 [本次驗證紀錄](docs/verification/2026-09-30-windows-capture.md)。
+
+**In development, not released:** an opt-in Windows Desktop Duplication capture mode is available on this branch, not in the published v0.2.4 packages. GDI remains the default and fallback. Check the actual capture status; unsupported/ambiguous display layouts fall back to GDI. This is an attempt to address live cursor flicker, not a verified hardware fix or a CPU reduction guarantee. See the [English guide](docs/USER_GUIDE.en-US.md).
+
 ## v0.2.3 安全修補與驗證狀態
 
 v0.2.3 起針對本機錄影控制通訊與修復救援的檔案處理加強防護，v0.2.4 延續這些保護；這不代表所有安全問題已解決。安裝包發布與實機驗收是不同事項，下列驗證限制仍需注意。

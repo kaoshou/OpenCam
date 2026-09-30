@@ -1,5 +1,13 @@
 # OpenCam Complete User Guide (English)
 
+## Development branch: experimental Windows capture
+
+This option is **not included in the published v0.2.4 packages**. In this development branch, Settings → Video Quality & Actions → Windows screen capture offers Compatible capture (GDI), the unchanged default, and Modern capture (experimental).
+
+If the live pointer flickers while the resulting MP4 looks normal, try the experimental mode and compare both the physical screen and the recording. The status panel must say **Desktop Duplication** to confirm it is active; GDI status includes a fallback reason. Initial support covers uniquely mapped, unrotated outputs on the default graphics adapter and regions contained in one output. Multiple monitors are supported, not limited to two. Cross-monitor regions, other adapters, rotated outputs, ambiguous mappings, and missing FFmpeg capabilities use GDI.
+
+Change capture mode only while idle, not while paused. Existing audio/cursor controls during pause remain available. Confirmed segments pin their backend and encoder. Output/interactive desktop loss safely stops the recording and preserves working files; unknown startup errors do not trigger blind retries. This implementation downloads GPU frames for compatibility with existing encoders, so it does not promise lower CPU usage. Cursor-flicker resolution, long A/V sync, and affected-PC acceptance still require real Windows hardware.
+
 OpenCam is a reliability-first screen recorder for Windows and macOS. During recording, it writes to interruption-resistant MKV working files and packages them as MP4 after a normal stop. If a crash, power failure, or forced termination occurs, Crash Recovery can attempt to preserve content that was already written successfully.
 
 > This guide covers OpenCam v0.2.4. Live-acceptance limitations remain documented in the README and verification report. The main workflow is the same on Windows and macOS; platform differences are called out where applicable.

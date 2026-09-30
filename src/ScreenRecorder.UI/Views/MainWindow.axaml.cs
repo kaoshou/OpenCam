@@ -285,6 +285,12 @@ public partial class MainWindow : Window
         if (DataContext is MainViewModel vm && vm.CanEditRecordingSettings)
         {
             var settingsVm = new SettingsViewModel(vm.SettingsService);
+            settingsVm.CanEditCaptureMode = vm.CanEditRecordingSettings;
+            System.ComponentModel.PropertyChangedEventHandler captureGuard = (_, e) =>
+            {
+                if (e.PropertyName == nameof(MainViewModel.CanEditRecordingSettings))
+                    settingsVm.CanEditCaptureMode = vm.CanEditRecordingSettings;
+            };
             await settingsVm.LoadSettingsAsync();
             settingsVm.SelectedTabIndex = initialTabIndex;
 
@@ -293,7 +299,9 @@ public partial class MainWindow : Window
             {
                 vm.ApplyNewSettings(updatedSettings);
             };
-            await settingsWindow.ShowDialog(this);
+            vm.PropertyChanged += captureGuard;
+            try { await settingsWindow.ShowDialog(this); }
+            finally { vm.PropertyChanged -= captureGuard; }
         }
     }
 }

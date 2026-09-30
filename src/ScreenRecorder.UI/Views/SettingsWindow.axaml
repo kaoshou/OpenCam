@@ -185,6 +185,19 @@
                                 </ComboBox>
                             </Grid>
 
+                            <StackPanel IsVisible="{Binding SupportsWindowsCapture}" Spacing="6">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Text="{Binding Strings[CaptureModeLabel]}" FontSize="12" VerticalAlignment="Center" />
+                                    <ComboBox Grid.Column="1" Width="275" FontSize="11.5"
+                                              IsEnabled="{Binding CanEditCaptureMode}"
+                                              ItemsSource="{Binding AvailableCaptureModes}" SelectedItem="{Binding SelectedCaptureMode}">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate><TextBlock Text="{Binding DisplayName}" FontSize="11.5" /></DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                </Grid>
+                                <TextBlock Text="{Binding Strings[CaptureModeNotice]}" FontSize="11" Foreground="#64748B" TextWrapping="Wrap" />
+                            </StackPanel>
                             <CheckBox IsChecked="{Binding OpenFolderOnFinished}" Margin="0,2">
                                 <TextBlock Text="{Binding Strings[OpenFolderOnFinishedLabel]}" FontSize="12" Foreground="#334155" TextWrapping="Wrap" />
                             </CheckBox>

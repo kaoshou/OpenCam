@@ -327,13 +327,19 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
             if (_capturePlan?.Selection.Backend == CaptureBackend.DesktopDuplication)
             {
                 // Only identified DDA initialization failures may change capture backend.
-                if (_startupError.Contains("ddagrab", StringComparison.OrdinalIgnoreCase)
-                    && (_startupError.Contains("Failed to", StringComparison.OrdinalIgnoreCase)
-                        || _startupError.Contains("Error initializing", StringComparison.OrdinalIgnoreCase)
-                        || _startupError.Contains("DuplicateOutput", StringComparison.OrdinalIgnoreCase)))
+                if (_startupError.Split('\n').Any(line =>
+                    Regex.IsMatch(line, @"^\[(?:Parsed_)?ddagrab(?:_\d+)?\s*@[^\]]*\]",
+                        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant) &&
+                    (line.Contains("Failed to", StringComparison.OrdinalIgnoreCase)
+                        || line.Contains("Error initializing", StringComparison.OrdinalIgnoreCase)
+                        || line.Contains("DuplicateOutput failed", StringComparison.OrdinalIgnoreCase))))
                     throw new CaptureStartupException("Desktop Duplication initialization failed.");
                 throw new InvalidOperationException("Modern capture could not start; see recording diagnostics. No automatic backend switch was made.");
             }
+            if (_capturePlan?.Selection.FallbackReason is not null and not CaptureFallbackReason.None &&
+                !_startupError.Contains("Error while opening encoder", StringComparison.OrdinalIgnoreCase) &&
+                !_startupError.Contains("Error initializing encoder", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Compatible capture fallback failed; no further encoder retry was made.");
             throw new EncoderStartupException("FFmpeg 錄影引擎初始化失敗，無法啟動錄影進程。請檢查視訊/音訊設備與輸出路徑權限。");
         }
 

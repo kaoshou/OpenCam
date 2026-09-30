@@ -93,6 +93,7 @@ public partial class MainViewModel : ObservableObject
     private uint _pauseResumeHotkeyModifiers = 0;
     private string _pauseResumeHotkeyKey = "F10";
     private string _videoQualityPreset = "Standard";
+    private WindowsCaptureMode _windowsCaptureMode;
     private double _diskWarningThresholdGb = 2.0;
     private double _diskCriticalThresholdMb = 500.0;
     private long _activeDiskWarningThresholdBytes = RecordingConfiguration.DefaultDiskWarningThresholdBytes;
@@ -156,6 +157,14 @@ public partial class MainViewModel : ObservableObject
     public record EncoderOption(HardwareEncoderType Type, string DisplayName);
     private EncoderSelection? _actualEncoder;
     public string ActualEncoderText => EncoderStatusFormatter.Format(_actualEncoder, LocalizationService.Instance);
+    private CaptureSelection? _actualCapture;
+    public string ActualCaptureText => CaptureStatusFormatter.Format(_actualCapture, LocalizationService.Instance);
+    public bool ShowCaptureStatus => OperatingSystem.IsWindows();
+    private void SetActualCapture(CaptureSelection? value)
+    {
+        _actualCapture = value;
+        OnPropertyChanged(nameof(ActualCaptureText));
+    }
 
     internal void ApplyEncoderTelemetry(RecorderTelemetry telemetry)
     {
@@ -163,6 +172,8 @@ public partial class MainViewModel : ObservableObject
         if (IsPreparing && !IsRecording && !IsPaused) return;
         SetActualEncoder(telemetry.State is RecordingState.Recording or RecordingState.Paused &&
             !string.IsNullOrEmpty(telemetry.SessionId) ? telemetry.EncoderSelection : null);
+        SetActualCapture(telemetry.State is RecordingState.Recording or RecordingState.Paused &&
+            !string.IsNullOrEmpty(telemetry.SessionId) ? telemetry.CaptureSelection : null);
     }
 
     private void SetActualEncoder(EncoderSelection? value)
@@ -486,7 +497,7 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnIsPreparingChanged(bool value)
     {
-        if (value && !IsRecording && !IsPaused) SetActualEncoder(null);
+        if (value && !IsRecording && !IsPaused) { SetActualEncoder(null); SetActualCapture(null); }
         OnPropertyChanged(nameof(CanStartRecording));
         OnPropertyChanged(nameof(CanStopRecording));
         OnPropertyChanged(nameof(CanPauseOrResume));
@@ -756,6 +767,7 @@ public partial class MainViewModel : ObservableObject
             OnPropertyChanged(nameof(VersionLabelText));
             OnPropertyChanged(nameof(VersionAndAboutText));
             OnPropertyChanged(nameof(ActualEncoderText));
+            OnPropertyChanged(nameof(ActualCaptureText));
             LoadMonitors();
             RefreshEncoderDisplayNames();
             RefreshCursorEffectDisplayNames();
@@ -860,6 +872,7 @@ public partial class MainViewModel : ObservableObject
             _pauseResumeHotkeyModifiers = s.PauseResumeHotkeyModifiers;
             _pauseResumeHotkeyKey = s.PauseResumeHotkeyKey;
             _videoQualityPreset = s.VideoQualityPreset;
+            _windowsCaptureMode = s.WindowsCaptureMode;
             _openFolderOnFinished = s.OpenFolderOnFinished;
             _deleteWorkingFileAfterRemux = s.DeleteWorkingFileAfterSuccessfulRemux;
             _diskWarningThresholdGb = s.DiskWarningThresholdGb;
@@ -1044,6 +1057,7 @@ public partial class MainViewModel : ObservableObject
                 PauseResumeHotkeyModifiers = _pauseResumeHotkeyModifiers,
                 PauseResumeHotkeyKey = _pauseResumeHotkeyKey,
                 VideoQualityPreset = _videoQualityPreset,
+                WindowsCaptureMode = _windowsCaptureMode,
                 OpenFolderOnFinished = _openFolderOnFinished,
                 DeleteWorkingFileAfterSuccessfulRemux = _deleteWorkingFileAfterRemux,
                 DiskWarningThresholdGb = _diskWarningThresholdGb,
@@ -1064,6 +1078,7 @@ public partial class MainViewModel : ObservableObject
         _pauseResumeHotkeyModifiers = newSettings.PauseResumeHotkeyModifiers;
         _pauseResumeHotkeyKey = newSettings.PauseResumeHotkeyKey;
         _videoQualityPreset = newSettings.VideoQualityPreset;
+        if (CanEditRecordingSettings) _windowsCaptureMode = newSettings.WindowsCaptureMode;
         _openFolderOnFinished = newSettings.OpenFolderOnFinished;
         _deleteWorkingFileAfterRemux = newSettings.DeleteWorkingFileAfterSuccessfulRemux;
         _diskWarningThresholdGb = newSettings.DiskWarningThresholdGb;
@@ -1231,6 +1246,7 @@ public partial class MainViewModel : ObservableObject
 
             var config = ApplyRuntimeSettings(new RecordingConfiguration
             {
+                WindowsCaptureMode = OperatingSystem.IsWindows() ? _windowsCaptureMode : WindowsCaptureMode.CompatibleGdi,
                 Fps = SelectedFps,
                 EncoderType = SelectedEncoder?.Type ?? HardwareEncoderType.Auto,
                 CursorEffect = SelectedCursorEffect?.Mode ?? CursorEffectMode.Default,
@@ -1411,6 +1427,7 @@ public partial class MainViewModel : ObservableObject
                 ClearUnconfirmedStartup();
                 LastOutputFilePath = response.SessionId;
                 SetActualEncoder(null);
+                SetActualCapture(null);
                 StatusMessage = Strings["StatusSuccess"];
 
                 if (MinimizeOnRecord)
