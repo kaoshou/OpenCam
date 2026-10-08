@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ScreenRecorder.Core\ScreenRecorder.Core.csproj" />
+    <ProjectReference Include="..\ScreenRecorder.Media\ScreenRecorder.Media.csproj" />
   </ItemGroup>
 
   <ItemGroup>
