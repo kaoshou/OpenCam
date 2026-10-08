@@ -6,7 +6,7 @@ using ScreenRecorder.Core.Projects;
 namespace ScreenRecorder.ProjectPreviewProbe;
 
 /// <summary>Test-only seek candidate. Intentionally not a complete player or selected product backend.</summary>
-internal sealed class FfmpegPipeCandidate(string ffmpeg) : IPreviewCandidate
+internal sealed class FfmpegPipeCandidate(string ffmpeg, bool useMacFileDescriptor = false) : IPreviewCandidate
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly object _sync = new();
@@ -33,13 +33,21 @@ internal sealed class FfmpegPipeCandidate(string ffmpeg) : IPreviewCandidate
             entered = true;
             var source = _source ?? throw new InvalidOperationException("No open source.");
             source.Position = 0;
-            var output = await BoundedProcess.RunAsync(ffmpeg, [
+            string[] arguments = [
                 "-hide_banner", "-loglevel", "error", "-copyts",
-                "-protocol_whitelist", "pipe", "-i", "pipe:0", "-map", "0:v:0",
+                "-protocol_whitelist", useMacFileDescriptor ? "fd,pipe" : "pipe",
+                // Keep decoder timestamps; our explicit PTS selection performs the final precise seek.
+                // Negative timestamps are valid but not seekable by every demuxer; decode their prefix explicitly.
+                ..(useMacFileDescriptor && sourcePts >= 0 ? new[] { "-noaccurate_seek", "-seek_timestamp", "1", "-ss",
+                    ((decimal)sourcePts * timeBase.Numerator / timeBase.Denominator).ToString(CultureInfo.InvariantCulture) } : Array.Empty<string>()),
+                "-i", useMacFileDescriptor ? "fd:" : "pipe:0", "-map", "0:v:0",
                 "-vf", "select=gte(pts\\," + sourcePts.ToString(CultureInfo.InvariantCulture) + ")",
                 "-frames:v", "1", "-fps_mode", "passthrough", "-enc_time_base", "demux",
                 "-c:v", "rawvideo", "-pix_fmt", "yuv420p", "-f", "framehash", "-hash", "sha256", "pipe:1"
-            ], source, own.Token);
+            ];
+            var output = useMacFileDescriptor
+                ? await MacFileDescriptorProcess.RunAsync(ffmpeg, arguments, (FileStream)source, own.Token)
+                : await BoundedProcess.RunAsync(ffmpeg, arguments, source, own.Token);
             own.Token.ThrowIfCancellationRequested();
             return Parse(output, sourcePts, timeBase);
         }
