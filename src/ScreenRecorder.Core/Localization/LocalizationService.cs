@@ -59,7 +59,7 @@ public class LocalizationService : ILocalizationService
     {
         ["ProjectRestoreBackup"] = "從備份恢復",
         ["ProjectRestoreWarning"] = "將恢復到上一個有效存檔，較新的編輯可能不在備份中。受損原檔會另存保留，原始錄影素材不會刪除。是否繼續？",
-        ["ProjectWorkspace"] = "錄影專案 · 開發預覽",
+        ["ProjectWorkspace"] = "錄影專案",
         ["ProjectEntryHint"] = "保存素材，下次可接著錄；不必先輸出 MP4",
         ["ProjectNew"] = "新建專案",
         ["ProjectOpen"] = "開啟專案",
@@ -344,7 +344,7 @@ public class LocalizationService : ILocalizationService
     {
         ["ProjectRestoreBackup"] = "Restore backup",
         ["ProjectRestoreWarning"] = "Restore the last valid backup? Newer edits may not be included. The damaged original will be preserved separately, and no source recordings will be deleted.",
-        ["ProjectWorkspace"] = "Recording project · Development preview",
+        ["ProjectWorkspace"] = "Recording project",
         ["ProjectEntryHint"] = "Save sources and continue later; MP4 export is optional",
         ["ProjectNew"] = "New project",
         ["ProjectOpen"] = "Open project",
