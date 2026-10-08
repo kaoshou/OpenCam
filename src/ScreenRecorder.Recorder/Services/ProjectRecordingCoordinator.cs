@@ -26,6 +26,7 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
     public bool IsDirty => Current?.Revision != _handle?.Current.Revision;
     public bool NeedsRecoveryConfirmation => _handle?.NeedsRecoveryConfirmation == true;
     public string? ProjectDirectory => _handle?.ProjectDirectory;
+    public string? OutputDirectory { get; private set; }
     public ProjectMode Mode { get; private set; } = ProjectMode.Closed;
     public string? LastError { get; private set; }
 
@@ -122,7 +123,31 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
         Mode = ProjectMode.Ready;
     }, null, "restore", ct);
 
-    public Task<ProjectCommandResult> StartAsync(RecordingConfiguration config, Guid operationId, CancellationToken ct = default) => Run(async () =>
+    public Task<ProjectCommandResult> StartNewContentAsync(RecordingConfiguration config, Guid operationId,
+        CancellationToken ct = default) => Run(async () =>
+    {
+        if (_session is not null || recorder.CurrentSession is not null ||
+            Mode is not (ProjectMode.Closed or ProjectMode.Ready))
+            throw new InvalidOperationException("Finish and save the current recording before starting new content.");
+        if (_handle is not null)
+        {
+            await FlushEditsAsync(ct);
+            await _handle.DisposeAsync();
+            _handle = null;
+            _history = null;
+            Mode = ProjectMode.Closed;
+        }
+        OutputDirectory = null;
+        _handle = await new RecordingContentFactory(store, TimeProvider.System).CreateAsync(config.OutputDirectory, ct);
+        _history = new(_handle.Current);
+        Mode = ProjectMode.Ready;
+        await StartCoreAsync(config, ct);
+    }, operationId, "new-content:" + JsonSerializer.Serialize(config), ct);
+
+    public Task<ProjectCommandResult> StartAsync(RecordingConfiguration config, Guid operationId, CancellationToken ct = default) =>
+        Run(() => StartCoreAsync(config, ct), operationId, "start:" + JsonSerializer.Serialize(config), ct);
+
+    private async Task StartCoreAsync(RecordingConfiguration config, CancellationToken ct)
     {
         if (_handle is null || Mode is not (ProjectMode.Ready or ProjectMode.Paused))
             throw new InvalidOperationException("Project is not ready to record.");
@@ -139,6 +164,7 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
         }
         else
         {
+            OutputDirectory = config.OutputDirectory;
             var start = await recorder.StartProjectRecordingAsync(config, new(_handle), ct);
             if (recorder.CurrentSession?.ProjectId == _handle.Current.ProjectId)
                 _session = recorder.CurrentSession;
@@ -149,7 +175,7 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
             }
         }
         Mode = ProjectMode.Recording;
-    }, operationId, "start:" + JsonSerializer.Serialize(config), ct);
+    }
 
     public Task<ProjectCommandResult> PauseAsync(Guid operationId, CancellationToken ct = default) => Run(async () =>
     {
@@ -249,6 +275,7 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
         if (_handle is not null) { await FlushEditsAsync(ct); await _handle.DisposeAsync(); }
         _handle = null;
         _history = null;
+        OutputDirectory = null;
         _operations.Clear();
         Mode = ProjectMode.Closed;
     }, null, "close", ct);
