@@ -24,6 +24,7 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
     public bool CanRedo => _history?.CanRedo == true;
     public long SavedRevision => _handle?.Current.Revision ?? 0;
     public bool IsDirty => Current?.Revision != _handle?.Current.Revision;
+    public bool NeedsRecoveryConfirmation => _handle?.NeedsRecoveryConfirmation == true;
     public string? ProjectDirectory => _handle?.ProjectDirectory;
     public ProjectMode Mode { get; private set; } = ProjectMode.Closed;
     public string? LastError { get; private set; }
@@ -80,6 +81,19 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
         _history = new(_handle.Current);
         Mode = ProjectMode.Ready;
     }, null, "open", ct);
+
+    public Task<ProjectCommandResult> RestoreBackupAsync(CancellationToken ct = default) => Run(async () =>
+    {
+        if (_handle is null || Mode != ProjectMode.Interrupted || !NeedsRecoveryConfirmation)
+            throw new InvalidOperationException("No backup recovery is pending.");
+        await _handle.RestoreBackupAsync(ct);
+        await _committer.ReconcileAsync(_handle, ct);
+        foreach (var session in await ProjectSessionCatalog.ReadAsync(_handle, ct))
+            await _committer.CommitAsync(_handle, session, Guid.NewGuid(), ct);
+        await ValidateSourcesAsync(ct);
+        _history = new(_handle.Current);
+        Mode = ProjectMode.Ready;
+    }, null, "restore", ct);
 
     public Task<ProjectCommandResult> StartAsync(RecordingConfiguration config, Guid operationId, CancellationToken ct = default) => Run(async () =>
     {

@@ -221,14 +221,24 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _isRecovering;
 
-    public bool CanStartRecording => CanStartRecordingForState(
+    [ObservableProperty]
+    private bool _isProjectWorkspaceOpen;
+    public List<string> RecentProjectPaths { get; private set; } = [];
+
+    partial void OnIsProjectWorkspaceOpenChanged(bool value)
+    {
+        foreach (var name in new[] { nameof(CanStartRecording), nameof(CanStopRecording), nameof(CanPauseOrResume), nameof(CanRecoverSessions) })
+            OnPropertyChanged(name);
+    }
+
+    public bool CanStartRecording => !IsProjectWorkspaceOpen && CanStartRecordingForState(
         IsRecording,
         IsPaused,
         IsPreparing,
         IsRecovering);
-    public bool CanStopRecording => (IsRecording || IsPaused) && !IsPreparing;
-    public bool CanPauseOrResume => (IsRecording || IsPaused) && !IsPreparing && !_startupStatusUnconfirmed;
-    public bool CanRecoverSessions => CanRecoverSessionsForState(
+    public bool CanStopRecording => !IsProjectWorkspaceOpen && (IsRecording || IsPaused) && !IsPreparing;
+    public bool CanPauseOrResume => !IsProjectWorkspaceOpen && (IsRecording || IsPaused) && !IsPreparing && !_startupStatusUnconfirmed;
+    public bool CanRecoverSessions => !IsProjectWorkspaceOpen && CanRecoverSessionsForState(
         IsRecording,
         IsPaused,
         IsPreparing,
@@ -594,6 +604,55 @@ public partial class MainViewModel : ObservableObject
         PersistUserSettings();
     }
 
+    public RecordingConfiguration BuildProjectConfiguration() => ApplyRuntimeSettings(new RecordingConfiguration
+    {
+        WindowsCaptureMode = OperatingSystem.IsWindows() ? _windowsCaptureMode : WindowsCaptureMode.CompatibleGdi,
+        Fps = SelectedFps,
+        EncoderType = SelectedEncoder?.Type ?? HardwareEncoderType.Auto,
+        CursorEffect = SelectedCursorEffect?.Mode ?? CursorEffectMode.Default,
+        OutputDirectory = OutputDirectory,
+        CaptureSource = IsCustomRegion ? CaptureSourceType.CustomRegion : CaptureSourceType.Monitor,
+        MonitorIndex = SelectedMonitor?.Index ?? 0,
+        Region = new CaptureRegion(RegionX, RegionY, RegionWidth, RegionHeight),
+        MicrophoneDeviceId = RecordMicrophone ? SelectedMicrophone?.Id : null,
+        AudioSource = ResolveAudioSource(SupportsSystemAudio, RecordSystemAudio, RecordMicrophone)
+    }, _videoQualityPreset, _deleteWorkingFileAfterRemux, _diskWarningThresholdGb, _diskCriticalThresholdMb);
+
+    public async Task<ScreenRecorder.UI.Projects.ProjectWorkspaceViewModel> PrepareProjectWorkspaceAsync()
+    {
+        if (IsProjectWorkspaceOpen || !CanStartRecording) throw new InvalidOperationException(Strings["ProjectFinishBeforeClose"]);
+        await EnsureRecorderProcessAsync();
+        var workspace = new ScreenRecorder.UI.Projects.ProjectWorkspaceViewModel(new ScreenRecorder.UI.Projects.ProjectClient(
+            (command, request, ct) => _ipcClient.SendCommandAsync(command, request, timeoutMs: 45000, cancellationToken: ct)));
+        IsProjectWorkspaceOpen = true;
+        workspace.StateChanged += (_, _) => {
+            IsPreparing = workspace.IsBusy || workspace.StatusUnconfirmed;
+            IsRecording = workspace.State.Mode == ScreenRecorder.Core.Projects.ProjectMode.Recording;
+            IsPaused = workspace.State.Mode is ScreenRecorder.Core.Projects.ProjectMode.Paused or ScreenRecorder.Core.Projects.ProjectMode.SaveFailed;
+            if (IsRecording) _telemetryTimer.Start();
+            else _telemetryTimer.Stop();
+            if (workspace.State.ProjectId is not null && workspace.State.Directory is not null)
+            {
+                var path = Path.Combine(workspace.State.Directory, "project.opencam");
+                if (!RecentProjectPaths.Contains(path))
+                {
+                    RecentProjectPaths.Insert(0, path);
+                    RecentProjectPaths = RecentProjectPaths.Take(20).ToList();
+                    PersistUserSettings();
+                }
+            }
+        };
+        return workspace;
+    }
+
+    public bool CheckProjectScreenPermission()
+    {
+        if (_macOsScreenCapturePermissionService is not null && !_macOsScreenCapturePermissionService.HasPermission() &&
+            !_macOsScreenCapturePermissionService.RequestPermission())
+        { StatusMessage = Strings["StatusScreenPermissionRequired"]; return false; }
+        return true;
+    }
+
     private RecordingConfiguration BuildPausedConfiguration() =>
         new()
         {
@@ -861,6 +920,7 @@ public partial class MainViewModel : ObservableObject
         try
         {
             var s = await _settingsService.LoadSettingsAsync();
+            RecentProjectPaths = (s.RecentProjectPaths ?? []).Where(p => !string.IsNullOrWhiteSpace(p)).Distinct().Take(20).ToList();
             SelectedFps = s.Fps;
             RecordSystemAudio = SupportsSystemAudio && s.RecordSystemAudio;
             RecordMicrophone = s.RecordMicrophone;
@@ -1037,6 +1097,7 @@ public partial class MainViewModel : ObservableObject
 
             var settings = new UserSettings
             {
+                RecentProjectPaths = RecentProjectPaths.Take(20).ToList(),
                 Fps = SelectedFps,
                 Language = Strings.CurrentLanguage,
                 EncoderType = SelectedEncoder?.Type ?? HardwareEncoderType.Auto,
@@ -1400,6 +1461,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     public async Task StopRecordingAsync()
     {
+        if (IsProjectWorkspaceOpen) return;
         if ((!IsRecording && !IsPaused) || IsPreparing) return;
 
         var wasRecording = IsRecording;

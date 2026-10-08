@@ -11,6 +11,11 @@
         Background="#F8FAFC"
         WindowStartupLocation="CenterScreen">
 
+    <DockPanel>
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="16,12,16,0" Spacing="12">
+        <Button Content="{Binding Strings[ProjectWorkspace]}" Click="OnProjectWorkspace" />
+        <TextBlock Text="{Binding Strings[ProjectEntryHint]}" VerticalAlignment="Center" Foreground="#64748B" FontSize="12"/>
+    </StackPanel>
     <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="16,14">
         <!-- 頂部控制工具列卡片 (現代曜石白微光卡片) -->
         <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" 
@@ -426,4 +431,5 @@
             </Grid>
         </Border>
     </Grid>
+    </DockPanel>
 </Window>

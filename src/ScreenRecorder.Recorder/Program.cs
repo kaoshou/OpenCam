@@ -49,6 +49,9 @@ public class Program
 
             var orchestrator = serviceProvider.GetRequiredService<RecordingOrchestrator>();
             var displayService = serviceProvider.GetRequiredService<IDisplayService>();
+            await using var projects = new ProjectRecordingCoordinator(orchestrator,
+                new ScreenRecorder.Infrastructure.Projects.JsonProjectStore(), new ProjectSourceProbe());
+            var projectDispatcher = new ProjectIpcDispatcher(projects);
 
             var pipeName = NamedPipeConstants.PipeBaseName;
             var pipeIndex = Array.IndexOf(args, "--pipe");
@@ -72,6 +75,11 @@ public class Program
 
                 try
                 {
+                    if (ProjectIpcDispatcher.IsProjectCommand(message.MessageType))
+                        return await projectDispatcher.DispatchAsync(message);
+                    if (projects.Current is not null && message.MessageType is
+                        "StartRecording" or "PauseRecording" or "ResumeRecording" or "StopRecording" or "UpdatePausedConfiguration")
+                        return new IpcResponse { Success = false, ErrorMessage = "Use the open project's recording controls." };
                     switch (message.MessageType)
                     {
                         case "Ping":
@@ -210,7 +218,8 @@ public class Program
                 catch (OperationCanceledException) { }
             }
 
-            if (orchestrator.CurrentState == RecordingState.Recording)
+            if (orchestrator.CurrentState == RecordingState.Recording ||
+                projects.Current is not null && orchestrator.CurrentState == RecordingState.Paused)
             {
                 Log.Warning("行程退出時偵測到錄影仍在進行，正在執行緊急停止並安全保存工作檔...");
                 await orchestrator.StopRecordingAsync("主控行程或父行程關閉");

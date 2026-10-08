@@ -89,8 +89,31 @@ public sealed class JsonProjectStore : IProjectStore
         private bool _disposed;
         public RecordingProject Current { get; private set; } = current;
         public string ProjectDirectory => Root.CurrentPath;
-        public bool NeedsRecoveryConfirmation { get; } = needsRecovery;
+        public bool NeedsRecoveryConfirmation { get; private set; } = needsRecovery;
         internal void EnsureOpen() => ObjectDisposedException.ThrowIf(_disposed, this);
+
+        public async Task RestoreBackupAsync(CancellationToken ct = default)
+        {
+            await Gate.WaitAsync(ct);
+            try
+            {
+                EnsureOpen();
+                if (!NeedsRecoveryConfirmation) throw new InvalidOperationException("No pending backup recovery.");
+                // Do not replace a newly repaired/updated manifest, especially a future schema.
+                try
+                {
+                    var currentText = await Root.ReadTextAsync("project.opencam", ct);
+                    try { Parse(currentText); throw new InvalidOperationException("Primary project changed; close and reopen before recovery."); }
+                    catch (Exception ex) when (ex is JsonException or InvalidDataException) { }
+                }
+                catch (FileNotFoundException) { }
+                try { await Root.CopyToNewAsync("project.opencam", "project.opencam.damaged-" + Guid.NewGuid().ToString("N"), ct); }
+                catch (FileNotFoundException) { }
+                await Root.WriteTextAsync("project.opencam", Serialize(Current), ct);
+                NeedsRecoveryConfirmation = false;
+            }
+            finally { Gate.Release(); }
+        }
 
         public async Task<ProjectSaveReceipt> SaveAsync(RecordingProject next, long expectedRevision, CancellationToken ct = default)
         {

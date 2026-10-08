@@ -198,6 +198,16 @@ public sealed class BoundDirectory : IDisposable
         finally { DeleteLeaf(temporary); }
     }
 
+    public async Task CopyToNewAsync(string sourceName, string destinationName, CancellationToken token)
+    {
+        Leaf(sourceName);
+        Leaf(destinationName);
+        await using var source = Read(sourceName);
+        await using var destination = Create(destinationName, true);
+        await source.CopyToAsync(destination, token);
+        destination.Flush(flushToDisk: true);
+    }
+
     public async Task<string> PublishAsync(string stagedFile, string name, CancellationToken token)
     {
         Leaf(name);

@@ -11,6 +11,7 @@ namespace ScreenRecorder.UI.Views;
 
 public partial class MainWindow : Window
 {
+    private ScreenRecorder.UI.Projects.ProjectWorkspaceView? _projectWindow;
     private RecordingCloseWarningWindow? _closeWarningWindow;
     private readonly DisplayIdentificationController _displayIdentification =
         new(new AvaloniaDisplayBadgePresenter(), new AvaloniaDisplayIdentificationTimer());
@@ -88,11 +89,39 @@ public partial class MainWindow : Window
         _displayIdentification.Close();
         base.OnClosing(e);
 
+        if (_projectWindow is not null)
+        {
+            e.Cancel = true;
+            _ = CloseProjectAndMainAsync();
+            return;
+        }
+
         if (DataContext is MainViewModel { IsApplicationCloseBlocked: true })
         {
             e.Cancel = true;
             _ = ShowRecordingCloseWarningAsync();
         }
+    }
+
+    private async Task CloseProjectAndMainAsync()
+    {
+        var workspace = _projectWindow;
+        if (workspace is not null && await workspace.RequestCloseAsync()) Close();
+        else workspace?.Activate();
+    }
+
+    private async void OnProjectWorkspace(object? sender, RoutedEventArgs e)
+    {
+        if (_projectWindow is not null) { _projectWindow.Activate(); return; }
+        if (DataContext is not MainViewModel vm || !vm.CanStartRecording) return;
+        try
+        {
+            var model = await vm.PrepareProjectWorkspaceAsync();
+            _projectWindow = new(model, vm);
+            _projectWindow.Closed += (_, _) => { _projectWindow = null; vm.IsProjectWorkspaceOpen = false; };
+            _projectWindow.Show(this);
+        }
+        catch (Exception ex) { vm.StatusMessage = ex.Message; }
     }
 
     private void OnIdentifyDisplaysClicked(object? sender, RoutedEventArgs e)

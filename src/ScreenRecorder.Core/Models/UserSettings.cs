@@ -6,6 +6,7 @@ namespace ScreenRecorder.Core.Models;
 
 public class UserSettings
 {
+    public List<string> RecentProjectPaths { get; set; } = [];
     private WindowsCaptureMode _windowsCaptureMode;
     public WindowsCaptureMode WindowsCaptureMode
     {

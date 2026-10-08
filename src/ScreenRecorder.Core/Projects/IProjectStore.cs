@@ -11,6 +11,7 @@ public interface IProjectStore
 
 public interface IProjectHandle : IAsyncDisposable
 {
+    Task RestoreBackupAsync(CancellationToken ct = default);
     RecordingProject Current { get; }
     string ProjectDirectory { get; }
     bool NeedsRecoveryConfirmation { get; }

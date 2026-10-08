@@ -27,6 +27,7 @@ public class StopRecordingCommand
 
 public class IpcResponse
 {
+    public string? DataJson { get; set; }
     public bool Success { get; set; }
     public string? ErrorMessage { get; set; }
     public string? SessionId { get; set; }

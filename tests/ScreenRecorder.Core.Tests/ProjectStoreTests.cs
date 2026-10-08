@@ -8,6 +8,29 @@ namespace ScreenRecorder.Core.Tests;
 
 public sealed class ProjectStoreTests : IDisposable
 {
+    [Fact]
+    public async Task ExplicitBackupRecoveryPreservesDamagedBytes_ThenAllowsSaving()
+    {
+        var store = new JsonProjectStore();
+        string path;
+        await using (var created = await store.CreateAsync(_root, "backup name"))
+        {
+            path = Path.Combine(created.ProjectDirectory, "project.opencam");
+            await created.SaveAsync(created.Current with { Revision = 1, Name = "latest" }, 0);
+        }
+        var damaged = new byte[] { 0xff, 0, 0x7b, 1, 2 };
+        await File.WriteAllBytesAsync(path, damaged);
+        await using var recovered = await store.OpenAsync(path);
+        Assert.True(recovered.NeedsRecoveryConfirmation);
+        await recovered.RestoreBackupAsync();
+        Assert.False(recovered.NeedsRecoveryConfirmation);
+        Assert.Equal("backup name", recovered.Current.Name);
+        var preserved = Directory.GetFiles(recovered.ProjectDirectory, "project.opencam.damaged-*");
+        Assert.Single(preserved);
+        Assert.Equal(damaged, await File.ReadAllBytesAsync(preserved[0]));
+        await recovered.SaveAsync(recovered.Current with { Revision = 1, Name = "recovered edit" }, 0);
+    }
+
     private readonly string _root = Path.Combine(Path.GetTempPath(), "OpenCamProjectTests-" + Guid.NewGuid().ToString("N"));
     public ProjectStoreTests() => Directory.CreateDirectory(_root);
 
