@@ -13,6 +13,7 @@ public sealed record ProjectRequest
     public string? Path { get; init; }
     public string? Name { get; init; }
     public Guid ClipId { get; init; }
+    public ProjectClipEdit? Edit { get; init; }
     public RecordingConfiguration? Configuration { get; init; }
     public int Offset { get; init; }
     public int Limit { get; init; } = 100;

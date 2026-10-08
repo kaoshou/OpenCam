@@ -39,6 +39,8 @@ public static class ProjectValidation
                 s.Timing.StartPts <= long.MaxValue - s.Timing.DurationTs, "Invalid source duration.");
         }
         var ids = new HashSet<Guid>();
+        var closedGroups = new HashSet<Guid>();
+        Guid? previousGroup = null;
         foreach (var c in p.Clips)
         {
             Require(c is not null && c.Id != Guid.Empty && ids.Add(c.Id), "Invalid or duplicate clip.");
@@ -47,6 +49,12 @@ public static class ProjectValidation
             Require(c.InPts >= s!.Timing.StartPts && c.OutPts > c.InPts &&
                 c.OutPts <= s.Timing.StartPts + s.Timing.DurationTs, "Clip outside source range.");
             Require(c.GroupId != Guid.Empty, "Invalid group identity.");
+            if (c.GroupId != previousGroup)
+            {
+                if (previousGroup is Guid finished) closedGroups.Add(finished);
+                Require(c.GroupId is not Guid nextGroup || !closedGroups.Contains(nextGroup), "Group members must be adjacent.");
+                previousGroup = c.GroupId;
+            }
             Require(FiniteRange(c.Volume, 0, 2) && FiniteRange(c.Crop, 0, 40) &&
                 FiniteRange(c.Scale, 1, 2) && FiniteRange(c.PositionX, -50, 50) &&
                 FiniteRange(c.PositionY, -50, 50), "Invalid clip properties.");

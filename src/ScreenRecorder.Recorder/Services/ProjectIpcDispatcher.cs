@@ -13,7 +13,7 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
     private readonly Dictionary<Guid, (string Fingerprint, bool Success, string? Error)> _operations = new();
     public static bool IsProjectCommand(string command) => command is "CreateProject" or "OpenProject" or "GetProjectStatus"
         or "GetProjectClips" or "StartProjectRecording" or "PauseProjectRecording" or "FinishProjectRecording"
-        or "SaveProject" or "RenameProjectClip" or "UndoProject" or "RedoProject" or "CloseProject" or "RestoreProjectBackup";
+        or "SaveProject" or "RenameProjectClip" or "ApplyProjectEdit" or "UndoProject" or "RedoProject" or "CloseProject" or "RestoreProjectBackup";
 
     private ProjectSnapshot Snapshot() => new(coordinator.Current?.ProjectId, coordinator.Current?.Name ?? "",
         coordinator.ProjectDirectory, coordinator.Current?.Revision ?? 0, coordinator.SavedRevision, coordinator.Mode,
@@ -63,6 +63,8 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
                 "FinishProjectRecording" => await coordinator.FinishAsync(request.OperationId),
                 "SaveProject" => await coordinator.SaveAsync(request.ExpectedRevision),
                 "RenameProjectClip" => await coordinator.RenameClipAsync(request.ClipId, request.Name ?? "", request.ExpectedRevision),
+                "ApplyProjectEdit" => await coordinator.ApplyEditAsync(request.Edit ?? throw new InvalidDataException("Missing clip edit."),
+                    request.ExpectedRevision, request.OperationId),
                 "UndoProject" => await coordinator.UndoAsync(request.ExpectedRevision),
                 "RedoProject" => await coordinator.RedoAsync(request.ExpectedRevision),
                 "CloseProject" => await coordinator.CloseAsync(),

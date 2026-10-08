@@ -11,6 +11,81 @@ namespace ScreenRecorder.Media.Tests;
 public partial class RecordingEncoderLifecycleTests
 {
     [Fact]
+    public async Task ProjectIpc_ClipEditLostReplyIsAppliedOnceAndRejectsChangedOrStaleRequest()
+    {
+        await using var scope = new RecordingScope();
+        await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
+        Assert.True((await coordinator.CreateAsync(scope.Configuration.OutputDirectory, "Lesson")).Success);
+        Assert.True((await coordinator.StartAsync(scope.Configuration, Guid.NewGuid())).Success);
+        Assert.True((await coordinator.PauseAsync(Guid.NewGuid())).Success);
+        var clip = coordinator.Current!.Clips.Single();
+        var dispatcher = new ProjectIpcDispatcher(coordinator);
+        var loseFirst = true;
+        var client = new ProjectClient(async (command, request, ct) => {
+            var response = await dispatcher.DispatchAsync(new() { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) });
+            if (command == "ApplyProjectEdit" && loseFirst) { loseFirst = false; return new() { TimedOut = true }; }
+            return response;
+        });
+        var revision = coordinator.Current.Revision;
+        var request = new ProjectRequest { ProjectId = coordinator.Current.ProjectId, OperationId = Guid.NewGuid(),
+            ExpectedRevision = revision, Edit = new ProjectClipEdit.Split(clip.Id, (clip.InPts + clip.OutPts) / 2, Guid.NewGuid()) };
+        var reply = await client.SendAsync("ApplyProjectEdit", request);
+        Assert.True(reply.Success, reply.Error);
+        Assert.Equal(revision + 1, reply.State.SavedRevision);
+        Assert.Equal(2, coordinator.Current.Clips.Length);
+        Assert.True((await client.SendAsync("ApplyProjectEdit", request)).Success);
+        Assert.Equal(revision + 1, coordinator.Current.Revision);
+        Assert.False((await client.SendAsync("ApplyProjectEdit", request with { Edit = new ProjectClipEdit.Remove(clip.Id) })).Success);
+        Assert.False((await client.SendAsync("ApplyProjectEdit", request with { OperationId = Guid.NewGuid() })).Success);
+        Assert.True((await coordinator.UndoAsync(coordinator.Current.Revision)).Success);
+        Assert.Single(coordinator.Current.Clips);
+        Assert.Single(coordinator.Current.Sources);
+    }
+
+    [Fact]
+    public async Task ProjectIpc_ClipEditSaveFailureRetainsDirtyUndoAndDoesNotReplayMutation()
+    {
+        await using var scope = new RecordingScope();
+        await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
+        Assert.True((await coordinator.CreateAsync(scope.Configuration.OutputDirectory, "Lesson")).Success);
+        Assert.True((await coordinator.StartAsync(scope.Configuration, Guid.NewGuid())).Success);
+        Assert.True((await coordinator.PauseAsync(Guid.NewGuid())).Success);
+        var backup = Path.Combine(coordinator.ProjectDirectory!, "project.opencam.bak");
+        File.Move(backup, backup + ".preserved");
+        Directory.CreateDirectory(backup);
+        var dispatcher = new ProjectIpcDispatcher(coordinator);
+        var clip = coordinator.Current!.Clips.Single();
+        var request = new ProjectRequest { ProjectId = coordinator.Current.ProjectId, OperationId = Guid.NewGuid(),
+            ExpectedRevision = coordinator.Current.Revision, Edit = new ProjectClipEdit.Remove(clip.Id) };
+        var message = new IpcMessage { MessageType = "ApplyProjectEdit", PayloadJson = JsonSerializer.Serialize(request) };
+        Assert.False((await dispatcher.DispatchAsync(message)).Success);
+        Assert.True(coordinator.IsDirty);
+        Assert.True(coordinator.CanUndo);
+        Assert.Empty(coordinator.Current.Clips);
+        var revision = coordinator.Current.Revision;
+        Assert.False((await dispatcher.DispatchAsync(message)).Success);
+        Assert.Equal(revision, coordinator.Current.Revision);
+        Directory.Delete(backup);
+        Assert.True((await coordinator.SaveAsync(revision)).Success);
+        Assert.False(coordinator.IsDirty);
+        Assert.True((await coordinator.UndoAsync(revision)).Success);
+        Assert.Single(coordinator.Current.Clips);
+    }
+
+    [Fact]
+    public async Task ProjectIpc_UnknownEditDiscriminatorIsRejectedWithoutMutation()
+    {
+        await using var scope = new RecordingScope();
+        await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
+        Assert.True((await coordinator.CreateAsync(scope.Configuration.OutputDirectory, "Lesson")).Success);
+        var dispatcher = new ProjectIpcDispatcher(coordinator);
+        var reply = await dispatcher.DispatchAsync(new() { MessageType = "ApplyProjectEdit",
+            PayloadJson = "{\"Edit\":{\"kind\":\"System.IO.File\"}}" });
+        Assert.False(reply.Success);
+        Assert.Equal(0, coordinator.Current!.Revision);
+    }
+
+    [Fact]
     public async Task ProjectIpc_RestartedRecorder_DoesNotReplayPendingCommand()
     {
         await using var scope = new RecordingScope();

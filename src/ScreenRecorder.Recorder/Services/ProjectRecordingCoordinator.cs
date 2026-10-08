@@ -200,6 +200,16 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
     public Task<ProjectCommandResult> RenameClipAsync(Guid clipId, string name, long expectedRevision, CancellationToken ct = default) =>
         EditAsync(expectedRevision, history => history.RenameClip(clipId, name), ct);
 
+    public Task<ProjectCommandResult> ApplyEditAsync(ProjectClipEdit edit, long expectedRevision, Guid operationId,
+        CancellationToken ct = default) => Run(async () =>
+    {
+        if (_history is null || Mode is not (ProjectMode.Ready or ProjectMode.Paused))
+            throw new InvalidOperationException("Finish or pause recording before editing.");
+        CheckRevision(expectedRevision);
+        _history.Apply(edit);
+        await FlushEditsAsync(ct);
+    }, operationId, "clip-edit:" + expectedRevision + ":" + JsonSerializer.Serialize<ProjectClipEdit>(edit), ct);
+
     public Task<ProjectCommandResult> UndoAsync(long expectedRevision, CancellationToken ct = default) =>
         EditAsync(expectedRevision, history => history.Undo(), ct);
 

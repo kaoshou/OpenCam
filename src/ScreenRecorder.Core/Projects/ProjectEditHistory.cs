@@ -36,6 +36,18 @@ public sealed class ProjectEditHistory
         Current = next;
     }
 
+    public void Apply(ProjectClipEdit edit)
+    {
+        var clips = ProjectClipEditor.Apply(Current, edit);
+        if (clips.SequenceEqual(Current.Clips)) return;
+        var next = Current with { Revision = checked(Current.Revision + 1), Clips = clips };
+        ProjectValidation.Validate(next);
+        _ = ProjectTimeline.Build(next);
+        _undo.Push(Current.Clips);
+        _redo.Clear();
+        Current = next;
+    }
+
     public void Undo() => Restore(_undo, _redo);
     public void Redo() => Restore(_redo, _undo);
 
