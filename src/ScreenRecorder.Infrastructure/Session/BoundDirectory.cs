@@ -228,6 +228,40 @@ public sealed class BoundDirectory : IDisposable
         catch { if (created) DeleteLeaf(name); throw; }
     }
 
+    /// <summary>
+    /// Publish a closed, already media-verified job-owned temporary file in this directory.
+    /// The caller must retain exclusive ownership of its unpredictable temporary name until
+    /// this call returns. This operation verifies file type/size, not codec or media contents.
+    /// No cross-volume copy or overwrite fallback is permitted.
+    /// </summary>
+    public string PublishVerified(string temporaryName, string finalName)
+    {
+        Leaf(temporaryName);
+        Leaf(finalName);
+        if (string.Equals(temporaryName, finalName, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Temporary and final names must differ.");
+        using (var file = Read(temporaryName))
+            if (file.Length == 0) throw new InvalidDataException("Cannot publish an empty output.");
+        // Resolve before committing: never report a failed publish merely because locating
+        // a renamed parent failed after the atomic filesystem operation already succeeded.
+        var output = Path.Combine(CurrentPath, finalName);
+        if (OperatingSystem.IsWindows())
+        {
+            // Ancestor leases deny FILE_SHARE_DELETE. Both leaves are on the same volume.
+            File.Move(Path.Combine(PathName, temporaryName), output, overwrite: false);
+        }
+        else
+        {
+            var result = OperatingSystem.IsMacOS()
+                ? renameatx_np(Handle, temporaryName, Handle, finalName, 4) // RENAME_EXCL
+                : OperatingSystem.IsLinux()
+                    ? renameat2(Handle, temporaryName, Handle, finalName, 1) // RENAME_NOREPLACE
+                    : throw new PlatformNotSupportedException("Atomic publication is unavailable.");
+            if (result != 0) throw new IOException($"Cannot atomically publish output (error {Marshal.GetLastWin32Error()}).");
+        }
+        return output;
+    }
+
     private void DeleteLeaf(string name)
     {
         if (OperatingSystem.IsWindows()) File.Delete(Path.Combine(PathName, name));
@@ -245,6 +279,8 @@ public sealed class BoundDirectory : IDisposable
         IntPtr a, IntPtr b, IntPtr c, IntPtr d, IntPtr e, uint mode);
     [DllImport("libc", SetLastError = true)] private static extern int mkdirat(SafeFileHandle dir, string path, uint mode);
     [DllImport("libc", SetLastError = true)] private static extern int renameat(SafeFileHandle from, string oldName, SafeFileHandle to, string newName);
+    [DllImport("libc", SetLastError = true)] private static extern int renameatx_np(SafeFileHandle from, string oldName, SafeFileHandle to, string newName, uint flags);
+    [DllImport("libc", SetLastError = true)] private static extern int renameat2(SafeFileHandle from, string oldName, SafeFileHandle to, string newName, uint flags);
     [DllImport("libc", SetLastError = true)] private static extern int unlinkat(SafeFileHandle dir, string name, int flags);
     [DllImport("libc", SetLastError = true)] private static extern int flock(SafeFileHandle handle, int operation);
     [DllImport("libc", SetLastError = true)] private static extern int fcntl(SafeFileHandle handle, int command, [Out] byte[] path);

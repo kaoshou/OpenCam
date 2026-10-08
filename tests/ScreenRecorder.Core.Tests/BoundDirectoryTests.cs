@@ -60,6 +60,68 @@ public class BoundDirectoryTests : IDisposable
     }
 
     [Fact]
+    public async Task VerifiedPublicationMovesCompleteFileWithoutReplacingOldOutput()
+    {
+        using var bound = BoundDirectory.Open(_root);
+        await File.WriteAllTextAsync(Path.Combine(_root, "work.tmp"), "verified-complete");
+        await File.WriteAllTextAsync(Path.Combine(_root, "old.mp4"), "keep");
+        Assert.Throws<IOException>(() => bound.PublishVerified("work.tmp", "old.mp4"));
+        Assert.Equal("keep", await File.ReadAllTextAsync(Path.Combine(_root, "old.mp4")));
+        var result = bound.PublishVerified("work.tmp", "new.mp4");
+        Assert.Equal("verified-complete", await File.ReadAllTextAsync(result));
+        Assert.False(File.Exists(Path.Combine(_root, "work.tmp")));
+    }
+
+    [Fact]
+    public async Task VerifiedPublicationStaysInPinnedDirectoryAfterReplacement()
+    {
+        var original = Directory.CreateDirectory(Path.Combine(_root, "output")).FullName;
+        var outside = Directory.CreateDirectory(Path.Combine(_root, "outside")).FullName;
+        await File.WriteAllTextAsync(Path.Combine(original, "work.tmp"), "owned");
+        using var bound = BoundDirectory.Open(original);
+        try {
+            Directory.Move(original, original + "-moved");
+            Directory.CreateSymbolicLink(original, outside);
+        }
+        catch (IOException) when (OperatingSystem.IsWindows()) { }
+        var output = bound.PublishVerified("work.tmp", "result.mp4");
+        Assert.Equal("owned", await File.ReadAllTextAsync(output));
+        Assert.False(File.Exists(Path.Combine(outside, "result.mp4")));
+    }
+
+    [Fact]
+    public async Task VerifiedPublicationRejectsInvalidEmptyAndLinkedSources()
+    {
+        using var bound = BoundDirectory.Open(_root);
+        await File.WriteAllTextAsync(Path.Combine(_root, "empty.tmp"), "");
+        await File.WriteAllTextAsync(Path.Combine(_root, "source.tmp"), "keep");
+        File.CreateSymbolicLink(Path.Combine(_root, "linked.tmp"), Path.Combine(_root, "source.tmp"));
+        Assert.Throws<InvalidDataException>(() => bound.PublishVerified("../source.tmp", "result.mp4"));
+        Assert.Throws<InvalidDataException>(() => bound.PublishVerified("source.tmp", "source.tmp"));
+        Assert.Throws<InvalidDataException>(() => bound.PublishVerified("empty.tmp", "result.mp4"));
+        Assert.ThrowsAny<IOException>(() => bound.PublishVerified("linked.tmp", "result.mp4"));
+        Assert.False(File.Exists(Path.Combine(_root, "result.mp4")));
+        Assert.Equal("keep", await File.ReadAllTextAsync(Path.Combine(_root, "source.tmp")));
+    }
+
+    [Fact]
+    public async Task ConcurrentVerifiedPublicationsHaveExactlyOneWinner()
+    {
+        using var bound = BoundDirectory.Open(_root);
+        await File.WriteAllTextAsync(Path.Combine(_root, "first.tmp"), "first");
+        await File.WriteAllTextAsync(Path.Combine(_root, "second.tmp"), "second");
+        var results = await Task.WhenAll(new[] { "first", "second" }.Select(name => Task.Run(() => {
+            try { bound.PublishVerified(name + ".tmp", "result.mp4"); return name; }
+            catch (IOException) { return null; }
+        })));
+        var winner = Assert.Single(results.Where(r => r is not null));
+        Assert.Equal(winner, await File.ReadAllTextAsync(Path.Combine(_root, "result.mp4")));
+        Assert.False(File.Exists(Path.Combine(_root, winner + ".tmp")));
+        var loser = winner == "first" ? "second" : "first";
+        Assert.Equal(loser, await File.ReadAllTextAsync(Path.Combine(_root, loser + ".tmp")));
+    }
+
+    [Fact]
     public async Task LinkedRecoveryLockDoesNotTouchTarget()
     {
         var target = Path.Combine(_root, "sentinel");
