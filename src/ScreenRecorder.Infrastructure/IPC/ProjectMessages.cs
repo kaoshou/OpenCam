@@ -9,6 +9,7 @@ public sealed record ProjectRequest
     public Guid? ServerInstanceId { get; init; }
     public Guid? ProjectId { get; init; }
     public Guid OperationId { get; init; }
+    public Guid? ExportId { get; init; }
     public long ExpectedRevision { get; init; }
     public string? Path { get; init; }
     public string? Name { get; init; }
@@ -25,6 +26,7 @@ public sealed record ProjectSnapshot(Guid? ProjectId, string Name, string? Direc
 {
     public Guid? ServerInstanceId { get; init; }
     public bool NeedsRecoveryConfirmation { get; init; }
+    public RecordingExportStatus? Export { get; init; }
     public static ProjectSnapshot Closed { get; } = new(null, "", null, 0, 0, ProjectMode.Closed, 0, false, false);
     public bool IsDirty => Revision != SavedRevision;
 }

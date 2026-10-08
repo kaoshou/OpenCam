@@ -11,6 +11,78 @@ namespace ScreenRecorder.Media.Tests;
 public partial class RecordingEncoderLifecycleTests
 {
     [Fact]
+    public async Task ProjectIpc_EditorReordersDeletesAndRestoresRealSavedClips()
+    {
+        await using var scope = new RecordingScope();
+        await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
+        var dispatcher = new ProjectIpcDispatcher(coordinator);
+        var client = new ProjectClient((command, request, ct) => dispatcher.DispatchAsync(new()
+            { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) }));
+        var vm = new ProjectWorkspaceViewModel(client);
+        await vm.CreateAsync(scope.Configuration.OutputDirectory, "Edit lesson");
+        for (var i = 0; i < 3; i++) { await vm.StartAsync(scope.Configuration); await vm.PauseAsync(); }
+        var ids = vm.Clips.Select(c => c.Id).ToArray();
+        vm.SelectedClip = vm.Clips[2];
+        await vm.MoveSelectedEarlierAsync();
+        Assert.Equal(new[] { ids[0], ids[2], ids[1] }, coordinator.Current!.Clips.Select(c => c.Id));
+        Assert.Equal(ids[2], vm.SelectedClip!.Id);
+        await vm.MoveSelectedLaterAsync();
+        Assert.Equal(ids, coordinator.Current.Clips.Select(c => c.Id));
+        await vm.DeleteSelectedAsync();
+        Assert.Equal(new[] { ids[0], ids[1] }, coordinator.Current.Clips.Select(c => c.Id));
+        Assert.Equal(coordinator.Current.Revision, coordinator.SavedRevision);
+        Assert.Equal(3, coordinator.Current.Sources.Length);
+        await vm.UndoAsync();
+        Assert.Equal(ids, coordinator.Current.Clips.Select(c => c.Id));
+        await vm.RedoAsync();
+        Assert.Equal(new[] { ids[0], ids[1] }, coordinator.Current.Clips.Select(c => c.Id));
+        await vm.FinishAsync();
+        Assert.All(scope.Factory.Paths, path => Assert.True(File.Exists(path)));
+    }
+
+    [Fact]
+    public async Task ProjectIpc_NewContentReplayAndExportStatusRemainQueryable()
+    {
+        await using var scope = new RecordingScope();
+        var export = new ControlledContentExporter();
+        await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub(), export);
+        var dispatcher = new ProjectIpcDispatcher(coordinator);
+        var lost = true;
+        var client = new ProjectClient(async (command, request, ct) =>
+        {
+            var response = await dispatcher.DispatchAsync(new() { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) });
+            if (command == "StartNewRecordingContent" && lost) { lost = false; return new() { TimedOut = true }; }
+            return response;
+        });
+        var start = new ProjectRequest { OperationId = Guid.NewGuid(), Configuration = scope.Configuration };
+        var reply = await client.SendAsync("StartNewRecordingContent", start);
+        Assert.True(reply.Success, reply.Error);
+        Assert.True((await client.SendAsync("StartNewRecordingContent", start)).Success);
+        Assert.Single(scope.Factory.Paths);
+        var finish = new ProjectRequest { ProjectId = reply.State.ProjectId, OperationId = Guid.NewGuid() };
+        Assert.True((await client.SendAsync("FinishRecordingContent", finish)).Success);
+        await export.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var status = await client.SendAsync("GetProjectStatus", new()).WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(RecordingExportState.Running, status.State.Export!.State);
+        Assert.False((await client.SendAsync("CancelRecordingContentExport", finish with
+            { OperationId = Guid.NewGuid(), ExportId = Guid.NewGuid() })).Success);
+        export.DeferCancellation = true;
+        try
+        {
+            Assert.True((await client.SendAsync("CancelRecordingContentExport", finish with
+                { OperationId = Guid.NewGuid(), ExportId = status.State.Export.ExportId }).WaitAsync(TimeSpan.FromSeconds(2))).Success);
+            var canceling = await client.SendAsync("GetProjectStatus", new()).WaitAsync(TimeSpan.FromSeconds(2));
+            Assert.Equal(RecordingExportState.Running, canceling.State.Export!.State);
+        }
+        finally { export.ReleaseCancellation.TrySetResult(); }
+        await UntilAsync(() => coordinator.ExportStatus!.State == RecordingExportState.Canceled);
+        Assert.True((await coordinator.CloseAsync()).Success);
+        dispatcher = new ProjectIpcDispatcher(coordinator);
+        Assert.False((await client.SendAsync("StartNewRecordingContent", start)).Success);
+        Assert.Null(coordinator.Current);
+    }
+
+    [Fact]
     public async Task ProjectIpc_ClipEditLostReplyIsAppliedOnceAndRejectsChangedOrStaleRequest()
     {
         await using var scope = new RecordingScope();

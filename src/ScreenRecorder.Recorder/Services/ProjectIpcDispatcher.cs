@@ -13,12 +13,13 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
     private readonly Dictionary<Guid, (string Fingerprint, bool Success, string? Error)> _operations = new();
     public static bool IsProjectCommand(string command) => command is "CreateProject" or "OpenProject" or "GetProjectStatus"
         or "GetProjectClips" or "StartProjectRecording" or "PauseProjectRecording" or "FinishProjectRecording"
-        or "SaveProject" or "RenameProjectClip" or "ApplyProjectEdit" or "UndoProject" or "RedoProject" or "CloseProject" or "RestoreProjectBackup";
+        or "SaveProject" or "RenameProjectClip" or "ApplyProjectEdit" or "UndoProject" or "RedoProject" or "CloseProject" or "RestoreProjectBackup"
+        or "StartNewRecordingContent" or "FinishRecordingContent" or "RetryRecordingContentExport" or "CancelRecordingContentExport";
 
     private ProjectSnapshot Snapshot() => new(coordinator.Current?.ProjectId, coordinator.Current?.Name ?? "",
         coordinator.ProjectDirectory, coordinator.Current?.Revision ?? 0, coordinator.SavedRevision, coordinator.Mode,
         coordinator.Current?.Clips.Length ?? 0, coordinator.CanUndo, coordinator.CanRedo, coordinator.LastError)
-        { NeedsRecoveryConfirmation = coordinator.NeedsRecoveryConfirmation, ServerInstanceId = _instanceId };
+        { NeedsRecoveryConfirmation = coordinator.NeedsRecoveryConfirmation, ServerInstanceId = _instanceId, Export = coordinator.ExportStatus };
 
     public async Task<IpcResponse> DispatchAsync(IpcMessage message)
     {
@@ -44,7 +45,7 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
                 if (old.Fingerprint != fingerprint) throw new InvalidDataException("Operation ID reused with different content.");
                 return Reply(new(old.Success, old.Error, Snapshot()));
             }
-            if (message.MessageType is not ("CreateProject" or "OpenProject") &&
+            if (message.MessageType is not ("CreateProject" or "OpenProject" or "StartNewRecordingContent") &&
                 (request.ProjectId is null || request.ProjectId != coordinator.Current?.ProjectId))
                 throw new InvalidDataException("Project identity mismatch.");
             if (message.MessageType == "GetProjectClips")
@@ -58,6 +59,10 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
             {
                 "CreateProject" => await coordinator.CreateAsync(request.Path ?? "", request.Name ?? ""),
                 "OpenProject" => await coordinator.OpenAsync(request.Path ?? ""),
+                "StartNewRecordingContent" => await coordinator.StartNewContentAsync(request.Configuration ?? throw new InvalidDataException("Missing capture configuration."), request.OperationId),
+                "FinishRecordingContent" => await coordinator.FinishAndExportAsync(request.OperationId),
+                "RetryRecordingContentExport" => await coordinator.RetryExportAsync(request.OperationId),
+                "CancelRecordingContentExport" => await coordinator.RequestExportCancellationAsync(request.ExportId ?? throw new InvalidDataException("Missing export identity.")),
                 "StartProjectRecording" => await coordinator.StartAsync(request.Configuration ?? throw new InvalidDataException("Missing capture configuration."), request.OperationId),
                 "PauseProjectRecording" => await coordinator.PauseAsync(request.OperationId),
                 "FinishProjectRecording" => await coordinator.FinishAsync(request.OperationId),

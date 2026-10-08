@@ -22,13 +22,17 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     [ObservableProperty] private ProjectClip? _selectedClip;
     [ObservableProperty] private string _clipName = "";
     public ObservableCollection<ProjectClip> Clips { get; } = [];
-    public bool CanEdit => !IsBusy && !StatusUnconfirmed && State.Mode is ProjectMode.Ready or ProjectMode.Paused;
+    public bool IsExporting => State.Export?.State == RecordingExportState.Running;
+    public bool CanEdit => !IsBusy && !StatusUnconfirmed && !IsExporting && State.Mode is ProjectMode.Ready or ProjectMode.Paused;
     public bool CanRecord => CanEdit && State.ProjectId is not null;
     public bool CanPause => !IsBusy && !StatusUnconfirmed && State.Mode == ProjectMode.Recording;
     public bool CanFinish => !IsBusy && !StatusUnconfirmed && State.Mode is ProjectMode.Recording or ProjectMode.Paused or ProjectMode.SaveFailed;
-    public bool CanClose => !IsBusy && !StatusUnconfirmed && State.Mode is ProjectMode.Ready or ProjectMode.Interrupted or ProjectMode.Closed;
+    public bool CanClose => !IsBusy && !StatusUnconfirmed && !IsExporting && State.Mode is ProjectMode.Ready or ProjectMode.Interrupted or ProjectMode.Closed;
     public bool CanUndo => CanEdit && State.CanUndo;
     public bool CanRedo => CanEdit && State.CanRedo;
+    public bool CanEditSelection => CanEdit && SelectedClip is not null && Clips.Contains(SelectedClip);
+    public bool CanMoveEarlier => CanEditSelection && GroupStart(Clips.IndexOf(SelectedClip!)) > 0;
+    public bool CanMoveLater => CanEditSelection && GroupEnd(Clips.IndexOf(SelectedClip!)) < Clips.Count - 1;
     public string SaveStatus => Strings[StatusUnconfirmed ? "ProjectUnconfirmed" : IsBusy ? "ProjectSaving" :
         Error is not null ? "ProjectSaveFailed" : State.IsDirty ? "ProjectUnsaved" : "ProjectSaved"];
     public string ModeText => Strings["ProjectMode" + State.Mode];
@@ -36,14 +40,15 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     public string ClipCountText => $"{Clips.Count} / {State.ClipCount}";
     public event EventHandler? StateChanged;
 
-    partial void OnSelectedClipChanged(ProjectClip? value) => ClipName = value?.Name ?? "";
+    partial void OnSelectedClipChanged(ProjectClip? value) { ClipName = value?.Name ?? ""; NotifyState(); }
     partial void OnIsBusyChanged(bool value) => NotifyState();
     partial void OnErrorChanged(string? value) => NotifyState();
     partial void OnStatusUnconfirmedChanged(bool value) => NotifyState();
     private void NotifyState()
     {
         foreach (var property in new[] { nameof(CanEdit), nameof(CanRecord), nameof(CanPause), nameof(CanFinish), nameof(CanClose),
-            nameof(CanUndo), nameof(CanRedo), nameof(SaveStatus), nameof(ModeText), nameof(StartText), nameof(ClipCountText) })
+            nameof(CanUndo), nameof(CanRedo), nameof(SaveStatus), nameof(ModeText), nameof(StartText), nameof(ClipCountText), nameof(IsExporting),
+            nameof(CanEditSelection), nameof(CanMoveEarlier), nameof(CanMoveLater) })
             OnPropertyChanged(property);
         StateChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -74,10 +79,37 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     public Task RestoreBackupAsync() => ExecuteAsync("RestoreProjectBackup");
     [RelayCommand] public Task RenameSelectedAsync() => SelectedClip is null ? Task.CompletedTask : RenameAsync(SelectedClip.Id, ClipName);
     public Task RenameAsync(Guid clipId, string name) => ExecuteAsync("RenameProjectClip", new() { ClipId = clipId, Name = name });
+    [RelayCommand] public Task DeleteSelectedAsync() => !CanEditSelection ? Task.CompletedTask :
+        ExecuteAsync("ApplyProjectEdit", new() { Edit = new ProjectClipEdit.Remove(SelectedClip!.Id) });
+    [RelayCommand] public Task MoveSelectedEarlierAsync()
+    {
+        if (!CanMoveEarlier) return Task.CompletedTask;
+        var previous = GroupStart(GroupStart(Clips.IndexOf(SelectedClip!)) - 1);
+        return ExecuteAsync("ApplyProjectEdit", new() { Edit = new ProjectClipEdit.Move(SelectedClip!.Id, Clips[previous].Id) });
+    }
+    [RelayCommand] public Task MoveSelectedLaterAsync()
+    {
+        if (!CanMoveLater) return Task.CompletedTask;
+        var afterNext = GroupEnd(GroupEnd(Clips.IndexOf(SelectedClip!)) + 1) + 1;
+        return ExecuteAsync("ApplyProjectEdit", new() { Edit = new ProjectClipEdit.Move(SelectedClip!.Id,
+            afterNext < Clips.Count ? Clips[afterNext].Id : null) });
+    }
+    private int GroupStart(int index)
+    {
+        var group = Clips[index].GroupId;
+        while (group is not null && index > 0 && Clips[index - 1].GroupId == group) index--;
+        return index;
+    }
+    private int GroupEnd(int index)
+    {
+        var group = Clips[index].GroupId;
+        while (group is not null && index + 1 < Clips.Count && Clips[index + 1].GroupId == group) index++;
+        return index;
+    }
     [RelayCommand] public Task RefreshAsync() => ExecuteAsync("GetProjectStatus", new() { OperationId = _pendingOperation });
     public async Task PollRecordingAsync()
     {
-        if (StatusUnconfirmed || State.Mode is not (ProjectMode.Recording or ProjectMode.SavingSegment) || !await _gate.WaitAsync(0)) return;
+        if (StatusUnconfirmed || (!IsExporting && State.Mode is not (ProjectMode.Recording or ProjectMode.SavingSegment)) || !await _gate.WaitAsync(0)) return;
         try
         {
             IsBusy = true;
@@ -95,7 +127,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
         await _gate.WaitAsync();
         try
         {
-            if (StatusUnconfirmed || State.Mode is ProjectMode.Recording or ProjectMode.Paused or ProjectMode.SavingSegment or ProjectMode.SaveFailed)
+            if (StatusUnconfirmed || IsExporting || State.Mode is ProjectMode.Recording or ProjectMode.Paused or ProjectMode.SavingSegment or ProjectMode.SaveFailed)
             { Error = Strings["ProjectFinishBeforeClose"]; return false; }
             if (Error is not null && State.IsDirty) return false;
             if (State.ProjectId is null) return true;

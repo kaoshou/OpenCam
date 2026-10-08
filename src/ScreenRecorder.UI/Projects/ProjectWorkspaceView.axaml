@@ -100,6 +100,11 @@
           <TextBlock Text="{Binding Strings[ProjectClipName]}" FontWeight="SemiBold"/>
           <TextBox Text="{Binding ClipName}" IsEnabled="{Binding CanEdit}" MaxLength="200"/>
           <Button Content="{Binding Strings[ProjectRename]}" Command="{Binding RenameSelectedCommand}" IsEnabled="{Binding CanEdit}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+          <Grid ColumnDefinitions="*,8,*">
+            <Button Content="{Binding Strings[ProjectMoveEarlier]}" Command="{Binding MoveSelectedEarlierCommand}" IsEnabled="{Binding CanMoveEarlier}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+            <Button Grid.Column="2" Content="{Binding Strings[ProjectMoveLater]}" Command="{Binding MoveSelectedLaterCommand}" IsEnabled="{Binding CanMoveLater}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+          </Grid>
+          <Button Content="{Binding Strings[ProjectDeleteClip]}" Command="{Binding DeleteSelectedCommand}" IsEnabled="{Binding CanEditSelection}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
           <Separator Margin="0,8"/>
           <TextBlock Text="{Binding Strings[ProjectSourceSafe]}" TextWrapping="Wrap" Foreground="{DynamicResource ProjectAccentBrush}" LineHeight="22"/>
 

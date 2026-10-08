@@ -11,7 +11,7 @@ namespace ScreenRecorder.Recorder.Services;
 
 /// <summary>The recorder process is the single project writer and recording owner.</summary>
 public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, IProjectStore store,
-    IProjectSourceProbe probe) : IAsyncDisposable
+    IProjectSourceProbe probe, IRecordingContentExporter? exporter = null) : IAsyncDisposable
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly ProjectSegmentCommitter _committer = new(probe);
@@ -19,6 +19,9 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
     private IProjectHandle? _handle;
     private ProjectEditHistory? _history;
     private RecordingSession? _session;
+    private RecordingContentExportJob? _export;
+    public RecordingExportStatus? ExportStatus => _export?.Status;
+    private bool IsExporting => _export is not null && !_export.Completion.IsCompleted;
     public RecordingProject? Current => _history?.Current ?? _handle?.Current;
     public bool CanUndo => _history?.CanUndo == true;
     public bool CanRedo => _history?.CanRedo == true;
@@ -126,6 +129,7 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
     public Task<ProjectCommandResult> StartNewContentAsync(RecordingConfiguration config, Guid operationId,
         CancellationToken ct = default) => Run(async () =>
     {
+        RequireNoExport();
         if (_session is not null || recorder.CurrentSession is not null ||
             Mode is not (ProjectMode.Closed or ProjectMode.Ready))
             throw new InvalidOperationException("Finish and save the current recording before starting new content.");
@@ -138,6 +142,8 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
             Mode = ProjectMode.Closed;
         }
         OutputDirectory = null;
+        _export?.Dispose();
+        _export = null;
         _handle = await new RecordingContentFactory(store, TimeProvider.System).CreateAsync(config.OutputDirectory, ct);
         _history = new(_handle.Current);
         Mode = ProjectMode.Ready;
@@ -149,6 +155,7 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
 
     private async Task StartCoreAsync(RecordingConfiguration config, CancellationToken ct)
     {
+        RequireNoExport();
         if (_handle is null || Mode is not (ProjectMode.Ready or ProjectMode.Paused))
             throw new InvalidOperationException("Project is not ready to record.");
         await FlushEditsAsync(ct);
@@ -192,7 +199,10 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
         catch { Mode = ProjectMode.SaveFailed; throw; }
     }, operationId, "pause", ct);
 
-    public Task<ProjectCommandResult> FinishAsync(Guid operationId, CancellationToken ct = default) => Run(async () =>
+    public Task<ProjectCommandResult> FinishAsync(Guid operationId, CancellationToken ct = default) =>
+        Run(() => FinishCoreAsync(operationId, ct), operationId, "finish", ct);
+
+    private async Task FinishCoreAsync(Guid operationId, CancellationToken ct)
     {
         if (_handle is null || _session is null || Mode is not (ProjectMode.Recording or ProjectMode.Paused or ProjectMode.SaveFailed))
             throw new InvalidOperationException("No project recording session to finish.");
@@ -210,7 +220,61 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
             Mode = ProjectMode.Ready;
         }
         catch { Mode = ProjectMode.SaveFailed; throw; }
-    }, operationId, "finish", ct);
+    }
+
+    public Task<ProjectCommandResult> FinishAndExportAsync(Guid operationId, CancellationToken ct = default) => Run(async () =>
+    {
+        RequireNoExport();
+        await FinishCoreAsync(operationId, ct);
+        BeginExport();
+    }, operationId, "finish-export", ct);
+
+    public Task<ProjectCommandResult> RetryExportAsync(Guid operationId, CancellationToken ct = default) => Run(async () =>
+    {
+        RequireNoExport();
+        if (_handle is null || Mode != ProjectMode.Ready)
+            throw new InvalidOperationException("Finish and save recording before exporting.");
+        await FlushEditsAsync(ct);
+        BeginExport();
+    }, operationId, "retry-export", ct);
+
+    private void BeginExport()
+    {
+        if (exporter is null) throw new InvalidOperationException("Verified content export is not available yet. Sources remain saved.");
+        if (_handle is null || Current!.Clips.IsEmpty) throw new InvalidOperationException("There is no content to export.");
+        if (string.IsNullOrWhiteSpace(OutputDirectory)) throw new InvalidOperationException("Select an output directory before exporting.");
+        _export?.Dispose();
+        _export = new(exporter, _handle, Current!, OutputDirectory);
+    }
+
+    public async Task<ProjectCommandResult> CancelExportAsync(Guid exportId, CancellationToken ct = default)
+    {
+        RecordingContentExportJob? job = null;
+        var result = await Run(() =>
+        {
+            if (_export is null || _export.Status.ExportId != exportId)
+                throw new InvalidOperationException("Export identity mismatch.");
+            job = _export;
+            if (!job.Completion.IsCompleted) job.Cancel();
+            return Task.CompletedTask;
+        }, null, "cancel-export", ct);
+        if (result.Success) await job!.Completion.WaitAsync(ct);
+        return result;
+    }
+
+    // IPC acknowledges the request immediately. Status remains Running until cleanup finishes.
+    public Task<ProjectCommandResult> RequestExportCancellationAsync(Guid exportId, CancellationToken ct = default) => Run(() =>
+    {
+        if (_export is null || _export.Status.ExportId != exportId)
+            throw new InvalidOperationException("Export identity mismatch.");
+        if (!_export.Completion.IsCompleted) _export.Cancel();
+        return Task.CompletedTask;
+    }, null, "request-cancel-export", ct);
+
+    private void RequireNoExport()
+    {
+        if (IsExporting) throw new InvalidOperationException("Wait for export to finish or cancel it before changing content.");
+    }
 
     private async Task CommitSessionAsync(Guid operationId, CancellationToken ct)
     {
@@ -229,6 +293,7 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
     public Task<ProjectCommandResult> ApplyEditAsync(ProjectClipEdit edit, long expectedRevision, Guid operationId,
         CancellationToken ct = default) => Run(async () =>
     {
+        RequireNoExport();
         if (_history is null || Mode is not (ProjectMode.Ready or ProjectMode.Paused))
             throw new InvalidOperationException("Finish or pause recording before editing.");
         CheckRevision(expectedRevision);
@@ -244,6 +309,7 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
 
     private Task<ProjectCommandResult> EditAsync(long expectedRevision, Action<ProjectEditHistory> edit, CancellationToken ct) => Run(async () =>
     {
+        RequireNoExport();
         if (_history is null || Mode is not (ProjectMode.Ready or ProjectMode.Paused))
             throw new InvalidOperationException("Finish or pause recording before editing.");
         CheckRevision(expectedRevision);
@@ -270,12 +336,15 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
 
     public Task<ProjectCommandResult> CloseAsync(CancellationToken ct = default) => Run(async () =>
     {
+        RequireNoExport();
         if (_session is not null || Mode is ProjectMode.Recording or ProjectMode.SavingSegment or ProjectMode.Paused or ProjectMode.SaveFailed)
             throw new InvalidOperationException("Finish and save recording before closing the project.");
         if (_handle is not null) { await FlushEditsAsync(ct); await _handle.DisposeAsync(); }
         _handle = null;
         _history = null;
         OutputDirectory = null;
+        _export?.Dispose();
+        _export = null;
         _operations.Clear();
         Mode = ProjectMode.Closed;
     }, null, "close", ct);
@@ -300,7 +369,18 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
     public async ValueTask DisposeAsync()
     {
         await _gate.WaitAsync();
-        try { if (_handle is not null) await _handle.DisposeAsync(); _handle = null; }
+        try
+        {
+            if (_export is not null)
+            {
+                _export.Cancel();
+                await _export.Completion;
+                _export.Dispose();
+                _export = null;
+            }
+            if (_handle is not null) await _handle.DisposeAsync();
+            _handle = null;
+        }
         finally { _gate.Release(); }
     }
 }
