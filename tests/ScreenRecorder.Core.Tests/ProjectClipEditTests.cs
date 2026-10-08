@@ -139,4 +139,21 @@ public sealed class ProjectClipEditTests
             p.Clips[0] with { Id = Guid.NewGuid(), GroupId = id }] };
         Assert.Throws<InvalidDataException>(() => ProjectValidation.Validate(p));
     }
+
+    [Theory]
+    [InlineData(0, "B", "C")]
+    [InlineData(1, "A", "C")]
+    [InlineData(2, "A", "B")]
+    public void DeleteClipInGroupDoesNotDeleteItsNeighbours(int removedIndex, string first, string last)
+    {
+        var p = Fixture();
+        p = p with { Clips = p.Clips.Add(p.Clips[0] with { Id = Guid.NewGuid(), Name = "C" }) };
+        var h = new ProjectEditHistory(p);
+        h.Apply(new ProjectClipEdit.Group(p.Clips[0].Id, p.Clips[2].Id, Guid.NewGuid()));
+        h.Apply(new ProjectClipEdit.Remove(p.Clips[removedIndex].Id));
+        Assert.Equal(new[] { first, last }, h.Current.Clips.Select(c => c.Name));
+        h.Undo();
+        Assert.Equal(new[] { "A", "B", "C" }, h.Current.Clips.Select(c => c.Name));
+        Assert.Equal(p.Sources, h.Current.Sources);
+    }
 }

@@ -7,7 +7,8 @@ public sealed record ProjectPosition(Guid ClipId, Guid SourceId, long SourcePts)
 
 public sealed class ProjectTimeline
 {
-    internal sealed record Segment(ProjectClip Clip, ProjectRational TimeBase, long StartTicks, long EndTicks);
+    internal sealed record Segment(ProjectClip Clip, ProjectRational TimeBase, long StartTicks, long EndTicks,
+        BigInteger ExactStartNumerator, BigInteger ExactStartDenominator);
     internal IReadOnlyList<Segment> Segments { get; }
     public long DurationTicks { get; }
 
@@ -23,6 +24,8 @@ public sealed class ProjectTimeline
         long start = 0;
         foreach (var clip in project.Clips)
         {
+            var exactStartNumerator = numerator;
+            var exactStartDenominator = denominator;
             var timeBase = sources[clip.SourceId].Timing.TimeBase;
             var durationNumerator = ((BigInteger)clip.OutPts - clip.InPts) * timeBase.Numerator * TimeSpan.TicksPerSecond;
             var gcd = BigInteger.GreatestCommonDivisor(denominator, timeBase.Denominator);
@@ -33,11 +36,13 @@ public sealed class ProjectTimeline
             numerator /= reduction;
             denominator /= reduction;
             // Bound adversarial combinations of thousands of coprime media time bases.
-            if (denominator.GetBitLength() > 4096 || numerator / denominator > long.MaxValue)
+            var roundedEnd = (numerator + denominator - 1) / denominator;
+            if (denominator.GetBitLength() > 4096 || roundedEnd > long.MaxValue)
                 throw new InvalidDataException("Timeline duration or time-base complexity exceeds supported limits.");
-            var end = (long)(numerator / denominator);
+            // First representable tick at or after the exact boundary. Split must not move a frame early.
+            var end = (long)roundedEnd;
             if (end <= start) throw new InvalidDataException("Clip is shorter than timeline precision.");
-            segments.Add(new(clip, timeBase, start, end));
+            segments.Add(new(clip, timeBase, start, end, exactStartNumerator, exactStartDenominator));
             start = end;
         }
         return new(segments, start);
@@ -63,8 +68,9 @@ public sealed class ProjectTimeline
     {
         if (ticks <= segment.StartTicks) return segment.Clip.InPts;
         if (ticks >= segment.EndTicks) return segment.Clip.OutPts;
-        var delta = (BigInteger)(ticks - segment.StartTicks) * segment.TimeBase.Denominator /
-            ((BigInteger)TimeSpan.TicksPerSecond * segment.TimeBase.Numerator);
+        var exactOffset = (BigInteger)ticks * segment.ExactStartDenominator - segment.ExactStartNumerator;
+        var delta = exactOffset * segment.TimeBase.Denominator /
+            (segment.ExactStartDenominator * TimeSpan.TicksPerSecond * segment.TimeBase.Numerator);
         return (long)BigInteger.Min((BigInteger)segment.Clip.InPts + delta, (BigInteger)segment.Clip.OutPts - 1);
     }
 }

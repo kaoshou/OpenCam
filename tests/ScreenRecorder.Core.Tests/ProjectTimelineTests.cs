@@ -46,4 +46,20 @@ public sealed class ProjectTimelineTests
             Clips = [p.Clips[0] with { InPts = 0, OutPts = long.MaxValue }] };
         Assert.Throws<InvalidDataException>(() => ProjectTimeline.Build(p));
     }
+
+    [Theory]
+    [InlineData(166666, 0)]
+    [InlineData(166667, 1)]
+    [InlineData(333333, 1)]
+    [InlineData(333334, 2)]
+    public void SplitDoesNotChangeFrameTimestampAtFractionalTickBoundaries(long ticks, long expectedPts)
+    {
+        var p = ProjectClipEditTests.Fixture();
+        p = p with { Sources = [p.Sources[0] with { Timing = new(new(1,60), 0, 3) }],
+            Clips = [p.Clips[0] with { InPts = 0, OutPts = 3 }] };
+        Assert.Equal(expectedPts, ProjectTimeline.Build(p).Locate(ticks)!.SourcePts);
+        var history = new ProjectEditHistory(p);
+        history.Apply(new ProjectClipEdit.Split(p.Clips[0].Id, 1, Guid.NewGuid()));
+        Assert.Equal(expectedPts, ProjectTimeline.Build(history.Current).Locate(ticks)!.SourcePts);
+    }
 }

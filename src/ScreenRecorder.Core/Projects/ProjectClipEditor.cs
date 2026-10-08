@@ -31,13 +31,11 @@ internal static class ProjectClipEditor
                 break;
             case ProjectClipEdit.Remove remove:
                 index = Index(remove.ClipId);
-                var groupId = clips[index].GroupId;
-                if (groupId is null) clips.RemoveAt(index);
-                else clips.RemoveAll(c => c.GroupId == groupId);
+                clips.RemoveAt(index);
                 break;
             case ProjectClipEdit.Move move:
                 index = Index(move.ClipId);
-                groupId = clips[index].GroupId;
+                var groupId = clips[index].GroupId;
                 var moving = clips.Where(c => groupId is null ? c.Id == move.ClipId : c.GroupId == groupId).ToList();
                 if (move.BeforeClipId is Guid before)
                 {
