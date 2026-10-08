@@ -113,6 +113,7 @@ public sealed class ProjectMediaProcessTests
             ProjectMediaJob.ExtractFrame(9_007_199_254_740_993, new(1, 1_000_000), 160, 90));
 
     [MacOsOnlyFact]
+    [System.Runtime.Versioning.SupportedOSPlatform("macos")]
     public async Task RunningChildCancellation_ReapsOwnedProcess()
     {
         var root = Directory.CreateTempSubdirectory("OpenCam-media-cancel-");
@@ -141,6 +142,7 @@ public sealed class ProjectMediaProcessTests
     }
 
     [MacOsOnlyFact]
+    [System.Runtime.Versioning.SupportedOSPlatform("macos")]
     public async Task MalformedDiagnostic_HitsQuotaAndReturnsPromptly()
     {
         var root = Directory.CreateTempSubdirectory("OpenCam-media-quota-");

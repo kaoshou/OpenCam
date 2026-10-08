@@ -7,7 +7,7 @@ using ScreenRecorder.Media.Projects;
 
 namespace ScreenRecorder.Platform.macOS;
 
-/// <summary>Seekable bound-FD frame extraction. No source or destination path is reopened.</summary>
+/// <summary>Seekable bound-FD frame / bounded PCM extraction. No media path is reopened.</summary>
 public sealed class MacProjectMediaProcess : IProjectMediaProcess
 {
     private readonly string _executable;
@@ -26,7 +26,7 @@ public sealed class MacProjectMediaProcess : IProjectMediaProcess
         if (!OperatingSystem.IsMacOS()) throw new PlatformNotSupportedException();
         ArgumentNullException.ThrowIfNull(job);
         if (boundInputs.Count != 1 || !boundInputs[0].CanRead || boundInputs[0].CanWrite || !boundInputs[0].CanSeek)
-            throw new ArgumentException("Frame extraction requires exactly one read-only seekable source.");
+            throw new ArgumentException("Media extraction requires exactly one read-only seekable source.");
         if (boundOutput is not null && (!boundOutput.CanWrite || !boundOutput.CanSeek ||
             boundOutput.Length != 0 || boundOutput.Position != 0))
             throw new ArgumentException("Output must be a new empty writable stream.");
@@ -35,12 +35,12 @@ public sealed class MacProjectMediaProcess : IProjectMediaProcess
         {
             ct.ThrowIfCancellationRequested();
             boundInputs[0].Position = 0;
-            return await RunFrameAsync(job, boundInputs[0], boundOutput, ct);
+            return await RunBoundAsync(job, boundInputs[0], boundOutput, ct);
         }
         finally { _gate.Release(); }
     }
 
-    private async Task<ProjectMediaResult> RunFrameAsync(ProjectMediaJob job, FileStream source,
+    private async Task<ProjectMediaResult> RunBoundAsync(ProjectMediaJob job, FileStream source,
         FileStream? destination, CancellationToken ct)
     {
         using var output = NativePipe.Create();
@@ -80,7 +80,7 @@ public sealed class MacProjectMediaProcess : IProjectMediaProcess
         output.CloseWriter();
         error.CloseWriter();
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeout.CancelAfter(TimeSpan.FromSeconds(15)); // Only single-frame jobs; never a long export deadline.
+        timeout.CancelAfter(TimeSpan.FromSeconds(15)); // Single frame / bounded PCM chunk, never a long export deadline.
         var stdout = ReadBoundedAsync(output.Reader, job.ExpectedOutputBytes);
         var stderr = ReadBoundedAsync(error.Reader, ProjectMediaJob.MaximumDiagnosticBytes);
         var killed = false;
@@ -114,10 +114,10 @@ public sealed class MacProjectMediaProcess : IProjectMediaProcess
             overQuota |= destination is not null && destination.Length > job.ExpectedOutputBytes;
             if (overQuota) throw new InvalidDataException("Media output limit exceeded.");
             var diagnostic = Encoding.UTF8.GetString(await stderr);
-            if (status != 0) throw new InvalidDataException($"Frame decoder status {status}: {diagnostic}");
+            if (status != 0) throw new InvalidDataException($"Media decoder status {status}: {diagnostic}");
             var bytes = await stdout;
             if ((destination?.Length ?? bytes.Length) != job.ExpectedOutputBytes)
-                throw new InvalidDataException("Missing or incomplete frame at requested source timestamp.");
+                throw new InvalidDataException("Missing or incomplete media at requested source interval.");
             return new(bytes, diagnostic);
         }
         finally

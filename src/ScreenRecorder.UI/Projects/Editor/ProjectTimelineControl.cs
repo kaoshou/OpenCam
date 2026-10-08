@@ -22,6 +22,9 @@ public sealed class ProjectTimelineControl : Control
     private TimelineHit _hit;
     private double _dragX;
     private double TrackWidth => Math.Max(1, Bounds.Width - 32);
+    internal Rect VideoTrackBounds => new(16, 52, TrackWidth, Math.Clamp(Bounds.Height - 102, 36, 76));
+    internal Rect AudioTrackBounds => new(16, VideoTrackBounds.Bottom + 6, TrackWidth,
+        Math.Max(0, Math.Min(44, Bounds.Height - VideoTrackBounds.Bottom - 8)));
     private double VisibleTicks => Math.Max(1, (_model?.DurationTicks ?? 0) / _zoom);
     private double X(long ticks) => 16 + (ticks - _offset) / VisibleTicks * TrackWidth;
     private long Ticks(double x) => (long)Math.Clamp(_offset + (x - 16) / TrackWidth * VisibleTicks, 0, _model?.DurationTicks ?? 0);
@@ -77,18 +80,52 @@ public sealed class ProjectTimelineControl : Control
             var left = X(span.StartTicks); var right = X(span.EndTicks);
             if (right < 0 || left > Bounds.Width || !byId.TryGetValue(span.ClipId, out var clip)) continue;
             var selected = vm.SelectedClip?.Id == clip.Id;
-            var rectangle = new Rect(left + 1, 52, Math.Max(1, right-left-2), 76);
+            var rectangle = new Rect(left + 1, VideoTrackBounds.Top, Math.Max(1, right-left-2), VideoTrackBounds.Height);
             var fill = new SolidColorBrush(Color.Parse(selected ? (dark ? "#27436B" : "#E3EDFF") : (dark ? "#343D49" : "#EFF3F8")));
             var outline = selected ? new Pen(new SolidColorBrush(Color.Parse("#5A8DEE")), 2) : stroke;
             context.DrawRectangle(fill, outline, rectangle, 6, 6);
             using (context.PushClip(rectangle))
             {
-                context.DrawLine(stroke, new(left+5, 75), new(left+5, 105));
-                context.DrawLine(stroke, new(right-5, 75), new(right-5, 105));
+                context.DrawLine(stroke, new(left+5, rectangle.Top + 10), new(left+5, rectangle.Bottom - 10));
+                context.DrawLine(stroke, new(right-5, rectangle.Top + 10), new(right-5, rectangle.Bottom - 10));
                 Text(context, clip.Name, left + 12, 65, ink, Math.Max(1, right-left-24), 14);
                 var duration = TimeSpan.FromTicks(span.EndTicks - span.StartTicks);
                 Text(context, $"{duration.TotalSeconds:0.###} s" + (clip.GroupId is null ? "" : "  ⛓"), left+12, 99, ink, Math.Max(1,right-left-24), 12);
             }
+            if (vm.Waveforms.TryGetValue(clip.Id, out var waveform))
+            {
+                var audioRect = new Rect(left + 1, AudioTrackBounds.Top, Math.Max(1, right - left - 2), AudioTrackBounds.Height);
+                context.DrawRectangle(new SolidColorBrush(Color.Parse(dark ? "#153946" : "#E2F1F2")),
+                    stroke, audioRect, 4, 4);
+                using (context.PushClip(audioRect))
+                {
+                    if (!waveform.HasAudio)
+                    {
+                        Text(context, vm.Strings["ProjectNoAudioTrack"], left + 8, audioRect.Top + 5,
+                            ink, Math.Max(1, audioRect.Width - 16), 11);
+                        continue;
+                    }
+                    var wavePen = new Pen(new SolidColorBrush(Color.Parse(dark ? "#71C8CC" : "#288A91")), 1);
+                    var count = waveform.Buckets.Length;
+                    for (var b = 0; b < count; b++)
+                    {
+                        var bucket = waveform.Buckets[b];
+                        var x = left + 2 + (right - left - 4) * (b + .5) / count;
+                        var gain = clip.Muted ? 0 : clip.Volume;
+                        var position = (span.EndTicks - span.StartTicks) * (b + .5) / count;
+                        if (clip.FadeInTicks > 0) gain *= Math.Min(1, position / clip.FadeInTicks);
+                        if (clip.FadeOutTicks > 0) gain *= Math.Min(1,
+                            (span.EndTicks - span.StartTicks - position) / clip.FadeOutTicks);
+                        var peak = Math.Clamp(Math.Max(Math.Abs(bucket.Minimum), Math.Abs(bucket.Maximum)) * gain, 0, 1);
+                        var middle = audioRect.Center.Y;
+                        var amplitude = Math.Max(.5, peak * Math.Max(0, audioRect.Height / 2 - 4));
+                        context.DrawLine(wavePen, new(x, middle - amplitude), new(x, middle + amplitude));
+                    }
+                }
+            }
+            else if (right - left > 100)
+                Text(context, vm.WaveformStatus(clip.Id), left + 8, AudioTrackBounds.Top + 5,
+                    ink, Math.Max(1, right - left - 16), 11);
         }
         var accent = new Pen(new SolidColorBrush(Color.Parse("#3B82F6")), 2);
         context.DrawLine(accent, new(X(vm.PlayheadTicks), 28), new(X(vm.PlayheadTicks), Bounds.Height));
@@ -115,7 +152,7 @@ public sealed class ProjectTimelineControl : Control
         _gestureRevision = vm.State.Revision;
         _downX = point.X;
         if (point.Y < 44) { _seeking = true; vm.Seek(Ticks(point.X)); }
-        else if (point.Y is >= 52 and <= 128)
+        else if (point.Y >= VideoTrackBounds.Top && point.Y <= VideoTrackBounds.Bottom)
         {
             var span = vm.TimelineClips.FirstOrDefault(c => Ticks(point.X) >= c.StartTicks && Ticks(point.X) < c.EndTicks);
             if (span is null) return;
@@ -163,7 +200,8 @@ public sealed class ProjectTimelineControl : Control
         base.OnPointerReleased(e);
         if (_pointer != e.Pointer) return;
         var point = e.GetPosition(this);
-        if (point.X < 16 || point.X > Bounds.Width - 16 || point.Y < 52 || point.Y > Math.Min(128, Bounds.Height))
+        if (point.X < 16 || point.X > Bounds.Width - 16 || point.Y < VideoTrackBounds.Top ||
+            point.Y > Math.Min(VideoTrackBounds.Bottom, Bounds.Height))
         { CancelGesture(); return; }
         UpdateGesture(point);
         var moving = _movingClip; var before = _beforeClip;

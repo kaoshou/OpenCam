@@ -6,13 +6,13 @@ using ScreenRecorder.Infrastructure.IPC;
 namespace ScreenRecorder.Recorder.Services;
 
 /// <summary>Called only after the existing IPC authentication/size gate.</summary>
-public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator)
+public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator, ProjectWaveformService? waveforms = null)
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Guid _instanceId = Guid.NewGuid();
     private readonly Dictionary<Guid, (string Fingerprint, bool Success, string? Error)> _operations = new();
     public static bool IsProjectCommand(string command) => command is "CreateProject" or "OpenProject" or "GetProjectStatus"
-        or "GetProjectClips" or "StartProjectRecording" or "PauseProjectRecording" or "FinishProjectRecording"
+        or "GetProjectClips" or "GetProjectWaveform" or "StartProjectRecording" or "PauseProjectRecording" or "FinishProjectRecording"
         or "SaveProject" or "RenameProjectClip" or "ApplyProjectEdit" or "UndoProject" or "RedoProject" or "CloseProject" or "RestoreProjectBackup"
         or "StartNewRecordingContent" or "FinishRecordingContent" or "RetryRecordingContentExport" or "CancelRecordingContentExport";
 
@@ -56,8 +56,19 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
                 return Reply(new(true, null, Snapshot(), project.Clips.Skip(request.Offset).Take(request.Limit).ToArray())
                     { TimelineClips = timeline.Clips.Skip(request.Offset).Take(request.Limit).ToArray() });
             }
+            if (message.MessageType == "GetProjectWaveform")
+            {
+                if (request.ServerInstanceId != _instanceId || request.ExpectedRevision != coordinator.Current!.Revision)
+                    throw new InvalidOperationException("Waveform request belongs to an obsolete snapshot.");
+                if (waveforms is null) throw new PlatformNotSupportedException("Waveform decoder is not available on this platform.");
+                var waveform = await waveforms.QueryAsync(request.ProjectId!.Value, request.ExpectedRevision, request.ClipId);
+                return Reply(new(true, null, Snapshot()) { Waveform = waveform });
+            }
             if (request.OperationId == Guid.Empty) throw new InvalidDataException("An operation ID is required.");
             if (_operations.Count >= 20000) throw new InvalidOperationException("Save and restart OpenCam before issuing more project commands.");
+            if (waveforms is not null && message.MessageType is
+                "StartProjectRecording" or "StartNewRecordingContent" or "CloseProject")
+                await waveforms.SuspendAsync();
             ProjectCommandResult result = message.MessageType switch
             {
                 "CreateProject" => await coordinator.CreateAsync(request.Path ?? "", request.Name ?? ""),

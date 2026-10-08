@@ -35,4 +35,5 @@ public sealed record ProjectReply(bool Success, string? Error, ProjectSnapshot S
     ProjectClip[]? Clips = null, bool Unconfirmed = false, bool OperationKnown = true)
 {
     public ProjectTimelineClip[]? TimelineClips { get; init; }
+    public ProjectWaveformReply? Waveform { get; init; }
 }

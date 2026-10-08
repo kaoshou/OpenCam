@@ -33,6 +33,24 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
     public ProjectMode Mode { get; private set; } = ProjectMode.Closed;
     public string? LastError { get; private set; }
 
+    internal async Task<ProjectMediaLease> OpenMediaSourceAsync(Guid projectId, long revision,
+        Guid clipId, CancellationToken ct)
+    {
+        await _gate.WaitAsync(ct);
+        try
+        {
+            var current = Current;
+            if (_handle is null || current?.ProjectId != projectId || current.Revision != revision ||
+                Mode is not (ProjectMode.Ready or ProjectMode.Paused))
+                throw new InvalidOperationException("Media snapshot is no longer available.");
+            var clip = current.Clips.SingleOrDefault(c => c.Id == clipId)
+                ?? throw new InvalidDataException("Clip is not part of the current project.");
+            var source = current.Sources.Single(s => s.Id == clip.SourceId);
+            return new(ProjectPathPolicy.OpenSource(_handle, source.RelativePath), source, clip);
+        }
+        finally { _gate.Release(); }
+    }
+
     public async Task ReconcileRecorderStatusAsync(CancellationToken ct = default)
     {
         await _gate.WaitAsync(ct);

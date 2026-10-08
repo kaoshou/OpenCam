@@ -51,7 +51,11 @@ public class Program
             var displayService = serviceProvider.GetRequiredService<IDisplayService>();
             await using var projects = new ProjectRecordingCoordinator(orchestrator,
                 new ScreenRecorder.Infrastructure.Projects.JsonProjectStore(), new ProjectSourceProbe());
-            var projectDispatcher = new ProjectIpcDispatcher(projects);
+            var mediaExecutable = ScreenRecorder.Media.FFmpeg.FFmpegDiscovery.FindFFmpegExecutable();
+            await using var projectWaveforms = OperatingSystem.IsMacOS() && mediaExecutable is not null
+                ? new ProjectWaveformService(projects, new ScreenRecorder.Platform.macOS.MacProjectMediaProcess(mediaExecutable))
+                : null;
+            var projectDispatcher = new ProjectIpcDispatcher(projects, projectWaveforms);
 
             var pipeName = NamedPipeConstants.PipeBaseName;
             var pipeIndex = Array.IndexOf(args, "--pipe");
