@@ -23,6 +23,14 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\ScreenRecorder.Core\ScreenRecorder.Core.csproj" />
     <ProjectReference Include="..\..\src\ScreenRecorder.Infrastructure\ScreenRecorder.Infrastructure.csproj" />
+    <ProjectReference Include="../ScreenRecorder.ProjectStoreProbe/ScreenRecorder.ProjectStoreProbe.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
+
+  <Target Name="CopyProjectStoreProbe" AfterTargets="Build">
+    <ItemGroup>
+      <ProjectStoreProbeFiles Include="$(MSBuildThisFileDirectory)../ScreenRecorder.ProjectStoreProbe/bin/$(Configuration)/net8.0/*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ProjectStoreProbeFiles)" DestinationFolder="$(OutDir)project-probe" />
+  </Target>
 
 </Project>

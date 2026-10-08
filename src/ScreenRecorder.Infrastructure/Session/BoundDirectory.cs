@@ -66,6 +66,29 @@ public sealed class BoundDirectory : IDisposable
         catch { result.Dispose(); throw; }
     }
 
+    /// <summary>Open a direct child relative to this pinned handle, never by re-resolving ancestors.</summary>
+    public BoundDirectory OpenChild(string name, bool create = false, bool exclusive = false)
+    {
+        Leaf(name);
+        var path = Path.Combine(CurrentPath, name);
+        if (create)
+        {
+            var created = OperatingSystem.IsWindows()
+                ? CreateDirectory(path, IntPtr.Zero)
+                : mkdirat(Handle, name, 0x1C0) == 0;
+            var error = Marshal.GetLastWin32Error();
+            if (!created && (exclusive || error != (OperatingSystem.IsWindows() ? 183 : 17)))
+                throw new IOException("Cannot create child recording directory.");
+        }
+        var child = new BoundDirectory(path);
+        try
+        {
+            child._handles.Add(OpenDirectory(OperatingSystem.IsWindows() ? path : name, Handle));
+            return child;
+        }
+        catch { child.Dispose(); throw; }
+    }
+
     private static SafeFileHandle OpenDirectory(string path, SafeFileHandle? parent)
     {
         if (OperatingSystem.IsWindows())
@@ -117,19 +140,22 @@ public sealed class BoundDirectory : IDisposable
         return new FileStream(new SafeFileHandle((IntPtr)fd, true), FileAccess.ReadWrite);
     }
 
-    public FileStream Claim()
+    public FileStream Claim() => Claim(".recovery.lock");
+
+    public FileStream Claim(string name)
     {
+        Leaf(name);
         // Existing lock contents are never read or truncated. Reject links before
         // opening on Windows while the ancestor lease prevents parent replacement.
         if (OperatingSystem.IsWindows())
         {
-            var handle = CreateFile(Path.Combine(PathName, ".recovery.lock"), 0xC0000000, 0, IntPtr.Zero, 4, 0x00200000, IntPtr.Zero);
+            var handle = CreateFile(Path.Combine(PathName, name), 0xC0000000, 0, IntPtr.Zero, 4, 0x00200000, IntPtr.Zero);
             if (handle.IsInvalid || !GetFileInformationByHandle(handle, out var info) ||
                 (info.Attributes & 0x410) != 0 || info.Links != 1)
             { handle.Dispose(); throw new IOException("Unsafe or busy recovery lock."); }
             return new FileStream(handle, FileAccess.ReadWrite);
         }
-        var stream = Create(".recovery.lock", false);
+        var stream = Create(name, false);
         try
         {
             RecoverySourceFile.ValidateUnixHandle(stream.SafeFileHandle);
@@ -217,4 +243,7 @@ public sealed class BoundDirectory : IDisposable
     private static extern SafeFileHandle CreateFile(string path, uint access, uint share, IntPtr security, uint creation, uint flags, IntPtr template);
     [DllImport("kernel32.dll", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetFileInformationByHandle(SafeFileHandle handle, out FileInfoNative info);
+    [DllImport("kernel32.dll", EntryPoint = "CreateDirectoryW", CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool CreateDirectory(string path, IntPtr security);
 }
