@@ -33,8 +33,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
         Error is not null ? "ProjectSaveFailed" : State.IsDirty ? "ProjectUnsaved" : "ProjectSaved"];
     public string ModeText => Strings["ProjectMode" + State.Mode];
     public string StartText => Strings[State.Mode == ProjectMode.Paused ? "ProjectContinue" : "ProjectRecord"];
-    public int Offset { get; private set; }
-    public string PageText => $"{Math.Min(Offset + 1, State.ClipCount)}–{Math.Min(Offset + 100, State.ClipCount)} / {State.ClipCount}";
+    public string ClipCountText => $"{Clips.Count} / {State.ClipCount}";
     public event EventHandler? StateChanged;
 
     partial void OnSelectedClipChanged(ProjectClip? value) => ClipName = value?.Name ?? "";
@@ -44,7 +43,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     private void NotifyState()
     {
         foreach (var property in new[] { nameof(CanEdit), nameof(CanRecord), nameof(CanPause), nameof(CanFinish), nameof(CanClose),
-            nameof(CanUndo), nameof(CanRedo), nameof(SaveStatus), nameof(ModeText), nameof(StartText), nameof(PageText) })
+            nameof(CanUndo), nameof(CanRedo), nameof(SaveStatus), nameof(ModeText), nameof(StartText), nameof(ClipCountText) })
             OnPropertyChanged(property);
         StateChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -53,6 +52,11 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     {
         if (reply.Unconfirmed) { StatusUnconfirmed = true; Error = reply.Error; return; }
         if (reply.State.ProjectId == State.ProjectId && reply.State.Revision < State.Revision) return;
+        if (reply.State.ProjectId != State.ProjectId)
+        {
+            Clips.Clear();
+            SelectedClip = null;
+        }
         State = reply.State;
         StatusUnconfirmed = false;
         Error = reply.Success ? reply.State.LastError : reply.Error;
@@ -76,16 +80,15 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
         if (StatusUnconfirmed || State.Mode is not (ProjectMode.Recording or ProjectMode.SavingSegment) || !await _gate.WaitAsync(0)) return;
         try
         {
+            IsBusy = true;
             var previous = State;
             ApplyReply(await client.SendAsync("GetProjectStatus", new()));
             if (!StatusUnconfirmed && (State.Mode != previous.Mode || State.Revision != previous.Revision))
                 await LoadClipsAsync();
         }
         catch (Exception ex) { Error = ex.Message; StatusUnconfirmed = true; }
-        finally { _gate.Release(); }
+        finally { IsBusy = false; _gate.Release(); }
     }
-    [RelayCommand] public async Task PreviousPageAsync() { Offset = Math.Max(0, Offset - 100); await RefreshAsync(); }
-    [RelayCommand] public async Task NextPageAsync() { if (Offset + 100 < State.ClipCount) Offset += 100; await RefreshAsync(); }
 
     public async Task<bool> CloseAsync()
     {
@@ -135,12 +138,28 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     private async Task LoadClipsAsync()
     {
         if (State.ProjectId is null) return;
-        var page = await client.SendAsync("GetProjectClips", new() { ProjectId = State.ProjectId, Offset = Offset, Limit = 100 });
-        if (!page.Success || page.Clips is null || page.State.Revision != State.Revision) return;
+        var snapshot = State;
+        if (snapshot.ClipCount is < 0 or > 10000) throw new InvalidDataException(Strings["ProjectClipLoadFailed"]);
+        var loaded = new List<ProjectClip>(snapshot.ClipCount);
+        var ids = new HashSet<Guid>();
+        for (var offset = 0; offset < snapshot.ClipCount; offset += 100)
+        {
+            var page = await client.SendAsync("GetProjectClips", new() {
+                ProjectId = snapshot.ProjectId, Offset = offset, Limit = 100 });
+            if (!page.Success || page.Unconfirmed || page.Clips is null ||
+                page.State.ProjectId != snapshot.ProjectId || page.State.Revision != snapshot.Revision ||
+                page.State.ClipCount != snapshot.ClipCount || page.State.ServerInstanceId != snapshot.ServerInstanceId ||
+                page.Clips.Length != Math.Min(100, snapshot.ClipCount - offset) ||
+                page.Clips.Any(c => c.Id == Guid.Empty || !ids.Add(c.Id)))
+                throw new InvalidDataException(Strings["ProjectClipLoadFailed"]);
+            loaded.AddRange(page.Clips);
+        }
+        // Publish only a complete, same-revision snapshot. Failed refresh leaves the previous list intact.
         var selection = SelectedClip?.Id;
         Clips.Clear();
-        foreach (var clip in page.Clips) Clips.Add(clip);
+        foreach (var clip in loaded) Clips.Add(clip);
         SelectedClip = Clips.FirstOrDefault(c => c.Id == selection) ?? Clips.FirstOrDefault();
+        OnPropertyChanged(nameof(ClipCountText));
     }
 
     private async Task<ProjectReply> SendAsync(string command, ProjectRequest request)

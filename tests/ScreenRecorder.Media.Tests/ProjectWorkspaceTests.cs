@@ -13,7 +13,7 @@ public sealed class ProjectWorkspaceTests
         var client = new FakeClient();
         var vm = new ProjectWorkspaceViewModel(client);
         vm.ApplyReply(new(true, null, client.State with { Mode = ProjectMode.Recording }));
-        client.State = client.State with { Mode = ProjectMode.Ready, LastError = "Capture device lost" };
+        client.State = client.State with { Mode = ProjectMode.Ready, LastError = "Capture device lost", ClipCount = 1 };
         client.Clips = [new ProjectClip { Id = Guid.NewGuid(), Name = "Saved source" }];
         await vm.PollRecordingAsync();
         Assert.Equal(ProjectMode.Ready, vm.State.Mode);

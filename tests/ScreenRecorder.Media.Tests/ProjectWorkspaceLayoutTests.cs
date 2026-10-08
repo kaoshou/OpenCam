@@ -24,6 +24,52 @@ public sealed class ProjectLayoutApp : Application
 public sealed class ProjectWorkspaceLayoutTests
 {
     [AvaloniaTheory]
+    [InlineData(AppLanguage.ZhTw, false)]
+    [InlineData(AppLanguage.ZhTw, true)]
+    [InlineData(AppLanguage.EnUs, false)]
+    [InlineData(AppLanguage.EnUs, true)]
+    public async Task LongNamesStayBoundedAndVirtualizedSelectionSurvivesScroll(AppLanguage language, bool dark)
+    {
+        var previous = LanguageManager.Instance.CurrentLanguage;
+        LanguageManager.Instance.CurrentLanguage = language;
+        var client = new ProjectWorkspaceClipLoadingTests.ClipClient();
+        var longName = string.Concat(Enumerable.Repeat(language == AppLanguage.ZhTw ? "長片段名稱測試" : "LongClipName", 16));
+        client.State = client.State with { Name = longName };
+        for (var index = 0; index < client.Clips.Length; index++)
+            client.Clips[index] = client.Clips[index] with { Name = longName };
+        var vm = new ProjectWorkspaceViewModel(client);
+        await vm.RefreshAsync();
+        var window = new SizedProjectWorkspace { DataContext = vm };
+        try
+        {
+            window.Show();
+            window.ResizeClient(new Size(1280, 720));
+            window.RequestedThemeVariant = dark ? Avalonia.Styling.ThemeVariant.Dark : Avalonia.Styling.ThemeVariant.Light;
+            window.UpdateLayout();
+            var list = window.FindControl<ListBox>("ClipList")!;
+            vm.SelectedClip = vm.Clips[150];
+            list.ScrollIntoView(vm.Clips[199]);
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            Assert.Same(vm.Clips[150], vm.SelectedClip);
+            Assert.Same(vm.SelectedClip, list.SelectedItem);
+            var realized = list.GetVisualDescendants().OfType<ListBoxItem>().ToArray();
+            Assert.InRange(realized.Length, 1, 30);
+            var texts = realized.SelectMany(row => row.GetVisualDescendants().OfType<TextBlock>())
+                .Where(text => text.Text == longName).ToArray();
+            Assert.NotEmpty(texts);
+            foreach (var text in texts)
+            {
+                Assert.True(text.Bounds.Height <= 50, $"Clip name consumes {text.Bounds.Height}px instead of a compact row.");
+            }
+            var title = window.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Text == longName &&
+                !t.GetVisualAncestors().Contains(list));
+            Assert.True(title.TextLayout.Width <= title.Bounds.Width + 1, "Project title renders over header actions.");
+        }
+        finally { await window.RequestCloseAsync(); LanguageManager.Instance.CurrentLanguage = previous; }
+    }
+
+    [AvaloniaTheory]
     [InlineData(1440, 900, true, true)]
     [InlineData(1280, 720, true, false)]
     [InlineData(1024, 640, false, false)]
