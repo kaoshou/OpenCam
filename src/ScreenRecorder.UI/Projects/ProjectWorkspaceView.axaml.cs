@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using ScreenRecorder.UI.ViewModels;
+using ScreenRecorder.UI.Projects.Editor;
 
 namespace ScreenRecorder.UI.Projects;
 
@@ -11,15 +12,45 @@ public partial class ProjectWorkspaceView : Window
 {
     private MainViewModel? _main;
     private bool _closed, _closing;
+    private EditorLayout? _layout;
     public ProjectWorkspaceView()
     {
         InitializeComponent();
+        Opened += (_, _) => UpdateEditorLayout();
+        SizeChanged += (_, _) => UpdateEditorLayout();
         if (PlatformSettings is not null)
         {
             ApplyTheme(PlatformSettings.GetColorValues().ThemeVariant);
             PlatformSettings.ColorValuesChanged += OnColorsChanged;
             Closed += (_, _) => PlatformSettings.ColorValuesChanged -= OnColorsChanged;
         }
+    }
+    private void UpdateEditorLayout()
+    {
+        if (ClientSize.Width <= 0 || ClientSize.Height <= 0) return;
+        var next = EditorLayout.ForSize(ClientSize.Width, ClientSize.Height);
+        if (_layout == next) return;
+        _layout = next;
+        ClipPane.IsVisible = next.LeftVisible;
+        InspectorPane.IsVisible = next.RightVisible;
+        ApplyPanelWidths();
+    }
+    private void ApplyPanelWidths()
+    {
+        WorkspaceGrid.ColumnDefinitions[0].Width = new(ClipPane.IsVisible ? 220 : 0);
+        WorkspaceGrid.ColumnDefinitions[2].Width = new(InspectorPane.IsVisible ? 260 : 0);
+    }
+    private void OnToggleClips(object? sender, RoutedEventArgs e)
+    {
+        ClipPane.IsVisible = !ClipPane.IsVisible;
+        if (ClipPane.IsVisible && ClientSize.Width < 1200) InspectorPane.IsVisible = false;
+        ApplyPanelWidths();
+    }
+    private void OnToggleProperties(object? sender, RoutedEventArgs e)
+    {
+        InspectorPane.IsVisible = !InspectorPane.IsVisible;
+        if (InspectorPane.IsVisible && ClientSize.Width < 1200) ClipPane.IsVisible = false;
+        ApplyPanelWidths();
     }
     private void ApplyTheme(Avalonia.Platform.PlatformThemeVariant theme) => RequestedThemeVariant =
         theme == Avalonia.Platform.PlatformThemeVariant.Dark ? Avalonia.Styling.ThemeVariant.Dark : Avalonia.Styling.ThemeVariant.Light;
