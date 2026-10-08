@@ -29,7 +29,34 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
     public ProjectMode Mode { get; private set; } = ProjectMode.Closed;
     public string? LastError { get; private set; }
 
-    public ProjectCommandResult GetStatus() => Result(true);
+    public async Task ReconcileRecorderStatusAsync(CancellationToken ct = default)
+    {
+        await _gate.WaitAsync(ct);
+        try
+        {
+            if (_session is null) return;
+            if (recorder.CurrentState == RecordingState.Completed && recorder.CurrentSession is null)
+            {
+                var reason = _session.ErrorMessage ?? _session.StopReason ?? "Recording stopped.";
+                try
+                {
+                    await CommitSessionAsync(Guid.NewGuid(), ct);
+                    _session = null;
+                    Mode = ProjectMode.Ready;
+                }
+                catch (Exception ex) { Mode = ProjectMode.SaveFailed; reason += " " + ex.Message; }
+                LastError = reason;
+            }
+            else if (recorder.CurrentState == RecordingState.Failed)
+            {
+                Mode = ProjectMode.SaveFailed;
+                LastError = _session.ErrorMessage ?? "Recording stopped unexpectedly; retry Finish to save the sources.";
+            }
+            else if (recorder.CurrentState is RecordingState.Stopping or RecordingState.Finalizing)
+                Mode = ProjectMode.SavingSegment;
+        }
+        finally { _gate.Release(); }
+    }
     private ProjectCommandResult Result(bool success, Guid? op = null) =>
         new(success, success ? null : LastError, Current?.ProjectId, Current?.Revision ?? 0, Mode, op);
 
@@ -113,8 +140,13 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
         else
         {
             var start = await recorder.StartProjectRecordingAsync(config, new(_handle), ct);
-            if (!start.Success) throw new IOException(start.ErrorMessage);
-            _session = recorder.CurrentSession!;
+            if (recorder.CurrentSession?.ProjectId == _handle.Current.ProjectId)
+                _session = recorder.CurrentSession;
+            if (!start.Success)
+            {
+                if (_session is not null) Mode = ProjectMode.SaveFailed;
+                throw new IOException(start.ErrorMessage);
+            }
         }
         Mode = ProjectMode.Recording;
     }, operationId, "start:" + JsonSerializer.Serialize(config), ct);
@@ -144,7 +176,7 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
             await FlushEditsAsync(ct);
             if (_session.State != RecordingState.Completed)
             {
-                var stop = await recorder.StopRecordingAsync("Finish project recording", ct);
+                var stop = await recorder.FinishProjectSessionAsync(_session, new(_handle), ct);
                 if (!stop.Success) throw new IOException(stop.ErrorMessage);
             }
             await CommitSessionAsync(operationId, ct);

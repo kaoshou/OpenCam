@@ -11,6 +11,90 @@ namespace ScreenRecorder.Media.Tests;
 
 public partial class RecordingEncoderLifecycleTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ProjectRecording_FailedStartupRetainsOwnership_UntilEngineCleanupAndFinish(bool cleanupFailure)
+    {
+        await using var scope = new RecordingScope();
+        await using var project = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
+        Assert.True((await project.CreateAsync(scope.Configuration.OutputDirectory, "Lesson")).Success);
+        scope.Store.FailNextCommittedSave = !cleanupFailure;
+        scope.Factory.FailNext = scope.Factory.FailCleanup = cleanupFailure;
+        Assert.False((await project.StartAsync(scope.Configuration, Guid.NewGuid())).Success);
+        Assert.False((await project.CloseAsync()).Success);
+        Assert.Equal(ProjectMode.SaveFailed, project.Mode);
+        scope.Factory.FailCleanup = false;
+        var finish = await project.FinishAsync(Guid.NewGuid());
+        Assert.True(finish.Success, finish.ErrorCode);
+        Assert.Equal(cleanupFailure ? 0 : 1, project.Current!.Sources.Length);
+        Assert.True((await project.CloseAsync()).Success);
+        Assert.All(scope.Factory.Paths, path => Assert.True(File.Exists(path)));
+    }
+
+    [Fact]
+    public async Task ProjectRecording_LinkedSessions_DoesNotCreateAnythingOutsideProject()
+    {
+        if (OperatingSystem.IsWindows()) return; // Junction/reparse coverage remains in Windows acceptance.
+        await using var scope = new RecordingScope();
+        await using var project = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
+        Assert.True((await project.CreateAsync(scope.Configuration.OutputDirectory, "Lesson")).Success);
+        var sessions = Path.Combine(project.ProjectDirectory!, "sessions");
+        var outside = Directory.CreateDirectory(Path.Combine(scope.Configuration.OutputDirectory, "outside")).FullName;
+        Directory.Delete(sessions);
+        Directory.CreateSymbolicLink(sessions, outside);
+        Assert.False((await project.StartAsync(scope.Configuration, Guid.NewGuid())).Success);
+        Assert.Empty(Directory.GetFileSystemEntries(outside));
+        Assert.Empty(scope.Factory.Paths);
+    }
+
+    [Fact]
+    public async Task ProjectRecording_MovedWhilePaused_ContinuesInPinnedProject()
+    {
+        if (OperatingSystem.IsWindows()) return; // Windows pins directories against rename.
+        await using var scope = new RecordingScope();
+        await using var project = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
+        Assert.True((await project.CreateAsync(scope.Configuration.OutputDirectory, "Lesson")).Success);
+        Assert.True((await project.StartAsync(scope.Configuration, Guid.NewGuid())).Success);
+        Assert.True((await project.PauseAsync(Guid.NewGuid())).Success);
+        var previous = project.ProjectDirectory!;
+        var moved = previous + "-moved";
+        Directory.Move(previous, moved);
+        Directory.CreateDirectory(previous);
+        var resumed = await project.StartAsync(scope.Configuration, Guid.NewGuid());
+        Assert.True(resumed.Success, resumed.ErrorCode);
+        var finish = await project.FinishAsync(Guid.NewGuid());
+        Assert.True(finish.Success, finish.ErrorCode);
+        Assert.Equal(2, project.Current!.Sources.Length);
+        Assert.Empty(Directory.GetFileSystemEntries(previous));
+        Assert.All(project.Current.Sources, s => Assert.True(File.Exists(Path.Combine(moved, s.RelativePath))));
+    }
+
+    [Theory]
+    [InlineData("probe")]
+    [InlineData("session")]
+    [InlineData("cleanup")]
+    [InlineData("stop")]
+    public async Task ProjectRecording_FailedFinish_CanRetryWithoutRestartOrRemux(string fault)
+    {
+        await using var scope = new RecordingScope();
+        await using var project = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
+        Assert.True((await project.CreateAsync(scope.Configuration.OutputDirectory, "Lesson")).Success);
+        Assert.True((await project.StartAsync(scope.Configuration, Guid.NewGuid())).Success);
+        scope.Probe.FailNext = fault == "probe";
+        scope.Store.FailNextCommittedSave = fault == "session";
+        scope.Factory.FailCleanup = fault == "cleanup";
+        scope.Factory.FailStopNext = fault == "stop";
+        Assert.False((await project.FinishAsync(Guid.NewGuid())).Success);
+        scope.Factory.FailCleanup = false;
+        var retry = await project.FinishAsync(Guid.NewGuid());
+        Assert.True(retry.Success, retry.ErrorCode);
+        Assert.Single(project.Current!.Sources);
+        Assert.All(scope.Factory.Created, engine => Assert.False(engine.IsRunning));
+        Assert.True((await project.CloseAsync()).Success);
+        Assert.Empty(scope.Remuxer.Inputs);
+    }
+
     [Fact]
     public async Task ProjectRecording_DisplayIdentityChangesWhilePaused_RejectsWrongMonitorResume()
     {
@@ -43,6 +127,12 @@ public partial class RecordingEncoderLifecycleTests
         }
         else scope.Health.Healthy = false;
         await UntilAsync(() => scope.Recorder.CurrentState == RecordingState.Completed);
+        var dispatcher = new ProjectIpcDispatcher(project);
+        var response = await dispatcher.DispatchAsync(new() { MessageType = "GetProjectStatus", PayloadJson = "{}" });
+        var status = System.Text.Json.JsonSerializer.Deserialize<ScreenRecorder.Infrastructure.IPC.ProjectReply>(response.DataJson!)!;
+        Assert.Equal(ProjectMode.Ready, status.State.Mode);
+        Assert.NotNull(status.State.LastError);
+        Assert.NotEmpty(project.Current!.Sources);
         Assert.Empty(scope.Remuxer.Inputs);
         Assert.True(File.Exists(scope.Factory.Paths[0]));
     }
@@ -107,11 +197,11 @@ public partial class RecordingEncoderLifecycleTests
         var probe = new ProjectProbeStub();
         await using var project = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), probe);
         Assert.True((await project.CreateAsync(scope.Configuration.OutputDirectory, "Lesson")).Success);
+        scope.Factory.EmptyOutput = fault == "empty";
         Assert.True((await project.StartAsync(scope.Configuration, Guid.NewGuid())).Success);
         probe.Fail = fault == "probe";
         scope.Factory.FailCleanup = fault == "engine";
         scope.Store.FailNextCommittedSave = fault == "session";
-        if (fault == "empty") await File.WriteAllBytesAsync(scope.Factory.Paths.Single(), []);
         if (fault == "manifest") Directory.CreateDirectory(Path.Combine(project.ProjectDirectory!, "project.opencam.bak"));
         Assert.False((await project.PauseAsync(Guid.NewGuid())).Success);
         Assert.Equal(ProjectMode.SaveFailed, project.Mode);

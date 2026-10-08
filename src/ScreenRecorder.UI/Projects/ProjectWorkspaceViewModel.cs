@@ -13,6 +13,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private Guid _pendingOperation;
+    private (string Command, ProjectRequest Request)? _pendingRequest;
     public LanguageManager Strings => LanguageManager.Instance;
     [ObservableProperty] private ProjectSnapshot _state = ProjectSnapshot.Closed;
     [ObservableProperty] private bool _isBusy;
@@ -54,7 +55,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
         if (reply.State.ProjectId == State.ProjectId && reply.State.Revision < State.Revision) return;
         State = reply.State;
         StatusUnconfirmed = false;
-        Error = reply.Success ? null : reply.Error;
+        Error = reply.Success ? reply.State.LastError : reply.Error;
         NotifyState();
     }
 
@@ -70,6 +71,19 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     [RelayCommand] public Task RenameSelectedAsync() => SelectedClip is null ? Task.CompletedTask : RenameAsync(SelectedClip.Id, ClipName);
     public Task RenameAsync(Guid clipId, string name) => ExecuteAsync("RenameProjectClip", new() { ClipId = clipId, Name = name });
     [RelayCommand] public Task RefreshAsync() => ExecuteAsync("GetProjectStatus", new() { OperationId = _pendingOperation });
+    public async Task PollRecordingAsync()
+    {
+        if (StatusUnconfirmed || State.Mode is not (ProjectMode.Recording or ProjectMode.SavingSegment) || !await _gate.WaitAsync(0)) return;
+        try
+        {
+            var previous = State;
+            ApplyReply(await client.SendAsync("GetProjectStatus", new()));
+            if (!StatusUnconfirmed && (State.Mode != previous.Mode || State.Revision != previous.Revision))
+                await LoadClipsAsync();
+        }
+        catch (Exception ex) { Error = ex.Message; StatusUnconfirmed = true; }
+        finally { _gate.Release(); }
+    }
     [RelayCommand] public async Task PreviousPageAsync() { Offset = Math.Max(0, Offset - 100); await RefreshAsync(); }
     [RelayCommand] public async Task NextPageAsync() { if (Offset + 100 < State.ClipCount) Offset += 100; await RefreshAsync(); }
 
@@ -99,26 +113,34 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
             IsBusy = true;
             var reply = await SendAsync(command, request ?? new());
             if (command == "GetProjectStatus" && _pendingOperation != Guid.Empty && !reply.OperationKnown)
-                reply = reply with { Unconfirmed = true, Success = false };
+            {
+                // The server serializes status behind in-flight commands. A reachable
+                // unknown operation may have been lost before dispatch; retry its exact ID/payload.
+                if (!reply.Unconfirmed && _pendingRequest is { } pending)
+                    reply = await client.SendAsync(pending.Command, pending.Request);
+                else reply = reply with { Unconfirmed = true, Success = false };
+            }
             ApplyReply(reply);
             if (!StatusUnconfirmed)
             {
                 _pendingOperation = Guid.Empty;
-                if (State.ProjectId is not null)
-                {
-                    var page = await client.SendAsync("GetProjectClips", new() { ProjectId = State.ProjectId, Offset = Offset, Limit = 100 });
-                    if (page.Success && page.Clips is not null && page.State.Revision == State.Revision)
-                    {
-                        var selection = SelectedClip?.Id;
-                        Clips.Clear();
-                        foreach (var clip in page.Clips) Clips.Add(clip);
-                        SelectedClip = Clips.FirstOrDefault(c => c.Id == selection) ?? Clips.FirstOrDefault();
-                    }
-                }
+                _pendingRequest = null;
+                await LoadClipsAsync();
             }
         }
         catch (Exception ex) { Error = ex.Message; StatusUnconfirmed = true; }
         finally { IsBusy = false; _gate.Release(); }
+    }
+
+    private async Task LoadClipsAsync()
+    {
+        if (State.ProjectId is null) return;
+        var page = await client.SendAsync("GetProjectClips", new() { ProjectId = State.ProjectId, Offset = Offset, Limit = 100 });
+        if (!page.Success || page.Clips is null || page.State.Revision != State.Revision) return;
+        var selection = SelectedClip?.Id;
+        Clips.Clear();
+        foreach (var clip in page.Clips) Clips.Add(clip);
+        SelectedClip = Clips.FirstOrDefault(c => c.Id == selection) ?? Clips.FirstOrDefault();
     }
 
     private async Task<ProjectReply> SendAsync(string command, ProjectRequest request)
@@ -126,7 +148,12 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
         var query = command == "GetProjectStatus";
         var actual = request with { ProjectId = State.ProjectId, ExpectedRevision = State.Revision,
             OperationId = query ? request.OperationId : Guid.NewGuid() };
-        if (!query) _pendingOperation = actual.OperationId;
+        if (!query)
+        {
+            actual = System.Text.Json.JsonSerializer.Deserialize<ProjectRequest>(System.Text.Json.JsonSerializer.Serialize(actual))!;
+            _pendingOperation = actual.OperationId;
+            _pendingRequest = (command, actual);
+        }
         return await client.SendAsync(command, actual);
     }
 }

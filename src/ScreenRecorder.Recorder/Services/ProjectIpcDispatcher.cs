@@ -9,6 +9,7 @@ namespace ScreenRecorder.Recorder.Services;
 public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator)
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly Guid _instanceId = Guid.NewGuid();
     private readonly Dictionary<Guid, (string Fingerprint, bool Success, string? Error)> _operations = new();
     public static bool IsProjectCommand(string command) => command is "CreateProject" or "OpenProject" or "GetProjectStatus"
         or "GetProjectClips" or "StartProjectRecording" or "PauseProjectRecording" or "FinishProjectRecording"
@@ -17,7 +18,7 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
     private ProjectSnapshot Snapshot() => new(coordinator.Current?.ProjectId, coordinator.Current?.Name ?? "",
         coordinator.ProjectDirectory, coordinator.Current?.Revision ?? 0, coordinator.SavedRevision, coordinator.Mode,
         coordinator.Current?.Clips.Length ?? 0, coordinator.CanUndo, coordinator.CanRedo, coordinator.LastError)
-        { NeedsRecoveryConfirmation = coordinator.NeedsRecoveryConfirmation };
+        { NeedsRecoveryConfirmation = coordinator.NeedsRecoveryConfirmation, ServerInstanceId = _instanceId };
 
     public async Task<IpcResponse> DispatchAsync(IpcMessage message)
     {
@@ -29,8 +30,11 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
             var request = JsonSerializer.Deserialize<ProjectRequest>(message.PayloadJson,
                 new JsonSerializerOptions { MaxDepth = 16 }) ?? throw new InvalidDataException("Missing project request.");
             var fingerprint = message.MessageType + ":" + JsonSerializer.Serialize(request);
+            if (request.ServerInstanceId is Guid instance && instance != _instanceId)
+                throw new InvalidOperationException("Recorder restarted; reopen the workspace before continuing. The previous command was not replayed.");
             if (message.MessageType == "GetProjectStatus")
             {
+                await coordinator.ReconcileRecorderStatusAsync();
                 if (request.OperationId != Guid.Empty && _operations.TryGetValue(request.OperationId, out var known))
                     return Reply(new(known.Success, known.Error, Snapshot()));
                 return Reply(new(true, null, Snapshot(), OperationKnown: request.OperationId == Guid.Empty));

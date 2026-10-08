@@ -36,8 +36,16 @@ public interface IRecordingAudioLevelSource
     (AudioLevelSample? SystemAudio, AudioLevelSample? Microphone) ReadInputLevels(DateTimeOffset now);
 }
 
-public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudioLevelSource
+public interface IBoundRecordingOutput
 {
+    // Caller owns the exclusively-created destination and keeps it open until Stop/Dispose.
+    Stream? OutputStream { get; set; }
+}
+
+public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudioLevelSource, IBoundRecordingOutput
+{
+    public Stream? OutputStream { get; set; }
+    private Task? _outputCopyTask;
     private Stream? _systemPcm;
     private Stream? _microphonePcm;
     private readonly IFFmpegPlatformProvider _ffmpegPlatformProvider;
@@ -191,7 +199,7 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
             _framesRecorded = 0;
 
             var dir = Path.GetDirectoryName(workingFilePath);
-            if (!string.IsNullOrEmpty(dir))
+            if (OutputStream is null && !string.IsNullOrEmpty(dir))
             {
                 Directory.CreateDirectory(dir);
             }
@@ -208,7 +216,7 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
             throw new ArgumentException($"錄影範圍尺寸無效: {actualBounds.Width}x{actualBounds.Height}");
         }
 
-        if (Path.Exists(workingFilePath) || new FileInfo(workingFilePath).LinkTarget != null)
+        if (OutputStream is null && (Path.Exists(workingFilePath) || new FileInfo(workingFilePath).LinkTarget != null))
             throw new IOException("Recording output already exists; refusing to overwrite it.");
         // Select before opening native PCM producers: probing must not fill their pipes.
         var targetEncoder = _pinnedEncoder ?? (await _encoderSelectionService.SelectAsync(config.EncoderType, cancellationToken)).Encoder;
@@ -401,7 +409,7 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
                 hasDirectShowMic,
                 systemAudioPipeArg,
                 microphoneAudioPipeArg);
-            var outputArgs = _ffmpegPlatformProvider.BuildOutputArguments(config, encoderType, workingFilePath);
+            var outputArgs = _ffmpegPlatformProvider.BuildOutputArguments(config, encoderType, OutputStream is null ? workingFilePath : "pipe:1");
             // Each attempt has its own fresh path. Refuse overwrite even if a
             // file appears after the caller's existence check.
             // FFmpeg's interactive stats use carriage-return updates on some
@@ -418,12 +426,15 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
                 UseShellExecute = false,
                 RedirectStandardInput = true,
                 RedirectStandardError = true,
+                RedirectStandardOutput = OutputStream is not null,
                 StandardErrorEncoding = Encoding.UTF8,
                 CreateNoWindow = true
             };
 
             var proc = new Process { StartInfo = startInfo };
             proc.Start();
+            if (OutputStream is not null)
+                _outputCopyTask = CopyOutputAsync(proc, OutputStream);
             systemDescriptor?.Dispose();
             microphoneDescriptor?.Dispose();
 
@@ -702,11 +713,33 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
                 try { await _stderrReadingTask; } catch { }
             }
 
-            lock (_lock)
+            try
             {
-                _process?.Dispose();
-                _process = null;
+                if (_outputCopyTask is { } output)
+                {
+                    _outputCopyTask = null;
+                    await output;
+                }
             }
+            finally
+            {
+                lock (_lock) { _process?.Dispose(); _process = null; }
+            }
+        }
+    }
+
+    private async Task CopyOutputAsync(Process process, Stream destination)
+    {
+        try
+        {
+            await process.StandardOutput.BaseStream.CopyToAsync(destination);
+            await destination.FlushAsync();
+        }
+        catch (Exception ex)
+        {
+            try { if (!process.HasExited) process.Kill(true); } catch { }
+            EngineErrorOccurred?.Invoke(this, "Recording destination write failed: " + ex.Message);
+            throw;
         }
     }
 

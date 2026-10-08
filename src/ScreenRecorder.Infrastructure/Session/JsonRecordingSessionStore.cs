@@ -7,7 +7,12 @@ using Serilog;
 
 namespace ScreenRecorder.Infrastructure.Session;
 
-public class JsonRecordingSessionStore : IRecordingSessionStore
+public interface IBoundRecordingSessionStore
+{
+    Task SaveBoundAsync(RecordingSession session, BoundDirectory bound, CancellationToken cancellationToken);
+}
+
+public class JsonRecordingSessionStore : IRecordingSessionStore, IBoundRecordingSessionStore
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -30,7 +35,7 @@ public class JsonRecordingSessionStore : IRecordingSessionStore
         await SaveBoundAsync(session, bound, cancellationToken);
     }
 
-    internal async Task SaveBoundAsync(RecordingSession session, BoundDirectory bound, CancellationToken cancellationToken)
+    public async Task SaveBoundAsync(RecordingSession session, BoundDirectory bound, CancellationToken cancellationToken)
     {
         var json = JsonSerializer.Serialize(session, JsonOptions);
         if (session.CompletionPolicy == ScreenRecorder.Core.Projects.ProjectCompletionPolicy.KeepProjectSources)

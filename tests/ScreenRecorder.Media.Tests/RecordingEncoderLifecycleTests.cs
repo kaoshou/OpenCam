@@ -344,6 +344,7 @@ public partial class RecordingEncoderLifecycleTests
         public readonly FaultableStore Store = new();
         public readonly RemuxStub Remuxer = new();
         public readonly HealthStub Health = new();
+        public readonly ProbeStub Probe = new();
         public RecordingOrchestrator Recorder { get; }
         public RecordingConfiguration Configuration { get; }
         public RecordingScope(IDisplayService? suppliedDisplay = null)
@@ -351,20 +352,24 @@ public partial class RecordingEncoderLifecycleTests
             var storage = new StorageService();
             var display = suppliedDisplay ?? new FixedDisplay();
             Recorder = new(new RecordingStateMachine(), storage, Store, new DiskSpaceMonitor(storage),
-                Remuxer, new ProbeStub(), display, new MacOsFFmpegProvider(display),
+                Remuxer, Probe, display, new MacOsFFmpegProvider(display),
                 encoderSelectionService: Selection, engineFactory: Factory, captureHealthMonitor: Health);
             Configuration = new() { OutputDirectory = _root, AudioSource = AudioSourceType.None, EncoderType = HardwareEncoderType.Auto };
         }
         public async ValueTask DisposeAsync() { Factory.FailCleanup = false; await Recorder.DisposeAsync(); Directory.Delete(_root, true); }
     }
 
-    private sealed class FaultableStore : IRecordingSessionStore
+    private sealed class FaultableStore : IRecordingSessionStore, IBoundRecordingSessionStore
     {
         private readonly JsonRecordingSessionStore _inner = new();
         public bool FailNextCommittedSave;
         public Func<RecordingSession, Task>? OnSave;
         public RecordingState LastSavedState;
         public async Task SaveSessionAsync(RecordingSession session, CancellationToken token = default)
+            => await SaveAsync(session, null, token);
+        public async Task SaveBoundAsync(RecordingSession session, BoundDirectory bound, CancellationToken token)
+            => await SaveAsync(session, bound, token);
+        private async Task SaveAsync(RecordingSession session, BoundDirectory? bound, CancellationToken token)
         {
             if (OnSave != null) await OnSave(session);
             if (FailNextCommittedSave && session.SegmentFilePaths.Count > 0)
@@ -372,7 +377,8 @@ public partial class RecordingEncoderLifecycleTests
                 FailNextCommittedSave = false;
                 throw new IOException("injected post-handshake persistence failure");
             }
-            await _inner.SaveSessionAsync(session, token);
+            if (bound is null) await _inner.SaveSessionAsync(session, token);
+            else await _inner.SaveBoundAsync(session, bound, token);
             LastSavedState = session.State;
         }
         public Task<RecordingSession?> LoadSessionAsync(string directory, CancellationToken token = default) => _inner.LoadSessionAsync(directory, token);
@@ -404,6 +410,8 @@ public partial class RecordingEncoderLifecycleTests
         public readonly List<EngineStub> Created = new();
         public bool FailNext;
         public bool FailCleanup;
+        public bool EmptyOutput;
+        public bool FailStopNext;
         public Action? BeforeStart;
         public bool UseModern;
         public bool FailCapture;
@@ -420,8 +428,9 @@ public partial class RecordingEncoderLifecycleTests
         }
     }
 
-    private sealed class EngineStub(HardwareEncoderType encoder, EngineFactoryStub owner, bool fail, CaptureSelection? pinned) : IScreenRecorderEngine
+    private sealed class EngineStub(HardwareEncoderType encoder, EngineFactoryStub owner, bool fail, CaptureSelection? pinned) : IScreenRecorderEngine, IBoundRecordingOutput
     {
+        public Stream? OutputStream { get; set; }
         public bool IsRunning { get; private set; }
         public bool UseSyntheticCaptureSource { get; set; }
         public TimeSpan CurrentRecordedTime => TimeSpan.FromSeconds(1);
@@ -439,7 +448,8 @@ public partial class RecordingEncoderLifecycleTests
             owner.BeforeStart?.Invoke();
             token.ThrowIfCancellationRequested();
             owner.Paths.Add(path);
-            using (var file = new FileStream(path, FileMode.CreateNew)) file.Write(new byte[] { 1, 2, 3, 4 });
+            if (OutputStream is not null) { if (!owner.EmptyOutput) OutputStream.Write(new byte[] { 1, 2, 3, 4 }); }
+            else using (var file = new FileStream(path, FileMode.CreateNew)) file.Write(new byte[] { 1, 2, 3, 4 });
             if (owner.UseModern)
             {
                 ActiveCapture = pinned ?? new(CaptureBackend.DesktopDuplication, CaptureFallbackReason.None, "Test display", 7, 0, bounds);
@@ -454,7 +464,11 @@ public partial class RecordingEncoderLifecycleTests
             IsRunning = true;
             return Task.CompletedTask;
         }
-        public Task StopRecordingAsync(CancellationToken token = default) { IsRunning = false; return Task.CompletedTask; }
+        public Task StopRecordingAsync(CancellationToken token = default)
+        {
+            if (owner.FailStopNext) { owner.FailStopNext = false; throw new IOException("Injected stop failure"); }
+            IsRunning = false; return Task.CompletedTask;
+        }
         public ValueTask DisposeAsync()
         {
             if (owner.FailCleanup) throw new IOException("injected cleanup failure");
@@ -478,7 +492,11 @@ public partial class RecordingEncoderLifecycleTests
     }
     private sealed class ProbeStub : IMediaProbeService
     {
-        public Task<MediaProbeResult> ProbeAsync(string file, CancellationToken token = default) =>
-            Task.FromResult(new MediaProbeResult(true, "mp4", TimeSpan.FromSeconds(2), 3, 1, 1, "h264", 320, 240, 30, "aac", 48000, null));
+        public bool FailNext;
+        public Task<MediaProbeResult> ProbeAsync(string file, CancellationToken token = default)
+        {
+            if (FailNext) { FailNext = false; throw new IOException("Injected media probe failure"); }
+            return Task.FromResult(new MediaProbeResult(true, "mp4", TimeSpan.FromSeconds(2), 3, 1, 1, "h264", 320, 240, 30, "aac", 48000, null));
+        }
     }
 }

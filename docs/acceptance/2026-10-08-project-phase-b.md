@@ -18,14 +18,28 @@ Environment: macOS 26.5.2 (25F84), arm64; isolated official .NET SDK 8.0.425. St
 | Check | Result | What it proves |
 |---|---|---|
 | Core suite after native integration | 126 passed | Manifest validation, revision receipts, lease, paths, actual second writer/terminated writer, backup and edit history |
-| Selected project/UI/media regression | 90 passed | IPC authorization, repeated commands, lost responses, close protection, source retention, undo persistence, existing UI logic |
+| Focused project regression | 44 passed | Linked/moved recording paths, failed Finish retries, background safety stops, lost requests/responses, server-instance protection |
 | Cross-process FFmpeg integration | 1 passed | Real FFmpeg synthetic media: 3 sources, process exit, new process adds source 4, move project, probe all sources, original hashes unchanged, no MP4 |
-| Full solution restore/build/test | PASS; 482 tests passed, 13 skipped | .NET8 Release build: 0 warnings/errors; Core126 + Media356; skipped cases remain unverified |
+| Final full solution build/test | PASS; 493 tests passed, 13 skipped | .NET8 Release build: 0 warnings/errors; Core126 + Media367; skipped cases remain unverified |
 | Main application launch | BLOCKED | Avalonia.Native cannot start RenderTimer: native error `-6661`; no window appeared |
 | macOS GUI / screen / microphone | BLOCKED | Not demonstrated; synthetic video does not establish device permissions, actual audio or A/V synchronization |
 | Windows native recording/UI | BLOCKED | No Windows host in this session |
 
-Logs are in the branch-local `.superpowers/sdd/2026-10-08-recording-project-persistence/` workspace while acceptance remains open. `native-app.log` records the actual launch failure. A broader desktop inspection was rejected by the privacy approval system; no indirect desktop capture or security workaround was attempted. The error's underlying OS/session cause has not been established.
+Logs are in the branch-local `.superpowers/sdd/2026-10-08-recording-project-persistence/` workspace while acceptance remains open. The user confirmed the desktop was unlocked and displaying normally; `native-app-retry.log` still records RenderTimer `-6661`. A local development-only LaunchServices wrapper (same DLL, not a release package) instead received macOS “Operation not permitted” reading runtimeconfig under Documents. No installed application was replaced; privacy settings were not changed. A broader desktop inspection had been rejected by the privacy approval system; no indirect desktop capture was attempted. The RenderTimer error's underlying OS/session cause has not been established; [Avalonia #18895](https://github.com/AvaloniaUI/Avalonia/issues/18895) reports a similar error but does not prove this machine's cause.
+
+## Final independent review and fix pass
+
+The single independent review found four Important defects. Each received a reproducing failing test followed by a fix and regression run:
+
+- Recording could resolve a replaced project path: retain directory handles and an exclusively-created output stream. FFmpeg writes MKV via stdout into that stream. Whole-project moves rebase session metadata; linked directories cannot create external sessions. Quick recording keeps its existing path output.
+- Background safety stops left the workspace saying Recording: serialized status reconciliation commits completed sources, preserves the stop reason, and the workspace polls and refreshes the clip list.
+- Failed Finish could not be retried: an ownership-checked project finalization retry stops retained engines first, then retries persistence/probing. Tests cover stop, cleanup, probe and metadata-save faults.
+- Startup failure retains project/session ownership until cleanup and Finish succeed. An empty failed attempt can close after cleanup; its diagnostic file is retained and is not presented as a recorded clip.
+- A request lost before dispatch locked the workspace: retain the original payload/operation ID and retry only against the same recorder instance. A restarted process cannot silently replay an old request.
+
+Deferred minor: manifest canvas defaults to 1920×1080/30 instead of adopting the first source. Source geometry/timing is separate and correct; Phase C must initialize canvas/FPS before preview/export uses it.
+
+Streamed MKV may omit the format-duration header; source acceptance uses positive packet PTS bounds. Pipe/copy throughput and long recordings require device acceptance. Saving does not export MP4. Undo/redo currently applies to clip names; timeline edits remain Phase C.
 
 ## Required manual acceptance
 

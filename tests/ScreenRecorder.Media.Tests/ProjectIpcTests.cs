@@ -11,6 +11,51 @@ namespace ScreenRecorder.Media.Tests;
 public partial class RecordingEncoderLifecycleTests
 {
     [Fact]
+    public async Task ProjectIpc_RestartedRecorder_DoesNotReplayPendingCommand()
+    {
+        await using var scope = new RecordingScope();
+        await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
+        var dispatcher = new ProjectIpcDispatcher(coordinator);
+        var client = new ProjectClient((command, request, ct) =>
+            dispatcher.DispatchAsync(new() { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) }));
+        var request = new ProjectRequest { OperationId = Guid.NewGuid(), Path = scope.Configuration.OutputDirectory, Name = "Lesson" };
+        Assert.True((await client.SendAsync("CreateProject", request)).Success);
+        Assert.True((await coordinator.CloseAsync()).Success);
+        dispatcher = new ProjectIpcDispatcher(coordinator); // a new lifetime has no operation cache
+        var reply = await client.SendAsync("CreateProject", request);
+        Assert.False(reply.Success);
+        Assert.Null(coordinator.Current);
+        Assert.Single(Directory.GetDirectories(scope.Configuration.OutputDirectory));
+    }
+
+    [Fact]
+    public async Task ProjectIpc_RequestLostBeforeDispatch_RefreshRetriesOriginalOperationAndUnlocks()
+    {
+        await using var scope = new RecordingScope();
+        await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
+        var dispatcher = new ProjectIpcDispatcher(coordinator);
+        var dropped = false;
+        var saves = new List<Guid>();
+        var client = new ProjectClient(async (command, request, ct) => {
+            if (command == "SaveProject")
+            {
+                saves.Add(request.OperationId);
+                if (!dropped) { dropped = true; return new() { TimedOut = true }; }
+            }
+            return await dispatcher.DispatchAsync(new() { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) });
+        });
+        var vm = new ProjectWorkspaceViewModel(client);
+        await vm.CreateAsync(scope.Configuration.OutputDirectory, "Lesson");
+        await vm.SaveAsync();
+        await vm.RefreshAsync();
+        Assert.False(vm.StatusUnconfirmed);
+        Assert.True(vm.CanEdit);
+        Assert.Equal(2, saves.Count);
+        Assert.Equal(saves[0], saves[1]);
+        Assert.True(await vm.CloseAsync());
+    }
+
+    [Fact]
     public async Task ProjectIpc_OversizedPayloadRejectedWithoutMutation()
     {
         await using var scope = new RecordingScope();

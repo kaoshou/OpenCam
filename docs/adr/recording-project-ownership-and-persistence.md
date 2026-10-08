@@ -20,7 +20,11 @@ Undo/redo stores immutable clip snapshots, not media copies. Appending a recordi
 
 The Phase B workspace is an owned native window, not the discarded editing-preview branch and not a browser wrapper. It follows OS theme without changing the main application's theme. Precise timeline editing, preview and MP4 export are separate Phase C work.
 
-IPC retries retain operation IDs. A missing response causes status lookup, not a new recording request. Unknown status blocks further edits/close until resolved. Clip lists are paged in batches of at most 100; request metadata is additionally limited to 64 KiB and the authenticated transport remains capped at 1 MiB.
+IPC retries retain the original operation ID and payload. A missing response causes status lookup; a reachable unknown operation can be retried with the same ID after the serialized status query. Requests are bound to a recorder instance so process restart cannot replay an old command. Unknown/unreachable status blocks further edits/close until resolved. Clip lists are paged in batches of at most 100; request metadata is additionally limited to 64 KiB and the authenticated transport remains capped at 1 MiB.
+
+Project session directories are allocated through pinned handles; metadata saves retain those handles and rebase paths after a whole-project move. FFmpeg project output goes through stdout directly into an exclusively-created bound stream. This adds a pipe/copy stage, not a second whole-file copy. MKV may lack a seek-back duration header; final acceptance uses packet PTS. Quick mode retains its path-based output. High-throughput and hardware acceptance remain pending.
+
+Status queries reconcile background recorder completion/failure under the coordinator lock. The workspace polls while recording, retains the actual stop reason and refreshes saved clips. Failed finalization has a project-ownership-checked retry path, including engine shutdown before metadata persistence; it does not relax quick-mode state-machine transitions.
 
 Display snapshots are compared on same-session resume. Changed names/indices/geometry block resume and require a new session with a confirmed target. This is deliberately conservative; truly indistinguishable platform display identities cannot be detected by this layer alone.
 

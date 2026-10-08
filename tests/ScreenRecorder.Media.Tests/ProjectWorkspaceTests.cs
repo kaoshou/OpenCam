@@ -7,6 +7,21 @@ namespace ScreenRecorder.Media.Tests;
 
 public sealed class ProjectWorkspaceTests
 {
+    [Fact]
+    public async Task BackgroundPollShowsSafetyStopWithoutAnotherUserAction()
+    {
+        var client = new FakeClient();
+        var vm = new ProjectWorkspaceViewModel(client);
+        vm.ApplyReply(new(true, null, client.State with { Mode = ProjectMode.Recording }));
+        client.State = client.State with { Mode = ProjectMode.Ready, LastError = "Capture device lost" };
+        client.Clips = [new ProjectClip { Id = Guid.NewGuid(), Name = "Saved source" }];
+        await vm.PollRecordingAsync();
+        Assert.Equal(ProjectMode.Ready, vm.State.Mode);
+        Assert.Equal("Capture device lost", vm.Error);
+        Assert.False(vm.CanPause);
+        Assert.Equal("Saved source", Assert.Single(vm.Clips).Name);
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
@@ -86,6 +101,7 @@ public sealed class ProjectWorkspaceTests
         public ProjectSnapshot State = new(Guid.NewGuid(), "Lesson", "/test", 1, 1, ProjectMode.Ready, 0, true, false);
         public bool Unknown, Fail;
         public List<string> Commands = [];
+        public ProjectClip[] Clips = [];
         public Func<string, Task>? OnSend;
         public async Task<ProjectReply> SendAsync(string command, ProjectRequest request, CancellationToken ct = default)
         {
@@ -93,7 +109,7 @@ public sealed class ProjectWorkspaceTests
             if (OnSend is not null) await OnSend(command);
             if (Unknown) return new(false, "unconfirmed", State, Unconfirmed: true, OperationKnown: false);
             if (Fail) return new(false, "disk full", State with { Revision = 2, SavedRevision = 1 });
-            return new(true, null, State, []);
+            return new(true, null, State, Clips);
         }
     }
 }

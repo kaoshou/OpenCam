@@ -123,6 +123,8 @@ public sealed class BoundDirectory : IDisposable
         return RecoverySourceFile.FromUnixHandle(new SafeFileHandle((IntPtr)fd, true));
     }
 
+    public FileStream CreateNew(string name) => Create(name, true);
+
     private FileStream Create(string name, bool exclusive)
     {
         Leaf(name);

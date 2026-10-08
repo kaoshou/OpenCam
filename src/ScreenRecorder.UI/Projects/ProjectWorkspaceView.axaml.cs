@@ -30,6 +30,10 @@ public partial class ProjectWorkspaceView : Window
         DataContext = vm;
         _main = main;
         RecentProjects.ItemsSource = main.RecentProjectPaths;
+        var timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        timer.Tick += async (_, _) => await vm.PollRecordingAsync();
+        Opened += (_, _) => timer.Start();
+        Closed += (_, _) => timer.Stop();
     }
     private ProjectWorkspaceViewModel Model => (ProjectWorkspaceViewModel)DataContext!;
 

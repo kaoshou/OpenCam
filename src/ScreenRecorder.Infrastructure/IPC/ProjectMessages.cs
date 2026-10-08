@@ -6,6 +6,7 @@ namespace ScreenRecorder.Infrastructure.IPC;
 
 public sealed record ProjectRequest
 {
+    public Guid? ServerInstanceId { get; init; }
     public Guid? ProjectId { get; init; }
     public Guid OperationId { get; init; }
     public long ExpectedRevision { get; init; }
@@ -21,6 +22,7 @@ public sealed record ProjectSnapshot(Guid? ProjectId, string Name, string? Direc
     long Revision, long SavedRevision, ProjectMode Mode, int ClipCount, bool CanUndo, bool CanRedo,
     string? LastError = null)
 {
+    public Guid? ServerInstanceId { get; init; }
     public bool NeedsRecoveryConfirmation { get; init; }
     public static ProjectSnapshot Closed { get; } = new(null, "", null, 0, 0, ProjectMode.Closed, 0, false, false);
     public bool IsDirty => Revision != SavedRevision;

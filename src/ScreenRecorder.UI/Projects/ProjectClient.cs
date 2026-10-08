@@ -11,14 +11,24 @@ public interface IProjectClient
 
 public sealed class ProjectClient(Func<string, ProjectRequest, CancellationToken, Task<IpcResponse>> send) : IProjectClient
 {
+    private Guid? _instanceId;
     public async Task<ProjectReply> SendAsync(string command, ProjectRequest request, CancellationToken ct = default)
     {
+        // Bind retries to one recorder lifetime: its operation cache is not durable.
+        if (_instanceId is null)
+        {
+            var status = await SendOnceAsync("GetProjectStatus", new(), ct);
+            if (status?.State.ServerInstanceId is not Guid instance)
+                return new(false, "Recorder status is unconfirmed.", ProjectSnapshot.Closed, Unconfirmed: true, OperationKnown: false);
+            _instanceId = instance;
+        }
+        request = request with { ServerInstanceId = _instanceId };
         var result = await SendOnceAsync(command, request, ct);
         if (result is not null) return result;
         // Never reissue a mutating command with a new ID after a lost response.
         if (request.OperationId != Guid.Empty && command != "GetProjectStatus")
         {
-            result = await SendOnceAsync("GetProjectStatus", new() { OperationId = request.OperationId }, ct);
+            result = await SendOnceAsync("GetProjectStatus", new() { OperationId = request.OperationId, ServerInstanceId = _instanceId }, ct);
             if (result?.OperationKnown == true) return result;
         }
         return new(false, "Recorder status is unconfirmed. Query status before continuing.",

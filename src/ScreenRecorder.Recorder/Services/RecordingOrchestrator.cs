@@ -12,6 +12,8 @@ using ScreenRecorder.Core.Models;
 using ScreenRecorder.Core.State;
 using ScreenRecorder.Media.Capture;
 using ScreenRecorder.Media.Encoders;
+using ScreenRecorder.Infrastructure.Projects;
+using ScreenRecorder.Infrastructure.Session;
 using Serilog;
 
 namespace ScreenRecorder.Recorder.Services;
@@ -41,6 +43,8 @@ public class RecordingOrchestrator : IAsyncDisposable
     private readonly IRecordingEngineFactory _engineFactory;
     private RecordingSession? _currentSession;
     private string? _projectDisplaySignature;
+    private ProjectSessionDirectory? _projectSessionDirectory;
+    private FileStream? _projectOutput;
     private CancellationTokenSource? _watchdogCts;
     private Task? _watchdogTask;
     private TimeSpan _accumulatedDuration = TimeSpan.Zero;
@@ -190,7 +194,9 @@ public class RecordingOrchestrator : IAsyncDisposable
             _projectDisplaySignature = ownership is null ? null : GetProjectDisplaySignature(config);
 
             var sessionId = DateTimeOffset.Now.ToString("yyyyMMdd_HHmmss") + "_" + Guid.NewGuid().ToString("N")[..6];
-            var sessionDir = _storageService.CreateSessionDirectory(rootPath, sessionId);
+            _projectSessionDirectory?.Dispose();
+            _projectSessionDirectory = ownership is null ? null : ProjectSessionDirectory.Create(ownership.Handle, sessionId);
+            var sessionDir = _projectSessionDirectory?.Directory.CurrentPath ?? _storageService.CreateSessionDirectory(rootPath, sessionId);
             _accumulatedDuration = TimeSpan.Zero;
             _segmentIndex = -1;
             var workingMvk = Path.Combine(sessionDir, "segment_000.mkv");
@@ -315,6 +321,7 @@ public class RecordingOrchestrator : IAsyncDisposable
     private async Task StartSegmentAttemptAsync(RecordingSession session, CaptureRegion bounds,
         EncoderSelection selection, CancellationToken token, CaptureSelection? capture = null)
     {
+        _projectSessionDirectory?.Refresh(session);
         var previousPath = session.WorkingFilePath;
         string path;
         do { path = Path.Combine(session.WorkingDirectory, $"segment_{++_segmentIndex:D3}.mkv"); }
@@ -330,6 +337,13 @@ public class RecordingOrchestrator : IAsyncDisposable
             BeginRecorderHealthSegment();
             _unconfirmedAttemptPath = path;
             _engine = _engineFactory.Create(selection.Encoder, capture);
+            if (_projectSessionDirectory is not null)
+            {
+                if (_engine is not IBoundRecordingOutput boundOutput)
+                    throw new InvalidOperationException("Recording engine does not support bound project output.");
+                _projectOutput = _projectSessionDirectory.Directory.CreateNew(Path.GetFileName(path));
+                boundOutput.OutputStream = _projectOutput;
+            }
             _engine.UseSyntheticCaptureSource = UseSyntheticCaptureSource;
             _engine.EngineErrorOccurred += OnEngineError;
             _engine.EngineWarningOccurred += OnEngineWarning;
@@ -418,6 +432,12 @@ public class RecordingOrchestrator : IAsyncDisposable
         try
         {
             await engine.DisposeAsync();
+            if (_projectOutput is not null)
+            {
+                _projectOutput.Flush(flushToDisk: true);
+                _projectOutput.Dispose();
+                _projectOutput = null;
+            }
             if (ReferenceEquals(_engine, engine)) _engine = null;
             if (QuarantineFailedAttempt() && _currentSession != null)
                 await TrySaveAfterFailureAsync(_currentSession);
@@ -433,6 +453,19 @@ public class RecordingOrchestrator : IAsyncDisposable
     {
         var path = _unconfirmedAttemptPath;
         if (path == null) return false;
+        if (_projectSessionDirectory is not null)
+        {
+            // Never resolve an old absolute path after a project move. Keep the
+            // unconfirmed attempt untouched; only confirmed sources enter the manifest.
+            _unconfirmedAttemptPath = null;
+            if (_currentSession is not null)
+            {
+                _projectSessionDirectory.Refresh(_currentSession);
+                _currentSession.WorkingFilePath = _currentSession.SegmentFilePaths.LastOrDefault()
+                    ?? Path.Combine(_currentSession.WorkingDirectory, "recording.mkv");
+            }
+            return true;
+        }
         // Only reached after successful engine cleanup. Unknown crash-time candidates
         // retain segment_* names and remain discoverable by existing recovery.
         if (File.Exists(path))
@@ -683,14 +716,31 @@ public class RecordingOrchestrator : IAsyncDisposable
         }
     }
 
+    internal async Task<(bool Success, string? ErrorMessage, string? FinalFilePath)> FinishProjectSessionAsync(
+        RecordingSession expected, ProjectSessionOwnership ownership, CancellationToken ct)
+    {
+        await _lifecycleGate.WaitAsync(ct);
+        try
+        {
+            if (_currentSession != expected || expected.ProjectId != ownership.Handle.Current.ProjectId ||
+                expected.CompletionPolicy != ProjectCompletionPolicy.KeepProjectSources)
+                return (false, "Project recording ownership changed.", null);
+            // Only the owning project may retry finalization. StopCore still shuts
+            // down any retained engine before validating/persisting the sources.
+            return await StopRecordingCoreAsync("Finish project recording", ct, retryProject: true);
+        }
+        finally { _lifecycleGate.Release(); }
+    }
+
     private async Task<(bool Success, string? ErrorMessage, string? FinalFilePath)> StopRecordingCoreAsync(
         string reason,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, bool retryProject = false)
     {
         lock (_lock)
         {
-            if (_currentSession == null ||
-                !_stateMachine.TryTransition(RecordingState.Stopping, reason))
+            if (_currentSession is not null && retryProject && _stateMachine.CurrentState == RecordingState.Failed)
+                _stateMachine.ForceTransition(RecordingState.Stopping, reason);
+            else if (_currentSession == null || !_stateMachine.TryTransition(RecordingState.Stopping, reason))
             {
                 return (false, $"目前狀態 {_stateMachine.CurrentState} 無法停止錄影", null);
             }
@@ -707,7 +757,8 @@ public class RecordingOrchestrator : IAsyncDisposable
         try
         {
             session.State = RecordingState.Stopping;
-            await SaveSessionAsync(session, cancellationToken);
+            if (session.CompletionPolicy != ProjectCompletionPolicy.KeepProjectSources)
+                await SaveSessionAsync(session, cancellationToken);
 
             // 1. 安全關閉 MKV 錄影引擎 (若在 Paused 狀態下停止，_engine 已為 null)
             if (_engine != null)
@@ -720,15 +771,20 @@ public class RecordingOrchestrator : IAsyncDisposable
 
             if (session.CompletionPolicy == ProjectCompletionPolicy.KeepProjectSources)
             {
-                if (session.ProjectId is null || session.SegmentFilePaths.Count == 0)
-                    throw new InvalidDataException("Project session has no finalized source.");
+                if (session.ProjectId is null)
+                    throw new InvalidDataException("Project session has no owner.");
+                // A failed startup may contain no confirmed segment. Finishing
+                // after successful engine cleanup closes that empty session;
+                // unconfirmed attempt files remain untouched, never published as clips.
                 _stateMachine.TryTransition(RecordingState.Finalizing, "保存專案錄影素材");
                 session.State = RecordingState.Finalizing;
                 await SaveSessionAsync(session, cancellationToken);
                 foreach (var source in session.SegmentFilePaths)
                 {
                     var media = await _mediaProbe.ProbeAsync(source, cancellationToken);
-                    if (!media.IsValid || media.VideoStreamCount < 1 || media.Duration <= TimeSpan.Zero)
+                    // Streamed MKV has no seek-back duration header. The project
+                    // committer validates positive packet PTS bounds before publication.
+                    if (!media.IsValid || media.VideoStreamCount < 1)
                         throw new InvalidDataException("Project source validation failed; MKV retained.");
                 }
                 session.State = RecordingState.Completed;
@@ -820,6 +876,11 @@ public class RecordingOrchestrator : IAsyncDisposable
         finally
         {
             await StopWatchdogAsync();
+            if (_currentSession is null && session.CompletionPolicy == ProjectCompletionPolicy.KeepProjectSources)
+            {
+                _projectSessionDirectory?.Dispose();
+                _projectSessionDirectory = null;
+            }
         }
     }
 
@@ -1191,7 +1252,14 @@ public class RecordingOrchestrator : IAsyncDisposable
         await _sessionStoreGate.WaitAsync(cancellationToken);
         try
         {
-            await _sessionStore.SaveSessionAsync(session, cancellationToken);
+            if (session.CompletionPolicy == ProjectCompletionPolicy.KeepProjectSources)
+            {
+                if (_projectSessionDirectory is null || _sessionStore is not IBoundRecordingSessionStore boundStore)
+                    throw new InvalidOperationException("Bound project session storage is required.");
+                _projectSessionDirectory.Refresh(session);
+                await boundStore.SaveBoundAsync(session, _projectSessionDirectory.Directory, cancellationToken);
+            }
+            else await _sessionStore.SaveSessionAsync(session, cancellationToken);
         }
         finally
         {
@@ -1298,6 +1366,7 @@ public class RecordingOrchestrator : IAsyncDisposable
             await StopWatchdogAsync();
             _diskMonitor.Dispose();
             _sessionStoreGate.Dispose();
+            _projectSessionDirectory?.Dispose();
             GC.SuppressFinalize(this);
         }
         finally
