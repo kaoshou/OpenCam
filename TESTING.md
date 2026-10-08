@@ -2,6 +2,8 @@
 
 本專案將「錄影可靠性」視為最高指導原則，測試工作不能僅止於「按下開始錄影可以錄製」，必須建立**故障注入 (Fault Injection)**、**邊界壓力測試 (Stress Testing)** 與**長時間自動化巡檢**。
 
+開發中的錄影專案 Phase B：執行 Core 的 `RecordingProjectTests`、`ProjectStoreTests`、`ProjectPathSecurityTests`，以及 Media 的 `--filter FullyQualifiedName~Project`。跨程序測試使用 `ScreenRecorder.ProjectRecordingProbe` 與真正 FFmpeg 合成素材；不是實體螢幕／麥克風驗收。狀態與人工步驟見 [Phase B 驗收](docs/acceptance/2026-10-08-project-phase-b.md)。
+
 ---
 
 ## 1. 測試金字塔與分類
