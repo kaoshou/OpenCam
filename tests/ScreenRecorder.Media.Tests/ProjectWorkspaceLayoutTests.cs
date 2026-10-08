@@ -24,6 +24,26 @@ public sealed class ProjectLayoutApp : Application
 public sealed class ProjectWorkspaceLayoutTests
 {
     [AvaloniaTheory]
+    [InlineData(1440, 900)]
+    [InlineData(1280, 720)]
+    [InlineData(1024, 640)]
+    public async Task CompactChromeLeavesPreviewSpaceForEditing(int width, int height)
+    {
+        var window = new SizedProjectWorkspace { DataContext = new ProjectWorkspaceViewModel(new ClosedProjectClient()) };
+        try
+        {
+            window.Show();
+            window.ResizeClient(new Size(width, height));
+            window.UpdateLayout();
+            var preview = window.FindControl<Border>("PreviewPane")!;
+            var position = preview.TranslatePoint(default, window)!.Value;
+            Assert.True(position.Y <= 120, $"Header consumes {position.Y}px before the preview.");
+            Assert.True(preview.Bounds.Height >= height * .4, $"Preview receives only {preview.Bounds.Height}px of {height}px.");
+        }
+        finally { await window.RequestCloseAsync(); }
+    }
+
+    [AvaloniaTheory]
     [InlineData(AppLanguage.ZhTw, false)]
     [InlineData(AppLanguage.ZhTw, true)]
     [InlineData(AppLanguage.EnUs, false)]

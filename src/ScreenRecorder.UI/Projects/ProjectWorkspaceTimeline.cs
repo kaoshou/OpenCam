@@ -14,9 +14,9 @@ public sealed partial class ProjectWorkspaceViewModel
     [ObservableProperty] private long? _rangeEndTicks;
     private ProjectTimelineClip? PlayheadClip => TimelineClips.FirstOrDefault(c =>
         PlayheadTicks > c.StartTicks && PlayheadTicks < c.EndTicks);
-    public bool CanSplit => CanEdit && PlayheadClip is not null;
-    public bool CanDeleteRange => CanEdit && RangeStartTicks is >= 0 && RangeEndTicks > RangeStartTicks && RangeEndTicks <= DurationTicks;
-    public bool CanUngroup => CanEditSelection && SelectedClip?.GroupId is not null;
+    public bool CanSplit => CanEditTimeline && PlayheadClip is not null;
+    public bool CanDeleteRange => CanEditTimeline && RangeStartTicks is >= 0 && RangeEndTicks > RangeStartTicks && RangeEndTicks <= DurationTicks;
+    public bool CanUngroup => CanEditTimeline && CanEditSelection && SelectedClip?.GroupId is not null;
     public string TimelineTimeText => $"{FormatTime(PlayheadTicks)} / {FormatTime(DurationTicks)}";
     private static string FormatTime(long ticks) => TimeSpan.FromTicks(ticks).ToString(@"hh\:mm\:ss\.fff");
     partial void OnPlayheadTicksChanged(long value) => NotifyTimeline();
@@ -41,15 +41,15 @@ public sealed partial class ProjectWorkspaceViewModel
     }
     public void Seek(long ticks)
     {
-        if (CanEdit) PlayheadTicks = Math.Clamp(ticks, 0, DurationTicks);
+        if (CanEditTimeline) PlayheadTicks = Math.Clamp(ticks, 0, DurationTicks);
     }
     public void SetRangeStart(long ticks)
     {
-        if (CanEdit) RangeStartTicks = Math.Clamp(ticks, 0, DurationTicks);
+        if (CanEditTimeline) RangeStartTicks = Math.Clamp(ticks, 0, DurationTicks);
     }
     public void SetRangeEnd(long ticks)
     {
-        if (CanEdit) RangeEndTicks = Math.Clamp(ticks, 0, DurationTicks);
+        if (CanEditTimeline) RangeEndTicks = Math.Clamp(ticks, 0, DurationTicks);
     }
     [RelayCommand] public void MarkRangeStart() => SetRangeStart(PlayheadTicks);
     [RelayCommand] public void MarkRangeEnd() => SetRangeEnd(PlayheadTicks);
@@ -57,9 +57,9 @@ public sealed partial class ProjectWorkspaceViewModel
         ExecuteAsync("ApplyProjectEdit", new() { Edit = new ProjectClipEdit.SplitAtTimeline(PlayheadClip!.ClipId, PlayheadTicks, Guid.NewGuid()) });
     [RelayCommand] public Task DeleteRangeAsync() => !CanDeleteRange ? Task.CompletedTask :
         ExecuteAsync("ApplyProjectEdit", new() { Edit = new ProjectClipEdit.RemoveRange(RangeStartTicks!.Value, RangeEndTicks!.Value) });
-    public Task MoveClipAsync(Guid clipId, Guid? beforeId) => !CanEdit || !Clips.Any(c => c.Id == clipId) ? Task.CompletedTask :
+    public Task MoveClipAsync(Guid clipId, Guid? beforeId) => !CanEditTimeline || !Clips.Any(c => c.Id == clipId) ? Task.CompletedTask :
         ExecuteAsync("ApplyProjectEdit", new() { Edit = new ProjectClipEdit.Move(clipId, beforeId) });
-    public Task TrimEdgeAsync(Guid clipId, bool start, long deltaTicks) => !CanEdit || !Clips.Any(c => c.Id == clipId) ? Task.CompletedTask :
+    public Task TrimEdgeAsync(Guid clipId, bool start, long deltaTicks) => !CanEditTimeline || !Clips.Any(c => c.Id == clipId) ? Task.CompletedTask :
         ExecuteAsync("ApplyProjectEdit", new() { Edit = new ProjectClipEdit.TrimEdge(clipId, start, deltaTicks) });
     [RelayCommand] public Task GroupWithNextAsync()
     {

@@ -46,7 +46,7 @@ public sealed class ProjectTimelineControl : Control
     }
     private void Changed(object? sender, PropertyChangedEventArgs e)
     {
-        if (_model?.CanEdit != true || _model.State.Revision != _gestureRevision) CancelGesture();
+        if (_model?.CanEditTimeline != true || _model.State.Revision != _gestureRevision) CancelGesture();
         _offset = Math.Clamp(_offset, 0, Math.Max(0, (_model?.DurationTicks ?? 0) - VisibleTicks));
         InvalidateVisual();
     }
@@ -146,7 +146,7 @@ public sealed class ProjectTimelineControl : Control
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
-        if (_model is not { CanEdit: true, DurationTicks: > 0 } vm || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
+        if (_model is not { CanEditTimeline: true, DurationTicks: > 0 } vm || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
         Focus();
         var point = e.GetPosition(this);
         _gestureRevision = vm.State.Revision;
@@ -174,7 +174,7 @@ public sealed class ProjectTimelineControl : Control
     }
     private void UpdateGesture(Point point)
     {
-        if (_pointer is null || _model is not { CanEdit: true } vm) return;
+        if (_pointer is null || _model is not { CanEditTimeline: true } vm) return;
         var x = point.X;
         if (_seeking) vm.Seek(Ticks(x));
         if (_movingClip is not null)
@@ -205,7 +205,7 @@ public sealed class ProjectTimelineControl : Control
         { CancelGesture(); return; }
         UpdateGesture(point);
         var moving = _movingClip; var before = _beforeClip;
-        var commit = _dragging && _model?.CanEdit == true && _model.State.Revision == _gestureRevision;
+        var commit = _dragging && _model?.CanEditTimeline == true && _model.State.Revision == _gestureRevision;
         var hit = _hit;
         var delta = (long)Math.Clamp((_dragX - _downX) / TrackWidth * VisibleTicks, long.MinValue + 1024d, long.MaxValue - 1024d);
         CancelGesture();

@@ -16,6 +16,15 @@ internal static class ProjectClipEditor
         }
         switch (edit)
         {
+            case ProjectClipEdit.Properties properties:
+                var propertyIndex = Index(properties.ClipId);
+                clips[propertyIndex] = clips[propertyIndex] with {
+                    Name = properties.Name, Volume = properties.Volume, Muted = properties.Muted,
+                    FadeInTicks = properties.FadeInTicks, FadeOutTicks = properties.FadeOutTicks,
+                    Scale = properties.Scale, Crop = properties.Crop,
+                    PositionX = properties.PositionX, PositionY = properties.PositionY
+                };
+                break;
             case ProjectClipEdit.TrimEdge edge:
                 var edgeClip = clips[Index(edge.ClipId)];
                 var timeBase = project.Sources.First(s => s.Id == edgeClip.SourceId).Timing.TimeBase;

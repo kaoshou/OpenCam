@@ -33,47 +33,62 @@
     </ResourceDictionary>
   </Window.Resources>
   <Window.Styles>
-    <Style Selector="Button"><Setter Property="MinHeight" Value="36"/><Setter Property="FontSize" Value="14"/></Style>
+    <Style Selector="Button">
+      <Setter Property="MinHeight" Value="36"/><Setter Property="FontSize" Value="14"/>
+      <Setter Property="Padding" Value="12,6"/><Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="Background" Value="{DynamicResource ProjectCardBrush}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ProjectTextBrush}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource ProjectStrokeBrush}"/><Setter Property="BorderThickness" Value="1"/>
+    </Style>
+    <Style Selector="Button:pointerover"><Setter Property="Background" Value="{DynamicResource ProjectRowBrush}"/></Style>
+    <Style Selector="Button:disabled"><Setter Property="Opacity" Value="0.45"/></Style>
+    <Style Selector="Button.tool"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
+    <Style Selector="TextBox"><Setter Property="FontSize" Value="14"/><Setter Property="CornerRadius" Value="5"/><Setter Property="MinHeight" Value="34"/></Style>
+    <Style Selector="ListBoxItem"><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0,3"/><Setter Property="CornerRadius" Value="6"/></Style>
     <Style Selector="TextBlock"><Setter Property="Foreground" Value="{DynamicResource ProjectTextBrush}"/></Style>
   </Window.Styles>
-  <Grid RowDefinitions="Auto,Auto,*,240,Auto" Margin="16">
-    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" Margin="0,0,0,16">
-      <StackPanel Spacing="5">
-        <TextBlock Text="{Binding Strings[ProjectWorkspace]}" FontSize="12" Foreground="{DynamicResource ProjectMutedBrush}"/>
-        <TextBlock Text="{Binding State.Name}" FontSize="26" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
-                   ToolTip.Tip="{Binding State.Name}" Margin="0,0,12,0" Foreground="{DynamicResource ProjectTextBrush}"/>
+  <Grid RowDefinitions="64,44,*,240,28">
+    <Border Background="{DynamicResource ProjectCardBrush}" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="0,0,0,1" Padding="16,8">
+    <Grid ColumnDefinitions="Auto,*,Auto">
+      <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" Margin="0,0,22,0">
+        <Image Source="/Assets/app_icon.png" Width="28" Height="28"/>
+        <TextBlock Text="OpenCam" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
       </StackPanel>
-      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-        <Button Content="{Binding Strings[ProjectNew]}" Click="OnNew" IsEnabled="{Binding !IsBusy}"/>
-        <Button Content="{Binding Strings[ProjectOpen]}" Click="OnOpen" IsEnabled="{Binding !IsBusy}"/>
+      <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center" Margin="0,0,12,0">
+        <TextBlock Text="{Binding State.Name}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                   ToolTip.Tip="{Binding State.Directory}"/>
+        <TextBlock Text="{Binding SaveStatus}" FontSize="12" Foreground="{DynamicResource ProjectMutedBrush}"/>
+      </StackPanel>
+      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+        <Button Content="{Binding Strings[ProjectNew]}" Click="OnNew" IsEnabled="{Binding CanReplaceProject}"/>
+        <Button Content="{Binding Strings[ProjectOpen]}" Click="OnOpen" IsEnabled="{Binding CanReplaceProject}"/>
         <Button Content="{Binding Strings[ProjectSave]}" Command="{Binding SaveCommand}" IsEnabled="{Binding !IsBusy}"/>
         <Button Content="{Binding Strings[ProjectClose]}" Click="OnClose"/>
       </StackPanel>
-      <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding State.Directory}" TextTrimming="CharacterEllipsis"
-                 Foreground="{DynamicResource ProjectMutedBrush}" FontSize="12" Margin="0,8,0,0"/>
     </Grid>
-    <Border Grid.Row="1" Background="{DynamicResource ProjectCardBrush}" CornerRadius="12" Padding="14" Margin="0,0,0,16" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="1">
+    </Border>
+    <Border Grid.Row="1" Background="{DynamicResource ProjectCardBrush}" Padding="16,4" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="0,0,0,1">
       <Grid ColumnDefinitions="*,Auto">
         <StackPanel Orientation="Horizontal" Spacing="8">
           <Button Content="{Binding StartText}" Click="OnRecord" IsEnabled="{Binding CanRecord}" Background="#2563EB" Foreground="White"/>
           <Button Content="{Binding Strings[ProjectPause]}" Command="{Binding PauseCommand}" IsEnabled="{Binding CanPause}"/>
           <Button Content="{Binding Strings[ProjectFinish]}" Command="{Binding FinishCommand}" IsEnabled="{Binding CanFinish}"/>
-          <Button Content="{Binding Strings[ProjectCaptureSettings]}" Click="OnCaptureSettings"/>
+          <Button Classes="tool" Content="{Binding Strings[ProjectCaptureSettings]}" Click="OnCaptureSettings"/>
         </StackPanel>
         <TextBlock Grid.Column="1" Text="{Binding ModeText}" VerticalAlignment="Center" Foreground="{DynamicResource ProjectAccentBrush}"/>
       </Grid>
     </Border>
     <Grid x:Name="WorkspaceGrid" Grid.Row="2" ColumnDefinitions="220,*,260">
-      <Border x:Name="ClipPane" Background="{DynamicResource ProjectCardBrush}" CornerRadius="8" Padding="12" Margin="0,0,0,0" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="1">
+      <Border x:Name="ClipPane" Background="{DynamicResource ProjectCardBrush}" Padding="12,16" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="0,0,1,0">
         <Grid RowDefinitions="Auto,*,Auto">
           <Grid ColumnDefinitions="*" Margin="0,0,0,12">
             <TextBlock Text="{Binding Strings[ProjectClips]}" FontSize="14" FontWeight="SemiBold"/>
 
           </Grid>
-          <ListBox x:Name="ClipList" Grid.Row="1" ItemsSource="{Binding Clips}" SelectedItem="{Binding SelectedClip}" Background="Transparent">
+          <ListBox x:Name="ClipList" Grid.Row="1" ItemsSource="{Binding Clips}" SelectedItem="{Binding SelectedClip}" IsEnabled="{Binding !HasPropertyDraft}" Background="Transparent">
             <ListBox.ItemTemplate>
               <DataTemplate x:DataType="core:ProjectClip">
-                <Border Padding="12,14" Margin="0,3" CornerRadius="8" Background="{DynamicResource ProjectRowBrush}" HorizontalAlignment="Stretch">
+                <Border Padding="12,10" CornerRadius="6" Background="{DynamicResource ProjectRowBrush}" HorizontalAlignment="Stretch">
                   <TextBlock Text="{Binding Name}" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"
                              ToolTip.Tip="{Binding Name}" FontSize="14" Foreground="{DynamicResource ProjectTextBrush}"/>
                 </Border>
@@ -85,42 +100,76 @@
           </StackPanel>
         </Grid>
       </Border>
-      <Border x:Name="PreviewPane" Grid.Column="1" Padding="20,16" Background="{DynamicResource ProjectCanvasBrush}">
+      <Border x:Name="PreviewPane" Grid.Column="1" Padding="20,12" Background="{DynamicResource ProjectCanvasBrush}">
         <Grid RowDefinitions="Auto,*,Auto">
           <TextBlock Text="{Binding Strings[ProjectPreview]}" FontSize="12" Foreground="{DynamicResource ProjectMutedBrush}"/>
-          <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="440" Spacing="12">
-            <TextBlock Text="{Binding Strings[ProjectWorkspace]}" FontSize="22" FontWeight="SemiBold" TextAlignment="Center"/>
+          <Border Grid.Row="1" Margin="0,12" Background="{DynamicResource ProjectCardBrush}" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="1" CornerRadius="6">
+          <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="360" Spacing="12" Margin="24">
+            <TextBlock Text="{Binding Strings[ProjectPreview]}" FontSize="18" FontWeight="SemiBold" TextAlignment="Center"/>
             <TextBlock Text="{Binding Strings[ProjectPreviewPending]}" TextWrapping="Wrap" TextAlignment="Center" Foreground="{DynamicResource ProjectMutedBrush}"/>
           </StackPanel>
-          <TextBlock Grid.Row="2" Text="{Binding ModeText}" FontSize="12" TextAlignment="Center" Foreground="{DynamicResource ProjectAccentBrush}"/>
+          </Border>
+          <TextBlock Grid.Row="2" Text="{Binding TimelineTimeText}" FontSize="12" TextAlignment="Center" Foreground="{DynamicResource ProjectMutedBrush}"/>
         </Grid>
       </Border>
-      <Border x:Name="InspectorPane" Grid.Column="2" Background="{DynamicResource ProjectCardBrush}" CornerRadius="12" Padding="20" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="1">
+      <Border x:Name="InspectorPane" Grid.Column="2" Background="{DynamicResource ProjectCardBrush}" Padding="16" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="1,0,0,0">
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-        <StackPanel Spacing="14" Margin="0,0,20,0">
+        <StackPanel Spacing="10" Margin="0,0,16,0">
+          <TextBlock Text="{Binding Strings[ProjectProperties]}" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,10"/>
           <TextBlock Text="{Binding Strings[ProjectClipName]}" FontWeight="SemiBold"/>
-          <TextBox Text="{Binding ClipName}" IsEnabled="{Binding CanEdit}" MaxLength="200"/>
-          <Button Content="{Binding Strings[ProjectRename]}" Command="{Binding RenameSelectedCommand}" IsEnabled="{Binding CanEdit}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+          <TextBox Text="{Binding ClipName}" IsEnabled="{Binding CanEditSelection}" MaxLength="200"/>
+          <StackPanel Spacing="8" IsEnabled="{Binding CanEditSelection}">
+            <TextBlock Text="{Binding Strings[ProjectAudioProperties]}" FontWeight="SemiBold" Margin="0,10,0,2"/>
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="{Binding Strings[ProjectVolume]}" FontSize="12" VerticalAlignment="Center"/>
+              <TextBlock Grid.Column="1" Text="{Binding ClipVolumePercent, StringFormat={}{0:0}%}" FontSize="12"/>
+            </Grid>
+            <Slider x:Name="ClipVolumeSlider" Minimum="0" Maximum="200" Value="{Binding ClipVolumePercent}" TickFrequency="1" IsSnapToTickEnabled="True"/>
+            <CheckBox Content="{Binding Strings[ProjectMute]}" IsChecked="{Binding ClipMuted}" MinHeight="28"/>
+            <Grid ColumnDefinitions="*,10,*" RowDefinitions="Auto,Auto">
+              <TextBlock Text="{Binding Strings[ProjectFadeIn]}" FontSize="12" Margin="0,0,0,4"/>
+              <TextBlock Grid.Column="2" Text="{Binding Strings[ProjectFadeOut]}" FontSize="12" Margin="0,0,0,4"/>
+              <NumericUpDown Grid.Row="1" x:Name="ClipFadeInInput" Value="{Binding ClipFadeInSeconds}" Minimum="0" Increment="0.1" FormatString="0.###" ShowButtonSpinner="False"/>
+              <NumericUpDown Grid.Row="1" Grid.Column="2" Value="{Binding ClipFadeOutSeconds}" Minimum="0" Increment="0.1" FormatString="0.###" ShowButtonSpinner="False"/>
+            </Grid>
+            <Expander Header="{Binding Strings[ProjectVideoProperties]}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto"><TextBlock Text="{Binding Strings[ProjectScale]}" FontSize="12"/><TextBlock Grid.Column="1" Text="{Binding ClipScalePercent, StringFormat={}{0:0}%}" FontSize="12"/></Grid>
+                <Slider Minimum="100" Maximum="200" Value="{Binding ClipScalePercent}" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                <Grid ColumnDefinitions="*,Auto"><TextBlock Text="{Binding Strings[ProjectCrop]}" FontSize="12"/><TextBlock Grid.Column="1" Text="{Binding ClipCropPercent, StringFormat={}{0:0}%}" FontSize="12"/></Grid>
+                <Slider Minimum="0" Maximum="40" Value="{Binding ClipCropPercent}" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                <Grid ColumnDefinitions="*,Auto"><TextBlock Text="{Binding Strings[ProjectPositionX]}" FontSize="12"/><TextBlock Grid.Column="1" Text="{Binding ClipPositionX, StringFormat={}{0:0}}" FontSize="12"/></Grid>
+                <Slider Minimum="-50" Maximum="50" Value="{Binding ClipPositionX}" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                <Grid ColumnDefinitions="*,Auto"><TextBlock Text="{Binding Strings[ProjectPositionY]}" FontSize="12"/><TextBlock Grid.Column="1" Text="{Binding ClipPositionY, StringFormat={}{0:0}}" FontSize="12"/></Grid>
+                <Slider Minimum="-50" Maximum="50" Value="{Binding ClipPositionY}" TickFrequency="1" IsSnapToTickEnabled="True"/>
+              </StackPanel>
+            </Expander>
+            <TextBlock Text="{Binding Strings[ProjectPropertyDraft]}" IsVisible="{Binding HasPropertyDraft}" FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource ProjectAccentBrush}"/>
+            <Button x:Name="ApplyPropertiesButton" Content="{Binding Strings[ProjectApplyProperties]}" Command="{Binding ApplyPropertiesCommand}" IsEnabled="{Binding HasPropertyDraft}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Background="#2563EB" Foreground="White"/>
+            <Button Classes="tool" Content="{Binding Strings[ProjectResetProperties]}" Command="{Binding ResetPropertiesCommand}" IsEnabled="{Binding HasPropertyDraft}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+          </StackPanel>
+          <Separator Margin="0,6"/>
           <Grid ColumnDefinitions="*,8,*">
             <Button Content="{Binding Strings[ProjectMoveEarlier]}" Command="{Binding MoveSelectedEarlierCommand}" IsEnabled="{Binding CanMoveEarlier}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
             <Button Grid.Column="2" Content="{Binding Strings[ProjectMoveLater]}" Command="{Binding MoveSelectedLaterCommand}" IsEnabled="{Binding CanMoveLater}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
           </Grid>
-          <Button Content="{Binding Strings[ProjectDeleteClip]}" Command="{Binding DeleteSelectedCommand}" IsEnabled="{Binding CanEditSelection}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+          <Button Content="{Binding Strings[ProjectDeleteClip]}" Command="{Binding DeleteSelectedCommand}" IsEnabled="{Binding CanEditTimeline}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
           <Button Content="{Binding Strings[ProjectGroupNext]}" Command="{Binding GroupWithNextCommand}" IsEnabled="{Binding CanMoveLater}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
           <Button Content="{Binding Strings[ProjectUngroup]}" Command="{Binding UngroupSelectedCommand}" IsEnabled="{Binding CanUngroup}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
           <Separator Margin="0,8"/>
           <TextBlock Text="{Binding Strings[ProjectSourceSafe]}" TextWrapping="Wrap" Foreground="{DynamicResource ProjectAccentBrush}" LineHeight="22"/>
 
-          <Button Content="{Binding Strings[ProjectRefresh]}" Command="{Binding RefreshCommand}"/>
+          <Button Content="{Binding Strings[ProjectRefresh]}" Command="{Binding RefreshCommand}" IsEnabled="{Binding CanReplaceProject}"/>
           <Button Content="{Binding Strings[ProjectRestoreBackup]}" Click="OnRestoreBackup" IsVisible="{Binding State.NeedsRecoveryConfirmation}"/>
           <TextBlock Text="{Binding Strings[ProjectRecent]}" FontWeight="SemiBold" Margin="0,10,0,0"/>
           <ComboBox x:Name="RecentProjects" HorizontalAlignment="Stretch" MaxWidth="198"/>
-          <Button Content="{Binding Strings[ProjectOpen]}" Click="OnOpenRecent"/>
+          <Button Content="{Binding Strings[ProjectOpen]}" Click="OnOpenRecent" IsEnabled="{Binding CanReplaceProject}"/>
         </StackPanel>
         </ScrollViewer>
       </Border>
     </Grid>
-    <Border x:Name="TimelinePane" Grid.Row="3" Background="{DynamicResource ProjectCardBrush}" CornerRadius="8" Margin="0,8,0,0" Padding="12">
+    <Border x:Name="TimelinePane" Grid.Row="3" Background="{DynamicResource ProjectCardBrush}" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="0,1,0,0" Padding="12,8">
+      <Border.Styles><Style Selector="Button"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="8,5"/></Style></Border.Styles>
       <Grid RowDefinitions="Auto,*">
         <WrapPanel Orientation="Horizontal">
           <Button x:Name="ClipsToggle" Content="{Binding Strings[ProjectClips]}" Click="OnToggleClips"/>
@@ -128,8 +177,8 @@
           <Button Content="{Binding Strings[ProjectUndo]}" Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}"/>
           <Button Content="{Binding Strings[ProjectRedo]}" Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}"/>
           <Button Content="{Binding Strings[ProjectSplit]}" Command="{Binding SplitAtPlayheadCommand}" IsEnabled="{Binding CanSplit}"/>
-          <Button Content="{Binding Strings[ProjectRangeStart]}" Command="{Binding MarkRangeStartCommand}" IsEnabled="{Binding CanEdit}"/>
-          <Button Content="{Binding Strings[ProjectRangeEnd]}" Command="{Binding MarkRangeEndCommand}" IsEnabled="{Binding CanEdit}"/>
+          <Button Content="{Binding Strings[ProjectRangeStart]}" Command="{Binding MarkRangeStartCommand}" IsEnabled="{Binding CanEditTimeline}"/>
+          <Button Content="{Binding Strings[ProjectRangeEnd]}" Command="{Binding MarkRangeEndCommand}" IsEnabled="{Binding CanEditTimeline}"/>
           <Button Content="{Binding Strings[ProjectDeleteRange]}" Command="{Binding DeleteRangeCommand}" IsEnabled="{Binding CanDeleteRange}"/>
           <Button Content="{Binding Strings[ProjectFitTimeline]}" Click="OnFitTimeline"/>
           <TextBlock Text="{Binding TimelineTimeText}" VerticalAlignment="Center" Margin="12,0" FontSize="12"/>
@@ -137,9 +186,9 @@
         <editor:ProjectTimelineControl x:Name="TimelineControl" Grid.Row="1" ToolTip.Tip="{Binding Strings[ProjectTimelineHelp]}"/>
       </Grid>
     </Border>
-    <StackPanel Grid.Row="4" Spacing="5" Margin="0,16,0,0">
-      <TextBlock Text="{Binding SaveStatus}" Foreground="{DynamicResource ProjectAccentBrush}"/>
-      <TextBlock Text="{Binding Error}" Foreground="{DynamicResource ProjectErrorBrush}" TextWrapping="Wrap" MaxHeight="70"/>
-    </StackPanel>
+    <Grid Grid.Row="4" ColumnDefinitions="*,Auto" Margin="16,4">
+      <TextBlock Text="{Binding Error}" Foreground="{DynamicResource ProjectErrorBrush}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Error}"/>
+      <TextBlock Grid.Column="1" Text="{Binding SaveStatus}" FontSize="12" Foreground="{DynamicResource ProjectMutedBrush}"/>
+    </Grid>
   </Grid>
 </Window>

@@ -24,15 +24,17 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     public ObservableCollection<ProjectClip> Clips { get; } = [];
     public bool IsExporting => State.Export?.State == RecordingExportState.Running;
     public bool CanEdit => !IsBusy && !StatusUnconfirmed && !IsExporting && State.Mode is ProjectMode.Ready or ProjectMode.Paused;
-    public bool CanRecord => CanEdit && State.ProjectId is not null;
+    public bool CanEditTimeline => CanEdit && !HasPropertyDraft;
+    public bool CanReplaceProject => !IsBusy && !HasPropertyDraft;
+    public bool CanRecord => CanEditTimeline && State.ProjectId is not null;
     public bool CanPause => !IsBusy && !StatusUnconfirmed && State.Mode == ProjectMode.Recording;
-    public bool CanFinish => !IsBusy && !StatusUnconfirmed && State.Mode is ProjectMode.Recording or ProjectMode.Paused or ProjectMode.SaveFailed;
+    public bool CanFinish => !HasPropertyDraft && !IsBusy && !StatusUnconfirmed && State.Mode is ProjectMode.Recording or ProjectMode.Paused or ProjectMode.SaveFailed;
     public bool CanClose => !IsBusy && !StatusUnconfirmed && !IsExporting && State.Mode is ProjectMode.Ready or ProjectMode.Interrupted or ProjectMode.Closed;
-    public bool CanUndo => CanEdit && State.CanUndo;
-    public bool CanRedo => CanEdit && State.CanRedo;
+    public bool CanUndo => CanEditTimeline && State.CanUndo;
+    public bool CanRedo => CanEditTimeline && State.CanRedo;
     public bool CanEditSelection => CanEdit && SelectedClip is not null && Clips.Contains(SelectedClip);
-    public bool CanMoveEarlier => CanEditSelection && GroupStart(Clips.IndexOf(SelectedClip!)) > 0;
-    public bool CanMoveLater => CanEditSelection && GroupEnd(Clips.IndexOf(SelectedClip!)) < Clips.Count - 1;
+    public bool CanMoveEarlier => CanEditTimeline && CanEditSelection && GroupStart(Clips.IndexOf(SelectedClip!)) > 0;
+    public bool CanMoveLater => CanEditTimeline && CanEditSelection && GroupEnd(Clips.IndexOf(SelectedClip!)) < Clips.Count - 1;
     public string SaveStatus => Strings[StatusUnconfirmed ? "ProjectUnconfirmed" : IsBusy ? "ProjectSaving" :
         Error is not null ? "ProjectSaveFailed" : State.IsDirty ? "ProjectUnsaved" : "ProjectSaved"];
     public string ModeText => Strings["ProjectMode" + State.Mode];
@@ -40,7 +42,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     public string ClipCountText => $"{Clips.Count} / {State.ClipCount}";
     public event EventHandler? StateChanged;
 
-    partial void OnSelectedClipChanged(ProjectClip? value) { ClipName = value?.Name ?? ""; NotifyState(); }
+    partial void OnSelectedClipChanged(ProjectClip? value) { ResetProperties(); NotifyState(); }
     partial void OnIsBusyChanged(bool value) => NotifyState();
     partial void OnErrorChanged(string? value) => NotifyState();
     partial void OnStatusUnconfirmedChanged(bool value) => NotifyState();
@@ -48,7 +50,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     {
         foreach (var property in new[] { nameof(CanEdit), nameof(CanRecord), nameof(CanPause), nameof(CanFinish), nameof(CanClose),
             nameof(CanUndo), nameof(CanRedo), nameof(SaveStatus), nameof(ModeText), nameof(StartText), nameof(ClipCountText), nameof(IsExporting),
-            nameof(CanEditSelection), nameof(CanMoveEarlier), nameof(CanMoveLater) })
+            nameof(CanEditSelection), nameof(CanMoveEarlier), nameof(CanMoveLater), nameof(CanEditTimeline), nameof(CanReplaceProject) })
             OnPropertyChanged(property);
         StateChanged?.Invoke(this, EventArgs.Empty);
         NotifyTimeline();
@@ -77,13 +79,21 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     public Task StartAsync(RecordingConfiguration configuration) => ExecuteAsync("StartProjectRecording", new() { Configuration = configuration });
     [RelayCommand] public Task PauseAsync() => ExecuteAsync("PauseProjectRecording");
     [RelayCommand] public Task FinishAsync() => ExecuteAsync("FinishProjectRecording");
-    [RelayCommand] public Task SaveAsync() => ExecuteAsync("SaveProject");
+    [RelayCommand] public async Task SaveAsync()
+    {
+        if (HasPropertyDraft)
+        {
+            await ApplyPropertiesAsync();
+            if (HasPropertyDraft || StatusUnconfirmed) return;
+        }
+        await ExecuteAsync("SaveProject");
+    }
     [RelayCommand] public Task UndoAsync() => ExecuteAsync("UndoProject");
     [RelayCommand] public Task RedoAsync() => ExecuteAsync("RedoProject");
     public Task RestoreBackupAsync() => ExecuteAsync("RestoreProjectBackup");
     [RelayCommand] public Task RenameSelectedAsync() => SelectedClip is null ? Task.CompletedTask : RenameAsync(SelectedClip.Id, ClipName);
     public Task RenameAsync(Guid clipId, string name) => ExecuteAsync("RenameProjectClip", new() { ClipId = clipId, Name = name });
-    [RelayCommand] public Task DeleteSelectedAsync() => !CanEditSelection ? Task.CompletedTask :
+    [RelayCommand] public Task DeleteSelectedAsync() => !CanEditTimeline || !CanEditSelection ? Task.CompletedTask :
         ExecuteAsync("ApplyProjectEdit", new() { Edit = new ProjectClipEdit.Remove(SelectedClip!.Id) });
     [RelayCommand] public Task MoveSelectedEarlierAsync()
     {
@@ -128,6 +138,11 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
 
     public async Task<bool> CloseAsync()
     {
+        if (CanClose && HasPropertyDraft)
+        {
+            await SaveAsync();
+            if (HasPropertyDraft || StatusUnconfirmed) return false;
+        }
         await _gate.WaitAsync();
         try
         {

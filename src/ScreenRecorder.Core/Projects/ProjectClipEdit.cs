@@ -13,6 +13,7 @@ namespace ScreenRecorder.Core.Projects;
 [JsonDerivedType(typeof(ProjectClipEdit.Group), "group")]
 [JsonDerivedType(typeof(ProjectClipEdit.Ungroup), "ungroup")]
 [JsonDerivedType(typeof(ProjectClipEdit.RemoveRange), "removeRange")]
+[JsonDerivedType(typeof(ProjectClipEdit.Properties), "properties")]
 public abstract record ProjectClipEdit
 {
     private ProjectClipEdit() { }
@@ -25,4 +26,7 @@ public abstract record ProjectClipEdit
     public sealed record Group(Guid FirstClipId, Guid LastClipId, Guid GroupId) : ProjectClipEdit;
     public sealed record Ungroup(Guid GroupId) : ProjectClipEdit;
     public sealed record RemoveRange(long StartTicks, long EndTicks) : ProjectClipEdit;
+    public sealed record Properties(Guid ClipId, string Name, double Volume, bool Muted,
+        long FadeInTicks, long FadeOutTicks, double Scale, double Crop,
+        double PositionX, double PositionY) : ProjectClipEdit;
 }
