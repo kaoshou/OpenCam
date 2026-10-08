@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using ScreenRecorder.Core.Enums;
+using ScreenRecorder.Core.Projects;
 using ScreenRecorder.Core.Interfaces;
 using ScreenRecorder.Core.Models;
 using ScreenRecorder.Core.State;
@@ -39,6 +40,7 @@ public class RecordingOrchestrator : IAsyncDisposable
     private readonly ICaptureHealthMonitor? _captureHealthMonitor;
     private readonly IRecordingEngineFactory _engineFactory;
     private RecordingSession? _currentSession;
+    private string? _projectDisplaySignature;
     private CancellationTokenSource? _watchdogCts;
     private Task? _watchdogTask;
     private TimeSpan _accumulatedDuration = TimeSpan.Zero;
@@ -118,9 +120,27 @@ public class RecordingOrchestrator : IAsyncDisposable
         }
     }
 
+    internal async Task<(bool Success, string? ErrorMessage, string? SessionId)> StartProjectRecordingAsync(
+        RecordingConfiguration configuration, ProjectSessionOwnership ownership, CancellationToken ct = default)
+    {
+        await _lifecycleGate.WaitAsync(ct);
+        try
+        {
+            if (ownership.Handle.NeedsRecoveryConfirmation)
+                return (false, "Project needs recovery confirmation.", null);
+            var config = System.Text.Json.JsonSerializer.Deserialize<RecordingConfiguration>(
+                System.Text.Json.JsonSerializer.Serialize(configuration))!;
+            config.OutputDirectory = Path.Combine(ownership.Handle.ProjectDirectory, "sessions");
+            config.DeleteWorkingFileAfterSuccessfulRemux = false;
+            return await StartRecordingCoreAsync(config, ct, ownership);
+        }
+        finally { _lifecycleGate.Release(); }
+    }
+
     private async Task<(bool Success, string? ErrorMessage, string? SessionId)> StartRecordingCoreAsync(
         RecordingConfiguration config,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ProjectSessionOwnership? ownership = null)
     {
         if ((_engine != null || _unconfirmedAttemptPath != null) && _stateMachine.CurrentState == RecordingState.Failed)
         {
@@ -167,17 +187,20 @@ public class RecordingOrchestrator : IAsyncDisposable
 
             // 計算實際擷取幾何範圍
             var actualBounds = ResolveCaptureBounds(config);
+            _projectDisplaySignature = ownership is null ? null : GetProjectDisplaySignature(config);
 
             var sessionId = DateTimeOffset.Now.ToString("yyyyMMdd_HHmmss") + "_" + Guid.NewGuid().ToString("N")[..6];
             var sessionDir = _storageService.CreateSessionDirectory(rootPath, sessionId);
             _accumulatedDuration = TimeSpan.Zero;
             _segmentIndex = -1;
             var workingMvk = Path.Combine(sessionDir, "segment_000.mkv");
-            var finalMp4 = _storageService.GetFinalFilePath(rootPath, DateTimeOffset.Now);
+            var finalMp4 = ownership is null ? _storageService.GetFinalFilePath(rootPath, DateTimeOffset.Now) : string.Empty;
             var sessionLog = _storageService.GetSessionLogFilePath(sessionDir);
 
             var session = new RecordingSession
             {
+                ProjectId = ownership?.Handle.Current.ProjectId,
+                CompletionPolicy = ownership is null ? ProjectCompletionPolicy.QuickMp4 : ProjectCompletionPolicy.KeepProjectSources,
                 SessionId = sessionId,
                 StartTime = DateTimeOffset.Now,
                 LastHeartbeatTime = DateTimeOffset.Now,
@@ -606,6 +629,9 @@ public class RecordingOrchestrator : IAsyncDisposable
         try
         {
             var session = _currentSession!;
+            if (session.CompletionPolicy == ProjectCompletionPolicy.KeepProjectSources &&
+                _projectDisplaySignature != GetProjectDisplaySignature(session.Configuration))
+                throw new InvalidOperationException("Displays changed while paused. Finish this session and confirm the capture target before recording again.");
             var actualBounds = ResolveCaptureBounds(session.Configuration);
             await StartSegmentAsync(session, actualBounds, cancellationToken);
             var nextSegment = session.WorkingFilePath;
@@ -690,6 +716,28 @@ public class RecordingOrchestrator : IAsyncDisposable
                 _accumulatedDuration += _engine.CurrentRecordedTime;
                 session.TotalVideoFramesRecorded += _engine.CurrentFramesRecorded;
                 await DisposeCurrentEngineAsync();
+            }
+
+            if (session.CompletionPolicy == ProjectCompletionPolicy.KeepProjectSources)
+            {
+                if (session.ProjectId is null || session.SegmentFilePaths.Count == 0)
+                    throw new InvalidDataException("Project session has no finalized source.");
+                _stateMachine.TryTransition(RecordingState.Finalizing, "保存專案錄影素材");
+                session.State = RecordingState.Finalizing;
+                await SaveSessionAsync(session, cancellationToken);
+                foreach (var source in session.SegmentFilePaths)
+                {
+                    var media = await _mediaProbe.ProbeAsync(source, cancellationToken);
+                    if (!media.IsValid || media.VideoStreamCount < 1 || media.Duration <= TimeSpan.Zero)
+                        throw new InvalidDataException("Project source validation failed; MKV retained.");
+                }
+                session.State = RecordingState.Completed;
+                await SaveSessionAsync(session, cancellationToken);
+                _stateMachine.TryTransition(RecordingState.Completed, "專案素材已保存");
+                _currentSession = null;
+                _accumulatedDuration = TimeSpan.Zero;
+                _segmentIndex = 0;
+                return (true, null, null);
             }
 
             // 2. 切換為 Finalizing
@@ -849,6 +897,15 @@ public class RecordingOrchestrator : IAsyncDisposable
             IsEncoderHealthy = health.EncoderHealthy,
             HealthWarning = health.Warning
         };
+    }
+
+    private string GetProjectDisplaySignature(RecordingConfiguration config)
+    {
+        var monitors = _displayService.GetMonitors();
+        if (monitors.Count == 0 || config.CaptureSource == CaptureSourceType.Monitor &&
+            (config.MonitorIndex < 0 || config.MonitorIndex >= monitors.Count))
+            throw new InvalidOperationException("Select an available recording display.");
+        return System.Text.Json.JsonSerializer.Serialize(monitors);
     }
 
     private CaptureRegion ResolveCaptureBounds(RecordingConfiguration config)

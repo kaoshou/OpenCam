@@ -346,10 +346,10 @@ public partial class RecordingEncoderLifecycleTests
         public readonly HealthStub Health = new();
         public RecordingOrchestrator Recorder { get; }
         public RecordingConfiguration Configuration { get; }
-        public RecordingScope()
+        public RecordingScope(IDisplayService? suppliedDisplay = null)
         {
             var storage = new StorageService();
-            var display = new FixedDisplay();
+            var display = suppliedDisplay ?? new FixedDisplay();
             Recorder = new(new RecordingStateMachine(), storage, Store, new DiskSpaceMonitor(storage),
                 Remuxer, new ProbeStub(), display, new MacOsFFmpegProvider(display),
                 encoderSelectionService: Selection, engineFactory: Factory, captureHealthMonitor: Health);

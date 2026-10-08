@@ -39,6 +39,27 @@ public sealed class ProjectEditHistory
     public void Undo() => Restore(_undo, _redo);
     public void Redo() => Restore(_redo, _undo);
 
+    /// <summary>Appending finalized recordings is not an edit of existing clips. Keep edit undo/redo intact.</summary>
+    public void AcceptRecordingAppend(RecordingProject committed)
+    {
+        ProjectValidation.Validate(committed);
+        if (committed.ProjectId != Current.ProjectId || committed.Revision < Current.Revision ||
+            !committed.Clips.Take(Current.Clips.Length).SequenceEqual(Current.Clips) ||
+            Current.Sources.Any(source => !committed.Sources.Contains(source)))
+            throw new InvalidDataException("Recording append must preserve existing edits and sources.");
+        var additions = committed.Clips.Skip(Current.Clips.Length).ToImmutableArray();
+        AppendToHistory(_undo, additions);
+        AppendToHistory(_redo, additions);
+        Current = committed;
+    }
+
+    private static void AppendToHistory(Stack<ImmutableArray<ProjectClip>> stack, ImmutableArray<ProjectClip> additions)
+    {
+        var snapshots = stack.Reverse().Select(clips => clips.AddRange(additions)).ToArray();
+        stack.Clear();
+        foreach (var snapshot in snapshots) stack.Push(snapshot);
+    }
+
     private void Restore(Stack<ImmutableArray<ProjectClip>> from, Stack<ImmutableArray<ProjectClip>> to)
     {
         if (from.Count == 0) return;

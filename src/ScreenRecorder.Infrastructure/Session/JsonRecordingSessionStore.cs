@@ -33,6 +33,19 @@ public class JsonRecordingSessionStore : IRecordingSessionStore
     internal async Task SaveBoundAsync(RecordingSession session, BoundDirectory bound, CancellationToken cancellationToken)
     {
         var json = JsonSerializer.Serialize(session, JsonOptions);
+        if (session.CompletionPolicy == ScreenRecorder.Core.Projects.ProjectCompletionPolicy.KeepProjectSources)
+        {
+            // Relative leaf paths keep project sessions portable without weakening SessionPathPolicy.
+            var portable = JsonSerializer.Deserialize<RecordingSession>(json, JsonOptions)!;
+            portable.WorkingDirectory = string.Empty;
+            portable.WorkingFilePath = Path.GetFileName(SessionPathPolicy.SegmentPath(session.WorkingDirectory, session.WorkingFilePath));
+            portable.SegmentFilePaths = session.SegmentFilePaths.Select(path =>
+                Path.GetFileName(SessionPathPolicy.SegmentPath(session.WorkingDirectory, path))).ToList();
+            portable.FinalFilePath = string.Empty;
+            portable.LogFilePath = "session.log";
+            portable.Configuration.OutputDirectory = string.Empty;
+            json = JsonSerializer.Serialize(portable, JsonOptions);
+        }
 
         // 如果現有 session.json 存在，先備份
         string? previous = null;

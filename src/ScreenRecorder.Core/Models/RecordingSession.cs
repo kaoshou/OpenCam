@@ -8,6 +8,9 @@ namespace ScreenRecorder.Core.Models;
 /// </summary>
 public class RecordingSession
 {
+    public Guid? ProjectId { get; set; }
+    public ScreenRecorder.Core.Projects.ProjectCompletionPolicy CompletionPolicy { get; set; }
+
     public string SessionId { get; set; } = string.Empty;
 
     public DateTimeOffset StartTime { get; set; }
