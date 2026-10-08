@@ -36,7 +36,7 @@ FFmpeg pipe 候選只讀取呼叫端提供的唯讀、可定位 stream，不重�
 | --- | --- | --- |
 | FFmpeg 子程序＋pipe stream | 短 MKV 定位與取消探針 | pipe 不可 seek，當前實作每次從來源頭解碼；長片效率未驗證。PCM sink、同步時鐘與連續跨段尚未實作 |
 | FFmpeg 綁定 FD＋平台 PCM | macOS 7.1.2 精準畫格／取消／唯讀來源核對；獨立原生音訊停止測試 | 尚未組合為播放器；Windows FD／PCM、A/V 同步與長專案 UI 未驗證 |
-| LibVLCSharp＋StreamMediaInput | 官方有串流回呼及播放器 API | 尚未實測；此機沒有 /Applications/VLC.app。Apple Silicon native binaries、套件散布與停止回呼需逐項核對，不沿用已放棄的試作 |
+| LibVLCSharp＋StreamMediaInput | macOS 真實連續解碼、綁定 stream、停止與來源雜湊核對 | 本輪 VFR／非零起點精準定位未通過，不採用為產品精剪播放器 |
 | 平台播放器（AVPlayer／Media Foundation） | 本輪未實測 | 需確認原始 MKV、跨平台一致性、精準 PTS、取消與分段音畫；不能預先假定可直接使用 |
 
 FFmpeg 官方說明 [pipe 與 fd 的 seek 差異](https://ffmpeg.org/ffmpeg-protocols.html#fd)：fd 對 regular file 可定位，pipe 不具同樣能力。但跨平台安全傳遞已綁定檔案描述元尚未在本專案實作，不能只改 URL 就宣稱已解決。
@@ -44,5 +44,19 @@ FFmpeg 官方說明 [pipe 與 fd 的 seek 差異](https://ffmpeg.org/ffmpeg-prot
 LibVLC [MediaPlayer API](https://docs.videolan.me/libvlcsharp/api/LibVLCSharp.Shared.MediaPlayer.html) 的 Stop 等待媒體工作結束；[MediaInput API](https://docs.videolan.me/libvlcsharp/api/LibVLCSharp.Shared.html) 提供受控輸入方向。是否能達到精準邊界、回呼可取消及可靠停止，仍需測試。
 
 ## 下一個必要交付
+
+### 2026-10-09：LibVLC 隔離候選實測
+
+僅診斷專案引用 LibVLCSharp 3.9.4；產品未新增此依賴。使用 VideoLAN 官方 VLC 3.0.23 arm64 DMG，以唯讀方式掛載，不安裝至 Applications、不修改系統信任設定。SHA-256 與官方檔案一致：`fc6fac08d87f538517d44aca0c5e7a244b67c8c4cb589bf478363a7315fd5e0d`。原生 plugins 位置只透過測試程序的 `VLC_PLUGIN_PATH` 指定。
+
+測資將原始畫格序號編成影像內的八條二進位色帶；回呼讀實際像素，而非以播放器回報時間推定畫面正確。先開唯讀 stream，再移名並替換原始路徑，證明此播放輸入未重新解析替換檔。獨立 ffprobe 確認 VFR 1.500 秒與 offset 3.500 秒確有對應畫格。
+
+- 一般 H.264 30／60 FPS：1.5 秒定位畫格 45／90、快速 100 次定位最後畫格 60／120 通過。
+- VFR：要求 1.5 秒畫格 90，得到 83；要求 2 秒畫格 120，得到 113。等待 250ms 後仍相同。
+- 起點為 2 秒：按來源時間要求 3.5 秒畫格 45，得到 38；4 秒要求 60，得到 53。不能加固定補償值掩蓋誤差。
+- 一般、60 FPS、VFR 的原生音訊 buffer 計數有增加；offset 初始觀察期未增加。這不是聲學回錄或同步驗收。
+- Stop 後 250ms 無新視訊回呼，來源 SHA-256 不變。跨片段聲畫同步、音訊時鐘、Windows、長專案介面尚未驗證。
+
+結論：候選為 **FAIL／NOT_READY**，不接進正式剪輯預覽；保留探針供重現。時間軸／非破壞編輯互動可以獨立施工，但不因此宣稱預覽或完整編輯器完成。
 
 以相同 fixture／量測規則補齊候選實驗，至少一個後端通过精準畫格、聲音停止、跨接點同步及原始來源保護門檻，才制定其產品接線計畫。若沒有後端通過，保留未完成狀態，不用假預覽或預先轉整片掩蓋問題。

@@ -4,4 +4,5 @@
     <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="../../src/ScreenRecorder.Core/ScreenRecorder.Core.csproj" /></ItemGroup>
+  <ItemGroup><PackageReference Include="LibVLCSharp" Version="3.9.4" /></ItemGroup>
 </Project>

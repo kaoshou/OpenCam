@@ -6,6 +6,8 @@ using ScreenRecorder.Core.Projects;
 using ScreenRecorder.ProjectPreviewProbe;
 
 var candidate = args.SkipWhile(a => a != "--candidate").Skip(1).FirstOrDefault() ?? "none";
+if (candidate == "libvlc-stream")
+    return await VlcStreamProbe.RunAsync(args);
 if (candidate is not ("ffmpeg-pipe" or "ffmpeg-fd-macos"))
 {
     Console.WriteLine(JsonSerializer.Serialize(new PreviewProbeResult(candidate, "NOT_IMPLEMENTED",
