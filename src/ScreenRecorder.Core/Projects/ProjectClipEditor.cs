@@ -16,6 +16,20 @@ internal static class ProjectClipEditor
         }
         switch (edit)
         {
+            case ProjectClipEdit.TrimEdge edge:
+                var edgeClip = clips[Index(edge.ClipId)];
+                var timeBase = project.Sources.First(s => s.Id == edgeClip.SourceId).Timing.TimeBase;
+                var delta = (BigInteger)edge.DeltaTicks * timeBase.Denominator / (TimeSpan.TicksPerSecond * (BigInteger)timeBase.Numerator);
+                var boundary = (edge.Start ? edgeClip.InPts : edgeClip.OutPts) + delta;
+                if (boundary < long.MinValue || boundary > long.MaxValue)
+                    throw new InvalidDataException("Trim boundary exceeds supported precision.");
+                return Apply(project, new ProjectClipEdit.Trim(edge.ClipId,
+                    edge.Start ? (long)boundary : edgeClip.InPts, edge.Start ? edgeClip.OutPts : (long)boundary));
+            case ProjectClipEdit.SplitAtTimeline splitAt:
+                var position = ProjectTimeline.Build(project).Locate(splitAt.TimelineTicks);
+                if (position is null || position.ClipId != splitAt.ClipId)
+                    throw new InvalidDataException("Split position is outside the selected clip.");
+                return Apply(project, new ProjectClipEdit.Split(splitAt.ClipId, position.SourcePts, splitAt.RightClipId));
             case ProjectClipEdit.Trim trim:
                 var index = Index(trim.ClipId);
                 clips[index] = WithRange(project, clips[index], trim.InPts, trim.OutPts);

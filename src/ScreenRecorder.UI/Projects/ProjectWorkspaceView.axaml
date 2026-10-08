@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:p="using:ScreenRecorder.UI.Projects" xmlns:core="using:ScreenRecorder.Core.Projects"
+        xmlns:editor="using:ScreenRecorder.UI.Projects.Editor"
         x:Class="ScreenRecorder.UI.Projects.ProjectWorkspaceView" x:DataType="p:ProjectWorkspaceViewModel"
         Title="{Binding Strings[ProjectWorkspace]}" Icon="/Assets/app_icon.png"
         Width="1440" Height="900" MinWidth="1024" MinHeight="640" Background="{DynamicResource ProjectCanvasBrush}"
@@ -105,6 +106,8 @@
             <Button Grid.Column="2" Content="{Binding Strings[ProjectMoveLater]}" Command="{Binding MoveSelectedLaterCommand}" IsEnabled="{Binding CanMoveLater}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
           </Grid>
           <Button Content="{Binding Strings[ProjectDeleteClip]}" Command="{Binding DeleteSelectedCommand}" IsEnabled="{Binding CanEditSelection}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+          <Button Content="{Binding Strings[ProjectGroupNext]}" Command="{Binding GroupWithNextCommand}" IsEnabled="{Binding CanMoveLater}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+          <Button Content="{Binding Strings[ProjectUngroup]}" Command="{Binding UngroupSelectedCommand}" IsEnabled="{Binding CanUngroup}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
           <Separator Margin="0,8"/>
           <TextBlock Text="{Binding Strings[ProjectSourceSafe]}" TextWrapping="Wrap" Foreground="{DynamicResource ProjectAccentBrush}" LineHeight="22"/>
 
@@ -119,15 +122,19 @@
     </Grid>
     <Border x:Name="TimelinePane" Grid.Row="3" Background="{DynamicResource ProjectCardBrush}" CornerRadius="8" Margin="0,8,0,0" Padding="12">
       <Grid RowDefinitions="Auto,*">
-        <StackPanel Orientation="Horizontal" Spacing="8">
+        <WrapPanel Orientation="Horizontal">
           <Button x:Name="ClipsToggle" Content="{Binding Strings[ProjectClips]}" Click="OnToggleClips"/>
           <Button x:Name="PropertiesToggle" Content="{Binding Strings[ProjectProperties]}" Click="OnToggleProperties"/>
           <Button Content="{Binding Strings[ProjectUndo]}" Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}"/>
           <Button Content="{Binding Strings[ProjectRedo]}" Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}"/>
-          <TextBlock Text="{Binding Strings[ProjectTimeline]}" VerticalAlignment="Center" Margin="12,0"/>
-        </StackPanel>
-        <TextBlock Grid.Row="1" Text="{Binding Strings[ProjectTimelinePending]}" HorizontalAlignment="Center" VerticalAlignment="Center"
-                   Foreground="{DynamicResource ProjectMutedBrush}" TextWrapping="Wrap" MaxWidth="640"/>
+          <Button Content="{Binding Strings[ProjectSplit]}" Command="{Binding SplitAtPlayheadCommand}" IsEnabled="{Binding CanSplit}"/>
+          <Button Content="{Binding Strings[ProjectRangeStart]}" Command="{Binding MarkRangeStartCommand}" IsEnabled="{Binding CanEdit}"/>
+          <Button Content="{Binding Strings[ProjectRangeEnd]}" Command="{Binding MarkRangeEndCommand}" IsEnabled="{Binding CanEdit}"/>
+          <Button Content="{Binding Strings[ProjectDeleteRange]}" Command="{Binding DeleteRangeCommand}" IsEnabled="{Binding CanDeleteRange}"/>
+          <Button Content="{Binding Strings[ProjectFitTimeline]}" Click="OnFitTimeline"/>
+          <TextBlock Text="{Binding TimelineTimeText}" VerticalAlignment="Center" Margin="12,0" FontSize="12"/>
+        </WrapPanel>
+        <editor:ProjectTimelineControl x:Name="TimelineControl" Grid.Row="1" ToolTip.Tip="{Binding Strings[ProjectTimelineHelp]}"/>
       </Grid>
     </Border>
     <StackPanel Grid.Row="4" Spacing="5" Margin="0,16,0,0">

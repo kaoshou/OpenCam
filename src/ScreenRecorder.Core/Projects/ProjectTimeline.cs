@@ -4,6 +4,7 @@ using System.Numerics;
 namespace ScreenRecorder.Core.Projects;
 
 public sealed record ProjectPosition(Guid ClipId, Guid SourceId, long SourcePts);
+public sealed record ProjectTimelineClip(Guid ClipId, long StartTicks, long EndTicks);
 
 public sealed class ProjectTimeline
 {
@@ -11,9 +12,14 @@ public sealed class ProjectTimeline
         BigInteger ExactStartNumerator, BigInteger ExactStartDenominator);
     internal IReadOnlyList<Segment> Segments { get; }
     public long DurationTicks { get; }
+    public IReadOnlyList<ProjectTimelineClip> Clips { get; }
 
     private ProjectTimeline(List<Segment> segments, long duration)
-        => (Segments, DurationTicks) = (segments.AsReadOnly(), duration);
+    {
+        Segments = segments.AsReadOnly();
+        DurationTicks = duration;
+        Clips = segments.Select(s => new ProjectTimelineClip(s.Clip.Id, s.StartTicks, s.EndTicks)).ToList().AsReadOnly();
+    }
 
     public static ProjectTimeline Build(RecordingProject project)
     {

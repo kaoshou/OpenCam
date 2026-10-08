@@ -51,7 +51,10 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
             if (message.MessageType == "GetProjectClips")
             {
                 if (request.Offset < 0 || request.Limit is < 1 or > 100) throw new InvalidDataException("Invalid clip page.");
-                return Reply(new(true, null, Snapshot(), coordinator.Current!.Clips.Skip(request.Offset).Take(request.Limit).ToArray()));
+                var project = coordinator.Current!;
+                var timeline = ProjectTimeline.Build(project);
+                return Reply(new(true, null, Snapshot(), project.Clips.Skip(request.Offset).Take(request.Limit).ToArray())
+                    { TimelineClips = timeline.Clips.Skip(request.Offset).Take(request.Limit).ToArray() });
             }
             if (request.OperationId == Guid.Empty) throw new InvalidDataException("An operation ID is required.");
             if (_operations.Count >= 20000) throw new InvalidOperationException("Save and restart OpenCam before issuing more project commands.");

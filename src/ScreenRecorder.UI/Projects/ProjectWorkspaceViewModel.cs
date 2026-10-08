@@ -51,6 +51,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
             nameof(CanEditSelection), nameof(CanMoveEarlier), nameof(CanMoveLater) })
             OnPropertyChanged(property);
         StateChanged?.Invoke(this, EventArgs.Empty);
+        NotifyTimeline();
     }
 
     public void ApplyReply(ProjectReply reply)
@@ -61,6 +62,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
         {
             Clips.Clear();
             SelectedClip = null;
+            PublishTimeline([]);
         }
         State = reply.State;
         StatusUnconfirmed = false;
@@ -173,6 +175,8 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
         var snapshot = State;
         if (snapshot.ClipCount is < 0 or > 10000) throw new InvalidDataException(Strings["ProjectClipLoadFailed"]);
         var loaded = new List<ProjectClip>(snapshot.ClipCount);
+        var spans = new List<ProjectTimelineClip>(snapshot.ClipCount);
+        var missingTiming = false;
         var ids = new HashSet<Guid>();
         for (var offset = 0; offset < snapshot.ClipCount; offset += 100)
         {
@@ -185,12 +189,27 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
                 page.Clips.Any(c => c.Id == Guid.Empty || !ids.Add(c.Id)))
                 throw new InvalidDataException(Strings["ProjectClipLoadFailed"]);
             loaded.AddRange(page.Clips);
+            if (page.TimelineClips is null) missingTiming = true;
+            else
+            {
+                if (page.TimelineClips.Length != page.Clips.Length)
+                    throw new InvalidDataException(Strings["ProjectClipLoadFailed"]);
+                for (var i = 0; i < page.TimelineClips.Length; i++)
+                {
+                    var span = page.TimelineClips[i];
+                    if (span.ClipId != page.Clips[i].Id || span.StartTicks != (spans.LastOrDefault()?.EndTicks ?? 0) ||
+                        span.EndTicks <= span.StartTicks)
+                        throw new InvalidDataException(Strings["ProjectClipLoadFailed"]);
+                    spans.Add(span);
+                }
+            }
         }
         // Publish only a complete, same-revision snapshot. Failed refresh leaves the previous list intact.
         var selection = SelectedClip?.Id;
         Clips.Clear();
         foreach (var clip in loaded) Clips.Add(clip);
         SelectedClip = Clips.FirstOrDefault(c => c.Id == selection) ?? Clips.FirstOrDefault();
+        PublishTimeline(missingTiming ? [] : spans.AsReadOnly());
         OnPropertyChanged(nameof(ClipCountText));
     }
 

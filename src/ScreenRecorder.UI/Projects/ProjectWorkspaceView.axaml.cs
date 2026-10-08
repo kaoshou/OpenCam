@@ -95,6 +95,7 @@ public partial class ProjectWorkspaceView : Window
         if (Model.CanRecord && _main?.CheckProjectScreenPermission() == true) await Model.StartAsync(_main.BuildProjectConfiguration());
     }
     private void OnCaptureSettings(object? sender, RoutedEventArgs e) => Owner?.Activate();
+    private void OnFitTimeline(object? sender, RoutedEventArgs e) => TimelineControl.Fit();
     private async void OnRestoreBackup(object? sender, RoutedEventArgs e)
     {
         if (!Model.State.NeedsRecoveryConfirmation || Model.IsBusy) return;

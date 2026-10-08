@@ -7,6 +7,54 @@ namespace ScreenRecorder.Core.Tests;
 public sealed class ProjectTimelineTests
 {
     [Fact]
+    public void TrimEdgeUsesSourceTimeBaseAndCanRestoreHiddenOriginalContent()
+    {
+        var p = ProjectClipEditTests.Fixture();
+        var history = new ProjectEditHistory(p);
+        history.Apply(new ProjectClipEdit.TrimEdge(p.Clips[0].Id, true, 5_000_000));
+        Assert.Equal(5500, history.Current.Clips[0].InPts);
+        history.Apply(new ProjectClipEdit.TrimEdge(p.Clips[0].Id, true, -5_000_000));
+        Assert.Equal(5000, history.Current.Clips[0].InPts);
+        Assert.Throws<InvalidDataException>(() => history.Apply(new ProjectClipEdit.TrimEdge(p.Clips[0].Id, true, -1_000_000)));
+        history.Apply(new ProjectClipEdit.TrimEdge(p.Clips[0].Id, false, -5_000_000));
+        Assert.Equal(6500, history.Current.Clips[0].OutPts);
+        Assert.Equal(p.Sources, history.Current.Sources);
+        history.Undo();
+        Assert.Equal(7000, history.Current.Clips[0].OutPts);
+    }
+
+    [Fact]
+    public void DisplaySpansAndTimelineSplitUseExactSourceTiming()
+    {
+        var p = ProjectClipEditTests.Fixture();
+        var timeline = ProjectTimeline.Build(p);
+        Assert.Equal(new long[] { 0, 20_000_000 }, timeline.Clips.Select(c => c.StartTicks));
+        Assert.Equal(new long[] { 20_000_000, 50_000_000 }, timeline.Clips.Select(c => c.EndTicks));
+        var history = new ProjectEditHistory(p);
+        history.Apply(new ProjectClipEdit.SplitAtTimeline(p.Clips[1].Id, 30_000_000, Guid.NewGuid()));
+        Assert.Equal(9000, history.Current.Clips[1].OutPts);
+        Assert.Equal(9000, history.Current.Clips[2].InPts);
+        history.Undo();
+        Assert.Equal(p.Clips, history.Current.Clips);
+        Assert.Throws<InvalidDataException>(() => history.Apply(
+            new ProjectClipEdit.SplitAtTimeline(p.Clips[0].Id, 30_000_000, Guid.NewGuid())));
+    }
+
+    [Theory]
+    [InlineData(166666, false)]
+    [InlineData(166667, true)]
+    public void TimelineSplitDoesNotRoundFractionalFrameBoundaryEarly(long ticks, bool allowed)
+    {
+        var p = ProjectClipEditTests.Fixture();
+        p = p with { Sources = [p.Sources[0] with { Timing = new(new(1,60), 0, 3) }],
+            Clips = [p.Clips[0] with { InPts = 0, OutPts = 3 }] };
+        var history = new ProjectEditHistory(p);
+        var edit = new ProjectClipEdit.SplitAtTimeline(p.Clips[0].Id, ticks, Guid.NewGuid());
+        if (!allowed) Assert.Throws<InvalidDataException>(() => history.Apply(edit));
+        else { history.Apply(edit); Assert.Equal(1, history.Current.Clips[0].OutPts); }
+    }
+
+    [Fact]
     public void HalfOpenBoundaryMapsToNextSourceAndEndIsNotAFrame()
     {
         var p = ProjectClipEditTests.Fixture();

@@ -32,4 +32,7 @@ public sealed record ProjectSnapshot(Guid? ProjectId, string Name, string? Direc
 }
 
 public sealed record ProjectReply(bool Success, string? Error, ProjectSnapshot State,
-    ProjectClip[]? Clips = null, bool Unconfirmed = false, bool OperationKnown = true);
+    ProjectClip[]? Clips = null, bool Unconfirmed = false, bool OperationKnown = true)
+{
+    public ProjectTimelineClip[]? TimelineClips { get; init; }
+}
