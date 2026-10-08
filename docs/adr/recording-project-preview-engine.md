@@ -60,3 +60,20 @@ LibVLC [MediaPlayer API](https://docs.videolan.me/libvlcsharp/api/LibVLCSharp.Sh
 結論：候選為 **FAIL／NOT_READY**，不接進正式剪輯預覽；保留探針供重現。時間軸／非破壞編輯互動可以獨立施工，但不因此宣稱預覽或完整編輯器完成。
 
 以相同 fixture／量測規則補齊候選實驗，至少一個後端通过精準畫格、聲音停止、跨接點同步及原始來源保護門檻，才制定其產品接線計畫。若沒有後端通過，保留未完成狀態，不用假預覽或預先轉整片掩蓋問題。
+
+### 2026-10-09：已解碼影音與真實裝置時鐘的整合子測試
+
+新增隔離候選 `--candidate ffmpeg-integrated-macos --ffmpeg … --audio-helper …`。
+只在診斷中預解碼兩段各 0.8 秒、64×36、30 FPS 的自產測資：
+48 個 RGBA payload 均核對獨立 framehash，兩段 PCM 共 76,800 個樣本，
+第一段晚起始的音訊保留 0.2 秒偏移，來源雜湊不變。
+
+原生 AVAudioEngine 播放上述實際解碼 PCM，影格 packet 依
+`playerTime(forNodeTime:)` 的 sample clock 發布；不是 UI timer 推估聲音時間。
+本次量測影格發布最大落後 10.33ms、player＋engine 停止最大 14.43ms。
+首次在段中停止、觀察 250ms 無新音訊 tap／影格發布，再重新播放跨越兩段並停止，通過。
+
+**仍為 NOT_READY / exit 2。** 這只驗證有界短測資的 packet 排程與裝置停止；
+沒有把 RGBA 顯示在產品視窗，不是聲學／螢幕回錄驗收，也尚未量測完整音畫標記差值。
+連續串流解碼、seek 與 Play/Stop 共用生命週期、VFR／60 FPS／負 PTS 的整合矩陣、
+Windows 及原生編輯器仍未完成。不得把預解碼短測資做法接成整片預轉的產品播放器。
