@@ -107,6 +107,10 @@ public sealed class JsonProjectStore : IProjectStore
         public bool NeedsRecoveryConfirmation { get; private set; } = needsRecovery;
         internal void EnsureOpen() => ObjectDisposedException.ThrowIf(_disposed, this);
 
+        public Task<ProjectEditDraft?> ReadDraftAsync(CancellationToken ct = default) => ProjectDraftStore.ReadAsync(this, ct);
+        public Task SaveDraftAsync(ProjectEditDraft draft, CancellationToken ct = default) => ProjectDraftStore.SaveAsync(this, draft, ct);
+        public Task DiscardDraftAsync(Guid draftId, CancellationToken ct = default) => ProjectDraftStore.DiscardAsync(this, draftId, ct);
+
         public async Task RestoreBackupAsync(CancellationToken ct = default)
         {
             await Gate.WaitAsync(ct);

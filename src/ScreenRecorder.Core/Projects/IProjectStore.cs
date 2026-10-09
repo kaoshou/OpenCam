@@ -16,4 +16,7 @@ public interface IProjectHandle : IAsyncDisposable
     string ProjectDirectory { get; }
     bool NeedsRecoveryConfirmation { get; }
     Task<ProjectSaveReceipt> SaveAsync(RecordingProject next, long expectedRevision, CancellationToken ct = default);
+    Task<ProjectEditDraft?> ReadDraftAsync(CancellationToken ct = default);
+    Task SaveDraftAsync(ProjectEditDraft draft, CancellationToken ct = default);
+    Task DiscardDraftAsync(Guid draftId, CancellationToken ct = default);
 }
