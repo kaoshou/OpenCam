@@ -13,6 +13,7 @@ public partial class ProjectWorkspaceView : Window
     private MainViewModel? _main;
     private bool _closed, _closing;
     private EditorLayout? _layout;
+    private Avalonia.Media.Imaging.WriteableBitmap? _previewBitmap;
     public ProjectWorkspaceView()
     {
         InitializeComponent();
@@ -62,9 +63,33 @@ public partial class ProjectWorkspaceView : Window
         _main = main;
         RecentProjects.ItemsSource = main.RecentProjectPaths;
         var timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        timer.Tick += async (_, _) => { await vm.PollRecordingAsync(); await vm.PollWaveformAsync(); };
+        timer.Tick += async (_, _) => { await vm.PollRecordingAsync(); await vm.PollWaveformAsync();
+            if (vm.PreviewFrame is not null) await vm.PollThumbnailAsync(); };
         Opened += (_, _) => timer.Start();
         Closed += (_, _) => timer.Stop();
+        var previewTimer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(180) };
+        previewTimer.Tick += async (_, _) => await vm.PollPreviewAsync();
+        vm.PropertyChanged += OnPreviewChanged;
+        Opened += (_, _) => previewTimer.Start();
+        Closed += (_, _) => {
+            previewTimer.Stop(); vm.PropertyChanged -= OnPreviewChanged;
+            PreviewImage.Source = null; _previewBitmap?.Dispose(); _previewBitmap = null;
+        };
+    }
+    private void OnPreviewChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(ProjectWorkspaceViewModel.PreviewFrame)) return;
+        PreviewImage.Source = null;
+        _previewBitmap?.Dispose();
+        _previewBitmap = null;
+        if (Model.PreviewFrame?.Rgba is not { } bytes) return;
+        var bitmap = new Avalonia.Media.Imaging.WriteableBitmap(new(512, 288), new(96, 96),
+            Avalonia.Platform.PixelFormat.Rgba8888, Avalonia.Platform.AlphaFormat.Opaque);
+        using (var locked = bitmap.Lock())
+            for (var y = 0; y < 288; y++)
+                System.Runtime.InteropServices.Marshal.Copy(bytes, y * 512 * 4, locked.Address + y * locked.RowBytes, 512 * 4);
+        _previewBitmap = bitmap;
+        PreviewImage.Source = bitmap;
     }
     private ProjectWorkspaceViewModel Model => (ProjectWorkspaceViewModel)DataContext!;
 

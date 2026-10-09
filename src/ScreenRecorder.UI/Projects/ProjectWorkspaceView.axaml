@@ -42,6 +42,10 @@
     </Style>
     <Style Selector="Button:pointerover"><Setter Property="Background" Value="{DynamicResource ProjectRowBrush}"/></Style>
     <Style Selector="Button:disabled"><Setter Property="Opacity" Value="0.45"/></Style>
+    <Style Selector="Button:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{DynamicResource ProjectMutedBrush}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource ProjectStrokeBrush}"/>
+    </Style>
     <Style Selector="Button.tool"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
     <Style Selector="TextBox"><Setter Property="FontSize" Value="14"/><Setter Property="CornerRadius" Value="5"/><Setter Property="MinHeight" Value="34"/></Style>
     <Style Selector="ListBoxItem"><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0,3"/><Setter Property="CornerRadius" Value="6"/></Style>
@@ -88,10 +92,7 @@
           <ListBox x:Name="ClipList" Grid.Row="1" ItemsSource="{Binding Clips}" SelectedItem="{Binding SelectedClip}" IsEnabled="{Binding !HasPropertyDraft}" Background="Transparent">
             <ListBox.ItemTemplate>
               <DataTemplate x:DataType="core:ProjectClip">
-                <Border Padding="12,10" CornerRadius="6" Background="{DynamicResource ProjectRowBrush}" HorizontalAlignment="Stretch">
-                  <TextBlock Text="{Binding Name}" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"
-                             ToolTip.Tip="{Binding Name}" FontSize="14" Foreground="{DynamicResource ProjectTextBrush}"/>
-                </Border>
+                <editor:ProjectClipCard HorizontalAlignment="Stretch" ToolTip.Tip="{Binding Name}"/>
               </DataTemplate>
             </ListBox.ItemTemplate>
           </ListBox>
@@ -103,13 +104,15 @@
       <Border x:Name="PreviewPane" Grid.Column="1" Padding="20,12" Background="{DynamicResource ProjectCanvasBrush}">
         <Grid RowDefinitions="Auto,*,Auto">
           <TextBlock Text="{Binding Strings[ProjectPreview]}" FontSize="12" Foreground="{DynamicResource ProjectMutedBrush}"/>
-          <Border Grid.Row="1" Margin="0,12" Background="{DynamicResource ProjectCardBrush}" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="1" CornerRadius="6">
-          <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="360" Spacing="12" Margin="24">
-            <TextBlock Text="{Binding Strings[ProjectPreview]}" FontSize="18" FontWeight="SemiBold" TextAlignment="Center"/>
-            <TextBlock Text="{Binding Strings[ProjectPreviewPending]}" TextWrapping="Wrap" TextAlignment="Center" Foreground="{DynamicResource ProjectMutedBrush}"/>
-          </StackPanel>
+          <Border Grid.Row="1" Margin="0,12" Background="#11161F" CornerRadius="8" ClipToBounds="True">
+            <Grid>
+              <Image x:Name="PreviewImage" Stretch="Uniform"/>
+            </Grid>
           </Border>
-          <TextBlock Grid.Row="2" Text="{Binding TimelineTimeText}" FontSize="12" TextAlignment="Center" Foreground="{DynamicResource ProjectMutedBrush}"/>
+          <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,4">
+            <TextBlock Text="{Binding TimelineTimeText}" FontSize="12" FontFamily="monospace" Foreground="{DynamicResource ProjectTextBrush}"/>
+            <TextBlock Grid.Column="1" Text="{Binding PreviewStatus}" FontSize="11" Foreground="{DynamicResource ProjectMutedBrush}"/>
+          </Grid>
         </Grid>
       </Border>
       <Border x:Name="InspectorPane" Grid.Column="2" Background="{DynamicResource ProjectCardBrush}" Padding="16" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="1,0,0,0">

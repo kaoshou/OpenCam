@@ -19,7 +19,7 @@ public sealed partial class ProjectWorkspaceViewModel
     public bool CanUngroup => CanEditTimeline && CanEditSelection && SelectedClip?.GroupId is not null;
     public string TimelineTimeText => $"{FormatTime(PlayheadTicks)} / {FormatTime(DurationTicks)}";
     private static string FormatTime(long ticks) => TimeSpan.FromTicks(ticks).ToString(@"hh\:mm\:ss\.fff");
-    partial void OnPlayheadTicksChanged(long value) => NotifyTimeline();
+    partial void OnPlayheadTicksChanged(long value) { ClearPreview(); NotifyTimeline(); }
     partial void OnRangeStartTicksChanged(long? value) => NotifyTimeline();
     partial void OnRangeEndTicksChanged(long? value) => NotifyTimeline();
     private void NotifyTimeline()

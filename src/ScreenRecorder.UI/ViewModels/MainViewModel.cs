@@ -623,7 +623,8 @@ public partial class MainViewModel : ObservableObject
         if (IsProjectWorkspaceOpen || !CanStartRecording) throw new InvalidOperationException(Strings["ProjectFinishBeforeClose"]);
         await EnsureRecorderProcessAsync();
         var workspace = new ScreenRecorder.UI.Projects.ProjectWorkspaceViewModel(new ScreenRecorder.UI.Projects.ProjectClient(
-            (command, request, ct) => _ipcClient.SendCommandAsync(command, request, timeoutMs: 45000, cancellationToken: ct)));
+            (command, request, ct) => _ipcClient.SendCommandAsync(command, request, timeoutMs: 45000, cancellationToken: ct),
+            (request, ct) => _ipcClient.SendProjectFrameAsync(request, ct)));
         IsProjectWorkspaceOpen = true;
         workspace.StateChanged += (_, _) => {
             IsPreparing = workspace.IsBusy || workspace.StatusUnconfirmed;

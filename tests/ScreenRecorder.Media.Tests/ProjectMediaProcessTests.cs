@@ -178,6 +178,28 @@ public sealed class ProjectMediaProcessTests
         finally { root.Delete(true); }
     }
 
+    [MacOsOnlyFact]
+    public async Task RetainedEndFence_DoesNotShowFirstDiscardedFrame()
+    {
+        var root = Directory.CreateTempSubdirectory("OpenCam-preview-fence-");
+        try
+        {
+            var path = Path.Combine(root.FullName, "source.mkv");
+            var ffmpeg = FFmpegDiscovery.FindFFmpegExecutable()!;
+            await Generate(ffmpeg, path);
+            await using var source = File.OpenRead(path);
+            var process = new MacProjectMediaProcess(ffmpeg);
+            // Next available frame is PTS 2200. It must not appear when the retained interval ends there.
+            await Assert.ThrowsAsync<InvalidDataException>(() => process.RunAsync(
+                ProjectMediaJob.ExtractFrame(2199, new(1, 1000), 160, 90, 2200), [source], null, default));
+            source.Position = 0;
+            var retained = await process.RunAsync(
+                ProjectMediaJob.ExtractFrame(2199, new(1, 1000), 160, 90, 2201), [source], null, default);
+            Assert.Equal(await ReferenceFrame(ffmpeg, path), retained.Output);
+        }
+        finally { root.Delete(true); }
+    }
+
     private static async Task<byte[]> ReferenceFrame(string ffmpeg, string source)
     {
         var start = new ProcessStartInfo(ffmpeg) {

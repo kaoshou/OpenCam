@@ -28,6 +28,7 @@ public sealed class ProjectMediaJob
     public bool IsAudio => AudioSampleCount > 0;
     public bool HasAudio { get; }
     public long EndPts { get; }
+    public long? FrameEndPts { get; private init; }
     public int ExpectedOutputBytes => IsAudio ? checked(AudioSampleCount * 4) : checked(Width * Height * 4);
 
     private ProjectMediaJob(long pts, ProjectRational timeBase, int width, int height,
@@ -35,13 +36,18 @@ public sealed class ProjectMediaJob
         => (SourcePts, TimeBase, Width, Height, AudioSampleCount, HasAudio, EndPts) =
             (pts, timeBase, width, height, audioSamples, hasAudio, endPts);
 
-    public static ProjectMediaJob ExtractFrame(long pts, ProjectRational timeBase, int width, int height)
+    public static ProjectMediaJob ExtractFrame(long pts, ProjectRational timeBase, int width, int height, long? endPts = null)
     {
         ValidateTimestamp(pts, timeBase);
         if (width is <= 0 or > 4096 || height is <= 0 or > 4096 ||
             (long)width * height * 4 > MaximumFrameBytes)
             throw new ArgumentOutOfRangeException(nameof(width));
-        return new(pts, timeBase, width, height);
+        if (endPts is { } end)
+        {
+            ValidateTimestamp(end, timeBase);
+            if (end <= pts) throw new ArgumentOutOfRangeException(nameof(endPts));
+        }
+        return new(pts, timeBase, width, height) { FrameEndPts = endPts };
     }
 
     /// <summary>Bounded audio chunk. Longer media is consumed as successive chunks, never loaded whole.</summary>
@@ -93,7 +99,9 @@ public sealed class ProjectMediaJob
                 "-ac", "1", "-ar", "48000", "-c:a", "pcm_f32le", "-f", "f32le", "pipe:1"];
         }
         return [..InputArguments(), "-map", "0:v:0", "-an", "-sn", "-dn",
-        "-vf", FormattableString.Invariant($"select=gte(pts\\,{SourcePts}),scale={Width}:{Height}:force_original_aspect_ratio=decrease,pad={Width}:{Height}:(ow-iw)/2:(oh-ih)/2:color=black"),
+        "-vf", FormattableString.Invariant($"select=gte(pts\\,{SourcePts})") +
+            (FrameEndPts is { } endPts ? FormattableString.Invariant($"*lt(pts\\,{endPts})") : "") +
+            FormattableString.Invariant($",scale={Width}:{Height}:force_original_aspect_ratio=decrease,pad={Width}:{Height}:(ow-iw)/2:(oh-ih)/2:color=black"),
         "-frames:v", "1", "-fps_mode", "passthrough", "-threads", "1",
         "-c:v", "rawvideo", "-pix_fmt", "rgba", "-f", "rawvideo", "pipe:1"
         ];

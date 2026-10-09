@@ -46,14 +46,19 @@ public partial class RecordingEncoderLifecycleTests
             await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, store, new ProjectSourceProbe());
             await using var waves = new ProjectWaveformService(coordinator,
                 new MacProjectMediaProcess(FFmpegDiscovery.FindFFmpegExecutable()!));
-            var dispatcher = new ProjectIpcDispatcher(coordinator, waves);
+            await using var frames = new ProjectFrameService(coordinator,
+                new MacProjectMediaProcess(FFmpegDiscovery.FindFFmpegExecutable()!));
+            var dispatcher = new ProjectIpcDispatcher(coordinator, waves, frames);
             var pipe = SessionPipeNameFactory.Create(OperatingSystem.IsWindows());
             var key = AuthenticatedIpc.CreateKey();
             await using var server = new NamedPipeIpcServer(pipe, key, dispatcher.DispatchAsync);
             server.Start();
+            await using var mediaServer = new NamedPipeIpcServer(pipe + "-frames", key, dispatcher.DispatchMediaAsync);
+            mediaServer.Start();
             await using var transport = new NamedPipeIpcClient(pipe, key);
             var vm = new ProjectWorkspaceViewModel(new ProjectClient((command, request, ct) =>
-                transport.SendCommandAsync(command, request, cancellationToken: ct)));
+                transport.SendCommandAsync(command, request, cancellationToken: ct),
+                (request, ct) => transport.SendProjectFrameAsync(request, ct)));
             await vm.OpenAsync(projectPath).WaitAsync(TimeSpan.FromSeconds(10));
             Assert.True(vm.CanEdit, vm.Error);
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
@@ -65,6 +70,15 @@ public partial class RecordingEncoderLifecycleTests
             Assert.Equal(0, data.Buckets[10].Rms);
             Assert.InRange(data.Buckets[70].Rms, .24f, .26f);
             Assert.Equal(0, data.Buckets[200].Rms);
+            while (vm.PreviewFrame is null) {
+                await vm.PollPreviewAsync(); await Task.Delay(20, timeout.Token);
+            }
+            var pixels = vm.PreviewFrame.Rgba!;
+            Assert.Equal(ProjectFrameReply.ByteCount, pixels.Length);
+            var center = (144 * 512 + 256) * 4;
+            Assert.InRange(pixels[center], 0, 4);
+            Assert.InRange(pixels[center + 2], 245, 255); // Actual fixture is blue, not a placeholder.
+            Assert.Equal(255, pixels[center + 3]);
             Assert.True(await vm.CloseAsync());
             if (!string.IsNullOrWhiteSpace(evidence))
                 await File.WriteAllTextAsync(Path.Combine(evidence, "latest-project.txt"), projectPath);

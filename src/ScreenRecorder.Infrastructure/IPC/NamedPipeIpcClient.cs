@@ -51,6 +51,12 @@ public class NamedPipeIpcClient : IAsyncDisposable
         }
     }
 
+    public async Task<IpcResponse> SendProjectFrameAsync(ProjectRequest request, CancellationToken cancellationToken = default)
+    {
+        await using var media = new NamedPipeIpcClient(_pipeName + "-frames", _key, _serverPid);
+        return await media.SendCommandAsync("GetProjectFrame", request, cancellationToken: cancellationToken);
+    }
+
     public ValueTask DisposeAsync()
     {
         System.Security.Cryptography.CryptographicOperations.ZeroMemory(_key);

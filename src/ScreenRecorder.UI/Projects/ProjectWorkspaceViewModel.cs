@@ -61,7 +61,8 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
         if (reply.Unconfirmed) { StatusUnconfirmed = true; Error = reply.Error; return; }
         if (reply.State.ProjectId == State.ProjectId && reply.State.Revision < State.Revision) return;
         if (reply.State.ProjectId != State.ProjectId || reply.State.Revision != State.Revision ||
-            reply.State.ServerInstanceId != State.ServerInstanceId) ClearWaveforms();
+            reply.State.ServerInstanceId != State.ServerInstanceId) { ClearWaveforms(); ClearPreview(); ClearThumbnails(); }
+        if (reply.State.Mode != State.Mode) ClearPreview();
         if (reply.State.ProjectId != State.ProjectId)
         {
             Clips.Clear();

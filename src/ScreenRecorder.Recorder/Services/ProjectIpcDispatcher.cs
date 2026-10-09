@@ -6,7 +6,8 @@ using ScreenRecorder.Infrastructure.IPC;
 namespace ScreenRecorder.Recorder.Services;
 
 /// <summary>Called only after the existing IPC authentication/size gate.</summary>
-public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator, ProjectWaveformService? waveforms = null)
+public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator, ProjectWaveformService? waveforms = null,
+    ProjectFrameService? frames = null)
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Guid _instanceId = Guid.NewGuid();
@@ -69,6 +70,9 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
             if (waveforms is not null && message.MessageType is
                 "StartProjectRecording" or "StartNewRecordingContent" or "CloseProject")
                 await waveforms.SuspendAsync();
+            if (frames is not null && message.MessageType is
+                "StartProjectRecording" or "StartNewRecordingContent" or "CloseProject" or "OpenProject" or "CreateProject")
+                await frames.SuspendAsync();
             ProjectCommandResult result = message.MessageType switch
             {
                 "CreateProject" => await coordinator.CreateAsync(request.Path ?? "", request.Name ?? ""),
@@ -92,6 +96,27 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
             };
             _operations.Add(request.OperationId, (fingerprint, result.Success, result.ErrorCode));
             return Reply(new(result.Success, result.ErrorCode, Snapshot()));
+        }
+        catch (Exception ex) { return Reply(new(false, ex.Message, Snapshot())); }
+        finally { _gate.Release(); }
+    }
+
+    // The companion media pipe has the same authentication and peer PID checks, but never accepts mutations.
+    public async Task<IpcResponse> DispatchMediaAsync(IpcMessage message)
+    {
+        await _gate.WaitAsync();
+        try
+        {
+            if (message.MessageType != "GetProjectFrame" || message.PayloadJson.Length > 65536)
+                throw new InvalidDataException("Invalid media request.");
+            var request = JsonSerializer.Deserialize<ProjectRequest>(message.PayloadJson,
+                new JsonSerializerOptions { MaxDepth = 16 }) ?? throw new InvalidDataException("Missing request.");
+            if (request.ServerInstanceId != _instanceId || request.ProjectId is null ||
+                request.ProjectId != coordinator.Current?.ProjectId || request.ExpectedRevision != coordinator.Current.Revision)
+                throw new InvalidOperationException("Preview request belongs to an obsolete snapshot.");
+            if (frames is null) throw new PlatformNotSupportedException("Preview decoder is unavailable.");
+            return Reply(new(true, null, Snapshot()) { Frame = await frames.QueryAsync(request.ProjectId.Value,
+                request.ExpectedRevision, request.TimelineTicks) });
         }
         catch (Exception ex) { return Reply(new(false, ex.Message, Snapshot())); }
         finally { _gate.Release(); }

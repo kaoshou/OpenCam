@@ -55,7 +55,10 @@ public class Program
             await using var projectWaveforms = OperatingSystem.IsMacOS() && mediaExecutable is not null
                 ? new ProjectWaveformService(projects, new ScreenRecorder.Platform.macOS.MacProjectMediaProcess(mediaExecutable))
                 : null;
-            var projectDispatcher = new ProjectIpcDispatcher(projects, projectWaveforms);
+            await using var projectFrames = OperatingSystem.IsMacOS() && mediaExecutable is not null
+                ? new ProjectFrameService(projects, new ScreenRecorder.Platform.macOS.MacProjectMediaProcess(mediaExecutable))
+                : null;
+            var projectDispatcher = new ProjectIpcDispatcher(projects, projectWaveforms, projectFrames);
 
             var pipeName = NamedPipeConstants.PipeBaseName;
             var pipeIndex = Array.IndexOf(args, "--pipe");
@@ -180,9 +183,12 @@ public class Program
                     return new IpcResponse { Success = false, ErrorMessage = ex.Message };
                 }
             }, bootstrap.ParentPid);
+            await using var mediaServer = new NamedPipeIpcServer(pipeName + "-frames", bootstrap.Key,
+                projectDispatcher.DispatchMediaAsync, bootstrap.ParentPid);
             System.Security.Cryptography.CryptographicOperations.ZeroMemory(bootstrap.Key);
 
             ipcServer.Start();
+            mediaServer.Start();
             Log.Information("IPC Server 已啟動，等待 UI 連線... Pipe: {PipeName}", pipeName);
 
             // 監聽父行程 PID，確保 UI 意外關閉或被 End Task 時 Recorder 自動收尾退出，不殘留背景進程
