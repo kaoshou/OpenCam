@@ -52,6 +52,12 @@ a { color: inherit; }
 .platform-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 .screenshot-card { margin: 0; padding: 15px; max-width: 872px; border: 1px solid #dce9df; border-radius: 19px; background: #f6f9f6; box-shadow: 0 10px 30px #102c1c0b; }
 .screenshot-card.settings-card { max-width: 682px; }
+.editor-card { max-width: none; padding: clamp(8px, 1.5vw, 20px); }
+.editor-card .screenshot-link { width: 100%; }
+.editor-section { background: #eef5f1; }
+.guide-article img { display: block; max-width: 100%; height: auto; border: 1px solid #dce9df; border-radius: 10px; }
+.editor-highlights { display: flex; flex-wrap: wrap; gap: 12px 28px; padding: 0; margin: 24px 0 0; list-style: none; color: #365747; }
+.editor-highlights li::before { content: '✓'; margin-right: 9px; color: #107d5b; font-weight: 700; }
 .screenshot-card img { display: block; width: 100%; border: 1px solid #d7e2da; border-radius: 10px; }
 .screenshot-card figcaption a { color: #0a7652; text-underline-offset: 3px; }
 .screenshot-card figcaption { padding: 15px 5px 2px; color: #617669; font-size: .81rem; font-weight: 700; }

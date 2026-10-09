@@ -8,20 +8,34 @@ If the live pointer flickers while the resulting MP4 looks normal, try the exper
 
 Change capture mode only while idle, not while paused. Existing audio/cursor controls during pause remain available. Confirmed segments pin their backend and encoder. Output/interactive desktop loss safely stops the recording and preserves working files; unknown startup errors do not trigger blind retries. This implementation downloads GPU frames for compatibility with existing encoders, so it does not promise lower CPU usage. Cursor-flicker resolution, long A/V sync, and affected-PC acceptance still require real Windows hardware.
 
-OpenCam is a reliability-first screen recorder for Windows and macOS. During recording, it writes to interruption-resistant MKV working files and packages them as MP4 after a normal stop. If a crash, power failure, or forced termination occurs, Crash Recovery can attempt to preserve content that was already written successfully.
+OpenCam lets you record, edit, and resume recording. It writes MKV sources, retains them alongside a reopenable editing project, and exports MP4 when needed. Crash Recovery can attempt to preserve successfully written recordings; project recovery drafts protect interrupted unsaved edits.
 
-> This guide covers OpenCam v0.2.7 development-preview features. Windows editor audiovisual preview and precision export backends are wired but still require Windows device acceptance. This version is available only as GitHub Actions artifacts, without a Release; use disposable media. This guide does not claim complete acceptance. See the README and verification report for limitations.
+> This guide covers OpenCam v0.3.0 on the development branch, not a published release or completed acceptance. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending. Complete corresponding-source verification for Windows FFmpeg also remains pending, and packages are unsigned. Use disposable media; see the [planned release notes and gates](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.3.0.md).
 
-### v0.2.7 preview: home and editor workflow
+### v0.3.0: home and project workflow
 
 1. With no project open, Start recording asks for a name prefilled with the date and time. Confirm creates the project and starts capture; Cancel does neither.
-2. With a project open, Start appends clips. Stop saves sources and automatically exports MP4 while retaining the editable project.
+2. With an existing or reopened project, Start appends clips. Auto-export MP4 on stop is on by default for each project. Turn it off to save content on Stop and manually export later.
 3. New recording project creates without capturing. Open recording project selects `project.opencam`. The home screen shows the current name and clip count.
 4. After a saved pause or completed stop/export, Edit recording opens the current content. The editor handles editing, project saving and MP4 export; returning home retains the project.
 5. Active recording blocks editor entry and project creation/opening. A saved pause permits editing, but switching projects requires stopping. Resuming capture hides the editor.
 6. Project saved means the editing data was saved, not that an updated MP4 was exported. Retain the entire project folder and sources; do not move only the `.opencam` file.
 
 See the [README](../README.md) for Windows portable testing instructions. Start with short, disposable media: record/pause/resume/stop, edit and undo, save and reopen, append recording, then export MP4 and check audio/video synchronization.
+
+### Editing, preview and saving
+
+- Select clips in the left list or timeline; drag in either area to reorder. Seek in the timeline to trim, split at the playhead, or delete a selected range/whole clip. Undo/redo lets you revise editing operations.
+- Clip properties include name, volume (0–200%), mute, fades, crop, scale and position. Apply property changes to commit them to the edit recipe. The pencil beside the title renames the project without moving its folder or original MKVs.
+- Preview supports play/pause, seeking, quality selection, a resizable area and fullscreen. Preview sound is on/off, with no separate volume slider; it does not change exported audio. Original-resolution preview is subject to a frame-memory limit. Preview quality does not change export settings.
+- Explicit Save commits the editing version. A recovery draft protects interrupted edits; it is not a saved version or an updated MP4. Switching/closing with unsaved changes offers Save, Discard or Cancel. Reopening a recoverable draft offers a restore decision.
+- Resolve unsaved changes when prompted before manual export. If the same content has a verified existing output, choose Open Existing, Export Again or Cancel. Export has progress and cancellation controls; cancellation/failure preserves source media.
+
+These are offline renders of the current v0.3.0 UI with illustrative state and an authored demonstration video in the editor, not device-recording acceptance evidence. Select an image for full size.
+
+[![Recording home](images/preview_main_enus.png)](images/preview_main_enus.png)
+[![Preferences](images/preview_settings_enus.png)](images/preview_settings_enus.png)
+[![Recording editor](images/preview_editor_enus.png)](images/preview_editor_enus.png)
 
 ## 1. System Requirements and First Launch
 
@@ -51,7 +65,7 @@ See the [README](../README.md) for Windows portable testing instructions. Start 
 4. Confirm that the output location has at least 1 GB of free space.
 5. Select **Start Recording**. OpenCam immediately locks settings that must not change, including while it is preparing the recording.
 6. While recording, you can pause, resume, or stop. Pause first if you need to change the audio switches or cursor style.
-7. After selecting **Stop Recording**, wait for OpenCam to validate the MKV data and package the MP4. The completed MP4 appears in the root of the output location.
+7. After **Stop Recording**, wait for the sources to be saved and, if auto-export is on, for MP4 export to finish. With auto-export off, no new MP4 is expected; manually export later.
 
 If you try to close the window while OpenCam is preparing, recording, or paused, it displays a warning and cancels the close request. Stop the recording and wait for finalization before closing the application.
 
@@ -161,29 +175,32 @@ While paused, only the following items can be changed:
 - Whether to record the microphone, including microphone selection on Windows
 - Cursor style
 
-All other settings remain locked. When recording resumes, OpenCam creates the next MKV segment with those updated settings. On stop, it joins the segments into one MP4. Pausing does not end the overall recording session.
+All other recording settings remain locked. Resuming creates the next MKV segment with the updated settings; a saved paused segment may also be edited. Stop saves the project and exports according to the per-project auto-export option. Pausing does not end the overall recording session.
 
 ## 6. Recording Mechanism and File Safety
 
-The OpenCam interface and recording engine run as separate processes and coordinate through internal communication. Each recording receives its own session directory and is written as:
+The interface and recording engine run as separate processes. v0.3.0 retains original MKVs inside the project; edits change a recipe without rewriting sources. A new project contains:
 
 ```text
-<output location>/Sessions/<session ID>/segment_000.mkv
-<output location>/Sessions/<session ID>/segment_001.mkv
-...
+<project folder>/
+├── project.opencam
+├── sources/
+├── sessions/Sessions/<session ID>/  # MKV segments and session data
+├── cache/
+└── exports/
 ```
 
-Each pause safely finishes the current segment; resuming creates the next one. A session created by an older OpenCam version may instead contain `recording.mkv`.
+Each pause safely finishes and saves the current segment; resuming creates the next one. Back up the whole folder: `project.opencam` alone does not include source media. Older non-project recordings may still use `<output location>/Sessions/`, with `segment_*.mkv` or `recording.mkv`.
 
-On a normal stop, OpenCam performs the following sequence:
+On a normal stop, the project workflow is:
 
 1. Asks FFmpeg to stop safely and finalize the current MKV.
 2. Checks that the working media is readable.
-3. Uses Stream Copy to package one or more MKV segments as MP4 without re-encoding the video.
+3. Saves the project, then exports the current timeline if auto-export is on. Compatible complete clips may preserve encoded video, with audio conversion when needed. Trims, effects, incompatible streams or unavailable packet timing require rendering.
 4. Validates the MP4 with FFprobe.
-5. Saves the result as `Recording_yyyyMMdd_HHmmss.mp4`, adding a numeric suffix if that name already exists.
+5. Saves a result including a sanitized project name, without overwriting existing results. Check the completion message for the actual output location.
 
-MKV working files are retained by default. If **Delete working files after successful remux** is enabled in Preferences, OpenCam deletes them only after the MP4 exists and passes validation. A remux or validation failure always preserves the working files.
+Original project MKVs must be retained for reopening, editing and continued recording. The older **Delete working files after successful remux** setting does not permit deleting project sources. Do not remove MKVs from the project after exporting an MP4.
 
 ### Disk-Space Protection
 
@@ -217,7 +234,9 @@ Sets new recordings to Ultra, Standard, or Compact by default. Changing this pre
 
 ### Delete Working Files After Successful Remux
 
-Disabled by default. Enabling it saves disk space, but removes the MKV backup after a successful recording. Keep it disabled when data retention is more important or when you want to inspect the original segments yourself.
+This setting belongs to the older non-project recording flow. v0.3.0 project sources are retained after successful export.
+
+In the legacy flow it is off by default; enabling it clears non-project working files after successful remux. v0.3.0 original project segments remain retained.
 
 ### Disk Warning and Critical Thresholds
 
@@ -241,9 +260,11 @@ From 0.2.0 onward, OpenCam's project-owned source code is licensed under [AGPL-3
 | Windows | `C:\Users\<account>\Videos\ScreenRecordings` |
 | macOS | `/Users/<account>/Movies/ScreenRecordings` |
 
-If you used **Change** to select a different folder, both completed results and the `Sessions` working directory are stored under that custom location.
+**Change** selects the root for new projects and the manual-export destination; an already-open project retains its folder. Project recordings live in its `sessions/Sessions/` directory; legacy non-project sessions use `Sessions/` under the output root.
 
 ### Session Contents
+
+The following location describes legacy non-project sessions. For v0.3.0, inspect `sessions/Sessions/<session ID>/` inside the project and retain the whole project.
 
 ```text
 <output location>/Sessions/<session ID>/
@@ -266,6 +287,8 @@ Some sessions may also contain `session.json.bak`. `.recovery.lock` is a tempora
 Do not edit the settings file while OpenCam is running. When reporting a problem, the session's `recording.log` and the application logs are useful, but first check them for paths or device names you do not want to share.
 
 ## 9. When to Use Crash Recovery
+
+This section covers session MKV recovery, not edit-draft restoration. After a v0.3.0 interruption, retain the whole project and reopen `project.opencam`; the draft prompt restores edits only. The root-scan steps below describe legacy non-project recordings. Project sessions live under `<project>/sessions/Sessions/`, so their recovery root is `<project>/sessions`. Recovering an MP4 does not restore project edits.
 
 Crash Recovery is appropriate when:
 
@@ -295,6 +318,8 @@ Recovery probes the MKV segments, skips empty, damaged, or unreadable entries, a
 Crash Recovery does not delete the original MKV files. If `session.json` is missing or corrupt, OpenCam also attempts to reconstruct the required information from surviving segments.
 
 ## 10. Manually Finding and Preserving an Incomplete Recording
+
+For v0.3.0, back up the whole project first; its sessions live under `<project>/sessions/Sessions/`. The `<original output location>/Sessions/` path below describes legacy non-project recordings.
 
 If OpenCam does not yet show a recoverable session, or if you want to make a backup first:
 
@@ -330,6 +355,8 @@ If no recoverable content appears, check the following in order:
 - For intermittent audio, first reduce system load with 30 FPS, Standard quality, and Auto encoding, and confirm that the default input device has a stable connection. If it continues, preserve the logs and a short test video for diagnosis.
 
 ### No MP4 Appears After Stopping
+
+- Check the current project's auto-export-on-stop switch first. With it off, Stop saves the project only; use manual export.
 
 - Validation and remuxing continue after the stop request. Long or multi-segment recordings take longer.
 - Do not forcibly close OpenCam during finalization.

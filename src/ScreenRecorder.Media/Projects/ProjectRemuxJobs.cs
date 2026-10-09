@@ -27,6 +27,15 @@ public sealed partial class ProjectMediaJob
     public static ProjectMediaJob ConcatWholeRecordings(IReadOnlyList<ProjectSourceEvidence> sources, long totalBytes, bool videoOnly = false)
     {
         if (sources.Count is < 2 or > 128 || totalBytes <= 0) throw new ArgumentOutOfRangeException(nameof(sources));
+        // The concat demuxer preserves every encoded AAC frame. Per-segment priming or
+        // padding therefore accumulates in decoded audio even if video durations are exact.
+        // Require normalization before copying audio; the verified exporter renders this case.
+        if (!videoOnly && sources.Any(source => source.Audio is { } audio &&
+            (audio.Codec != "aac" || audio.SampleRate <= 0 || audio.PacketCount <= 0 ||
+             audio.StartSeconds != source.Video.StartSeconds ||
+             Math.Abs(audio.PacketCount * 1024d / audio.SampleRate -
+                 (source.Video.EndSeconds - source.Video.StartSeconds)) > 1d / audio.SampleRate)))
+            throw new ProjectRemuxIncompatibleException("Segment audio requires normalization before concatenation.");
         var job = new ProjectMediaJob(0, new(1, 1), 0, 0) { InputCount = sources.Count + 1,
             RequiresOutput = true, IsLongRunning = true, OutputLimit = checked(totalBytes * 2 + 16 * 1024 * 1024) };
         var videoStart = (decimal)sources[0].Video.FirstPts * sources[0].Video.TimeBase.Numerator / sources[0].Video.TimeBase.Denominator;

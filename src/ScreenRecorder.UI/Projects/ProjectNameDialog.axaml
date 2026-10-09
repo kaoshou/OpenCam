@@ -1,0 +1,48 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:editor="using:ScreenRecorder.UI.Projects.Editor"
+        x:Class="ScreenRecorder.UI.Projects.ProjectNameDialog"
+        Width="480" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner" Background="#FFFFFF" RequestedThemeVariant="Light"
+        Icon="/Assets/app_icon.png">
+    <Window.Styles>
+        <Style Selector="Button.primary /template/ ContentPresenter">
+            <Setter Property="Background" Value="#2563EB"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1D4ED8"/>
+        </Style>
+        <Style Selector="Button.primary:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1E40AF"/>
+        </Style>
+    </Window.Styles>
+    <StackPanel>
+        <StackPanel Margin="28,26,28,24" Spacing="18">
+            <Grid ColumnDefinitions="Auto,*">
+                <Border Width="42" Height="42" CornerRadius="12" Background="#EFF6FF" Margin="0,0,14,0" VerticalAlignment="Top">
+                    <editor:EditorToolContent x:Name="HeadingIcon" Foreground="#2563EB" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel Grid.Column="1" Spacing="5">
+                    <TextBlock x:Name="Heading" FontSize="20" FontWeight="SemiBold" Foreground="#0F172A"/>
+                    <TextBlock x:Name="Description" FontSize="12" Foreground="#64748B" TextWrapping="Wrap" LineHeight="19"/>
+                </StackPanel>
+            </Grid>
+            <StackPanel Spacing="8">
+                <TextBlock x:Name="NameLabel" FontSize="12" FontWeight="SemiBold" Foreground="#334155"/>
+                <TextBox x:Name="NameInput" MaxLength="200" MinHeight="42" Padding="12,10" FontSize="14"
+                         CornerRadius="8" BorderBrush="#CBD5E1" Background="#F8FAFC"/>
+                <TextBlock x:Name="ValidationError" Foreground="#B91C1C" FontSize="12" TextWrapping="Wrap" IsVisible="False"/>
+            </StackPanel>
+        </StackPanel>
+        <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="28,16">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+                <Button x:Name="CancelButton" IsCancel="True" Click="OnCancel" MinWidth="84" Padding="16,9" CornerRadius="8"
+                        Background="White" BorderBrush="#CBD5E1" BorderThickness="1" Foreground="#334155"/>
+                <Button x:Name="ConfirmButton" Classes="primary" IsDefault="True" Click="OnConfirm" MinWidth="100"
+                        Padding="18,9" CornerRadius="8" Background="#2563EB" Foreground="White" FontWeight="SemiBold"/>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</Window>

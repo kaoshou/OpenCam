@@ -164,26 +164,7 @@ public partial class MainWindow : Window
     private async Task<string?> AskRecordingProjectNameAsync(string defaultName)
     {
         if (DataContext is not MainViewModel vm) return null;
-        var dialog = new Window { Title = vm.Strings["HomeProjectName"], Width = 460, Height = 235,
-            CanResize = false, WindowStartupLocation = WindowStartupLocation.CenterOwner };
-        var input = new TextBox { Text = defaultName, MaxLength = 200 };
-        var error = new TextBlock { Foreground = Avalonia.Media.Brushes.Firebrick, TextWrapping = Avalonia.Media.TextWrapping.Wrap };
-        var confirm = new Button { Content = vm.Strings["Confirm"], IsDefault = true };
-        var cancel = new Button { Content = vm.Strings["Cancel"], IsCancel = true };
-        confirm.Click += (_, _) => {
-            try {
-                var name = input.Text?.Trim() ?? "";
-                ScreenRecorder.Core.Projects.ProjectValidation.ValidateName(name);
-                dialog.Close(name);
-            }
-            catch (Exception ex) { error.Text = ex.Message; }
-        };
-        cancel.Click += (_, _) => dialog.Close((string?)null);
-        dialog.Content = new StackPanel { Margin = new(24), Spacing = 12, Children = {
-            new TextBlock { Text = vm.Strings["HomeProjectName"] }, input, error,
-            new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 12, Children = { confirm, cancel } }
-        }};
-        dialog.Opened += (_, _) => { input.Focus(); input.SelectAll(); };
+        var dialog = new ScreenRecorder.UI.Projects.ProjectNameDialog(defaultName, rename: false);
         return await dialog.ShowDialog<string?>(this);
     }
 

@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import MarkdownIt from 'markdown-it';
-import { routeFor } from './paths.mjs';
+import { routeFor, assetPath } from './paths.mjs';
 
 const markdown = new MarkdownIt({ html: false, linkify: true, typographer: false });
 
 export function rewriteGuideHref(href, language) {
+  if (/^images\/preview_(main|settings|editor)_(zhtw|enus)\.png$/.test(href)) return assetPath(href.slice('images/'.length));
   if (href === '../README.md') return 'https://github.com/kaoshou/OpenCam#readme';
   if (href === '../LICENSE') return 'https://github.com/kaoshou/OpenCam/blob/master/LICENSE';
   if (href === 'USER_GUIDE.zh-TW.md') return routeFor('zh-TW', 'guide');
@@ -41,7 +42,14 @@ export function renderGuide(source, language) {
     if (token.type === 'inline') {
       for (const child of token.children || []) {
         if (child.type === 'link_open') child.attrSet('href', rewriteGuideHref(child.attrGet('href'), language));
-        if (child.type === 'image') throw new Error(`Unexpected local image in ${language} guide`);
+        if (child.type === 'image') {
+          const source = child.attrGet('src');
+          if (!/^images\/preview_(main|settings|editor)_(zhtw|enus)\.png$/.test(source)) {
+            throw new Error(`Unexpected local image in ${language} guide`);
+          }
+          child.attrSet('src', rewriteGuideHref(source, language));
+          child.attrSet('loading', 'lazy');
+        }
       }
     }
   }

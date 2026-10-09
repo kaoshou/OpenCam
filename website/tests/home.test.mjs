@@ -19,12 +19,17 @@ test('localized homepages include genuine previews, guide, and current download'
       assert.match(html, /class="button button-primary" href="https:\/\/github\.com\/kaoshou\/OpenCam\/releases"/);
       assert.match(html, new RegExp(`preview_main_${suffix}\\.png`));
       assert.match(html, new RegExp(`preview_settings_${suffix}\\.png`));
+      assert.match(html, new RegExp(`preview_editor_${suffix}\\.png`));
+      assert.match(html, /id="editing"/);
       assert.match(html, /<img[^>]+alt="[^"]+"/);
       assert.match(html, new RegExp(`/OpenCam/${lang}/guide/`));
       assert.match(html, /Apple Silicon/);
       assert.match(html, /AGPL-3\.0-or-later/);
       assert.match(html, /https:\/\/github\.com\/kaoshou\/OpenCam\/blob\/master\/LICENSE/);
-      assert.match(html, new RegExp(`Download v${escapedProductVersion}|下載 v${escapedProductVersion}`));
+      assert.match(html, new RegExp(`v${escapedProductVersion}`));
+      assert.match(html, /尚未發布|not yet released/);
+      assert.match(html, /FFmpeg.*(?:來源核對|source verification)/);
+      assert.doesNotMatch(html, new RegExp(`Download v${escapedProductVersion}|下載 v${escapedProductVersion}`));
       assert.doesNotMatch(html, /download still points to v0\.1\.5|下載連結仍指向 v0\.1\.5/);
       assert.doesNotMatch(html, /fonts\.googleapis|google-analytics|gtag\(/);
     }
@@ -57,7 +62,7 @@ test('localized main screenshots show the current recording audio waveforms', as
     for (const [lang, stateText, waveformText] of expectations) {
       const html = await readFile(join(out, lang, 'index.html'), 'utf8');
       assert.match(html, new RegExp(`alt="[^"]*OpenCam ${escapedScreenshotVersion}[^"]*${stateText}[^"]*${waveformText}[^"]*"`));
-      assert.match(html, /<img[^>]+preview_main_(?:zhtw|enus)\.png[^>]+width="840" height="740"/);
+      assert.match(html, /<img[^>]+preview_main_(?:zhtw|enus)\.png[^>]+width="840" height="780"/);
     }
   } finally { await rm(out, { recursive: true, force: true }); }
 });

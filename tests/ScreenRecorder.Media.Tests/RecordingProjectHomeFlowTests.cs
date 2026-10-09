@@ -47,6 +47,17 @@ public partial class RecordingEncoderLifecycleTests
             var openProject = ButtonFor("HomeProjectOpen");
             var settings = ButtonFor("Settings");
             var startY = start.TranslatePoint(default, home)!.Value.Y;
+            var recovery = ButtonFor("Recovery");
+            var export = ButtonFor("ProjectExportMp4");
+            Assert.Equal(recovery.TranslatePoint(default, home)!.Value.Y, export.TranslatePoint(default, home)!.Value.Y, 1);
+            Assert.True(export.TranslatePoint(default, home)!.Value.X >= recovery.TranslatePoint(default, home)!.Value.X + recovery.Bounds.Width);
+            Assert.True(export.TranslatePoint(default, home)!.Value.X + export.Bounds.Width <= home.ClientSize.Width - 16);
+            Assert.True(edit.TranslatePoint(default, home)!.Value.X + edit.Bounds.Width <= recovery.TranslatePoint(default, home)!.Value.X,
+                "Recording actions must not overlap recovery/export.");
+            var divider = home.FindControl<Border>("ProjectHeaderDivider");
+            Assert.NotNull(divider);
+            Assert.True(divider.TranslatePoint(default, home)!.Value.X >= 32);
+            Assert.True(divider.Bounds.Width < home.ClientSize.Width - 64);
             foreach (var action in new[] { newProject, openProject, settings })
             {
                 var origin = action.TranslatePoint(default, home)!.Value;
@@ -62,6 +73,61 @@ public partial class RecordingEncoderLifecycleTests
             Assert.Equal(longName, ToolTip.GetTip(name));
         }
         finally { home.Close(); main.Cleanup(); ScreenRecorder.UI.Localization.LanguageManager.Instance.CurrentLanguage = previous; }
+    }
+
+    [Avalonia.Headless.XUnit.AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NameDialogCancellationDoesNotApplyAnEditedName(bool rename)
+    {
+        var parent = new Window();
+        parent.Show();
+        var dialog = new ProjectNameDialog("Original name", rename);
+        try
+        {
+            var pending = dialog.ShowDialog<string?>(parent);
+            dialog.UpdateLayout();
+            dialog.FindControl<TextBox>("NameInput")!.Text = "Edited but cancelled";
+            dialog.FindControl<Button>("CancelButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Null(await pending);
+        }
+        finally { dialog.Close(); parent.Close(); }
+    }
+
+    [Avalonia.Headless.XUnit.AvaloniaTheory]
+    [InlineData(ScreenRecorder.Core.Localization.AppLanguage.ZhTw)]
+    [InlineData(ScreenRecorder.Core.Localization.AppLanguage.EnUs)]
+    public async Task ProjectNameDialogKeepsActionsRightAlignedAndInvalidNameEditable(ScreenRecorder.Core.Localization.AppLanguage language)
+    {
+        var strings = ScreenRecorder.UI.Localization.LanguageManager.Instance;
+        var previous = strings.CurrentLanguage;
+        strings.CurrentLanguage = language;
+        var main = new MainViewModel(forScreenshot: true);
+        var home = new ScreenRecorder.UI.Views.MainWindow { DataContext = main };
+        try
+        {
+            home.Show();
+            var pending = (Task<string?>)typeof(ScreenRecorder.UI.Views.MainWindow)
+                .GetMethod("AskRecordingProjectNameAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+                .Invoke(home, ["Recording 20261010"])!;
+            var dialog = Assert.Single(home.OwnedWindows);
+            dialog.UpdateLayout();
+            var input = Assert.Single(dialog.GetVisualDescendants().OfType<TextBox>());
+            Assert.Equal("Recording 20261010", input.Text);
+            var buttons = dialog.GetVisualDescendants().OfType<Button>().ToArray();
+            var confirm = buttons.Single(b => b.IsDefault);
+            var cancel = buttons.Single(b => b.IsCancel);
+            Assert.True(confirm.TranslatePoint(default, dialog)!.Value.X > cancel.TranslatePoint(default, dialog)!.Value.X);
+            Assert.True(confirm.TranslatePoint(default, dialog)!.Value.X > dialog.ClientSize.Width / 2);
+            input.Text = "   ";
+            confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.False(pending.IsCompleted);
+            Assert.True(dialog.IsVisible);
+            input.Text = "  Lesson 1  ";
+            confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal("Lesson 1", await pending);
+        }
+        finally { foreach (var dialog in home.OwnedWindows.ToArray()) dialog.Close(); home.Close(); main.Cleanup(); strings.CurrentLanguage = previous; }
     }
 
     [Fact]

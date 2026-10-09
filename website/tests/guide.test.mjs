@@ -4,10 +4,23 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { renderGuide } from '../src/guide.mjs';
+import { renderGuide, rewriteGuideHref } from '../src/guide.mjs';
 import { buildSite } from '../build.mjs';
 
 const repositoryRoot = resolve(import.meta.dirname, '../..');
+
+test('guide screenshot links resolve to the same published assets as home', () => {
+  for (const kind of ['main', 'settings', 'editor']) {
+    for (const language of ['zhtw', 'enus']) {
+      assert.equal(rewriteGuideHref(`images/preview_${kind}_${language}.png`, 'zh-TW'),
+        `/OpenCam/assets/preview_${kind}_${language}.png`);
+    }
+  }
+  assert.throws(() => rewriteGuideHref('images/../../private.png', 'zh-TW'), /Unresolved/);
+  const { html } = renderGuide('![Editor](images/preview_editor_enus.png)', 'en-US');
+  assert.match(html, /src="\/OpenCam\/assets\/preview_editor_enus.png"/);
+  assert.throws(() => renderGuide('![Unexpected](private.png)', 'en-US'), /Unexpected/);
+});
 
 test('project documentation reports only current, evidence-backed behavior', async () => {
   const version = (await readFile(join(repositoryRoot, 'VERSION'), 'utf8')).trim();

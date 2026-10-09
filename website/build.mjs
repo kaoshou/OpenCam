@@ -12,7 +12,9 @@ const requiredAssets = [
   ['docs/images/preview_main_zhtw.png', 'preview_main_zhtw.png'],
   ['docs/images/preview_main_enus.png', 'preview_main_enus.png'],
   ['docs/images/preview_settings_zhtw.png', 'preview_settings_zhtw.png'],
-  ['docs/images/preview_settings_enus.png', 'preview_settings_enus.png']
+  ['docs/images/preview_settings_enus.png', 'preview_settings_enus.png'],
+  ['docs/images/preview_editor_zhtw.png', 'preview_editor_zhtw.png'],
+  ['docs/images/preview_editor_enus.png', 'preview_editor_enus.png']
 ];
 const routeFiles = ['index.html', 'zh-TW/index.html', 'en-US/index.html', 'zh-TW/guide/index.html', 'en-US/guide/index.html'];
 
@@ -63,7 +65,7 @@ export async function buildSite({ repositoryRoot = resolve(websiteRoot, '..'), o
   await mkdir(join(outputRoot, 'assets'), { recursive: true });
   await writePage(outputRoot, '', renderEntry());
   for (const language of ['zh-TW', 'en-US']) {
-    await writePage(outputRoot, language, renderLayout({ language, title: language === 'zh-TW' ? '簡單螢幕錄影' : 'Simple screen recording', description: content[language].heroText, page: 'home', body: renderHome(language) }));
+    await writePage(outputRoot, language, renderLayout({ language, title: language === 'zh-TW' ? '簡單錄影與剪輯' : 'Simple recording and editing', description: content[language].heroText, page: 'home', body: renderHome(language) }));
     const source = await readFile(join(repositoryRoot, `docs/USER_GUIDE.${language}.md`), 'utf8');
     const guide = renderGuide(source, language);
     const label = language === 'zh-TW' ? '本頁目錄' : 'On this page';

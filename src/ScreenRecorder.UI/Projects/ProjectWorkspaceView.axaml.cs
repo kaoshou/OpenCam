@@ -137,20 +137,10 @@ public partial class ProjectWorkspaceView : Window
     private async void OnRenameProject(object? sender, RoutedEventArgs e)
     {
         if (!Model.CanRecord) return;
-        var dialog = new Window { Width = 440, Height = 200, CanResize = false,
-            Title = Model.Strings["ProjectRename"], WindowStartupLocation = WindowStartupLocation.CenterOwner };
-        var input = new TextBox { Text = Model.State.Name, MaxLength = 200 };
-        var confirm = new Button { Content = Model.Strings["Confirm"] };
-        var cancel = new Button { Content = Model.Strings["Cancel"] };
-        confirm.Click += (_, _) => { if (!string.IsNullOrWhiteSpace(input.Text)) dialog.Close(true); };
-        cancel.Click += (_, _) => dialog.Close(false);
-        dialog.Content = new StackPanel { Margin = new(24), Spacing = 16, Children = {
-            input, new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 12, Children = { confirm, cancel } }
-        }};
-        dialog.Opened += (_, _) => { input.Focus(); input.SelectAll(); };
-        if (await dialog.ShowDialog<bool>(this))
+        var dialog = new ProjectNameDialog(Model.State.Name, rename: true);
+        if (await dialog.ShowDialog<string?>(this) is { } name)
         {
-            await Model.RenameProjectAsync(input.Text!.Trim());
+            await Model.RenameProjectAsync(name);
         }
     }
     private void OnFitTimeline(object? sender, RoutedEventArgs e) => TimelineControl.Fit();

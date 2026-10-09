@@ -17,15 +17,12 @@
         <!-- 頂部控制工具列卡片 (現代曜石白微光卡片) -->
         <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" 
                 Padding="12,10" Margin="0,0,0,12" BoxShadow="0 4 16 #0F172A08">
-            <Grid RowDefinitions="Auto,Auto,Auto">
-            <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,10,0,0" IsVisible="{Binding UsesRecordingContent}">
+            <Grid RowDefinitions="Auto,Auto,Auto,Auto">
+            <Border x:Name="ProjectHeaderDivider" Grid.Row="1" Height="1" Background="#E5E7EB" Margin="16,0,16,12"/>
+            <Grid Grid.Row="3" Margin="0,10,0,0" IsVisible="{Binding UsesRecordingContent}">
                 <CheckBox IsChecked="{Binding AutoExportRecordingOnStop, Mode=OneWay}" Click="OnProjectAutoExportChanged"
                           IsEnabled="{Binding CanChangeProjectExportPolicy}" FontSize="12"
                           Content="{Binding Strings[ProjectAutoExport]}" ToolTip.Tip="{Binding Strings[ProjectAutoExportHint]}"/>
-                <Button Grid.Column="1" Command="{Binding ExportRecordingContentCommand}" IsEnabled="{Binding CanExportRecordingContent}"
-                        Padding="10,5" CornerRadius="7">
-                    <editor:EditorToolContent Icon="export" Text="{Binding Strings[ProjectExportMp4]}"/>
-                </Button>
             </Grid>
             <!-- 專案資訊與管理：獨立於錄影參數和錄製操作。 -->
             <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
@@ -56,13 +53,13 @@
                     </Button>
                 </StackPanel>
             </Grid>
-            <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left">
+            <Grid Grid.Row="2" ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Left">
                     <!-- 開始錄影按鈕 (奢華翡翠綠立體微光漸層) -->
                     <Button Command="{Binding StartRecordingCommand}"
                             IsEnabled="{Binding CanStartRecording}"
                             Foreground="White" FontWeight="Bold" FontSize="12.5" 
-                            Padding="14,7.5" CornerRadius="8"
+                            Padding="10,7.5" CornerRadius="8"
                             ToolTip.Tip="{Binding StartRecordingTooltipText}">
                         <Button.Background>
                             <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
@@ -81,7 +78,7 @@
                     <Button Command="{Binding TogglePauseResumeCommand}"
                             IsEnabled="{Binding CanPauseOrResume}"
                             Background="#FFFBEB" BorderBrush="#FDE68A" BorderThickness="1" Foreground="#92400E"
-                            FontWeight="SemiBold" FontSize="12" Padding="12,7.5" CornerRadius="8"
+                            FontWeight="SemiBold" FontSize="12" Padding="10,7.5" CornerRadius="8"
                             ToolTip.Tip="{Binding PauseResumeTooltipText}">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <!-- 錄影中顯示暫停圖示 (雙豎線) -->
@@ -100,7 +97,7 @@
                     <Button Command="{Binding StopRecordingCommand}"
                             IsEnabled="{Binding CanStopRecording}"
                             Foreground="White" FontWeight="Bold" FontSize="12.5" 
-                            Padding="14,7.5" CornerRadius="8"
+                            Padding="10,7.5" CornerRadius="8"
                             ToolTip.Tip="{Binding StopRecordingTooltipText}">
                         <Button.Background>
                             <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
@@ -124,7 +121,8 @@
 
                 </StackPanel>
                     <!-- 修復救援與主要錄製操作分組。 -->
-                    <Button Grid.Column="1" Margin="12,0,0,0" Command="{Binding RecoverSessionsCommand}"
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0" VerticalAlignment="Top">
+                    <Button Command="{Binding RecoverSessionsCommand}" Height="36"
                             Background="#FFFBEB" BorderBrush="#FDE68A" BorderThickness="1" Foreground="#92400E"
                             FontWeight="SemiBold" FontSize="11.5" Padding="11,7.5" CornerRadius="8"
                             ToolTip.Tip="{Binding Strings[TooltipRecovery]}">
@@ -134,6 +132,12 @@
                             <TextBlock Text="{Binding Strings[Recovery]}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
+                    <Button Command="{Binding ExportRecordingContentCommand}" IsEnabled="{Binding CanExportRecordingContent}" Height="36"
+                            IsVisible="{Binding UsesRecordingContent}" Padding="11,7.5" CornerRadius="8"
+                            Background="#EFF6FF" Foreground="#1D4ED8" BorderBrush="#BFDBFE" BorderThickness="1">
+                        <editor:EditorToolContent Icon="export" Text="{Binding Strings[ProjectExportMp4]}"/>
+                    </Button>
+                </StackPanel>
             </Grid>
             </Grid>
         </Border>
