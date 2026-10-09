@@ -12,19 +12,57 @@ public partial class RecordingEncoderLifecycleTests
     public async Task ProjectPlayback_UnconfirmedStopBlocksCaptureButAllowsSave()
     {
         await using var scope = new RecordingScope();
-        var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
+        await using var store = new PlaybackLeaseFixture();
+        var coordinator = new ProjectRecordingCoordinator(scope.Recorder, store, new ProjectProbeStub());
         await coordinator.CreateAsync(scope.Configuration.OutputDirectory, "Stop failure");
         await coordinator.StartAsync(scope.Configuration, Guid.NewGuid());
         await coordinator.PauseAsync(Guid.NewGuid());
         var preview = new ProjectPreviewCoordinator(coordinator, (_, _, _, _, _, _) =>
             throw new ProjectPreviewShutdownException(new IOException("Device did not exit")));
-        await preview.PlayAsync(coordinator.Current!.ProjectId, coordinator.Current.Revision, 0);
-        await UntilAsync(() => !preview.State.Playing);
-        Assert.True((await coordinator.SaveAsync(coordinator.Current.Revision)).Success);
-        Assert.False((await coordinator.StartAsync(scope.Configuration, Guid.NewGuid())).Success);
-        Assert.Equal(ProjectMode.Paused, coordinator.Mode);
-        await Assert.ThrowsAsync<IOException>(() => preview.StopAsync());
-        await Assert.ThrowsAsync<IOException>(() => coordinator.DisposeAsync().AsTask());
+        try
+        {
+            await preview.PlayAsync(coordinator.Current!.ProjectId, coordinator.Current.Revision, 0);
+            await UntilAsync(() => !preview.State.Playing);
+            Assert.True((await coordinator.SaveAsync(coordinator.Current.Revision)).Success);
+            Assert.False((await coordinator.StartAsync(scope.Configuration, Guid.NewGuid())).Success);
+            Assert.Equal(ProjectMode.Paused, coordinator.Mode);
+            await Assert.ThrowsAsync<IOException>(() => preview.StopAsync());
+            await Assert.ThrowsAsync<IOException>(() => coordinator.DisposeAsync().AsTask());
+            // Fail-closed ownership is intentional, including on Unix where an
+            // open file can otherwise be unlinked during fixture teardown.
+            await Assert.ThrowsAnyAsync<IOException>(() => new JsonProjectStore().OpenAsync(
+                Path.Combine(coordinator.ProjectDirectory!, "project.opencam")));
+        }
+        finally
+        {
+            // The injected playback has no device/process. After testing the
+            // failure latch, release this fixture's real project lease. Do not
+            // weaken production DisposeAsync or permit capture after failure.
+            await store.DisposeAsync();
+        }
+    }
+
+    private sealed class PlaybackLeaseFixture : IProjectStore, IAsyncDisposable
+    {
+        private readonly JsonProjectStore _store = new();
+        private readonly List<IProjectHandle> _handles = [];
+        public async Task<IProjectHandle> CreateAsync(string directory, string name, CancellationToken ct = default)
+        {
+            var handle = await _store.CreateAsync(directory, name, ct);
+            _handles.Add(handle);
+            return handle;
+        }
+        public async Task<IProjectHandle> OpenAsync(string path, CancellationToken ct = default)
+        {
+            var handle = await _store.OpenAsync(path, ct);
+            _handles.Add(handle);
+            return handle;
+        }
+        public async ValueTask DisposeAsync()
+        {
+            foreach (var handle in _handles) await handle.DisposeAsync();
+            _handles.Clear();
+        }
     }
     [Fact]
     public async Task ProjectPlayback_DecodeErrorDoesNotPreventSaveOrClose()

@@ -103,7 +103,18 @@ public sealed class ProjectStoreTests : IDisposable
         {
             if (!writer.HasExited) { writer.Kill(entireProcessTree: true); await writer.WaitForExitAsync(); }
         }
-        await using var reopened = await store.OpenAsync(path);
+        // Process termination and Windows' release of pending file I/O are
+        // separate observations. Never steal/delete the lease: actually acquire
+        // it, with a bounded deadline, after the writer is confirmed terminated.
+        var released = Stopwatch.StartNew();
+        IProjectHandle reopened;
+        while (true)
+        {
+            try { reopened = await store.OpenAsync(path); break; }
+            catch (IOException) when (OperatingSystem.IsWindows() && released.Elapsed < TimeSpan.FromSeconds(5))
+            { await Task.Delay(25); }
+        }
+        await using var reopenedLease = reopened;
         Assert.False(reopened.NeedsRecoveryConfirmation);
         Assert.True(reopened.Current.Revision >= 1);
         Assert.StartsWith("revision-", reopened.Current.Name);
@@ -198,7 +209,8 @@ public sealed class ProjectStoreTests : IDisposable
     {
         await using var h = await new JsonProjectStore().CreateAsync(_root, "before");
         Directory.CreateDirectory(Path.Combine(h.ProjectDirectory, "project.opencam.bak"));
-        await Assert.ThrowsAnyAsync<IOException>(() => h.SaveAsync(h.Current with { Revision = 1 }, 0));
+        var error = await Record.ExceptionAsync(() => h.SaveAsync(h.Current with { Revision = 1 }, 0));
+        Assert.True(error is IOException or UnauthorizedAccessException, error?.ToString() ?? "Backup directory was overwritten.");
         Assert.Equal(0, h.Current.Revision);
         var saved = JsonSerializer.Deserialize<RecordingProject>(await File.ReadAllTextAsync(Path.Combine(h.ProjectDirectory, "project.opencam")));
         Assert.Equal(0, saved!.Revision);

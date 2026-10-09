@@ -99,7 +99,10 @@ public class BoundDirectoryTests : IDisposable
         Assert.Throws<InvalidDataException>(() => bound.PublishVerified("../source.tmp", "result.mp4"));
         Assert.Throws<InvalidDataException>(() => bound.PublishVerified("source.tmp", "source.tmp"));
         Assert.Throws<InvalidDataException>(() => bound.PublishVerified("empty.tmp", "result.mp4"));
-        Assert.ThrowsAny<IOException>(() => bound.PublishVerified("linked.tmp", "result.mp4"));
+        // Windows opens the reparse point and rejects its metadata; Unix rejects
+        // it at openat(O_NOFOLLOW). Both must fail without publishing or copying.
+        var linkedError = Record.Exception(() => bound.PublishVerified("linked.tmp", "result.mp4"));
+        Assert.True(linkedError is IOException or InvalidDataException, linkedError?.ToString() ?? "Linked source was accepted.");
         Assert.False(File.Exists(Path.Combine(_root, "result.mp4")));
         Assert.Equal("keep", await File.ReadAllTextAsync(Path.Combine(_root, "source.tmp")));
     }

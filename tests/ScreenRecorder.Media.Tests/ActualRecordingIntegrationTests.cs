@@ -21,9 +21,21 @@ namespace ScreenRecorder.Media.Tests;
 public class ActualRecordingIntegrationTests : IDisposable
 {
     private readonly string _tempDir;
+    private readonly Xunit.Abstractions.ITestOutputHelper _output;
+    private readonly Serilog.ILogger _previousLogger;
+    private readonly Serilog.Core.Logger _diagnosticLogger;
+    private readonly RecordingDiagnosticSink _diagnostics = new();
 
-    public ActualRecordingIntegrationTests()
+    public ActualRecordingIntegrationTests(Xunit.Abstractions.ITestOutputHelper output)
     {
+        _output = output;
+        // This assembly disables test parallelization. Preserve/restore the
+        // logger so failed real-FFmpeg tests expose the bounded stderr tail
+        // already recorded by the engine, not only the friendly UI error.
+        _previousLogger = Serilog.Log.Logger;
+        _diagnosticLogger = new Serilog.LoggerConfiguration().MinimumLevel.Warning()
+            .WriteTo.Sink(_diagnostics).CreateLogger();
+        Serilog.Log.Logger = _diagnosticLogger;
         _tempDir = Path.Combine(Path.GetTempPath(), "RealRecordingTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempDir);
     }
@@ -730,6 +742,9 @@ public class ActualRecordingIntegrationTests : IDisposable
 
     public void Dispose()
     {
+        Serilog.Log.Logger = _previousLogger;
+        _diagnosticLogger.Dispose();
+        foreach (var entry in _diagnostics.Entries) _output.WriteLine(entry);
         try
         {
             if (Directory.Exists(_tempDir))
@@ -738,6 +753,17 @@ public class ActualRecordingIntegrationTests : IDisposable
             }
         }
         catch { }
+    }
+
+    private sealed class RecordingDiagnosticSink : Serilog.Core.ILogEventSink
+    {
+        public System.Collections.Concurrent.ConcurrentQueue<string> Entries { get; } = new();
+        public void Emit(Serilog.Events.LogEvent logEvent)
+        {
+            var text = logEvent.RenderMessage() + (logEvent.Exception is null ? "" : "\n" + logEvent.Exception);
+            Entries.Enqueue(text.Length > 12000 ? text[^12000..] : text);
+            while (Entries.Count > 32) Entries.TryDequeue(out _);
+        }
     }
 
     private RecordingConfiguration CreateSyntheticConfiguration(bool deleteWorkingFiles) =>
