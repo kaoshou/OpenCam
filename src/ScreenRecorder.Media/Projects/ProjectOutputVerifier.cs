@@ -28,7 +28,8 @@ public static class ProjectOutputVerifier
         var expectedVideo = (double)plan.FrameCount * plan.Canvas.Fps.Denominator / plan.Canvas.Fps.Numerator;
         var expectedAudio = (double)plan.AudioSampleCount / 48000;
         if (Math.Abs(videoDuration - expectedVideo) > 0.002 || Math.Abs(audioDuration - expectedAudio) > 1024d / 48000 + 0.002)
-            throw new InvalidDataException("Export duration does not match the retained timeline.");
+            throw new InvalidDataException(FormattableString.Invariant(
+                $"Export duration does not match the retained timeline. Video={videoDuration:R}s (expected {expectedVideo:R}s); audio={audioDuration:R}s (expected {expectedAudio:R}s)."));
     }
 
     private static double ReadDuration(JsonElement stream)
