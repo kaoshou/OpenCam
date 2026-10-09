@@ -49,7 +49,8 @@ public partial class RecordingEncoderLifecycleTests
         File.Move(backup, backup + ".preserved");
         Directory.CreateDirectory(backup);
         var clip = project.Current!.Clips.Single();
-        Assert.False((await project.RenameClipAsync(clip.Id, "Changed", project.Current.Revision)).Success);
+        Assert.True((await project.RenameClipAsync(clip.Id, "Changed", project.Current.Revision)).Success);
+        Assert.False((await project.SaveAsync(project.Current.Revision)).Success);
         Assert.True(project.IsDirty);
         Assert.True(project.CanUndo);
         Assert.Equal("Changed", project.Current.Clips.Single().Name);

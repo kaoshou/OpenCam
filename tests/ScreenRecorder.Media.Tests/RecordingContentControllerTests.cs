@@ -51,6 +51,7 @@ public partial class RecordingEncoderLifecycleTests
         await controller.PauseAsync();
         Assert.True(controller.CanOpenEditor);
         controller.Workspace.ClipName = "Edited from shared editor";
+        controller.Workspace.RequestUnsavedDecision = () => Task.FromResult(UnsavedDecision.Save);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         stop = release.Task;
         var resume = controller.ResumeAsync(scope.Configuration);

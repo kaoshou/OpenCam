@@ -1531,7 +1531,7 @@ public partial class MainViewModel : ObservableObject
 
                 if (_openFolderOnFinished && !string.IsNullOrEmpty(LastOutputFilePath))
                 {
-                    OpenOutputFolder();
+                    OpenCompletedOutputFolder();
                 }
             }
             else
@@ -1636,11 +1636,15 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public void OpenOutputFolder()
+    public void OpenOutputFolder() => OpenOutputLocation(false);
+
+    private void OpenCompletedOutputFolder() => OpenOutputLocation(true);
+
+    private void OpenOutputLocation(bool revealLastOutput)
     {
         var (success, error) = PlatformFolderOpener.TryOpen(
             LastOutputFilePath,
-            OutputDirectory);
+            OutputDirectory, revealLastOutput);
         if (!success)
         {
             StatusMessage = Strings.GetFormatted(

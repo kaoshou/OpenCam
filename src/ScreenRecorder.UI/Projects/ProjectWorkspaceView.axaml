@@ -52,6 +52,29 @@
       <Setter Property="BorderBrush" Value="{DynamicResource ProjectStrokeBrush}"/>
     </Style>
     <Style Selector="Button.tool"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
+    <Style Selector="Button.rename:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource ProjectSelectedBrush}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource ProjectAccentBrush}"/>
+    </Style>
+    <Style Selector="Button.rename:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource ProjectSelectedBrush}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource ProjectAccentBrush}"/>
+    </Style>
+    <Style Selector="Button.rename:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="BorderBrush" Value="{DynamicResource ProjectAccentBrush}"/>
+    </Style>
+    <Style Selector="Button#ExportButton /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#2563EB"/><Setter Property="Foreground" Value="White"/>
+    </Style>
+    <Style Selector="Button#ExportButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#1D4ED8"/><Setter Property="Foreground" Value="White"/>
+    </Style>
+    <Style Selector="Button#ExportButton:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#1E40AF"/><Setter Property="Foreground" Value="White"/>
+    </Style>
+    <Style Selector="Button#ExportButton:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#2563EB"/><Setter Property="Foreground" Value="White"/>
+    </Style>
     <Style Selector="TextBox"><Setter Property="FontSize" Value="14"/><Setter Property="CornerRadius" Value="5"/><Setter Property="MinHeight" Value="34"/></Style>
     <Style Selector="ListBoxItem">
       <Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0,2"/><Setter Property="CornerRadius" Value="7"/>
@@ -74,8 +97,8 @@
     </Style>
     <Style Selector="TextBlock"><Setter Property="Foreground" Value="{DynamicResource ProjectTextBrush}"/></Style>
   </Window.Styles>
-  <Grid RowDefinitions="64,44,*,240,28">
-    <Border Background="{DynamicResource ProjectCardBrush}" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="0,0,0,1" Padding="16,8">
+  <Grid x:Name="EditorRoot" RowDefinitions="64,Auto,*,6,240,28">
+    <Border x:Name="EditorHeader" Background="{DynamicResource ProjectCardBrush}" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="0,0,0,1" Padding="16,8">
     <Grid ColumnDefinitions="Auto,*,Auto">
       <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" Margin="0,0,22,0">
         <Button x:Name="ReturnToRecordingButton" Classes="tool" Click="OnCaptureSettings"
@@ -87,35 +110,37 @@
         <TextBlock Text="OpenCam" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
       </StackPanel>
       <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center" Margin="0,0,12,0">
-        <DockPanel>
-          <Button DockPanel.Dock="Right" Classes="tool" Click="OnRenameProject" IsEnabled="{Binding CanRecord}"
-                  ToolTip.Tip="{Binding Strings[ProjectRename]}" AutomationProperties.Name="{Binding Strings[ProjectRename]}">
+        <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Left">
+          <TextBlock x:Name="ProjectNameLabel" Text="{Binding State.Name}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                     VerticalAlignment="Center" ToolTip.Tip="{Binding State.Name}"/>
+          <Button x:Name="RenameProjectButton" Grid.Column="1" Classes="rename" Click="OnRenameProject" IsEnabled="{Binding CanRecord}"
+                  Width="32" Height="32" MinHeight="32" Padding="7" Margin="6,0,0,0" CornerRadius="7"
+                  Background="{DynamicResource ProjectRowBrush}" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="1"
+                  ToolTip.Tip="{Binding Strings[ProjectRenameAction]}" AutomationProperties.Name="{Binding Strings[ProjectRenameAction]}">
             <editor:EditorToolContent Icon="rename"/>
           </Button>
-          <TextBlock Text="{Binding State.Name}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
-                     VerticalAlignment="Center" ToolTip.Tip="{Binding State.Directory}"/>
-        </DockPanel>
+        </Grid>
         <TextBlock Text="{Binding SaveStatus}" FontSize="12" Foreground="{DynamicResource ProjectMutedBrush}"/>
       </StackPanel>
       <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
         <Button Content="{Binding Strings[ProjectSave]}" Command="{Binding SaveCommand}" IsEnabled="{Binding !IsBusy}"/>
         <Button x:Name="ExportButton" Click="OnExport" IsEnabled="{Binding CanExport}" Background="#2563EB" Foreground="White" AutomationProperties.Name="{Binding Strings[ProjectExportMp4]}">
-          <editor:EditorToolContent Icon="export" Text="{Binding Strings[ProjectExportMp4]}"/>
+          <editor:EditorToolContent Icon="export" Text="{Binding Strings[ProjectExportMp4]}" Foreground="White"/>
         </Button>
         <Button Content="{Binding Strings[ProjectCaptureSettings]}" Click="OnCaptureSettings" IsEnabled="{Binding CanReturnToRecording}"/>
       </StackPanel>
     </Grid>
     </Border>
-    <Border Grid.Row="1" IsVisible="{Binding IsExporting}" Background="{DynamicResource ProjectCardBrush}" Padding="16,4" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="0,0,0,1">
+    <Border Grid.Row="1" IsVisible="{Binding CanCancelExport}" Background="{DynamicResource ProjectCardBrush}" Padding="16,4" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="0,0,0,1">
       <Grid ColumnDefinitions="*,Auto">
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
           <ProgressBar Width="100" Minimum="0" Maximum="100" Value="{Binding ExportProgress}" IsVisible="{Binding IsExporting}"/>
-          <Button Content="{Binding Strings[ProjectExportCancel]}" Command="{Binding CancelExportCommand}" IsVisible="{Binding IsExporting}"/>
+          <Button Content="{Binding Strings[ProjectExportCancel]}" Command="{Binding CancelExportCommand}" IsVisible="{Binding CanCancelExport}"/>
           <TextBlock Text="{Binding ModeText}" VerticalAlignment="Center" Foreground="{DynamicResource ProjectAccentBrush}"/>
         </StackPanel>
       </Grid>
     </Border>
-    <Grid x:Name="WorkspaceGrid" Grid.Row="2" ColumnDefinitions="220,*,260">
+    <Grid x:Name="WorkspaceGrid" Grid.Row="2" ColumnDefinitions="220,*,260" MinHeight="160">
       <Border x:Name="ClipPane" Background="{DynamicResource ProjectCardBrush}" Padding="12,16" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="0,0,1,0">
         <Grid RowDefinitions="Auto,*,Auto">
           <StackPanel Spacing="8" Margin="0,0,0,12">
@@ -136,13 +161,17 @@
             </Grid>
             <TextBlock Text="{Binding Strings[ProjectListOrderHint]}" FontSize="11" Foreground="{DynamicResource ProjectMutedBrush}"/>
           </StackPanel>
-          <ListBox x:Name="ClipList" Grid.Row="1" ItemsSource="{Binding Clips}" SelectedItem="{Binding SelectedClip}" IsEnabled="{Binding !HasPropertyDraft}" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+          <Grid Grid.Row="1" ClipToBounds="True">
+          <ListBox x:Name="ClipList" ItemsSource="{Binding Clips}" SelectedItem="{Binding SelectedClip}" IsEnabled="{Binding !HasPropertyDraft}" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <ListBox.ItemTemplate>
               <DataTemplate x:DataType="core:ProjectClip">
                 <editor:ProjectClipCard HorizontalAlignment="Stretch" ToolTip.Tip="{Binding Name}"/>
               </DataTemplate>
             </ListBox.ItemTemplate>
           </ListBox>
+          <Border x:Name="ClipDropMarker" Height="3" VerticalAlignment="Top" Background="{DynamicResource ProjectAccentBrush}"
+                  CornerRadius="2" IsVisible="False" IsHitTestVisible="False"/>
+          </Grid>
           <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
             <TextBlock Text="{Binding ClipCountText}" VerticalAlignment="Center"/>
           </StackPanel>
@@ -150,17 +179,42 @@
       </Border>
       <Border x:Name="PreviewPane" Grid.Column="1" Padding="20,12" Background="{DynamicResource ProjectCanvasBrush}">
         <Grid RowDefinitions="Auto,*,Auto">
-          <TextBlock Text="{Binding Strings[ProjectPreview]}" FontSize="12" Foreground="{DynamicResource ProjectMutedBrush}"/>
-          <Border Grid.Row="1" Margin="0,12" Background="#11161F" CornerRadius="8" ClipToBounds="True">
-            <Grid>
-              <Image x:Name="PreviewImage" Stretch="Uniform"/>
-            </Grid>
-          </Border>
-          <Grid Grid.Row="2" ColumnDefinitions="*,Auto,*" Margin="0,4">
-            <TextBlock Text="{Binding TimelineTimeText}" FontSize="12" FontFamily="monospace" Foreground="{DynamicResource ProjectTextBrush}"/>
-            <Button Grid.Column="1" Content="{Binding PlaybackButtonText}" Command="{Binding TogglePlaybackCommand}" IsEnabled="{Binding CanPreview}" CornerRadius="20" Padding="16,8"/>
-            <TextBlock Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" Text="{Binding PreviewStatus}" FontSize="11" Foreground="{DynamicResource ProjectMutedBrush}"/>
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="{Binding Strings[ProjectPreview]}" FontSize="12" Foreground="{DynamicResource ProjectMutedBrush}"/>
+            <TextBlock Grid.Column="1" Text="{Binding PreviewResolutionText}" FontSize="11" Foreground="{DynamicResource ProjectMutedBrush}"/>
           </Grid>
+          <Border Grid.Row="1" Margin="0,12" Background="#11161F" CornerRadius="8" ClipToBounds="True">
+            <ScrollViewer x:Name="PreviewScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                          HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+              <Image x:Name="PreviewImage" Stretch="Uniform"/>
+            </ScrollViewer>
+          </Border>
+          <StackPanel x:Name="PreviewControls" Grid.Row="2" Spacing="5" Margin="0,4">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="{Binding TimelineTimeText}" FontSize="11" FontFamily="monospace" VerticalAlignment="Center"/>
+              <Button Grid.Column="1" Content="{Binding PlaybackButtonText}" Command="{Binding TogglePlaybackCommand}" IsEnabled="{Binding CanPreview}" CornerRadius="20" Padding="12,5"/>
+            </Grid>
+            <WrapPanel Orientation="Horizontal">
+              <ComboBox x:Name="PreviewQualityPicker" SelectedIndex="1" SelectionChanged="OnPreviewQualityChanged" MinWidth="100" Margin="0,0,6,4"
+                        IsEnabled="{Binding CanChangePreviewOptions}" ToolTip.Tip="{Binding Strings[PreviewQuality]}" AutomationProperties.Name="{Binding Strings[PreviewQuality]}">
+                <ComboBoxItem Content="360p"/><ComboBoxItem Content="720p"/><ComboBoxItem Content="1080p"/>
+                <ComboBoxItem Content="{Binding Strings[PreviewOriginal]}" IsEnabled="{Binding CanUseOriginalPreview}" ToolTip.Tip="{Binding Strings[PreviewOriginalHint]}"/>
+              </ComboBox>
+              <ComboBox x:Name="PreviewZoomPicker" SelectedIndex="0" SelectionChanged="OnPreviewZoomChanged" MinWidth="100" Margin="0,0,6,4"
+                        ToolTip.Tip="{Binding Strings[PreviewZoom]}" AutomationProperties.Name="{Binding Strings[PreviewZoom]}">
+                <ComboBoxItem Content="{Binding Strings[PreviewFit]}"/><ComboBoxItem Content="100%"/><ComboBoxItem Content="200%"/>
+              </ComboBox>
+              <Button x:Name="PreviewSoundButton" Command="{Binding TogglePreviewSoundCommand}" IsEnabled="{Binding CanChangePreviewOptions}"
+                      Margin="0,0,6,4" ToolTip.Tip="{Binding PreviewSoundText}" AutomationProperties.Name="{Binding PreviewSoundText}">
+                <editor:EditorToolContent Icon="{Binding PreviewSoundIcon}"/>
+              </Button>
+              <Button x:Name="PreviewFullscreenButton" Click="OnPreviewFullscreen" Margin="0,0,0,4"
+                      ToolTip.Tip="{Binding Strings[PreviewFullscreen]}" AutomationProperties.Name="{Binding Strings[PreviewFullscreen]}">
+                <editor:EditorToolContent Icon="fullscreen"/>
+              </Button>
+            </WrapPanel>
+            <TextBlock Text="{Binding PreviewStatus}" FontSize="11" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource ProjectMutedBrush}"/>
+          </StackPanel>
         </Grid>
       </Border>
       <Border x:Name="InspectorPane" Grid.Column="2" Background="{DynamicResource ProjectCardBrush}" Padding="16" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="1,0,0,0">
@@ -216,7 +270,9 @@
         </ScrollViewer>
       </Border>
     </Grid>
-    <Border x:Name="TimelinePane" Grid.Row="3" Background="{DynamicResource ProjectCardBrush}" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="0,1,0,0" Padding="12,8">
+    <GridSplitter x:Name="PreviewSplitter" Grid.Row="3" ResizeDirection="Rows" ResizeBehavior="PreviousAndNext" HorizontalAlignment="Stretch"
+                  Background="{DynamicResource ProjectStrokeBrush}" ToolTip.Tip="{Binding Strings[PreviewResize]}"/>
+    <Border x:Name="TimelinePane" Grid.Row="4" MinHeight="120" Background="{DynamicResource ProjectCardBrush}" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="0,1,0,0" Padding="12,8">
       <Border.Styles>
         <Style Selector="Button"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="8,6"/><Setter Property="MinHeight" Value="32"/><Setter Property="Margin" Value="1,2"/></Style>
         <Style Selector="Border.toolDivider"><Setter Property="Width" Value="1"/><Setter Property="Height" Value="18"/><Setter Property="Margin" Value="7,8"/><Setter Property="Background" Value="{DynamicResource ProjectStrokeBrush}"/></Style>
@@ -239,7 +295,7 @@
         <editor:ProjectTimelineControl x:Name="TimelineControl" Grid.Row="1" ToolTip.Tip="{Binding Strings[ProjectTimelineHelp]}"/>
       </Grid>
     </Border>
-    <Grid Grid.Row="4" ColumnDefinitions="*,Auto" Margin="16,4">
+    <Grid x:Name="EditorFooter" Grid.Row="5" ColumnDefinitions="*,Auto" Margin="16,4">
       <TextBlock Text="{Binding ExportStatusText}" IsVisible="{Binding !HasEditorError}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding ExportStatusText}"/>
       <TextBlock Text="{Binding Error}" Foreground="{DynamicResource ProjectErrorBrush}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Error}"/>
     </Grid>

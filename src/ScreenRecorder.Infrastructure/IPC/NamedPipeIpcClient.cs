@@ -10,10 +10,12 @@ public class NamedPipeIpcClient : IAsyncDisposable
     private readonly string _pipeName;
     private readonly byte[] _key;
     private readonly int _serverPid;
+    private readonly bool _mediaResponse;
 
-    public NamedPipeIpcClient(string pipeName, byte[] key, int? serverPid = null)
+    public NamedPipeIpcClient(string pipeName, byte[] key, int? serverPid = null, bool mediaResponse = false)
     {
         _pipeName = pipeName;
+        _mediaResponse = mediaResponse;
         _key = AuthenticatedIpc.CopyKey(key);
         _serverPid = serverPid ?? Environment.ProcessId;
     }
@@ -39,7 +41,7 @@ public class NamedPipeIpcClient : IAsyncDisposable
             };
 
             await AuthenticatedIpc.WriteAsync(pipeClient, _key, nonce, false, message, linkedCts.Token);
-            return await AuthenticatedIpc.ReadAsync<IpcResponse>(pipeClient, _key, nonce, true, linkedCts.Token);
+            return await AuthenticatedIpc.ReadAsync<IpcResponse>(pipeClient, _key, nonce, true, linkedCts.Token, _mediaResponse);
         }
         catch (OperationCanceledException ex) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {
@@ -51,10 +53,22 @@ public class NamedPipeIpcClient : IAsyncDisposable
         }
     }
 
-    public async Task<IpcResponse> SendProjectFrameAsync(ProjectRequest request, CancellationToken cancellationToken = default)
+    public async Task<ProjectReply> SendProjectFrameAsync(ProjectRequest request, CancellationToken cancellationToken = default)
     {
-        await using var media = new NamedPipeIpcClient(_pipeName + "-frames", _key, _serverPid);
-        return await media.SendCommandAsync("GetProjectFrame", request, cancellationToken: cancellationToken);
+        using var pipe = new NamedPipeClientStream(".", _pipeName + "-frames", PipeDirection.InOut, PipeOptions.Asynchronous);
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(TimeSpan.FromSeconds(3));
+        try
+        {
+            await pipe.ConnectAsync(deadline.Token);
+            IpcPeerIdentity.Verify(pipe, _serverPid, server: false);
+            var nonce = await AuthenticatedIpc.ReadChallengeAsync(pipe, _key, deadline.Token);
+            await AuthenticatedIpc.WriteAsync(pipe, _key, nonce, false, new IpcMessage {
+                MessageType = "GetProjectFrame", PayloadJson = JsonSerializer.Serialize(request) }, deadline.Token);
+            return await AuthenticatedMediaIpc.ReadAsync(pipe, _key, nonce, deadline.Token);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or OperationCanceledException or JsonException)
+        { return new(false, ex.Message, ProjectSnapshot.Closed, Unconfirmed: true); }
     }
 
     public ValueTask DisposeAsync()

@@ -33,7 +33,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
         RecordingExportState.Canceled => Strings["ProjectExportCanceled"],
         _ => Strings["ProjectExportFailed"] + " " + export.Error
     };
-    public bool CanEdit => !IsBusy && !StatusUnconfirmed && !IsExporting && State.Mode is ProjectMode.Ready or ProjectMode.Paused;
+    public bool CanEdit => !IsBusy && !IsChangingPreviewQuality && !StatusUnconfirmed && !IsExporting && !State.HasRecoverableDraft && State.Mode is ProjectMode.Ready or ProjectMode.Paused;
     public bool CanEditTimeline => CanEdit && !HasPropertyDraft;
     public bool CanReplaceProject => !IsBusy && !HasPropertyDraft;
     public bool CanReturnToRecording => !IsBusy && !StatusUnconfirmed && State.Mode is not (ProjectMode.Recording or ProjectMode.SavingSegment);
@@ -47,7 +47,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     public bool CanMoveEarlier => CanEditTimeline && CanEditSelection && GroupStart(Clips.IndexOf(SelectedClip!)) > 0;
     public bool CanMoveLater => CanEditTimeline && CanEditSelection && GroupEnd(Clips.IndexOf(SelectedClip!)) < Clips.Count - 1;
     public string SaveStatus => State.ProjectId is null ? "" : Strings[StatusUnconfirmed ? "ProjectUnconfirmed" : IsBusy ? "ProjectSaving" :
-        Error is not null ? "ProjectSaveFailed" : State.IsDirty || HasPropertyDraft ? "ProjectUnsaved" : "ProjectSaved"];
+        Error is not null ? "ProjectSaveFailed" : State.DraftError is not null ? "ProjectDraftSaveFailed" : State.IsDirty || HasPropertyDraft ? "ProjectUnsaved" : "ProjectSaved"];
     public string ModeText => Strings["ProjectMode" + State.Mode];
     public string StartText => Strings[State.Mode == ProjectMode.Paused ? "ProjectContinue" : "ProjectRecord"];
     public string ClipCountText => $"{Clips.Count} / {State.ClipCount}";
@@ -61,8 +61,9 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     {
         foreach (var property in new[] { nameof(CanEdit), nameof(CanRecord), nameof(CanPause), nameof(CanFinish), nameof(CanClose),
             nameof(CanUndo), nameof(CanRedo), nameof(SaveStatus), nameof(ModeText), nameof(StartText), nameof(ClipCountText), nameof(IsExporting),
-            nameof(CanExport), nameof(ExportProgress), nameof(ExportStatusText), nameof(HasEditorError), nameof(CanReturnToRecording),
-            nameof(CanEditSelection), nameof(CanMoveEarlier), nameof(CanMoveLater), nameof(CanEditTimeline), nameof(CanReplaceProject) })
+            nameof(CanExport), nameof(CanCancelExport), nameof(ExportProgress), nameof(ExportStatusText), nameof(HasEditorError), nameof(CanReturnToRecording),
+            nameof(CanEditSelection), nameof(CanMoveEarlier), nameof(CanMoveLater), nameof(CanEditTimeline), nameof(CanReplaceProject),
+            nameof(CanChangePreviewOptions), nameof(CanUseOriginalPreview) })
             OnPropertyChanged(property);
         StateChanged?.Invoke(this, EventArgs.Empty);
         NotifyPlayback();
@@ -89,7 +90,11 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     }
 
     public Task CreateAsync(string parent, string name) => ExecuteAsync("CreateProject", new() { Path = parent, Name = name });
-    public Task OpenAsync(string path) => ExecuteAsync("OpenProject", new() { Path = path });
+    public async Task OpenAsync(string path)
+    {
+        await ExecuteAsync("OpenProject", new() { Path = path });
+        await ResolveRecoveredDraftAsync();
+    }
     public Task StartAsync(RecordingConfiguration configuration) => ExecuteAsync("StartProjectRecording", new() { Configuration = configuration });
     public Task StartNewContentAsync(RecordingConfiguration configuration) => ExecuteAsync("StartNewRecordingContent", new() { Configuration = configuration });
     public Task FinishAndExportAsync() => ExecuteAsync("FinishRecordingContent");
@@ -97,7 +102,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     {
         if (!CanRecord || State.Revision != confirmedRevision || confirmedTicks < 0 || confirmedTicks > DurationTicks)
         { Error = Strings["ProjectInsertionChanged"]; return; }
-        await SaveAsync();
+        if (!await ResolveUnsavedAsync()) return;
         if (!CanRecord || State.Revision != confirmedRevision || State.IsDirty || Error is not null) return;
         await ExecuteAsync("StartProjectInsertion", new() { Configuration = configuration, TimelineTicks = confirmedTicks });
     }
@@ -106,12 +111,16 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     public async Task ExportAsync(string directory)
     {
         if (!CanExport) return;
-        await SaveAsync();
+        if (!await ResolveUnsavedAsync()) return;
         if (!CanExport || HasPropertyDraft || State.IsDirty || Error is not null) return;
+        if (!await ShouldExportAgainAsync(directory)) return;
         await ExecuteAsync("ExportRecordingContent", new() { Path = directory });
     }
-    [RelayCommand] public Task CancelExportAsync() => IsExporting
-        ? ExecuteAsync("CancelRecordingContentExport", new() { ExportId = State.Export!.ExportId }) : Task.CompletedTask;
+    [RelayCommand] public Task CancelExportAsync()
+    {
+        if (_exportLookup is not null) { _exportLookup.Cancel(); return Task.CompletedTask; }
+        return IsExporting ? ExecuteAsync("CancelRecordingContentExport", new() { ExportId = State.Export!.ExportId }) : Task.CompletedTask;
+    }
     [RelayCommand] public async Task SaveAsync()
     {
         if (HasPropertyDraft)
@@ -157,12 +166,20 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     [RelayCommand] public Task RefreshAsync() => ExecuteAsync("GetProjectStatus", new() { OperationId = _pendingOperation });
     public async Task PollRecordingAsync()
     {
-        if (StatusUnconfirmed || (!IsExporting && State.Mode is not (ProjectMode.Recording or ProjectMode.SavingSegment)) || !await _gate.WaitAsync(0)) return;
+        if (StatusUnconfirmed || (!State.IsDirty && !IsExporting && State.Mode is not (ProjectMode.Recording or ProjectMode.SavingSegment)) || !await _gate.WaitAsync(0)) return;
         try
         {
-            IsBusy = true;
+            // Background status reads are not user operations. Keep the gate for
+            // serialization, but do not pulse IsBusy (and the home startup banner)
+            // on every telemetry tick. Real transitions and lost status still
+            // update the UI through ApplyReply / StatusUnconfirmed below.
             var previous = State;
-            ApplyReply(await client.SendAsync("GetProjectStatus", new()));
+            var reply = await client.SendAsync("GetProjectStatus", new());
+            // A safety stop or newly saved segment needs a consistent clip list
+            // before editing can be enabled. Lock before publishing that state.
+            if (!reply.Unconfirmed && (reply.State.Mode != previous.Mode || reply.State.Revision != previous.Revision))
+                IsBusy = true;
+            ApplyReply(reply);
             if (!StatusUnconfirmed && (State.Mode != previous.Mode || State.Revision != previous.Revision))
                 await LoadClipsAsync();
         }
@@ -172,12 +189,8 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
 
     public async Task<bool> CloseAsync()
     {
-        if (IsPlayingPreview && !await StopPreviewAsync()) return false;
-        if (CanClose && HasPropertyDraft)
-        {
-            await SaveAsync();
-            if (HasPropertyDraft || StatusUnconfirmed) return false;
-        }
+        if ((IsPlayingPreview || IsChangingPreviewQuality) && !await StopPreviewAsync()) return false;
+        if (CanClose && !await ResolveUnsavedAsync()) return false;
         await _gate.WaitAsync();
         try
         {
@@ -195,7 +208,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
 
     private async Task ExecuteAsync(string command, ProjectRequest? request = null)
     {
-        if (command != "GetProjectStatus" && IsPlayingPreview && !await StopPreviewAsync()) return;
+        if (command != "GetProjectStatus" && (IsPlayingPreview || IsChangingPreviewQuality) && !await StopPreviewAsync()) return;
         await _gate.WaitAsync();
         try
         {

@@ -20,7 +20,7 @@ public sealed class RecordingContentController : ObservableObject
     public bool CanResume => Available && Workspace.State.Mode is ProjectMode.Ready or ProjectMode.Paused;
     public bool CanPause => Available && Workspace.State.Mode == ProjectMode.Recording;
     public bool CanStop => Available && Workspace.State.Mode is ProjectMode.Recording or ProjectMode.Paused or ProjectMode.SaveFailed;
-    public bool CanOpenEditor => Available && !Workspace.State.IsDirty &&
+    public bool CanOpenEditor => Available &&
         (Workspace.State.Mode is ProjectMode.Closed or ProjectMode.Ready or ProjectMode.Interrupted ||
          Workspace.State.Mode == ProjectMode.Paused && Workspace.State.ClipCount > 0);
 
@@ -77,7 +77,7 @@ public sealed class RecordingContentController : ObservableObject
     {
         if (Workspace.StatusUnconfirmed) return false;
         if (Workspace.State.ProjectId is null) return true;
-        await Workspace.SaveAsync();
+        if (!await Workspace.ResolveUnsavedAsync()) return false;
         return !Workspace.StatusUnconfirmed && !Workspace.HasPropertyDraft && !Workspace.State.IsDirty && Workspace.Error is null;
     }
 

@@ -9,9 +9,10 @@ internal static class PlatformFolderOpener
         bool isWindows,
         bool isMacOS,
         string? lastOutputFilePath,
-        string outputDirectory)
+        string outputDirectory,
+        bool revealLastOutput = false)
     {
-        var hasFile =
+        var hasFile = revealLastOutput &&
             !string.IsNullOrWhiteSpace(lastOutputFilePath) &&
             File.Exists(lastOutputFilePath);
         var target = hasFile ? lastOutputFilePath! : outputDirectory;
@@ -45,7 +46,8 @@ internal static class PlatformFolderOpener
 
     internal static (bool Success, string? Error) TryOpen(
         string? lastOutputFilePath,
-        string outputDirectory)
+        string outputDirectory,
+        bool revealLastOutput = false)
     {
         try
         {
@@ -53,7 +55,7 @@ internal static class PlatformFolderOpener
                 OperatingSystem.IsWindows(),
                 OperatingSystem.IsMacOS(),
                 lastOutputFilePath,
-                outputDirectory);
+                outputDirectory, revealLastOutput);
             if (startInfo is null)
             {
                 return (false, "找不到有效的輸出路徑或不支援目前平台");

@@ -11,7 +11,7 @@ public sealed partial class ProjectWorkspaceViewModel
     private bool _clockUpdate;
     private long _playbackIntent;
     public bool IsPlayingPreview { get; private set; }
-    public bool CanPreview => IsPlayingPreview || (CanEditTimeline && DurationTicks > 0);
+    public bool CanPreview => IsPlayingPreview || (CanChangePreviewOptions && DurationTicks > 0);
     public string PlaybackButtonText => Strings[IsPlayingPreview ? "ProjectPreviewPause" : "ProjectPreviewPlay"];
 
     private void NotifyPlayback()
@@ -25,19 +25,26 @@ public sealed partial class ProjectWorkspaceViewModel
     [RelayCommand]
     public async Task TogglePlaybackAsync()
     {
-        if (IsPlayingPreview) await StopPreviewAsync();
+        if (IsPlayingPreview || IsChangingPreviewQuality) await StopPreviewAsync();
         else if (CanPreview) await StartPreviewAsync(PlayheadTicks >= DurationTicks ? 0 : PlayheadTicks, ++_playbackIntent);
     }
 
     private async Task StartPreviewAsync(long ticks, long intent)
     {
         await _playbackGate.WaitAsync();
+        try { await StartPreviewCoreAsync(ticks, intent); }
+        finally { NotifyPlayback(); _playbackGate.Release(); }
+    }
+
+    private async Task StartPreviewCoreAsync(long ticks, long intent)
+    {
         try
         {
             if (intent != _playbackIntent || !CanPreview) return;
             var state = State;
             var reply = await client.SendAsync("PlayProjectPreview", new() { ProjectId = state.ProjectId,
-                ExpectedRevision = state.Revision, TimelineTicks = ticks, OperationId = Guid.NewGuid() });
+                ExpectedRevision = state.Revision, TimelineTicks = ticks, OperationId = Guid.NewGuid(), PreviewQuality = PreviewQuality,
+                PreviewMuted = PreviewMuted });
             if (intent != _playbackIntent) return; // Next queued command replaces or stops this generation.
             if (!reply.Success || reply.Unconfirmed || reply.Playback is null)
             { Error = reply.Error ?? "Preview status is unconfirmed."; StatusUnconfirmed = reply.Unconfirmed; return; }
@@ -48,13 +55,19 @@ public sealed partial class ProjectWorkspaceViewModel
             try { PlayheadTicks = ticks; } finally { _clockUpdate = false; }
         }
         catch (Exception ex) { Error = ex.Message; StatusUnconfirmed = true; }
-        finally { NotifyPlayback(); _playbackGate.Release(); }
+        finally { NotifyPlayback(); }
     }
 
     public async Task<bool> StopPreviewAsync()
     {
         ++_playbackIntent;
         await _playbackGate.WaitAsync();
+        try { return await StopPreviewCoreAsync(); }
+        finally { NotifyPlayback(); _playbackGate.Release(); }
+    }
+
+    private async Task<bool> StopPreviewCoreAsync()
+    {
         try
         {
             if (State.ProjectId is null) return true;
@@ -72,7 +85,8 @@ public sealed partial class ProjectWorkspaceViewModel
             _playbackGeneration = null; IsPlayingPreview = false;
             return true;
         }
-        finally { NotifyPlayback(); _playbackGate.Release(); }
+        catch (Exception ex) { Error = ex.Message; StatusUnconfirmed = true; return false; }
+        finally { NotifyPlayback(); }
     }
 
     private async Task PollPlaybackAsync()
@@ -93,9 +107,9 @@ public sealed partial class ProjectWorkspaceViewModel
             _clockUpdate = true;
             try { PlayheadTicks = Math.Clamp(playback.TimelineTicks, 0, DurationTicks); }
             finally { _clockUpdate = false; }
-            if (reply.Frame is { Rgba.Length: ProjectFrameReply.ByteCount } frame && frame.Revision == state.Revision &&
+            if (reply.Frame is { HasValidPixels: true } frame && frame.Revision == state.Revision &&
                 TimelineClips.Any(c => c.ClipId == frame.ClipId && frame.TimelineTicks >= c.StartTicks && frame.TimelineTicks < c.EndTicks))
-            { PreviewFrame = frame; OnPropertyChanged(nameof(PreviewFrame)); }
+            { PreviewFrame = frame; OnPropertyChanged(nameof(PreviewFrame)); OnPropertyChanged(nameof(PreviewResolutionText)); }
             IsPlayingPreview = playback.Playing;
             if (!playback.Playing) { _playbackGeneration = null; if (playback.Error is not null) Error = playback.Error; }
         }

@@ -17,7 +17,46 @@
         <!-- 頂部控制工具列卡片 (現代曜石白微光卡片) -->
         <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" 
                 Padding="12,10" Margin="0,0,0,12" BoxShadow="0 4 16 #0F172A08">
-            <Grid ColumnDefinitions="*,Auto">
+            <Grid RowDefinitions="Auto,Auto,Auto">
+            <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,10,0,0" IsVisible="{Binding UsesRecordingContent}">
+                <CheckBox IsChecked="{Binding AutoExportRecordingOnStop, Mode=OneWay}" Click="OnProjectAutoExportChanged"
+                          IsEnabled="{Binding CanChangeProjectExportPolicy}" FontSize="12"
+                          Content="{Binding Strings[ProjectAutoExport]}" ToolTip.Tip="{Binding Strings[ProjectAutoExportHint]}"/>
+                <Button Grid.Column="1" Command="{Binding ExportRecordingContentCommand}" IsEnabled="{Binding CanExportRecordingContent}"
+                        Padding="10,5" CornerRadius="7">
+                    <editor:EditorToolContent Icon="export" Text="{Binding Strings[ProjectExportMp4]}"/>
+                </Button>
+            </Grid>
+            <!-- 專案資訊與管理：獨立於錄影參數和錄製操作。 -->
+            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+                <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,16,0" VerticalAlignment="Center">
+                    <Path Width="18" Height="18" Margin="0,0,9,0" Stretch="Uniform" Stroke="#64748B" StrokeThickness="1.5"
+                          Data="M2,4 H7 L9,6 H18 V16 H2 Z"/>
+                    <TextBlock Grid.Column="1" Text="{Binding CurrentRecordingProjectName}" FontSize="14" FontWeight="SemiBold"
+                               Foreground="#0F172A" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                               ToolTip.Tip="{Binding CurrentRecordingProjectName}"/>
+                    <TextBlock Grid.Column="2" Text="{Binding CurrentRecordingProjectDetails}" FontSize="11"
+                               Foreground="#64748B" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                </Grid>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                    <Button Command="{Binding NewRecordingProjectCommand}" IsEnabled="{Binding CanManageRecordingProject}"
+                            IsVisible="{Binding UsesRecordingContent}" Background="#FFFFFF" Foreground="#334155"
+                            BorderBrush="#E2E8F0" BorderThickness="1" Padding="10,7" CornerRadius="7">
+                        <editor:EditorToolContent Icon="new" Text="{Binding Strings[HomeProjectNew]}"/>
+                    </Button>
+                    <Button Click="OnOpenRecordingProject" IsEnabled="{Binding CanManageRecordingProject}"
+                            IsVisible="{Binding UsesRecordingContent}" Background="#FFFFFF" Foreground="#334155"
+                            BorderBrush="#E2E8F0" BorderThickness="1" Padding="10,7" CornerRadius="7">
+                        <editor:EditorToolContent Icon="folder" Text="{Binding Strings[HomeProjectOpen]}"/>
+                    </Button>
+                    <Button Click="OnSettingsClicked" IsEnabled="{Binding CanEditRecordingSettings}"
+                            Background="#F8FAFC" Foreground="#334155" BorderBrush="#E2E8F0" BorderThickness="1"
+                            Padding="10,7" CornerRadius="7" ToolTip.Tip="{Binding Strings[TooltipSettings]}">
+                        <editor:EditorToolContent Icon="settings" Text="{Binding Strings[Settings]}"/>
+                    </Button>
+                </StackPanel>
+            </Grid>
+            <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left">
                     <!-- 開始錄影按鈕 (奢華翡翠綠立體微光漸層) -->
                     <Button Command="{Binding StartRecordingCommand}"
@@ -80,11 +119,12 @@
                     <Button Click="OnProjectWorkspace" AutomationProperties.Name="{Binding Strings[ContentEditor]}"
                             IsEnabled="{Binding CanOpenContentEditor}" FontSize="12" Padding="11,7.5" CornerRadius="8"
                             Background="#EFF6FF" Foreground="#1D4ED8" BorderBrush="#BFDBFE" BorderThickness="1">
-                        <editor:EditorToolContent Icon="split" Text="{Binding Strings[ContentEditor]}"/>
+                        <editor:EditorToolContent Icon="edit-recording" Text="{Binding Strings[ContentEditor]}"/>
                     </Button>
 
-                    <!-- 修復救援按鈕 (柔和琥珀金) -->
-                    <Button Command="{Binding RecoverSessionsCommand}"
+                </StackPanel>
+                    <!-- 修復救援與主要錄製操作分組。 -->
+                    <Button Grid.Column="1" Margin="12,0,0,0" Command="{Binding RecoverSessionsCommand}"
                             Background="#FFFBEB" BorderBrush="#FDE68A" BorderThickness="1" Foreground="#92400E"
                             FontWeight="SemiBold" FontSize="11.5" Padding="11,7.5" CornerRadius="8"
                             ToolTip.Tip="{Binding Strings[TooltipRecovery]}">
@@ -94,24 +134,7 @@
                             <TextBlock Text="{Binding Strings[Recovery]}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
-                </StackPanel>
-
-                <!-- 右上角：偏好設定按鈕 (語言已收納至設定內，關於已收納至設定內) -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
-                    <!-- 偏好設定按鈕 (簡潔高雅微光齒輪) -->
-                    <Button Click="OnSettingsClicked"
-                            IsEnabled="{Binding CanEditRecordingSettings}"
-                            Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1"
-                            Foreground="#334155" FontSize="11.5" Padding="10,6.5" CornerRadius="7"
-                            VerticalAlignment="Center" Cursor="Hand"
-                            ToolTip.Tip="{Binding Strings[TooltipSettings]}">
-                        <StackPanel Orientation="Horizontal" Spacing="5">
-                            <Path Width="12" Height="12" Stretch="Uniform" Fill="#64748B" VerticalAlignment="Center"
-                                  Data="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
-                            <TextBlock Text="{Binding Strings[Settings]}" FontWeight="SemiBold" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-                </StackPanel>
+            </Grid>
             </Grid>
         </Border>
 
@@ -136,17 +159,6 @@
                     Padding="14,12" Margin="0,0,8,0" BoxShadow="0 4 16 #0F172A08">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Spacing="9" Margin="0,0,6,0">
-                    <StackPanel Spacing="8" IsVisible="{Binding UsesRecordingContent}">
-                        <TextBlock Text="{Binding CurrentRecordingProjectName}" FontSize="14" FontWeight="SemiBold"
-                                   TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding CurrentRecordingProjectDirectory}"/>
-                        <TextBlock Text="{Binding CurrentRecordingProjectDetails}" FontSize="12" Foreground="#64748B"/>
-                        <WrapPanel>
-                            <Button Command="{Binding NewRecordingProjectCommand}" IsEnabled="{Binding CanManageRecordingProject}"
-                                    Content="{Binding Strings[HomeProjectNew]}" FontSize="12" Padding="10,6" CornerRadius="6" Margin="0,0,6,4"/>
-                            <Button Click="OnOpenRecordingProject" IsEnabled="{Binding CanManageRecordingProject}"
-                                    Content="{Binding Strings[HomeProjectOpen]}" FontSize="12" Padding="10,6" CornerRadius="6" Margin="0,0,0,4"/>
-                        </WrapPanel>
-                    </StackPanel>
                     <!-- 錄影目標即時提示徽章 (冰藍漸層微光標籤) -->
                     <Border BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="8" Padding="12,7">
                         <Border.Background>
@@ -438,7 +450,7 @@
             <Grid ColumnDefinitions="*,Auto,Auto">
                 <TextBlock Grid.Column="0" Text="{Binding StatusMessage}" Foreground="#334155" FontSize="11.5" 
                            TextTrimming="CharacterEllipsis" FontWeight="Medium" VerticalAlignment="Center" />
-                <Button Grid.Column="1" Content="{Binding Strings[ProjectExportCancel]}" Command="{Binding CancelContentExportCommand}" IsVisible="{Binding IsContentExporting}"/>
+                <Button Grid.Column="1" Content="{Binding Strings[ProjectExportCancel]}" Command="{Binding CancelContentExportCommand}" IsVisible="{Binding CanCancelContentExport}"/>
                 <Button Grid.Column="2" Click="OnAboutClicked" Background="Transparent" BorderThickness="0"
                         Padding="4,0" Cursor="Hand" Margin="8,0,0,0">
                     <TextBlock Text="{Binding VersionAndAboutText}" Foreground="#64748B" FontSize="11" TextDecorations="Underline" VerticalAlignment="Center" />

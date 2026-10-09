@@ -8,7 +8,7 @@ public sealed partial class ProjectWorkspaceViewModel
     private int _pollingPreview;
     private long? _failedPreviewTicks;
     public ProjectFrameReply? PreviewFrame { get; private set; }
-    public string PreviewStatus => IsPlayingPreview ? Strings["ProjectPreviewPlaying"] : DurationTicks == 0 ? Strings["ProjectFrameEmpty"] : Strings[_failedPreviewTicks == PlayheadTicks
+    public string PreviewStatus => IsChangingPreviewQuality ? Strings["PreviewChangingQuality"] : IsPlayingPreview ? Strings["ProjectPreviewPlaying"] : DurationTicks == 0 ? Strings["ProjectFrameEmpty"] : Strings[_failedPreviewTicks == PlayheadTicks
         ? "ProjectFrameUnavailable" : PreviewFrame is null ? "ProjectFrameLoading" : "ProjectStillPreview"];
 
     private void ClearPreview()
@@ -16,6 +16,7 @@ public sealed partial class ProjectWorkspaceViewModel
         PreviewFrame = null;
         _failedPreviewTicks = null;
         OnPropertyChanged(nameof(PreviewFrame));
+        OnPropertyChanged(nameof(PreviewResolutionText));
         OnPropertyChanged(nameof(PreviewStatus));
     }
 
@@ -27,24 +28,33 @@ public sealed partial class ProjectWorkspaceViewModel
             Interlocked.CompareExchange(ref _pollingPreview, 1, 0) != 0) return;
         var state = State;
         var ticks = PlayheadTicks;
+        var qualityRequest = _qualityRequest;
         try
         {
             // Timeline end has no frame. Do not display a source frame outside the retained interval.
             if (ticks >= DurationTicks) { _failedPreviewTicks = ticks; return; }
             var reply = await client.SendAsync("GetProjectFrame", new() { ProjectId = state.ProjectId,
-                ExpectedRevision = state.Revision, TimelineTicks = ticks });
+                ExpectedRevision = state.Revision, TimelineTicks = ticks, PreviewQuality = PreviewQuality });
             if (!CanEdit || State.ProjectId != state.ProjectId || State.Revision != state.Revision ||
-                State.ServerInstanceId != state.ServerInstanceId || PlayheadTicks != ticks) return;
-            if (!reply.Success || reply.Unconfirmed) { _failedPreviewTicks = ticks; return; }
+                State.ServerInstanceId != state.ServerInstanceId || PlayheadTicks != ticks || qualityRequest != _qualityRequest) return;
+            if (!reply.Success || reply.Unconfirmed)
+            {
+                _failedPreviewTicks = ticks;
+                Error = reply.Error;
+                StatusUnconfirmed = reply.Unconfirmed;
+                NotifyState();
+                return;
+            }
             var frame = reply.Frame;
             if (reply.State.ProjectId != state.ProjectId || reply.State.Revision != state.Revision ||
                 reply.State.ServerInstanceId != state.ServerInstanceId || frame is null ||
                 frame.Revision != state.Revision || frame.TimelineTicks != ticks || !TimelineClips.Any(c => c.ClipId == frame.ClipId)) return;
-            if (frame.Error is not null || frame.Rgba is { Length: not ProjectFrameReply.ByteCount })
+            if (frame.Error is not null || (frame.Rgba is not null && !frame.HasValidPixels))
             { _failedPreviewTicks = ticks; return; }
             if (frame.Rgba is null) return;
             PreviewFrame = frame;
             OnPropertyChanged(nameof(PreviewFrame));
+            OnPropertyChanged(nameof(PreviewResolutionText));
         }
         catch
         {

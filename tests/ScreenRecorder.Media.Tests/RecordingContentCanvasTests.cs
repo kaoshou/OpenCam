@@ -20,6 +20,7 @@ public partial class RecordingEncoderLifecycleTests
         Assert.True((await project.ApplyEditAsync(new ProjectClipEdit.Remove(project.Current.Clips[0].Id),
             project.Current.Revision, Guid.NewGuid())).Success);
         scope.Configuration.Fps = 30;
+        Assert.True((await project.SaveAsync(project.Current.Revision)).Success);
         Assert.True((await project.StartAsync(scope.Configuration, Guid.NewGuid())).Success);
         Assert.True((await project.FinishAsync(Guid.NewGuid())).Success);
         Assert.Equal(new ProjectCanvas(320, 240, new(60, 1)), project.Current.Canvas);

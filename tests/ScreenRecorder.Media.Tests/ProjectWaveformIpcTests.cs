@@ -74,14 +74,23 @@ public partial class RecordingEncoderLifecycleTests
                 await vm.PollPreviewAsync(); await Task.Delay(20, timeout.Token);
             }
             var pixels = vm.PreviewFrame.Rgba!;
-            Assert.Equal(ProjectFrameReply.ByteCount, pixels.Length);
+            Assert.Equal(1280 * 720 * 4, pixels.Length);
+            Assert.Equal(1280, vm.PreviewFrame.PixelWidth);
+            Assert.Equal(720, vm.PreviewFrame.PixelHeight);
             // A paused preview must apply the same placement as playback/export.
-            var left = (144 * 512 + 100) * 4;
+            var left = (360 * 1280 + 250) * 4;
             Assert.Equal(new byte[] { 0, 0, 0, 255 }, pixels[left..(left + 4)]);
-            var center = (144 * 512 + 400) * 4;
+            var center = (360 * 1280 + 1000) * 4;
             Assert.InRange(pixels[center], 0, 4);
             Assert.InRange(pixels[center + 2], 245, 255); // Actual fixture is blue, not a placeholder.
             Assert.Equal(255, pixels[center + 3]);
+            while (vm.Thumbnails.Count == 0) {
+                await vm.PollThumbnailAsync(); await Task.Delay(20, timeout.Token);
+            }
+            var thumbnail = Assert.Single(vm.Thumbnails).Value;
+            Assert.Equal(512, thumbnail.PixelWidth);
+            Assert.Equal(288, thumbnail.PixelHeight);
+            Assert.Equal(512 * 288 * 4, thumbnail.Rgba!.Length);
             Assert.True(await vm.CloseAsync());
             if (!string.IsNullOrWhiteSpace(evidence))
                 await File.WriteAllTextAsync(Path.Combine(evidence, "latest-project.txt"), projectPath);

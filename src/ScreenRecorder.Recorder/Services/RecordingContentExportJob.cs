@@ -13,7 +13,8 @@ internal sealed class RecordingContentExportJob : IProgress<double>, IDisposable
     public Task Completion { get; }
 
     public RecordingContentExportJob(IRecordingContentExporter exporter, IProjectHandle owner,
-        RecordingProject snapshot, string outputDirectory)
+        RecordingProject snapshot, string outputDirectory,
+        Func<IProjectHandle, RecordingProject, string, CancellationToken, Task>? writeReceipt = null)
     {
         _status = new(Guid.NewGuid(), snapshot.Revision, RecordingExportState.Running, 0);
         Completion = Task.Run(async () =>
@@ -21,6 +22,17 @@ internal sealed class RecordingContentExportJob : IProgress<double>, IDisposable
             try
             {
                 var result = await exporter.ExportAsync(owner, snapshot, outputDirectory, _status.ExportId, this, _cancellation.Token);
+                if (result.Success && !string.IsNullOrWhiteSpace(result.FinalPath))
+                {
+                    using var receiptDeadline = CancellationTokenSource.CreateLinkedTokenSource(_cancellation.Token);
+                    receiptDeadline.CancelAfter(TimeSpan.FromSeconds(3));
+                    try
+                    {
+                        await (writeReceipt ?? ScreenRecorder.Infrastructure.Projects.ProjectExportReceiptStore.WriteAsync)(
+                            owner, snapshot, result.FinalPath, receiptDeadline.Token);
+                    }
+                    catch (Exception ex) { Serilog.Log.Warning(ex, "Export succeeded but its reuse receipt could not be saved"); }
+                }
                 lock (_sync)
                     _status = result.Success && !string.IsNullOrWhiteSpace(result.FinalPath)
                         ? _status with { State = RecordingExportState.Succeeded, Progress = 1, FinalPath = result.FinalPath }

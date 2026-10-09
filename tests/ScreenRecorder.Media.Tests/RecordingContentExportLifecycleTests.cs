@@ -8,6 +8,30 @@ namespace ScreenRecorder.Media.Tests;
 public partial class RecordingEncoderLifecycleTests
 {
     [Fact]
+    public async Task CancelOptionalReceiptHashPreservesSuccessfulExport()
+    {
+        await using var scope = new RecordingScope();
+        await using var owner = await new JsonProjectStore().CreateAsync(scope.Configuration.OutputDirectory, "receipt");
+        var exporter = new ControlledContentExporter();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var job = new RecordingContentExportJob(exporter, owner, owner.Current, scope.Configuration.OutputDirectory,
+            async (_, _, _, ct) => { entered.TrySetResult(); await release.Task.WaitAsync(ct); });
+        await exporter.Entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        var path = Path.Combine(scope.Configuration.OutputDirectory, "verified.mp4");
+        exporter.Complete.TrySetResult(new(true, path, null));
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        try
+        {
+            job.Cancel();
+            await job.Completion.WaitAsync(TimeSpan.FromSeconds(2));
+            Assert.Equal(RecordingExportState.Succeeded, job.Status.State);
+            Assert.Equal(path, job.Status.FinalPath);
+        }
+        finally { release.TrySetResult(); await job.Completion; }
+    }
+
+    [Fact]
     public async Task RecordingContentExportLifecycleTests_EditedPauseUsesSavedSnapshotAndLostFinishDoesNotDuplicate()
     {
         await using var scope = new RecordingScope();
@@ -23,6 +47,7 @@ public partial class RecordingEncoderLifecycleTests
         Assert.True((await project.ApplyEditAsync(new ProjectClipEdit.Remove(clips[1].Id), project.Current.Revision, Guid.NewGuid())).Success);
         Assert.True((await project.ApplyEditAsync(new ProjectClipEdit.Move(clips[2].Id, clips[0].Id), project.Current.Revision, Guid.NewGuid())).Success);
         var operation = Guid.NewGuid();
+        Assert.True((await project.SaveAsync(project.Current.Revision)).Success);
         var finished = await project.FinishAndExportAsync(operation);
         Assert.True(finished.Success, finished.ErrorCode);
         await export.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -37,6 +62,7 @@ public partial class RecordingEncoderLifecycleTests
         Assert.Equal(3, project.Current.Sources.Length);
         Assert.True((await project.UndoAsync(project.Current.Revision)).Success);
         Assert.All(scope.Factory.Paths, path => Assert.True(File.Exists(path)));
+        Assert.True((await project.SaveAsync(project.Current.Revision)).Success);
         Assert.True((await project.RetryExportAsync(Guid.NewGuid())).Success);
         await UntilAsync(() => export.Calls == 2 && project.ExportStatus?.State == RecordingExportState.Failed);
         Assert.Equal(3, project.Current.Sources.Length);

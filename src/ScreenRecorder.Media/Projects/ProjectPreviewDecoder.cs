@@ -6,6 +6,11 @@ using ScreenRecorder.Core.Projects;
 namespace ScreenRecorder.Media.Projects;
 
 public sealed record ProjectPreviewFrame(Guid ClipId, long TimelineTicks, byte[] Rgba);
+public sealed class ProjectPreviewSettings(ProjectPreviewSize size)
+{
+    public ProjectPreviewSize Size { get; } = size;
+    public PreviewAudioGate Audio { get; } = new();
+}
 public sealed class ProjectPreviewShutdownException(Exception cause)
     : IOException("Preview output shutdown could not be confirmed.", cause);
 
@@ -16,9 +21,14 @@ public sealed class ProjectPreviewDecoder(Func<IProjectStreamingMediaProcess> pr
     public async Task PlayAsync(RecordingProject project, long startTicks,
         Func<Guid, CancellationToken, Task<FileStream>> openSource,
         Func<ProjectPreviewFrame, Task> publish, Action<long> position, CancellationToken ct)
+        => await PlayConfiguredAsync(project, startTicks, new(ProjectPreviewFormat.Resolve(project.Canvas, ProjectPreviewQuality.P720)), openSource, publish, position, ct);
+
+    public async Task PlayConfiguredAsync(RecordingProject project, long startTicks, ProjectPreviewSettings settings,
+        Func<Guid, CancellationToken, Task<FileStream>> openSource,
+        Func<ProjectPreviewFrame, Task> publish, Action<long> position, CancellationToken ct)
     {
         var audio = audioFactory();
-        try { await PlayCoreAsync(project, startTicks, openSource, publish, position, audio, ct); }
+        try { await PlayCoreAsync(project, startTicks, settings, openSource, publish, position, audio, ct); }
         finally
         {
             try { await audio.StopAsync(CancellationToken.None); await audio.DisposeAsync(); }
@@ -26,7 +36,7 @@ public sealed class ProjectPreviewDecoder(Func<IProjectStreamingMediaProcess> pr
         }
     }
 
-    private async Task PlayCoreAsync(RecordingProject project, long startTicks,
+    private async Task PlayCoreAsync(RecordingProject project, long startTicks, ProjectPreviewSettings settings,
         Func<Guid, CancellationToken, Task<FileStream>> openSource,
         Func<ProjectPreviewFrame, Task> publish, Action<long> position, IProjectAudioOutput audio, CancellationToken ct)
     {
@@ -61,12 +71,13 @@ public sealed class ProjectPreviewDecoder(Func<IProjectStreamingMediaProcess> pr
                 var frameNumber = Math.Max(startFrame, clip.StartFrame);
                 if (frameNumber >= clip.EndFrame) continue;
                 await using var source = await Open(clip);
-                await process.RunStreamingAsync(ProjectMediaJob.PreviewVideo(plan, i, frameNumber - clip.StartFrame), source,
+                await process.RunStreamingAsync(ProjectMediaJob.PreviewVideo(plan, i, frameNumber - clip.StartFrame,
+                    settings.Size.Width, settings.Size.Height), source,
                     async (stream, cancel) =>
                     {
                         while (frameNumber < clip.EndFrame)
                         {
-                            var pixels = new byte[512 * 288 * 4];
+                            var pixels = new byte[settings.Size.ByteCount];
                             await stream.ReadExactlyAsync(pixels, cancel);
                             firstFrame.TrySetResult();
                             var due = Ceiling(frameNumber, checked(48000 * plan.Canvas.Fps.Denominator), plan.Canvas.Fps.Numerator);
@@ -90,6 +101,7 @@ public sealed class ProjectPreviewDecoder(Func<IProjectStreamingMediaProcess> pr
             // Tiny trailing ranges can own audio samples but no output video frame.
             if (startFrame < plan.FrameCount) await firstFrame.Task.WaitAsync(token);
             var process = processFactory();
+            long submitted = 0;
             for (var i = 0; i < plan.Clips.Length; i++)
             {
                 var clip = plan.Clips[i];
@@ -100,12 +112,22 @@ public sealed class ProjectPreviewDecoder(Func<IProjectStreamingMediaProcess> pr
                     async (stream, cancel) =>
                     {
                         var block = new byte[8192];
+                        var gated = new byte[8192];
                         var remaining = checked((clip.EndAudioSample - sample) * 8);
                         while (remaining > 0)
                         {
                             var count = (int)Math.Min(block.Length, remaining);
                             await stream.ReadExactlyAsync(block.AsMemory(0, count), cancel);
-                            await audio.WriteAsync(block.AsMemory(0, count), cancel);
+                            // Bound all queued output to ~100ms plus one PCM block, across platforms.
+                            var deadline = DateTime.UtcNow.AddSeconds(30);
+                            while (submitted - Math.Max(0, audio.PositionSamples) > 4800)
+                            {
+                                if (DateTime.UtcNow > deadline) throw new IOException("Preview audio clock stopped.");
+                                await Task.Delay(5, cancel);
+                            }
+                            settings.Audio.Copy(block.AsSpan(0, count), gated.AsSpan(0, count));
+                            await audio.WriteAsync(gated.AsMemory(0, count), cancel);
+                            submitted += count / 8;
                             remaining -= count;
                         }
                     }, token);

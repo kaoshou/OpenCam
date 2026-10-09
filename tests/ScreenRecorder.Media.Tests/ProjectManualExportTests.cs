@@ -24,6 +24,7 @@ public partial class RecordingEncoderLifecycleTests
         await vm.PauseAsync();
         var paths = scope.Factory.Paths.Count;
         vm.ClipName = "saved before export";
+        vm.RequestUnsavedDecision = () => Task.FromResult(UnsavedDecision.Save);
         Assert.True(vm.CanExport);
         await vm.ExportAsync(scope.Configuration.OutputDirectory);
         await export.Entered.Task.WaitAsync(TimeSpan.FromSeconds(3));

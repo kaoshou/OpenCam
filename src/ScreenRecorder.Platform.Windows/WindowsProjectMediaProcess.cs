@@ -34,7 +34,7 @@ public sealed class WindowsProjectMediaProcess : IProjectMediaProcess, IProjectS
         FileStream? destination, Func<Stream, CancellationToken, Task>? consume, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(job);
-        if (inputs.Count != job.InputCount || inputs.Count is < 1 or > 2 ||
+        if (inputs.Count != job.InputCount || inputs.Count is < 1 or > 129 ||
             inputs.Any(s => !s.CanRead || s.CanWrite || !s.CanSeek))
             throw new ArgumentException("Media requires read-only seekable bound sources.");
         if (job.RequiresOutput && destination is null)
@@ -175,7 +175,7 @@ public sealed class WindowsProjectMediaProcess : IProjectMediaProcess, IProjectS
                 var outPipe = Pipe(); stdout = outPipe.Read;
                 var errPipe = Pipe(); stderr = errPipe.Read;
                 var descriptors = new List<SafeFileHandle> { inputHandles[0], output is null ? outPipe.Write : Dup(output.SafeFileHandle), errPipe.Write };
-                if (inputHandles.Length == 2) descriptors.Add(inputHandles[1]);
+                descriptors.AddRange(inputHandles.Skip(1));
                 var count = descriptors.Count;
                 var handles = descriptors.Select(h => h.DangerousGetHandle()).ToArray();
                 var bytes = 4 + count + count * IntPtr.Size;

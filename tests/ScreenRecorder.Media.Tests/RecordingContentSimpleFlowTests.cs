@@ -33,8 +33,9 @@ public sealed class RecordingContentSimpleFlowTests
             await using var recorder = new RecordingOrchestrator(new RecordingStateMachine(), storage,
                 new JsonRecordingSessionStore(), new DiskSpaceMonitor(storage), new StreamCopyRemuxer(), new MediaFileProbe(),
                 display, new MacOsFFmpegProvider(display)) { UseSyntheticCaptureSource = true };
+            var media = new TracingMediaProcess(new MacProjectMediaProcess(FFmpegDiscovery.FindFFmpegExecutable()!));
             await using var coordinator = new ProjectRecordingCoordinator(recorder, new JsonProjectStore(),
-                new ProjectSourceProbe(), new ProjectFfmpegExporter(new TracingMediaProcess(new MacProjectMediaProcess(FFmpegDiscovery.FindFFmpegExecutable()!))));
+                new ProjectSourceProbe(), new ProjectFfmpegExporter(media));
             var dispatcher = new ProjectIpcDispatcher(coordinator);
             // This fixture never constructs a player or opens an editor/audio device.
             var controller = new RecordingContentController(new ProjectClient((command, request, ct) =>
@@ -53,6 +54,7 @@ public sealed class RecordingContentSimpleFlowTests
             Assert.True(coordinator.ExportStatus?.State == RecordingExportState.Succeeded,
                 coordinator.ExportStatus?.Error ?? controller.Workspace.Error ?? "Missing export status");
             var output = coordinator.ExportStatus!.FinalPath!;
+            Assert.Equal(0, media.VideoEncodeJobs);
             Assert.True(File.Exists(output));
             Assert.StartsWith("OpenCam_Lesson - 課程_", Path.GetFileName(output));
             Assert.Equal(new ProjectCanvas(320, 240, new(60, 1)), coordinator.Current!.Canvas);
@@ -86,11 +88,15 @@ public sealed class RecordingContentSimpleFlowTests
         public CaptureRegion GetVirtualScreenBounds() => new(0, 0, 320, 240);
     }
 
-    private sealed class TracingMediaProcess(IProjectMediaProcess inner) : IProjectMediaProcess
+    private sealed class TracingMediaProcess(IProjectMediaProcess inner) : IProjectMediaProcess, IProjectStreamingMediaProcess
     {
+        public int VideoEncodeJobs { get; private set; }
+        public Task RunStreamingAsync(ProjectMediaJob job, FileStream source, Func<Stream, CancellationToken, Task> consume, CancellationToken ct)
+            => ((IProjectStreamingMediaProcess)inner).RunStreamingAsync(job, source, consume, ct);
         public async Task<ProjectMediaResult> RunAsync(ProjectMediaJob job, IReadOnlyList<FileStream> boundInputs,
             FileStream? boundOutput, CancellationToken ct)
         {
+            if (job.FileDescriptorArguments().Contains("libx264")) VideoEncodeJobs++;
             try { return await inner.RunAsync(job, boundInputs, boundOutput, ct); }
             catch (InvalidDataException ex)
             {

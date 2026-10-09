@@ -78,7 +78,7 @@ public sealed class ProjectPreviewDecoderTests
                 frame => { seen.Add(frame); return Task.CompletedTask; }, ticks => position = ticks, timeout.Token);
             Assert.Contains(seen, f => f.ClipId == first.Id);
             Assert.Contains(seen, f => f.ClipId == second.Id);
-            Assert.All(seen, f => { Assert.InRange(f.TimelineTicks, 2000000, 9669999); Assert.Equal(512 * 288 * 4, f.Rgba.Length); });
+            Assert.All(seen, f => { Assert.InRange(f.TimelineTicks, 2000000, 9669999); Assert.Equal(64 * 36 * 4, f.Rgba.Length); });
             Assert.Equal(9670000, position);
             Assert.Equal(source.Sha256, Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(path))).ToLowerInvariant());
         }

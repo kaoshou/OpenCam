@@ -2,10 +2,14 @@
 using ScreenRecorder.Core.Projects;
 using ScreenRecorder.Infrastructure.IPC;
 using ScreenRecorder.Media.Projects;
+using Serilog;
 
 namespace ScreenRecorder.Recorder.Services;
 
 public delegate Task ProjectPlayback(RecordingProject project, long ticks,
+    Func<Guid, CancellationToken, Task<FileStream>> open,
+    Func<ProjectPreviewFrame, Task> frame, Action<long> position, CancellationToken ct);
+public delegate Task ProjectConfiguredPlayback(RecordingProject project, long ticks, ProjectPreviewSettings settings,
     Func<Guid, CancellationToken, Task<FileStream>> open,
     Func<ProjectPreviewFrame, Task> frame, Action<long> position, CancellationToken ct);
 
@@ -13,7 +17,7 @@ public delegate Task ProjectPlayback(RecordingProject project, long ticks,
 public sealed class ProjectPreviewCoordinator : IAsyncDisposable
 {
     private readonly ProjectRecordingCoordinator _coordinator;
-    private readonly ProjectPlayback _play;
+    private readonly ProjectConfiguredPlayback _play;
     private readonly TimeSpan _leaseDuration;
     private readonly object _sync = new();
     private CancellationTokenSource? _cancel;
@@ -22,15 +26,19 @@ public sealed class ProjectPreviewCoordinator : IAsyncDisposable
     private ProjectFrameReply? _frame;
     private long _leaseUntil;
     private Exception? _failure;
+    private ProjectPreviewSettings? _settings;
     public ProjectPlaybackState State { get { lock (_sync) return _state; } }
 
     public ProjectPreviewCoordinator(ProjectRecordingCoordinator coordinator, ProjectPlayback play, TimeSpan? leaseDuration = null)
+        : this(coordinator, (project, ticks, settings, open, frame, position, ct) => play(project, ticks, open, frame, position, ct), leaseDuration) { }
+
+    public ProjectPreviewCoordinator(ProjectRecordingCoordinator coordinator, ProjectConfiguredPlayback play, TimeSpan? leaseDuration = null)
     {
         (_coordinator, _play, _leaseDuration) = (coordinator, play, leaseDuration ?? TimeSpan.FromSeconds(3));
         coordinator.AttachPreviewStop(StopAsync);
     }
 
-    public async Task<ProjectPlaybackState> PlayAsync(Guid projectId, long revision, long ticks)
+    public async Task<ProjectPlaybackState> PlayAsync(Guid projectId, long revision, long ticks, ProjectPreviewQuality quality = ProjectPreviewQuality.P720, bool muted = false)
     {
         await StopAsync();
         var project = _coordinator.Current;
@@ -39,10 +47,16 @@ public sealed class ProjectPreviewCoordinator : IAsyncDisposable
             _coordinator.ExportStatus?.State == RecordingExportState.Running || ProjectTimeline.Build(project).Locate(ticks) is null)
             throw new InvalidOperationException("Preview snapshot or position is unavailable.");
         var generation = Guid.NewGuid();
+        var settings = new ProjectPreviewSettings(ProjectPreviewFormat.Resolve(project.Canvas, quality));
+        settings.Audio.Muted = muted;
+        Log.Information("Project preview starting: generation {Generation}, clips {Clips}, sources with audio {AudioSources}, muted clips {MutedClips}, zero-volume clips {ZeroVolumeClips}",
+            generation, project.Clips.Length, project.Sources.Count(s => s.AudioCodec is not null),
+            project.Clips.Count(c => c.Muted), project.Clips.Count(c => c.Volume == 0));
         var life = _cancel = new CancellationTokenSource();
         lock (_sync)
         {
-            _state = new(generation, ticks, true, null);
+            _state = new(generation, ticks, true, null) { Muted = muted };
+            _settings = settings;
             _frame = null;
             _leaseUntil = Environment.TickCount64 + (long)_leaseDuration.TotalMilliseconds;
         }
@@ -62,12 +76,13 @@ public sealed class ProjectPreviewCoordinator : IAsyncDisposable
             });
             try
             {
-                await _play(project, ticks, async (clip, ct) =>
+                await _play(project, ticks, settings, async (clip, ct) =>
                     (await _coordinator.OpenMediaSourceAsync(projectId, revision, clip, ct)).Stream,
                     frame =>
                     {
                         lock (_sync) if (!life.IsCancellationRequested && _state.Generation == generation)
-                            _frame = new(revision, frame.TimelineTicks, frame.ClipId, frame.Rgba);
+                            _frame = new(revision, frame.TimelineTicks, frame.ClipId, frame.Rgba)
+                                { PixelWidth = settings.Size.Width, PixelHeight = settings.Size.Height };
                         return Task.CompletedTask;
                     }, position =>
                     {
@@ -78,6 +93,7 @@ public sealed class ProjectPreviewCoordinator : IAsyncDisposable
             catch (OperationCanceledException) when (life.IsCancellationRequested) { }
             catch (Exception ex)
             {
+                Log.Warning(ex, "Project preview failed: generation {Generation}", generation);
                 lock (_sync)
                 {
                     if (ex is ProjectPreviewShutdownException) _failure = ex;
@@ -101,6 +117,18 @@ public sealed class ProjectPreviewCoordinator : IAsyncDisposable
             if (_state.Generation != generation) throw new InvalidOperationException("Obsolete preview generation.");
             _leaseUntil = Environment.TickCount64 + (long)_leaseDuration.TotalMilliseconds;
             return (_state, _frame);
+        }
+    }
+
+    public ProjectPlaybackState SetMuted(Guid generation, bool muted)
+    {
+        lock (_sync)
+        {
+            if (_state.Generation != generation || !_state.Playing || _settings is null)
+                throw new InvalidOperationException("Obsolete preview generation.");
+            _settings.Audio.Muted = muted;
+            _state = _state with { Muted = muted };
+            return _state;
         }
     }
 

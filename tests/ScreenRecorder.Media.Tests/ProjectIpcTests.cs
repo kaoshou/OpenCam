@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 using System.Text.Json;
+using Avalonia.Controls;
+using Avalonia;
 using ScreenRecorder.Core.Projects;
 using ScreenRecorder.Infrastructure.IPC;
 using ScreenRecorder.Infrastructure.Projects;
@@ -74,8 +76,54 @@ public partial class RecordingEncoderLifecycleTests
         Assert.Equal(group, coordinator.Current.Clips[1].GroupId);
         Assert.Equal(group, coordinator.Current.Clips[2].GroupId);
         await vm.SaveAsync();
-        Assert.Equal(coordinator.Current.Revision, coordinator.SavedRevision);
+        Assert.False(coordinator.IsDirty);
         await vm.FinishAsync();
+    }
+
+    [Avalonia.Headless.XUnit.AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ProjectIpc_ClipListPointerDragCommitsOnceAndEscapeCancels(bool compact)
+    {
+        await using var scope = new RecordingScope();
+        await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
+        var dispatcher = new ProjectIpcDispatcher(coordinator);
+        var vm = new ProjectWorkspaceViewModel(new ProjectClient((command, request, ct) => dispatcher.DispatchAsync(new()
+            { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) })));
+        await vm.CreateAsync(scope.Configuration.OutputDirectory, "List gestures");
+        for (var i = 0; i < 3; i++) { await vm.StartAsync(scope.Configuration); await vm.PauseAsync(); }
+        Assert.Equal(3, vm.Clips.Count);
+        vm.IsClipListCompact = compact;
+        var window = new ProjectWorkspaceView { DataContext = vm, Width = 1440, Height = 900 };
+        window.Show(); window.UpdateLayout();
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+        try
+        {
+            var list = window.FindControl<Avalonia.Controls.ListBox>("ClipList")!;
+            var first = list.ContainerFromIndex(0)!;
+            var last = list.ContainerFromIndex(2)!;
+            Assert.NotNull(first);
+            Assert.NotNull(last);
+            var start = last.TranslatePoint(new Avalonia.Point(40, last.Bounds.Height / 2), window)!.Value;
+            var end = first.TranslatePoint(new Avalonia.Point(40, 4), window)!.Value;
+            var ids = vm.Clips.Select(c => c.Id).ToArray();
+            var revision = coordinator.Current!.Revision;
+            Avalonia.Headless.HeadlessWindowExtensions.MouseDown(window, start, Avalonia.Input.MouseButton.Left);
+            Avalonia.Headless.HeadlessWindowExtensions.MouseMove(window, end);
+            Avalonia.Headless.HeadlessWindowExtensions.KeyPressQwerty(window, Avalonia.Input.PhysicalKey.Escape, Avalonia.Input.RawInputModifiers.None);
+            Avalonia.Headless.HeadlessWindowExtensions.MouseUp(window, end, Avalonia.Input.MouseButton.Left);
+            Assert.Equal(revision, coordinator.Current.Revision);
+            Avalonia.Headless.HeadlessWindowExtensions.MouseDown(window, start, Avalonia.Input.MouseButton.Left);
+            Avalonia.Headless.HeadlessWindowExtensions.MouseMove(window, end);
+            Avalonia.Headless.HeadlessWindowExtensions.MouseUp(window, end, Avalonia.Input.MouseButton.Left);
+            await UntilAsync(() => !vm.IsBusy && coordinator.Current.Revision > revision);
+            Assert.Equal(revision + 1, coordinator.Current.Revision);
+            Assert.Equal(new[] { ids[2], ids[0], ids[1] }, vm.Clips.Select(c => c.Id));
+            await vm.UndoAsync();
+            Assert.Equal(ids, vm.Clips.Select(c => c.Id));
+        }
+        finally { await vm.SaveAsync(); await vm.FinishAsync(); await window.RequestCloseAsync(); }
     }
 
     [Avalonia.Headless.XUnit.AvaloniaFact]
@@ -168,7 +216,7 @@ public partial class RecordingEncoderLifecycleTests
         Assert.Equal(7_500_000, vm.DurationTicks);
         Assert.Equal(500, coordinator.Current.Clips[0].OutPts);
         Assert.Equal(750, coordinator.Current.Clips[1].InPts);
-        Assert.Equal(coordinator.Current.Revision, coordinator.SavedRevision);
+        Assert.True(coordinator.IsDirty);
         Assert.Equal(2, coordinator.Current.Sources.Length);
         await vm.UndoAsync();
         Assert.Equal(20_000_000, vm.DurationTicks);
@@ -201,12 +249,13 @@ public partial class RecordingEncoderLifecycleTests
         Assert.Equal(ids, coordinator.Current.Clips.Select(c => c.Id));
         await vm.DeleteSelectedAsync();
         Assert.Equal(new[] { ids[0], ids[1] }, coordinator.Current.Clips.Select(c => c.Id));
-        Assert.Equal(coordinator.Current.Revision, coordinator.SavedRevision);
+        Assert.True(coordinator.IsDirty);
         Assert.Equal(3, coordinator.Current.Sources.Length);
         await vm.UndoAsync();
         Assert.Equal(ids, coordinator.Current.Clips.Select(c => c.Id));
         await vm.RedoAsync();
         Assert.Equal(new[] { ids[0], ids[1] }, coordinator.Current.Clips.Select(c => c.Id));
+        await vm.SaveAsync();
         await vm.FinishAsync();
         Assert.All(scope.Factory.Paths, path => Assert.True(File.Exists(path)));
     }
@@ -274,7 +323,8 @@ public partial class RecordingEncoderLifecycleTests
             ExpectedRevision = revision, Edit = new ProjectClipEdit.Split(clip.Id, (clip.InPts + clip.OutPts) / 2, Guid.NewGuid()) };
         var reply = await client.SendAsync("ApplyProjectEdit", request);
         Assert.True(reply.Success, reply.Error);
-        Assert.Equal(revision + 1, reply.State.SavedRevision);
+        Assert.Equal(revision, reply.State.SavedRevision);
+        Assert.True(reply.State.IsDirty);
         Assert.Equal(2, coordinator.Current.Clips.Length);
         Assert.True((await client.SendAsync("ApplyProjectEdit", request)).Success);
         Assert.Equal(revision + 1, coordinator.Current.Revision);
@@ -301,12 +351,13 @@ public partial class RecordingEncoderLifecycleTests
         var request = new ProjectRequest { ProjectId = coordinator.Current.ProjectId, OperationId = Guid.NewGuid(),
             ExpectedRevision = coordinator.Current.Revision, Edit = new ProjectClipEdit.Remove(clip.Id) };
         var message = new IpcMessage { MessageType = "ApplyProjectEdit", PayloadJson = JsonSerializer.Serialize(request) };
-        Assert.False((await dispatcher.DispatchAsync(message)).Success);
+        Assert.True((await dispatcher.DispatchAsync(message)).Success);
+        Assert.False((await coordinator.SaveAsync(coordinator.Current.Revision)).Success);
         Assert.True(coordinator.IsDirty);
         Assert.True(coordinator.CanUndo);
         Assert.Empty(coordinator.Current.Clips);
         var revision = coordinator.Current.Revision;
-        Assert.False((await dispatcher.DispatchAsync(message)).Success);
+        Assert.True((await dispatcher.DispatchAsync(message)).Success);
         Assert.Equal(revision, coordinator.Current.Revision);
         Directory.Delete(backup);
         Assert.True((await coordinator.SaveAsync(revision)).Success);

@@ -21,8 +21,22 @@ internal static class ProjectDraftStore
             if (envelope is null) return null;
             ValidateIdentity(h, envelope);
             if (envelope.Discarded || h.Current.ResolvedDraftId == envelope.Draft.Id) return null;
-            ValidateDraft(h, envelope.Draft);
+            ValidateDraft(h, envelope.Draft, allowPreviousBase: true);
             return envelope.Draft;
+        }
+        catch (Exception ex) when (ex is InvalidDataException or JsonException)
+        {
+            // Preserve, never overwrite, one diagnostic copy. If it already exists or
+            // the leaf cannot safely be moved, leave the original in place and report it.
+            try
+            {
+                var preserved = h.Root.PublishVerified(Name, "project.edits.invalid.json");
+                throw new InvalidDataException($"Invalid recovery draft preserved at {preserved}. The saved project is unchanged.", ex);
+            }
+            catch (IOException moveError)
+            {
+                throw new InvalidDataException($"Recovery draft could not be quarantined; preserve or move {Name} manually before creating further drafts. {moveError.Message}", ex);
+            }
         }
         finally { h.Gate.Release(); }
     }
@@ -86,10 +100,11 @@ internal static class ProjectDraftStore
             throw new InvalidDataException("Invalid edit draft identity.");
     }
 
-    private static void ValidateDraft(JsonProjectStore.ProjectHandle h, ProjectEditDraft d)
+    private static void ValidateDraft(JsonProjectStore.ProjectHandle h, ProjectEditDraft d, bool allowPreviousBase = false)
     {
         ValidateIdentity(h, new(1, d));
-        if (h.NeedsRecoveryConfirmation || d.BaseRevision != h.Current.Revision)
+        if (h.NeedsRecoveryConfirmation || (d.BaseRevision != h.Current.Revision &&
+            !(allowPreviousBase && d.BaseRevision == h.Current.RecoveryDraftBaseRevision)))
             throw new InvalidDataException("Edit draft does not match the saved project revision.");
         ProjectValidation.Validate(h.Current with { Name = d.Name, Clips = d.Clips });
     }

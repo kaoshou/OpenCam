@@ -6,6 +6,7 @@ using ScreenRecorder.Recorder.Services;
 using ScreenRecorder.UI.Projects;
 using ScreenRecorder.UI.ViewModels;
 using Avalonia.Controls;
+using Avalonia;
 using Avalonia.VisualTree;
 using Avalonia.Interactivity;
 
@@ -13,6 +14,56 @@ namespace ScreenRecorder.Media.Tests;
 
 public partial class RecordingEncoderLifecycleTests
 {
+    [Avalonia.Headless.XUnit.AvaloniaTheory]
+    [InlineData(ScreenRecorder.Core.Localization.AppLanguage.ZhTw, 820)]
+    [InlineData(ScreenRecorder.Core.Localization.AppLanguage.EnUs, 820)]
+    [InlineData(ScreenRecorder.Core.Localization.AppLanguage.ZhTw, 1000)]
+    [InlineData(ScreenRecorder.Core.Localization.AppLanguage.EnUs, 1000)]
+    public async Task HomeProjectActionsStayAboveRecordingControlsAndFitLongNames(ScreenRecorder.Core.Localization.AppLanguage language, int width)
+    {
+        var previous = ScreenRecorder.UI.Localization.LanguageManager.Instance.CurrentLanguage;
+        ScreenRecorder.UI.Localization.LanguageManager.Instance.CurrentLanguage = language;
+        await using var scope = new RecordingScope();
+        await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
+        var dispatcher = new ProjectIpcDispatcher(coordinator);
+        var main = new MainViewModel(forScreenshot: true);
+        main.ConfigureRecordingContent(new ProjectClient((command, request, ct) => dispatcher.DispatchAsync(new()
+            { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) })), () => true, () => Task.CompletedTask);
+        main.OutputDirectory = scope.Configuration.OutputDirectory;
+        var home = new ScreenRecorder.UI.Views.MainWindow { DataContext = main, Width = width };
+        try
+        {
+            home.Show();
+            var longName = string.Concat(Enumerable.Repeat("Long project name 測試專案 ", 5)).Trim();
+            main.RequestRecordingProjectName = _ => Task.FromResult<string?>(longName);
+            await main.NewRecordingProjectAsync();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs(); home.UpdateLayout();
+            Button ButtonFor(string key) => home.GetVisualDescendants().OfType<TextBlock>()
+                .First(t => t.Text == main.Strings[key]).GetVisualAncestors().OfType<Button>().First();
+            var start = ButtonFor("StartRecording");
+            var stop = ButtonFor("StopRecording");
+            var edit = ButtonFor("ContentEditor");
+            var newProject = ButtonFor("HomeProjectNew");
+            var openProject = ButtonFor("HomeProjectOpen");
+            var settings = ButtonFor("Settings");
+            var startY = start.TranslatePoint(default, home)!.Value.Y;
+            foreach (var action in new[] { newProject, openProject, settings })
+            {
+                var origin = action.TranslatePoint(default, home)!.Value;
+                Assert.True(origin.Y + action.Bounds.Height <= startY);
+                Assert.InRange(origin.X, 0, home.ClientSize.Width - action.Bounds.Width);
+                Assert.Contains(action.GetVisualDescendants().OfType<Avalonia.Controls.Shapes.Path>(), p => p.Data is not null);
+            }
+            Assert.True(edit.TranslatePoint(default, home)!.Value.X >= stop.TranslatePoint(default, home)!.Value.X + stop.Bounds.Width);
+            foreach (var action in new[] { start, stop, edit, ButtonFor("Recovery") })
+                Assert.True(action.TranslatePoint(default, home)!.Value.X + action.Bounds.Width <= home.ClientSize.Width);
+            var name = home.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Text == longName);
+            Assert.Equal(Avalonia.Media.TextTrimming.CharacterEllipsis, name.TextTrimming);
+            Assert.Equal(longName, ToolTip.GetTip(name));
+        }
+        finally { home.Close(); main.Cleanup(); ScreenRecorder.UI.Localization.LanguageManager.Instance.CurrentLanguage = previous; }
+    }
+
     [Fact]
     public async Task EditorPreparationRechecksRecordingStateAfterAwaitingConnection()
     {

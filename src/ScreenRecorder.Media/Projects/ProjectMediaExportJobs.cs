@@ -45,7 +45,7 @@ public sealed partial class ProjectMediaJob
             throw new InvalidDataException("H.264 export requires a positive frame range and an even canvas up to 4096 pixels.");
         // Large project canvases remain valid for preview. Bound intermediate allocations;
         // this does not change the saved canvas or silently relax export limitations.
-        if (preview && Math.Max(canvas.Width, canvas.Height) > 4096)
+        if (preview && (long)canvas.Width * canvas.Height * 4 > MaximumFrameBytes)
         {
             var ratio = 2048d / Math.Max(canvas.Width, canvas.Height);
             canvas = canvas with { Width = Math.Max(2, (int)(canvas.Width * ratio)),

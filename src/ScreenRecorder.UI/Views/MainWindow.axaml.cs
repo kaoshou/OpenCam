@@ -16,6 +16,7 @@ public partial class MainWindow : Window
     private readonly DisplayIdentificationController _displayIdentification =
         new(new AvaloniaDisplayBadgePresenter(), new AvaloniaDisplayIdentificationTimer());
     private MainViewModel? _identificationViewModel;
+    private bool _projectCloseAuthorized, _closingProject;
 
     public MainWindow()
     {
@@ -27,6 +28,8 @@ public partial class MainWindow : Window
             {
                 _identificationViewModel.PropertyChanged -= OnIdentificationViewModelPropertyChanged;
                 _identificationViewModel.RequestRecordingProjectName = null;
+                _identificationViewModel.RequestUnsavedProjectDecision = null;
+                _identificationViewModel.RequestProjectDraftRecovery = null;
             }
             _displayIdentification.Close();
             _identificationViewModel = DataContext as MainViewModel;
@@ -38,6 +41,13 @@ public partial class MainWindow : Window
             if (DataContext is MainViewModel vm)
             {
                 vm.RequestRecordingProjectName = AskRecordingProjectNameAsync;
+                vm.RequestUnsavedProjectDecision = () => ScreenRecorder.UI.Projects.ProjectSaveDialogs.AskUnsavedAsync(
+                    _projectWindow?.IsVisible == true ? _projectWindow : this);
+                vm.RequestProjectDraftRecovery = () => ScreenRecorder.UI.Projects.ProjectSaveDialogs.AskRecoveryAsync(
+                    _projectWindow?.IsVisible == true ? _projectWindow : this);
+                vm.RequestExistingProjectExport = _ => ScreenRecorder.UI.Projects.ProjectSaveDialogs.AskExistingExportAsync(
+                    _projectWindow?.IsVisible == true ? _projectWindow : this);
+                vm.OpenExistingProjectExport = path => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
                 vm.RequestMinimizeWindow += (sender, args) =>
                 {
                     WindowState = WindowState.Minimized;
@@ -108,7 +118,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (_projectWindow is not null)
+        if (!_projectCloseAuthorized && (_projectWindow is not null || DataContext is MainViewModel { HasRecordingProject: true }))
         {
             e.Cancel = true;
             _ = CloseProjectAndMainAsync();
@@ -119,9 +129,16 @@ public partial class MainWindow : Window
 
     private async Task CloseProjectAndMainAsync()
     {
-        var workspace = _projectWindow;
-        if (workspace is not null && await workspace.RequestCloseAsync()) Close();
-        else workspace?.Activate();
+        if (_closingProject) return;
+        _closingProject = true;
+        try
+        {
+            if (DataContext is MainViewModel vm && !await vm.CloseRecordingProjectAsync()) return;
+            if (_projectWindow is not null && !await _projectWindow.RequestCloseAsync()) return;
+            _projectCloseAuthorized = true;
+            Close();
+        }
+        finally { _closingProject = false; }
     }
 
     private async void OnProjectWorkspace(object? sender, RoutedEventArgs e)
@@ -136,6 +153,12 @@ public partial class MainWindow : Window
             _projectWindow.ShowForRecordingWindow(this);
         }
         catch (Exception ex) { vm.StatusMessage = ex.Message; }
+    }
+
+    private async void OnProjectAutoExportChanged(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel vm && vm.CanChangeProjectExportPolicy && sender is CheckBox box)
+            await vm.SetProjectAutoExportAsync(box.IsChecked == true);
     }
 
     private async Task<string?> AskRecordingProjectNameAsync(string defaultName)

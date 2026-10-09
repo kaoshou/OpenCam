@@ -26,7 +26,7 @@ public sealed class MacProjectMediaProcess : IProjectMediaProcess, IProjectStrea
     {
         if (!OperatingSystem.IsMacOS()) throw new PlatformNotSupportedException();
         ArgumentNullException.ThrowIfNull(job);
-        if (boundInputs.Count != job.InputCount || boundInputs.Any(s => !s.CanRead || s.CanWrite || !s.CanSeek))
+        if (boundInputs.Count != job.InputCount || boundInputs.Count is < 1 or > 129 || boundInputs.Any(s => !s.CanRead || s.CanWrite || !s.CanSeek))
             throw new ArgumentException("Media job requires read-only seekable bound sources.");
         if (job.RequiresOutput && boundOutput is null)
             throw new ArgumentException("This media job requires a bound output stream.");
@@ -74,6 +74,7 @@ public sealed class MacProjectMediaProcess : IProjectMediaProcess, IProjectStrea
         var sourceFds = sourceHandles.Select(handle => handle.DangerousGetHandle().ToInt32()).ToArray();
         var destinationHandle = destination?.SafeFileHandle;
         var destinationHeld = false;
+        var relocated = new List<SafeFileHandle>();
         var executable = job.IsProbe
             ? FFmpegDiscovery.FindFFprobeExecutable() ?? throw new FileNotFoundException("ffprobe is required for export verification.")
             : _executable;
@@ -90,17 +91,30 @@ public sealed class MacProjectMediaProcess : IProjectMediaProcess, IProjectStrea
             Check(posix_spawnattr_setflags(ref attributes, 0x4000)); // POSIX_SPAWN_CLOEXEC_DEFAULT
             for (var i = 0; i < sources.Count; i++) sourceHandles[i].DangerousAddRef(ref sourceHeld[i]);
             destinationHandle?.DangerousAddRef(ref destinationHeld);
-            Check(posix_spawn_file_actions_adddup2(ref actions, sourceFds[0], 0));
+            int Relocate(int fd)
+            {
+                // Darwin arm64 passes the variadic argument on the stack, not x2.
+                var copy = RuntimeInformation.ProcessArchitecture == Architecture.Arm64
+                    ? fcntlArm64(fd, 67, 0, 0, 0, 0, 0, 0, sources.Count + 3)
+                    : fcntl(fd, 67, sources.Count + 3); // F_DUPFD_CLOEXEC, outside child mapping range.
+                if (copy < 0) throw new Win32Exception(Marshal.GetLastPInvokeError());
+                relocated.Add(new SafeFileHandle((IntPtr)copy, true));
+                return copy;
+            }
+            var safeSources = sourceFds.Select(Relocate).ToArray();
+            var safeOutput = Relocate(destinationHandle?.DangerousGetHandle().ToInt32() ?? output.WriteFd);
+            var safeError = Relocate(error.WriteFd);
+            Check(posix_spawn_file_actions_adddup2(ref actions, safeSources[0], 0));
             Check(posix_spawn_file_actions_adddup2(ref actions,
-                destinationHandle?.DangerousGetHandle().ToInt32() ?? output.WriteFd, 1));
-            Check(posix_spawn_file_actions_adddup2(ref actions, error.WriteFd, 2));
-            // Do this last: descriptor 3 may previously have held any of the copied handles.
-            if (sources.Count == 2)
-                Check(posix_spawn_file_actions_adddup2(ref actions, sourceFds[1], 3));
+                safeOutput, 1));
+            Check(posix_spawn_file_actions_adddup2(ref actions, safeError, 2));
+            for (var i = 1; i < safeSources.Length; i++)
+                Check(posix_spawn_file_actions_adddup2(ref actions, safeSources[i], i + 2));
             Check(posix_spawn(out pid, executable, ref actions, ref attributes, argv, Marshal.ReadIntPtr(_NSGetEnviron())));
         }
         finally
         {
+            foreach (var copy in relocated) copy.Dispose();
             for (var i = 0; i < sources.Count; i++) if (sourceHeld[i]) sourceHandles[i].DangerousRelease();
             if (destinationHeld) destinationHandle!.DangerousRelease();
             if (actions != IntPtr.Zero) posix_spawn_file_actions_destroy(ref actions);
@@ -261,6 +275,8 @@ public sealed class MacProjectMediaProcess : IProjectMediaProcess, IProjectStrea
     [DllImport(Lib)] private static extern IntPtr _NSGetEnviron();
     [DllImport(Lib, SetLastError = true)] private static extern int pipe([Out] int[] descriptors);
     [DllImport(Lib, SetLastError = true)] private static extern int fcntl(int fd, int command, int argument);
+    [DllImport(Lib, EntryPoint = "fcntl", SetLastError = true)]
+    private static extern int fcntlArm64(int fd, int command, nint x2, nint x3, nint x4, nint x5, nint x6, nint x7, nint argument);
     [DllImport(Lib, SetLastError = true)] private static extern int waitpid(int pid, out int status, int options);
     [DllImport(Lib, SetLastError = true)] private static extern int kill(int pid, int signal);
     [DllImport(Lib, SetLastError = true)] private static extern long lseek(int fd, long offset, int whence);

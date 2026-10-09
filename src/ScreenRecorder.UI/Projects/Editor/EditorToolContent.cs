@@ -21,6 +21,7 @@ public sealed class EditorToolContent : UserControl
     public EditorToolContent()
     {
         _icon.Bind(Shape.StrokeProperty, this.GetObservable(ForegroundProperty));
+        _label.Bind(TextBlock.ForegroundProperty, this.GetObservable(ForegroundProperty));
         Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { _icon, _label } };
         UpdateLabel(); UpdateIcon();
     }
@@ -38,8 +39,15 @@ public sealed class EditorToolContent : UserControl
     private void UpdateIcon()
     {
         _icon.Data = Geometry.Parse(Icon switch {
+            "fullscreen" => "M6,1 H1 V6 M10,1 H15 V6 M1,10 V15 H6 M10,15 H15 V10",
+            "sound-on" => "M1,6 H4 L8,2 V14 L4,10 H1 Z M11,5 Q15,8 11,11",
+            "sound-off" => "M1,6 H4 L8,2 V14 L4,10 H1 Z M11,6 L15,10 M15,6 L11,10",
+            "new" => "M8,2 V14 M2,8 H14",
+            "folder" => "M1,3 H6 L8,5 H15 V13 H1 Z",
+            "settings" => "M2,4 H14 M2,8 H14 M2,12 H14 M5,2 V6 M11,6 V10 M6,10 V14",
             "back" => "M7,2 L1,8 L7,14 M1,8 H15",
-            "rename" => "M2,10 L10,2 L14,6 L6,14 H2 Z M8,4 L12,8",
+            "rename" => "M3,10 L10.5,2.5 Q11.5,1.5 12.5,2.5 L13.5,3.5 Q14.5,4.5 13.5,5.5 L6,13 L2.5,13.5 Z M9.5,3.5 L12.5,6.5",
+            "edit-recording" => "M7,13 H2 V2 H14 V6 M2,5 H14 M5,2 V5 M11,2 V5 M9,11 L13,7 L15,9 L11,13 L8,14 Z",
             "properties" => "M2,4 H14 M2,8 H14 M2,12 H14 M5,2 V6 M11,6 V10 M6,10 V14",
             "split" => "M6,6 L14,14 M6,10 L14,2 M3,3 A2.5,2.5 0 1 0 3,8 A2.5,2.5 0 1 0 3,3 M3,9 A2.5,2.5 0 1 0 3,14 A2.5,2.5 0 1 0 3,9",
             "undo" => "M6,3 L2,7 L6,11 M2,7 H10 C15,7 15,14 10,14",

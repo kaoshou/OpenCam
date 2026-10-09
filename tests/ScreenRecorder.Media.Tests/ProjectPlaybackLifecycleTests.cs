@@ -101,6 +101,10 @@ public partial class RecordingEncoderLifecycleTests
         Assert.NotEqual(first.Generation, second.Generation);
         Assert.Equal(1, stopped);
         Assert.Throws<InvalidOperationException>(() => preview.Query(first.Generation));
+        Assert.Throws<InvalidOperationException>(() => preview.SetMuted(first.Generation, true));
+        Assert.True(preview.SetMuted(second.Generation, true).Muted);
+        Assert.False(preview.SetMuted(second.Generation, false).Muted);
+        Assert.False(coordinator.Current!.Clips[0].Muted);
         var result = await coordinator.StartAsync(scope.Configuration, Guid.NewGuid());
         Assert.True(result.Success, result.ErrorCode);
         Assert.Equal(2, stopped);

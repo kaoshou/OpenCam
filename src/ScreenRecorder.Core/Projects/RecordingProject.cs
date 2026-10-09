@@ -23,6 +23,9 @@ public sealed record RecordingProject
     public ProjectViewState ViewState { get; init; } = new();
     public bool AutoExportOnStop { get; init; } = true;
     public Guid? ResolvedDraftId { get; init; }
+    // A preference-only save may advance Revision before a replacement draft commits.
+    // Retain exactly the last acknowledged draft base across that durable transition.
+    public long? RecoveryDraftBaseRevision { get; init; }
 }
 
 public sealed record ProjectSource

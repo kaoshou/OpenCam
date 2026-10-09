@@ -64,6 +64,24 @@ public sealed class ProjectEditHistory
     public void Undo() => Restore(_undo, _redo);
     public void Redo() => Restore(_redo, _undo);
 
+    public void AcceptSavedMetadata(RecordingProject project)
+    {
+        if (project.ProjectId != Current.ProjectId || !project.Clips.SequenceEqual(Current.Clips) || project.Name != Current.Name)
+            throw new InvalidDataException("Saved metadata must preserve working edits.");
+        ProjectValidation.Validate(project);
+        Current = project;
+    }
+
+    public void ReplaceEdits(RecordingProject project, bool retainUndo)
+    {
+        if (project.ProjectId != Current.ProjectId || Current.Sources.Any(s => !project.Sources.Contains(s)))
+            throw new InvalidDataException("Restoring edits must preserve original sources.");
+        ProjectValidation.Validate(project);
+        if (retainUndo) _undo.Push(Capture()); else _undo.Clear();
+        _redo.Clear();
+        Current = project;
+    }
+
     /// <summary>Appending finalized recordings is not an edit of existing clips. Keep edit undo/redo intact.</summary>
     public void AcceptRecordingAppend(RecordingProject committed)
     {

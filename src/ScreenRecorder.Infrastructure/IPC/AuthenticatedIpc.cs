@@ -2,6 +2,7 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Encodings.Web;
 
 namespace ScreenRecorder.Infrastructure.IPC;
 
@@ -10,6 +11,11 @@ public static class AuthenticatedIpc
 {
     public const int KeySize = 32;
     public const int MaximumFrameBytes = 1024 * 1024;
+    public const int MaximumMediaResponseBytes = 8 * 1024 * 1024;
+    // This is authenticated local JSON, never embedded in HTML. Preserve '+'
+    // in the nested base64 frame instead of expanding each one to six bytes.
+    // Quotes/control characters remain JSON-escaped; HMAC and size limits apply.
+    private static readonly JsonSerializerOptions MediaJson = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
     public static byte[] CreateKey() => RandomNumberGenerator.GetBytes(KeySize);
 
     public static byte[] CopyKey(byte[] key)
@@ -38,10 +44,10 @@ public static class AuthenticatedIpc
         return nonce;
     }
 
-    public static async Task WriteAsync<T>(Stream stream, byte[] key, byte[] nonce, bool response, T value, CancellationToken token)
+    public static async Task WriteAsync<T>(Stream stream, byte[] key, byte[] nonce, bool response, T value, CancellationToken token, bool mediaResponse = false)
     {
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(value);
-        if (bytes.Length > MaximumFrameBytes) throw new InvalidDataException("IPC frame too large.");
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(value, response && mediaResponse ? MediaJson : null);
+        if (bytes.Length > (response && mediaResponse ? MaximumMediaResponseBytes : MaximumFrameBytes)) throw new InvalidDataException("IPC frame too large.");
         var header = new byte[4];
         BinaryPrimitives.WriteInt32LittleEndian(header, bytes.Length);
         await stream.WriteAsync(header, token);
@@ -50,12 +56,12 @@ public static class AuthenticatedIpc
         await stream.FlushAsync(token);
     }
 
-    public static async Task<T> ReadAsync<T>(Stream stream, byte[] key, byte[] nonce, bool response, CancellationToken token)
+    public static async Task<T> ReadAsync<T>(Stream stream, byte[] key, byte[] nonce, bool response, CancellationToken token, bool mediaResponse = false)
     {
         var header = new byte[4];
         await stream.ReadExactlyAsync(header, token);
         var size = BinaryPrimitives.ReadInt32LittleEndian(header);
-        if (size <= 0 || size > MaximumFrameBytes) throw new InvalidDataException("Invalid IPC frame size.");
+        if (size <= 0 || size > (response && mediaResponse ? MaximumMediaResponseBytes : MaximumFrameBytes)) throw new InvalidDataException("Invalid IPC frame size.");
         var bytes = new byte[size];
         var tag = new byte[KeySize];
         await stream.ReadExactlyAsync(bytes, token);

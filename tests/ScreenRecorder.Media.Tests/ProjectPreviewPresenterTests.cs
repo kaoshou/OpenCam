@@ -7,6 +7,67 @@ namespace ScreenRecorder.Media.Tests;
 
 public sealed class ProjectPreviewPresenterTests
 {
+    [Theory]
+    [InlineData(false)] [InlineData(true)]
+    public async Task QualitySwitchPreservesPausedAndPlayingPosition(bool playing)
+    {
+        var client = new PreviewClient();
+        var vm = new ProjectWorkspaceViewModel(client);
+        await vm.RefreshAsync(); vm.Seek(100000);
+        if (playing) await vm.TogglePlaybackAsync();
+        await vm.SetPreviewQualityAsync(ProjectPreviewQuality.P1080);
+        Assert.Equal(ProjectPreviewQuality.P1080, vm.PreviewQuality);
+        Assert.Equal(playing, vm.IsPlayingPreview);
+        Assert.Equal(playing ? 500000 : 100000, vm.PlayheadTicks);
+        Assert.False(vm.State.IsDirty); Assert.False(vm.IsChangingPreviewQuality);
+    }
+
+    [Fact]
+    public async Task OldFrameCannotReplaceNewQuality()
+    {
+        var client = new PreviewClient(); var vm = new ProjectWorkspaceViewModel(client);
+        await vm.RefreshAsync(); var old = vm.PollPreviewAsync();
+        await vm.SetPreviewQualityAsync(ProjectPreviewQuality.P1080);
+        client.Complete(0); await old;
+        Assert.Null(vm.PreviewFrame);
+    }
+    [Fact]
+    public async Task PausedPreviewShowsProtocolMismatchGuidance()
+    {
+        var client = new PreviewClient(); var vm = new ProjectWorkspaceViewModel(client);
+        await vm.RefreshAsync(); var poll = vm.PollPreviewAsync();
+        client.Pending.SetResult(new(false,"Preview protocol mismatch. Restart both processes using the same OpenCam version.",client.State,Unconfirmed:true));
+        await poll;
+        Assert.Contains("Restart both processes",vm.Error);
+        Assert.True(vm.StatusUnconfirmed);
+    }
+    [Fact]
+    public async Task MuteFailureIsVisibleAndDoesNotPretendSuccess()
+    {
+        var client = new PreviewClient(); var vm = new ProjectWorkspaceViewModel(client);
+        await vm.RefreshAsync(); await vm.TogglePlaybackAsync();
+        await vm.SetPreviewMutedAsync(true); // This fixture deliberately provides no mute acknowledgment.
+        Assert.False(vm.PreviewMuted); Assert.NotNull(vm.Error);
+        Assert.False(vm.State.IsDirty);
+    }
+
+    [Theory]
+    [InlineData(false)] [InlineData(true)]
+    public async Task LatestQualityWinsButStopNeverRestarts(bool stop)
+    {
+        var client = new PreviewClient(); var vm = new ProjectWorkspaceViewModel(client);
+        await vm.RefreshAsync(); await vm.TogglePlaybackAsync();
+        client.HeldStop = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var first = vm.SetPreviewQualityAsync(ProjectPreviewQuality.P360);
+        Assert.True(vm.IsChangingPreviewQuality);
+        Task last = stop ? vm.StopPreviewAsync() : vm.SetPreviewQualityAsync(ProjectPreviewQuality.P1080);
+        client.HeldStop.SetResult(new(true, null, client.State) { Playback = new(client.Generation, 500000, false, null) });
+        await Task.WhenAll(first, last);
+        Assert.Equal(!stop, vm.IsPlayingPreview);
+        Assert.Equal(stop ? 1 : 2, client.Plays);
+        if (!stop) Assert.Equal(ProjectPreviewQuality.P1080, vm.PreviewQuality);
+        Assert.False(vm.IsChangingPreviewQuality);
+    }
     [Fact]
     public async Task SelectingLateClipLoadsItsThumbnailWithoutGrowingMemoryOrMovingPlayhead()
     {
@@ -120,12 +181,19 @@ public sealed class ProjectPreviewPresenterTests
             { ServerInstanceId = Guid.NewGuid() };
         public TaskCompletionSource<ProjectReply> Pending = new();
         public Guid Generation = Guid.NewGuid();
+        public TaskCompletionSource<ProjectReply>? HeldStop;
+        public int Plays;
         public void Complete(long ticks, byte[]? rgba = null) => Pending.SetResult(new(true, null, State) {
             Frame = new(0, ticks, Clip.Id, rgba ?? new byte[ProjectFrameReply.ByteCount]) });
-        public Task<ProjectReply> SendAsync(string command, ProjectRequest request, CancellationToken ct = default) =>
+        public Task<ProjectReply> SendAsync(string command, ProjectRequest request, CancellationToken ct = default)
+        {
+            if (command == "PlayProjectPreview") Plays++;
+            if (command == "StopProjectPreview" && HeldStop is not null) return HeldStop.Task;
+            return
             command == "PlayProjectPreview" ? Task.FromResult(new ProjectReply(true, null, State) { Playback = new(Generation, request.TimelineTicks, true, null) }) :
             command == "StopProjectPreview" ? Task.FromResult(new ProjectReply(true, null, State) { Playback = new(Generation, 500000, false, null) }) :
             command == "GetProjectFrame" ? Pending.Task : Task.FromResult(new ProjectReply(true, null, State, [Clip]) {
                 TimelineClips = [new(Clip.Id, 0, TimeSpan.TicksPerSecond)] });
+        }
     }
 }

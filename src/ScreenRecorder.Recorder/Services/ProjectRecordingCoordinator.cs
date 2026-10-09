@@ -10,7 +10,7 @@ using ScreenRecorder.Media.Probe;
 namespace ScreenRecorder.Recorder.Services;
 
 /// <summary>The recorder process is the single project writer and recording owner.</summary>
-public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, IProjectStore store,
+public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator recorder, IProjectStore store,
     IProjectSourceProbe probe, IRecordingContentExporter? exporter = null) : IAsyncDisposable
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -32,7 +32,7 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
     public bool CanUndo => _history?.CanUndo == true;
     public bool CanRedo => _history?.CanRedo == true;
     public long SavedRevision => _handle?.Current.Revision ?? 0;
-    public bool IsDirty => Current?.Revision != _handle?.Current.Revision;
+    public bool IsDirty => _handle is not null && Current is not null && new ProjectEditSaveState(_handle.Current).IsDirty(Current);
     public bool NeedsRecoveryConfirmation => _handle?.NeedsRecoveryConfirmation == true;
     public string? ProjectDirectory => _handle?.ProjectDirectory;
     public string? OutputDirectory { get; private set; }
@@ -148,6 +148,7 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
             await _committer.CommitAsync(_handle, session, Guid.NewGuid(), ct);
         await ValidateSourcesAsync(ct);
         _history = new(_handle.Current);
+        await LoadDraftAsync(ct);
         Mode = ProjectMode.Ready;
     }, null, "open", ct);
 
@@ -175,7 +176,7 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
             throw new InvalidOperationException("Finish and save the current recording before starting new content.");
         if (_handle is not null)
         {
-            await FlushEditsAsync(ct);
+            await EnsureSavedForOperationAsync(ct);
             await _handle.DisposeAsync();
             _handle = null;
             _history = null;
@@ -200,7 +201,7 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
         if (_handle is null || Mode is not (ProjectMode.Ready or ProjectMode.Paused) ||
             Current!.Revision != expectedRevision || operationId == Guid.Empty)
             throw new InvalidOperationException("Insertion requires a saved, current editable timeline.");
-        await FlushEditsAsync(ct);
+        await EnsureSavedForOperationAsync(ct);
         await ValidateSourcesAsync(ct);
         // Validate before ending a paused session; invalid positions must not change its state.
         _ = ProjectInsertion.Anchor(_handle.Current, timelineTicks);
@@ -216,7 +217,7 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
         RequireNoExport();
         if (_handle is null || Mode is not (ProjectMode.Ready or ProjectMode.Paused))
             throw new InvalidOperationException("Project is not ready to record.");
-        await FlushEditsAsync(ct);
+        await EnsureSavedForOperationAsync(ct);
         await ValidateSourcesAsync(ct);
         if (Mode == ProjectMode.Paused)
         {
@@ -264,6 +265,7 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
     {
         if (_handle is null || _session is null || Mode is not (ProjectMode.Recording or ProjectMode.Paused or ProjectMode.SaveFailed))
             throw new InvalidOperationException("No project recording session to finish.");
+        await EnsureSavedForOperationAsync(ct);
         Mode = ProjectMode.SavingSegment;
         try
         {
@@ -284,7 +286,8 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
     {
         RequireNoExport();
         await FinishCoreAsync(operationId, ct);
-        BeginExport();
+        if (Current!.AutoExportOnStop) BeginExport();
+        else { _export?.Dispose(); _export = null; }
     }, operationId, "finish-export", ct);
 
     public Task<ProjectCommandResult> RetryExportAsync(Guid operationId, CancellationToken ct = default) => Run(async () =>
@@ -292,7 +295,7 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
         RequireNoExport();
         if (_handle is null || Mode != ProjectMode.Ready)
             throw new InvalidOperationException("Finish and save recording before exporting.");
-        await FlushEditsAsync(ct);
+        await EnsureSavedForOperationAsync(ct);
         BeginExport();
     }, operationId, "retry-export", ct);
 
@@ -314,7 +317,7 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
         CheckRevision(expectedRevision);
         if (string.IsNullOrWhiteSpace(outputDirectory) || !Path.IsPathFullyQualified(outputDirectory))
             throw new InvalidDataException("Select an absolute output directory.");
-        await FlushEditsAsync(ct);
+        await EnsureSavedForOperationAsync(ct);
         OutputDirectory = outputDirectory;
         BeginExport();
     }, operationId, "export:" + expectedRevision + ":" + outputDirectory, ct);
@@ -379,8 +382,10 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
         if (_history is null || Mode is not (ProjectMode.Ready or ProjectMode.Paused))
             throw new InvalidOperationException("Finish or pause recording before editing.");
         CheckRevision(expectedRevision);
+        if (HasRecoverableDraft) throw new InvalidOperationException("Resolve the recovered edit draft first.");
         _history.Apply(edit);
-        await FlushEditsAsync(ct);
+        ScheduleDraft();
+        await Task.CompletedTask;
     }, operationId, "clip-edit:" + expectedRevision + ":" + JsonSerializer.Serialize<ProjectClipEdit>(edit), ct);
 
     public Task<ProjectCommandResult> UndoAsync(long expectedRevision, CancellationToken ct = default) =>
@@ -395,13 +400,17 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
         if (_history is null || Mode is not (ProjectMode.Ready or ProjectMode.Paused))
             throw new InvalidOperationException("Finish or pause recording before editing.");
         CheckRevision(expectedRevision);
+        if (HasRecoverableDraft) throw new InvalidOperationException("Resolve the recovered edit draft first.");
         edit(_history);
-        await FlushEditsAsync(ct); // Auto-save starts immediately; errors retain both dirty state and edit history.
+        ScheduleDraft();
+        await Task.CompletedTask;
     }, null, "edit", ct);
 
     public Task<ProjectCommandResult> SaveAsync(long expectedRevision, CancellationToken ct = default) => Run(async () =>
     {
+        RequireNoExport();
         CheckRevision(expectedRevision);
+        if (IsDirty) CheckEditablePersistence(expectedRevision);
         await FlushEditsAsync(ct);
     }, null, "save", ct);
 
@@ -413,7 +422,17 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
     private async Task FlushEditsAsync(CancellationToken ct)
     {
         if (_handle is null) throw new InvalidOperationException("No open project.");
-        if (IsDirty) await _handle.SaveAsync(Current!, _handle.Current.Revision, ct);
+        if (HasRecoverableDraft) throw new InvalidOperationException("Resolve the recovered edit draft first.");
+        CancelDraftWrite();
+        if (Current!.Revision > _handle.Current.Revision || IsDirty)
+        {
+            var saved = Current with { Revision = Math.Max(Current.Revision, checked(_handle.Current.Revision + 1)),
+                ResolvedDraftId = _draftId ?? Current.ResolvedDraftId, RecoveryDraftBaseRevision = null };
+            await _handle.SaveAsync(saved, _handle.Current.Revision, ct);
+            _history!.AcceptSavedMetadata(saved);
+        }
+        _draftId = null;
+        DraftError = null;
     }
 
     public Task<ProjectCommandResult> CloseAsync(CancellationToken ct = default) => Run(async () =>
@@ -421,7 +440,11 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
         RequireNoExport();
         if (_session is not null || Mode is ProjectMode.Recording or ProjectMode.SavingSegment or ProjectMode.Paused or ProjectMode.SaveFailed)
             throw new InvalidOperationException("Finish and save recording before closing the project.");
-        if (_handle is not null) { await FlushEditsAsync(ct); await _handle.DisposeAsync(); }
+        if (_handle is not null) { await EnsureSavedForOperationAsync(ct); await _handle.DisposeAsync(); }
+        CancelDraftWrite();
+        _recoveredDraft = null;
+        _draftId = null;
+        DraftError = null;
         _handle = null;
         _history = null;
         OutputDirectory = null;
@@ -450,6 +473,7 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
 
     public async ValueTask DisposeAsync()
     {
+        CancelDraftWrite();
         if (_stopPreview is not null) await _stopPreview();
         await _gate.WaitAsync();
         try

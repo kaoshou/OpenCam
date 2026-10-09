@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using ScreenRecorder.Media.Projects;
+using Serilog;
 
 namespace ScreenRecorder.Platform.Windows;
 
@@ -80,6 +81,14 @@ public sealed class WindowsProjectAudioOutput : IProjectAudioOutput
         {
             enumerator = new MMDeviceEnumerator();
             endpoint = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+            // Optional endpoint metadata must never prevent an otherwise usable
+            // output device from playing (some drivers omit volume interfaces).
+            try
+            {
+                Log.Information("Project preview Windows output: {Device}, muted {Muted}, volume {Volume}",
+                    endpoint.FriendlyName, endpoint.AudioEndpointVolume.Mute, endpoint.AudioEndpointVolume.MasterVolumeLevelScalar);
+            }
+            catch (Exception ex) { Log.Debug(ex, "Project preview output metadata unavailable"); }
             device = endpoint.AudioClient;
             // Shared-mode conversion permits 48k float stereo even when endpoint mix format differs.
             device.Initialize(AudioClientShareMode.Shared,
@@ -114,7 +123,7 @@ public sealed class WindowsProjectAudioOutput : IProjectAudioOutput
             }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { ready.TrySetCanceled(ct); }
-        catch (Exception ex) { failure = ex; ready.TrySetException(ex); }
+        catch (Exception ex) { failure = ex; Log.Warning(ex, "Project preview Windows audio output failed"); ready.TrySetException(ex); }
         finally
         {
             // Cleanup failures fault the worker: Stop must not falsely acknowledge silence.

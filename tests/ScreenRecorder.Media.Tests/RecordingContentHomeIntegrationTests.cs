@@ -10,6 +10,127 @@ namespace ScreenRecorder.Media.Tests;
 
 public partial class RecordingEncoderLifecycleTests
 {
+    [Avalonia.Headless.XUnit.AvaloniaFact]
+    public async Task ClosingEditorPromptsButReturningHomeKeepsEdits()
+    {
+        await using var scope = new RecordingScope();
+        await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
+        var dispatcher = new ProjectIpcDispatcher(coordinator);
+        var main = new MainViewModel(forScreenshot: true);
+        main.ConfigureRecordingContent(new ProjectClient((command, request, ct) => dispatcher.DispatchAsync(new()
+            { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) })), () => true, () => Task.CompletedTask);
+        var vm = await main.PrepareProjectWorkspaceAsync();
+        await vm.CreateAsync(scope.Configuration.OutputDirectory, "saved");
+        var window = new ProjectWorkspaceView(vm, main);
+        window.Show();
+        try
+        {
+            await vm.RenameProjectAsync("pending");
+            vm.RequestUnsavedDecision = () => Task.FromResult(UnsavedDecision.Cancel);
+            Assert.False(await window.RequestCloseAsync());
+            Assert.True(window.IsVisible);
+            Assert.True(vm.State.IsDirty);
+            vm.RequestUnsavedDecision = () => Task.FromResult(UnsavedDecision.Save);
+            Assert.True(await window.RequestCloseAsync());
+            Assert.False(vm.State.IsDirty);
+            Assert.Equal("pending", coordinator.Current!.Name);
+        }
+        finally { vm.RequestUnsavedDecision = () => Task.FromResult(UnsavedDecision.Discard); await window.RequestCloseAsync(); main.Cleanup(); }
+    }
+
+    [Fact]
+    public async Task ReturnHomeKeepsWorkingEdits()
+    {
+        await using var scope = new RecordingScope();
+        await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
+        var dispatcher = new ProjectIpcDispatcher(coordinator);
+        var main = new MainViewModel(forScreenshot: true);
+        main.ConfigureRecordingContent(new ProjectClient((command, request, ct) => dispatcher.DispatchAsync(new()
+            { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) })), () => true, () => Task.CompletedTask);
+        try
+        {
+            var vm = await main.PrepareProjectWorkspaceAsync();
+            await vm.CreateAsync(scope.Configuration.OutputDirectory, "saved");
+            var path = Path.Combine(coordinator.ProjectDirectory!, "project.opencam");
+            var before = await File.ReadAllBytesAsync(path);
+            await vm.RenameProjectAsync("pending rename");
+            vm.RequestUnsavedDecision = () => throw new InvalidOperationException("Returning home must not prompt or discard edits.");
+            Assert.True(await main.LeaveContentEditorAsync());
+            Assert.True(main.CanOpenContentEditor);
+            Assert.Same(vm, await main.PrepareProjectWorkspaceAsync());
+            Assert.Equal("pending rename", vm.State.Name);
+            Assert.True(vm.State.IsDirty);
+            Assert.Equal(before, await File.ReadAllBytesAsync(path));
+        }
+        finally { main.Cleanup(); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RecordingStatusPollingDoesNotShowStartupBannerButStillBlocksOnLostStatus(bool loseStatus)
+    {
+        await using var scope = new RecordingScope();
+        await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
+        var dispatcher = new ProjectIpcDispatcher(coordinator);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var holdStatus = false;
+        var main = new MainViewModel(forScreenshot: true);
+        main.ConfigureRecordingContent(new ProjectClient(async (command, request, ct) =>
+        {
+            if (holdStatus && command == "GetProjectStatus")
+            {
+                entered.TrySetResult();
+                await release.Task.WaitAsync(ct);
+                if (loseStatus) throw new IOException("Status connection lost");
+            }
+            return await dispatcher.DispatchAsync(new()
+                { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) });
+        }), () => true, () => Task.CompletedTask);
+        main.OutputDirectory = scope.Configuration.OutputDirectory;
+        main.RequestRecordingProjectName = name => Task.FromResult<string?>(name);
+        try
+        {
+            var editor = await main.PrepareProjectWorkspaceAsync();
+            await main.StartRecordingAsync();
+            Assert.True(main.IsRecording);
+            Assert.False(main.IsPreparing);
+            var preparingTransitions = new List<bool>();
+            main.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(main.IsPreparing)) preparingTransitions.Add(main.IsPreparing);
+            };
+            holdStatus = true;
+            var poll = editor.PollRecordingAsync();
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(3));
+            try
+            {
+                Assert.False(main.IsPreparing);
+                Assert.Equal(main.Strings["StatusRecordingActive"], main.StatusMessage);
+                Assert.True(main.CanStopRecording);
+                Assert.False(main.CanOpenContentEditor);
+                Assert.False(main.CanManageRecordingProject);
+            }
+            finally { release.TrySetResult(); await poll; }
+            if (loseStatus)
+            {
+                Assert.True(editor.StatusUnconfirmed);
+                Assert.True(main.IsPreparing);
+                Assert.True(main.IsApplicationCloseBlocked);
+                Assert.False(string.IsNullOrWhiteSpace(editor.Error));
+                Assert.Equal(editor.Error, main.StatusMessage);
+            }
+            else
+            {
+                Assert.DoesNotContain(true, preparingTransitions);
+                Assert.True(main.IsRecording);
+                Assert.Single(scope.Factory.Paths);
+            }
+        }
+        finally { release.TrySetResult(); main.Cleanup(); }
+    }
+
     [Fact]
     public async Task HomeKeepsFinalizationCloseBlockedAndOffersExportCancellation()
     {

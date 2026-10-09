@@ -62,6 +62,7 @@ public partial class RecordingEncoderLifecycleTests
         await vm.UndoAsync();
         Assert.Equal("教學 / 第一課", coordinator.Current.Name);
         await vm.RedoAsync();
+        await vm.SaveAsync();
         await vm.FinishAsync();
         Assert.True(await vm.CloseAsync());
         await vm.OpenAsync(Path.Combine(root, "project.opencam"));

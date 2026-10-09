@@ -10,7 +10,7 @@ public interface IProjectClient
 }
 
 public sealed class ProjectClient(Func<string, ProjectRequest, CancellationToken, Task<IpcResponse>> send,
-    Func<ProjectRequest, CancellationToken, Task<IpcResponse>>? sendFrame = null) : IProjectClient
+    Func<ProjectRequest, CancellationToken, Task<ProjectReply>>? sendFrame = null) : IProjectClient
 {
     private Guid? _instanceId;
     public async Task<ProjectReply> SendAsync(string command, ProjectRequest request, CancellationToken ct = default)
@@ -40,9 +40,8 @@ public sealed class ProjectClient(Func<string, ProjectRequest, CancellationToken
     {
         try
         {
-            var response = command == "GetProjectFrame"
-                ? sendFrame is not null ? await sendFrame(request, ct) : new IpcResponse { Success = false }
-                : await send(command, request, ct);
+            if (command == "GetProjectFrame") return sendFrame is not null ? await sendFrame(request, ct) : null;
+            var response = await send(command, request, ct);
             return response.DataJson is null ? null : JsonSerializer.Deserialize<ProjectReply>(response.DataJson);
         }
         catch (Exception ex) when (ex is IOException or JsonException or OperationCanceledException) { return null; }

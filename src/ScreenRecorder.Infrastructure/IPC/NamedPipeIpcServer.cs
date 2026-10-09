@@ -11,8 +11,10 @@ public class NamedPipeIpcServer : IAsyncDisposable
     private readonly string _pipeName;
     private readonly byte[] _key;
     private readonly int _clientPid;
+    private readonly bool _mediaResponse;
     private readonly SemaphoreSlim _connectionSlots = new(16, 16);
     private readonly Func<IpcMessage, Task<IpcResponse>> _messageHandler;
+    private readonly Func<IpcMessage, Task<ProjectReply>>? _mediaHandler;
     private CancellationTokenSource? _cts;
     private Task? _listenerTask;
     private NamedPipeServerStream? _currentServerStream;
@@ -22,9 +24,14 @@ public class NamedPipeIpcServer : IAsyncDisposable
 
     public event EventHandler<bool>? ClientConnectionChanged;
 
-    public NamedPipeIpcServer(string pipeName, byte[] key, Func<IpcMessage, Task<IpcResponse>> messageHandler, int? clientPid = null)
+    public NamedPipeIpcServer(string pipeName, byte[] key, Func<IpcMessage, Task<ProjectReply>> mediaHandler, int? clientPid = null)
+        : this(pipeName, key, _ => Task.FromResult(new IpcResponse()), clientPid)
+    { _mediaHandler = mediaHandler; }
+
+    public NamedPipeIpcServer(string pipeName, byte[] key, Func<IpcMessage, Task<IpcResponse>> messageHandler, int? clientPid = null, bool mediaResponse = false)
     {
         _pipeName = pipeName;
+        _mediaResponse = mediaResponse;
         _key = AuthenticatedIpc.CopyKey(key);
         _clientPid = clientPid ?? Environment.ProcessId;
         _messageHandler = messageHandler;
@@ -163,9 +170,18 @@ public class NamedPipeIpcServer : IAsyncDisposable
                 enteredMessageGate = true;
                 ClientConnectionChanged?.Invoke(this, true);
 
-                var response = await _messageHandler(message);
-                deadline.CancelAfter(TimeSpan.FromSeconds(2));
-                await AuthenticatedIpc.WriteAsync(pipeServer, _key, nonce, true, response, deadline.Token);
+                if (_mediaHandler is not null)
+                {
+                    var response = await _mediaHandler(message);
+                    deadline.CancelAfter(TimeSpan.FromSeconds(2));
+                    await AuthenticatedMediaIpc.WriteAsync(pipeServer, _key, nonce, response, deadline.Token);
+                }
+                else
+                {
+                    var response = await _messageHandler(message);
+                    deadline.CancelAfter(TimeSpan.FromSeconds(2));
+                    await AuthenticatedIpc.WriteAsync(pipeServer, _key, nonce, true, response, deadline.Token, _mediaResponse);
+                }
             }
             catch (OperationCanceledException)
             {

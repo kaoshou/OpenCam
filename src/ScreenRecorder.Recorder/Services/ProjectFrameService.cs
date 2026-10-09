@@ -12,14 +12,15 @@ namespace ScreenRecorder.Recorder.Services;
 /// <summary>One still decoder, bounded memory, latest-position wins. Caller serializes queries with capture start.</summary>
 public sealed class ProjectFrameService(ProjectRecordingCoordinator coordinator, IProjectMediaProcess process) : IAsyncDisposable
 {
-    private (Guid Project, long Revision, long Ticks, Guid Thumbnail) _key;
+    private (Guid Project, long Revision, long Ticks, Guid Thumbnail, ProjectPreviewQuality Quality) _key;
     private Task<ProjectFrameReply>? _running;
     private CancellationTokenSource? _cancel;
     private bool _superseded;
     private ProjectFrameCache? _cache;
     private Guid _cacheProject;
 
-    public async Task<ProjectFrameReply> QueryAsync(Guid projectId, long revision, long ticks, Guid thumbnailClipId = default)
+    public async Task<ProjectFrameReply> QueryAsync(Guid projectId, long revision, long ticks, Guid thumbnailClipId = default,
+        ProjectPreviewQuality quality = ProjectPreviewQuality.P720)
     {
         if (coordinator.Current?.ProjectId != projectId || coordinator.Current.Revision != revision ||
             coordinator.Mode is not (ProjectMode.Ready or ProjectMode.Paused))
@@ -29,7 +30,13 @@ public sealed class ProjectFrameService(ProjectRecordingCoordinator coordinator,
         var (plan, index, frame) = selection;
         var part = plan.Clips[index];
         var position = new ProjectPosition(part.Clip.Id, part.Source.Id, part.Clip.InPts);
-        var key = (projectId, revision, ticks, thumbnailClipId);
+        var key = (projectId, revision, ticks, thumbnailClipId, quality);
+        var size = ProjectPreviewFormat.Resolve(snapshot.Canvas, quality);
+        var width = thumbnailClipId == Guid.Empty ? size.Width : ProjectFrameReply.Width;
+        var height = thumbnailClipId == Guid.Empty ? size.Height : ProjectFrameReply.Height;
+        var byteCount = width * height * 4;
+        ProjectFrameReply Pixels(byte[] rgba) => new(revision, ticks, position.ClipId, rgba)
+            { PixelWidth = width, PixelHeight = height };
         if (_running is not null)
         {
             if (!_running.IsCompleted)
@@ -70,26 +77,26 @@ public sealed class ProjectFrameService(ProjectRecordingCoordinator coordinator,
                         StartNumerator = part.ExactStart.Numerator.ToString(System.Globalization.CultureInfo.InvariantCulture),
                         StartDenominator = part.ExactStart.Denominator.ToString(System.Globalization.CultureInfo.InvariantCulture),
                         part.StartFrame,
-                        Width = ProjectFrameReply.Width, Height = ProjectFrameReply.Height
+                        Width = width, Height = height
                     })));
                     if (_cache is not null)
                     {
                         try {
-                            var cached = await _cache.ReadAsync(cacheKey, ProjectFrameReply.ByteCount, token);
-                            if (cached is not null) return new(revision, ticks, position.ClipId, cached);
+                            var cached = await _cache.ReadAsync(cacheKey, byteCount, token);
+                            if (cached is not null) return Pixels(cached);
                         }
                         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                         { Log.Debug(ex, "Frame cache miss; rebuilding derived image"); }
                     }
                     var job = ProjectMediaJob.PreviewStill(plan, index, frame,
-                        ProjectFrameReply.Width, ProjectFrameReply.Height);
+                        width, height);
                     var result = await process.RunAsync(job, [lease.Stream], null, token);
-                    if (result.Output.Length != ProjectFrameReply.ByteCount) throw new InvalidDataException("Invalid frame size.");
+                    if (result.Output.Length != byteCount) throw new InvalidDataException("Invalid frame size.");
                     if (_cache is not null)
                         try { await _cache.PutAsync(cacheKey, result.Output, token); }
                         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                         { Log.Debug(ex, "Frame cache write skipped; source and preview are retained"); }
-                    return new ProjectFrameReply(revision, ticks, position.ClipId, result.Output);
+                    return Pixels(result.Output);
                 }
                 catch (Exception) { return new(revision, ticks, position.ClipId, null, "Preview could not be decoded. Original media is unchanged."); }
             }

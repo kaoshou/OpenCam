@@ -19,13 +19,23 @@ public class PlatformFolderOpenerTests : IDisposable
     }
 
     [Fact]
+    public void FolderButtonOpensConfiguredDirectoryEvenWhenOlderOutputExists()
+    {
+        foreach (var windows in new[] { false, true })
+        {
+            var info = PlatformFolderOpener.BuildStartInfo(windows, !windows, _file, _directory);
+            Assert.Equal(new[] { _directory }, info!.ArgumentList);
+        }
+    }
+
+    [Fact]
     public void MacFile_UsesFinderRevealWithOnePathArgument()
     {
         var info = PlatformFolderOpener.BuildStartInfo(
             isWindows: false,
             isMacOS: true,
             _file,
-            _directory);
+            _directory, revealLastOutput: true);
 
         Assert.Equal("/usr/bin/open", info!.FileName);
         Assert.Equal(new[] { "-R", _file }, info.ArgumentList);
@@ -52,7 +62,7 @@ public class PlatformFolderOpenerTests : IDisposable
             isWindows: true,
             isMacOS: false,
             _file,
-            _directory);
+            _directory, revealLastOutput: true);
 
         Assert.Equal("explorer.exe", info!.FileName);
         Assert.Equal(new[] { "/select," + _file }, info.ArgumentList);

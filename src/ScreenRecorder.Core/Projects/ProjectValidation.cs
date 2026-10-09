@@ -11,6 +11,8 @@ public static class ProjectValidation
         Require(p is not null, "Missing project.");
         Require(p.SchemaVersion == 1, "Unsupported project schema.");
         Require(p.ProjectId != Guid.Empty && p.Revision >= 0, "Invalid project identity.");
+        Require(p.RecoveryDraftBaseRevision is null ||
+            p.RecoveryDraftBaseRevision >= 0 && p.RecoveryDraftBaseRevision < p.Revision, "Invalid recovery draft base.");
         ValidateName(p.Name);
         Require(p.Canvas is not null && Dimension(p.Canvas.Width) && Dimension(p.Canvas.Height), "Invalid canvas.");
         Rational(p.Canvas.Fps);

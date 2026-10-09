@@ -9,6 +9,31 @@ namespace ScreenRecorder.Core.Tests;
 public class IpcSecurityTests
 {
     [Fact]
+    public async Task HdMediaResponsesRemainAuthenticatedAndDoNotEnlargeCommandLimits()
+    {
+        var key = AuthenticatedIpc.CreateKey();
+        var nonce = AuthenticatedIpc.CreateKey();
+        var payload = new byte[1280 * 720 * 4];
+        payload[1234] = 97;
+        using var stream = new MemoryStream();
+        await Assert.ThrowsAsync<InvalidDataException>(() => AuthenticatedIpc.WriteAsync(stream, key, nonce, false, payload, default, mediaResponse: true));
+        await Assert.ThrowsAsync<InvalidDataException>(() => AuthenticatedIpc.WriteAsync(stream, key, nonce, true, payload, default));
+        await AuthenticatedIpc.WriteAsync(stream, key, nonce, true, payload, default, mediaResponse: true);
+        stream.Position = 0;
+        await Assert.ThrowsAsync<InvalidDataException>(() => AuthenticatedIpc.ReadAsync<byte[]>(stream, key, nonce, true, default));
+        stream.Position = 0;
+        Assert.Equal(payload, await AuthenticatedIpc.ReadAsync<byte[]>(stream, key, nonce, true, default, mediaResponse: true));
+        var tampered = stream.ToArray(); tampered[100] ^= 1;
+        using var changed = new MemoryStream(tampered);
+        await Assert.ThrowsAsync<InvalidDataException>(() => AuthenticatedIpc.ReadAsync<byte[]>(changed, key, nonce, true, default, mediaResponse: true));
+        using var oversized = new MemoryStream();
+        var header = new byte[4];
+        BinaryPrimitives.WriteInt32LittleEndian(header, 8 * 1024 * 1024 + 1);
+        oversized.Write(header); oversized.Position = 0;
+        await Assert.ThrowsAsync<InvalidDataException>(() => AuthenticatedIpc.ReadAsync<byte[]>(oversized, key, nonce, true, default, mediaResponse: true));
+    }
+
+    [Fact]
     public async Task WrongKeyAndWrongPeerNeverDispatch_ValidClientStillWorks()
     {
         var name = SessionPipeNameFactory.Create(OperatingSystem.IsWindows());

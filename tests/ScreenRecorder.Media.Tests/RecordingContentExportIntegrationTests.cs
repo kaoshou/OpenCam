@@ -19,6 +19,9 @@ public sealed class RecordingContentExportIntegrationTests
         try
         {
             await using var owner = await SingleClip(root.FullName);
+            // This fault targets the exact-render intermediate, not the remux route.
+            await owner.SaveAsync(owner.Current with { Revision = owner.Current.Revision + 1,
+                Clips = [owner.Current.Clips[0] with { Scale = 2 }] }, owner.Current.Revision);
             var destination = Directory.CreateDirectory(Path.Combine(root.FullName, "out")).FullName;
             var exporter = new ProjectFfmpegExporter(new MacProjectMediaProcess(FFmpegDiscovery.FindFFmpegExecutable()!));
             await Assert.ThrowsAnyAsync<IOException>(() => exporter.ExportAsync(owner, owner.Current,

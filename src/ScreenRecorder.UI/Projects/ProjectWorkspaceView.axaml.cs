@@ -24,6 +24,8 @@ public partial class ProjectWorkspaceView : Window
     public ProjectWorkspaceView()
     {
         InitializeComponent();
+        InitializePreviewViewport();
+        InitializeClipListDrag();
         Opened += (_, _) => UpdateEditorLayout();
         SizeChanged += (_, _) => UpdateEditorLayout();
         if (PlatformSettings is not null)
@@ -35,7 +37,7 @@ public partial class ProjectWorkspaceView : Window
     }
     private void UpdateEditorLayout()
     {
-        if (ClientSize.Width <= 0 || ClientSize.Height <= 0) return;
+        if (IsPreviewFullscreen || ClientSize.Width <= 0 || ClientSize.Height <= 0) return;
         var next = EditorLayout.ForSize(ClientSize.Width, ClientSize.Height);
         if (_layout == next) return;
         _layout = next;
@@ -93,14 +95,16 @@ public partial class ProjectWorkspaceView : Window
         PreviewImage.Source = null;
         _previewBitmap?.Dispose();
         _previewBitmap = null;
-        if (Model.PreviewFrame?.Rgba is not { } bytes) return;
-        var bitmap = new Avalonia.Media.Imaging.WriteableBitmap(new(512, 288), new(96, 96),
+        if (Model.PreviewFrame is not { HasValidPixels: true } frame) return;
+        var bytes = frame.Rgba!;
+        var bitmap = new Avalonia.Media.Imaging.WriteableBitmap(new(frame.PixelWidth, frame.PixelHeight), new(96, 96),
             Avalonia.Platform.PixelFormat.Rgba8888, Avalonia.Platform.AlphaFormat.Opaque);
         using (var locked = bitmap.Lock())
-            for (var y = 0; y < 288; y++)
-                System.Runtime.InteropServices.Marshal.Copy(bytes, y * 512 * 4, locked.Address + y * locked.RowBytes, 512 * 4);
+            for (var y = 0; y < frame.PixelHeight; y++)
+                System.Runtime.InteropServices.Marshal.Copy(bytes, y * frame.PixelWidth * 4, locked.Address + y * locked.RowBytes, frame.PixelWidth * 4);
         _previewBitmap = bitmap;
         PreviewImage.Source = bitmap;
+        UpdatePreviewViewport();
     }
     private ProjectWorkspaceViewModel Model => (ProjectWorkspaceViewModel)DataContext!;
 
@@ -175,6 +179,7 @@ public partial class ProjectWorkspaceView : Window
         {
             if (_main?.UsesRecordingContent == true)
             {
+                if (!await Model.ResolveUnsavedAsync()) return false;
                 if (!await _main.LeaveContentEditorAsync()) return false;
             }
             else if (!await Model.CloseAsync()) return false;
@@ -193,6 +198,9 @@ public partial class ProjectWorkspaceView : Window
     }
     protected override void OnKeyDown(KeyEventArgs e)
     {
+        if (e.Key == Key.Escape && _dragClip is not null) { CancelClipDrag(); e.Handled = true; return; }
+        ShowPreviewControls();
+        if (e.Key == Key.Escape && IsPreviewFullscreen) { SetPreviewFullscreen(false); e.Handled = true; return; }
         var action = ResolveShortcut(e.Key, e.KeyModifiers, FocusManager?.GetFocusedElement() is TextBox, OperatingSystem.IsMacOS());
         if (action == "save")
         { e.Handled = true; if (!Model.IsBusy) _ = Model.SaveAsync(); return; }

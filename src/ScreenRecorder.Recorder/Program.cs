@@ -68,7 +68,7 @@ public class Program
                 ? new ScreenRecorder.Media.Projects.ProjectPreviewDecoder(
                     mediaBackend.CreateStreamingProcess, mediaBackend.CreateAudio) : null;
             await using var projectPreview = previewDecoder is not null
-                ? new ProjectPreviewCoordinator(projects, previewDecoder.PlayAsync) : null;
+                ? new ProjectPreviewCoordinator(projects, previewDecoder.PlayConfiguredAsync) : null;
             var projectDispatcher = new ProjectIpcDispatcher(projects, projectWaveforms, projectFrames, projectPreview);
 
             var pipeName = NamedPipeConstants.PipeBaseName;

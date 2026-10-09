@@ -8,8 +8,8 @@ namespace ScreenRecorder.Media.Tests;
 public sealed class ProjectMainEntryTests
 {
     [Theory]
-    [InlineData(AppLanguage.ZhTw, "錄影專案")]
-    [InlineData(AppLanguage.EnUs, "Recording project")]
+    [InlineData(AppLanguage.ZhTw, "編輯錄製內容")]
+    [InlineData(AppLanguage.EnUs, "Edit Recording")]
     public void ProductEntryUsesNormalProjectTitle(AppLanguage language, string expected)
     {
         var localization = new LocalizationService { CurrentLanguage = language };

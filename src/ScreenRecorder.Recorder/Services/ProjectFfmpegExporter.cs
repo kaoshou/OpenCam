@@ -9,7 +9,7 @@ using Serilog;
 namespace ScreenRecorder.Recorder.Services;
 
 /// <summary>Render a fixed revision into a new verified MP4. All media access stays bound to handles.</summary>
-public sealed class ProjectFfmpegExporter(IProjectMediaProcess process) : IRecordingContentExporter
+public sealed partial class ProjectFfmpegExporter(IProjectMediaProcess process) : IRecordingContentExporter
 {
     public async Task<RecordingExportResult> ExportAsync(IProjectHandle owner, RecordingProject snapshot,
         string outputDirectory, Guid exportId, IProgress<double> progress, CancellationToken ct)
@@ -34,33 +34,8 @@ public sealed class ProjectFfmpegExporter(IProjectMediaProcess process) : IRecor
         }
         try
         {
-            if (ProjectMediaJob.CopyWholeRecording(plan) is { } copyJob)
-            {
-                try
-                {
-                    await using (var source = ProjectPathPolicy.OpenSource(owner, plan.Clips[0].Source.RelativePath))
-                    await using (var output = Create(temporary))
-                    {
-                        await ValidateSource(source, plan.Clips[0].Source, ct);
-                        await process.RunAsync(copyJob, [source], output, ct);
-                        output.Flush(true);
-                    }
-                    await using (var output = directory.Read(temporary))
-                        await ProjectOutputVerifier.VerifyAsync(process, output, plan, ct);
-                    ct.ThrowIfCancellationRequested();
-                    var path = directory.PublishVerified(temporary, $"OpenCam_{ProjectNaming.FileStem(snapshot.Name)}_{DateTime.Now:yyyyMMdd_HHmmss}_{exportId:N}.mp4");
-                    owned.Remove(temporary);
-                    progress.Report(1);
-                    return new(true, path, null);
-                }
-                catch (InvalidDataException ex)
-                {
-                    // Metadata does not establish actual stream compatibility. Keep originals,
-                    // discard only this attempt and use the validated normalization route.
-                    Log.Information("Project remux was incompatible with the render plan: {Reason}", ex.Message);
-                    if (owned.Remove(temporary)) directory.DeleteOwnedFile(temporary);
-                }
-            }
+            var fast = await TryFastExportAsync(owner, snapshot, plan, directory, temporary, exportId, Create, owned, progress, ct);
+            if (fast is not null) return fast;
             var drive = new DriveInfo(directory.CurrentPath);
             var estimated = checked(plan.AudioSampleCount * 16 + plan.DurationTicks / TimeSpan.TicksPerSecond * 2_000_000 + 64 * 1024 * 1024);
             if (drive.AvailableFreeSpace < estimated)
