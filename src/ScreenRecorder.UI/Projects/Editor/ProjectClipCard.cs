@@ -16,18 +16,21 @@ public sealed class ProjectClipCard : UserControl
     private readonly Image _image = new() { Width = 64, Height = 40, Stretch = Stretch.Uniform };
     private readonly TextBlock _name = new() { FontSize = 13, FontWeight = FontWeight.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis };
     private readonly TextBlock _duration = new() { FontSize = 11, Foreground = Brushes.SlateGray };
+    private readonly TextBlock _ordinal = new() { FontSize = 11, Foreground = Brushes.SlateGray, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center };
+    private readonly Grid _grid = new();
+    private readonly Border _thumbnail;
     private WriteableBitmap? _bitmap;
     private byte[]? _pixels;
     private ProjectWorkspaceViewModel? _model;
 
     public ProjectClipCard()
     {
-        var grid = new Grid { ColumnDefinitions = new("64,10,*"), Margin = new(8) };
-        grid.Children.Add(new Border { Background = new SolidColorBrush(Color.Parse("#11161F")), CornerRadius = new(4),
-            Width = 64, Height = 40, Child = _image, ClipToBounds = true });
-        var text = new StackPanel { Spacing = 4, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
-            Children = { _name, _duration } };
-        Grid.SetColumn(text, 2); grid.Children.Add(text); Content = grid;
+        _thumbnail = new Border { Background = new SolidColorBrush(Color.Parse("#11161F")), CornerRadius = new(4),
+            Width = 64, Height = 40, Child = _image, ClipToBounds = true };
+        _grid.Children.Add(_thumbnail); _grid.Children.Add(_name); _grid.Children.Add(_duration); _grid.Children.Add(_ordinal);
+        Content = _grid;
+        _name.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;
+        _duration.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;
         AttachedToVisualTree += (_, _) => {
             _model = (TopLevel.GetTopLevel(this) as Window)?.DataContext as ProjectWorkspaceViewModel;
             if (_model is not null) _model.PropertyChanged += Changed;
@@ -41,7 +44,8 @@ public sealed class ProjectClipCard : UserControl
     }
     private void Changed(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(ProjectWorkspaceViewModel.Thumbnails) or nameof(ProjectWorkspaceViewModel.TimelineClips)) Refresh();
+        if (e.PropertyName is nameof(ProjectWorkspaceViewModel.Thumbnails) or nameof(ProjectWorkspaceViewModel.TimelineClips)
+            or nameof(ProjectWorkspaceViewModel.IsClipListCompact)) Refresh();
     }
     private void Release() { _image.Source = null; _bitmap?.Dispose(); _bitmap = null; _pixels = null; }
     private void Refresh()
@@ -49,7 +53,24 @@ public sealed class ProjectClipCard : UserControl
         if (DataContext is not ProjectClip clip) { Release(); return; }
         _name.Text = clip.Name;
         var span = _model?.TimelineClips.FirstOrDefault(c => c.ClipId == clip.Id);
-        _duration.Text = span is null ? "—" : TimeSpan.FromTicks(span.EndTicks - span.StartTicks).ToString(@"mm\:ss\.fff");
+        var compact = _model?.IsClipListCompact == true;
+        var duration = span is null ? (TimeSpan?)null : TimeSpan.FromTicks(span.EndTicks - span.StartTicks);
+        var time = duration?.ToString(duration?.TotalHours >= 1 ? @"hh\:mm\:ss\.f" : @"mm\:ss\.f") ?? "—";
+        var number = ((_model?.Clips.IndexOf(clip) ?? -1) + 1).ToString("00");
+        Height = compact ? 32 : 64;
+        _grid.Margin = compact ? new(8, 2) : new(8);
+        _grid.ColumnDefinitions = new(compact ? "24,*,58" : "64,10,*");
+        _grid.RowDefinitions = new(compact ? "*" : "*,*");
+        _image.IsVisible = _thumbnail.IsVisible = !compact;
+        _ordinal.IsVisible = compact;
+        _ordinal.Text = number;
+        Grid.SetRowSpan(_thumbnail, compact ? 1 : 2);
+        Grid.SetColumn(_name, compact ? 1 : 2);
+        Grid.SetColumn(_duration, 2);
+        Grid.SetRow(_duration, compact ? 0 : 1);
+        _duration.Text = compact ? time : $"{number} · {time}";
+        _duration.HorizontalAlignment = compact ? Avalonia.Layout.HorizontalAlignment.Right : Avalonia.Layout.HorizontalAlignment.Left;
+        if (compact) { Release(); return; }
         var bytes = _model?.Thumbnails.GetValueOrDefault(clip.Id)?.Rgba;
         if (ReferenceEquals(bytes, _pixels)) return;
         Release();

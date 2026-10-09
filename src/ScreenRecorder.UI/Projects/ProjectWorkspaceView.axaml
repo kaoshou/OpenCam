@@ -8,6 +8,7 @@
         WindowStartupLocation="CenterOwner">
   <Window.Resources>
     <ResourceDictionary>
+      <editor:ClipDensityLabelConverter x:Key="ClipDensityLabel"/>
       <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Light">
           <SolidColorBrush x:Key="ProjectCanvasBrush" Color="#F4F6F8"/>
@@ -18,6 +19,8 @@
           <SolidColorBrush x:Key="ProjectStrokeBrush" Color="#E2E8F0"/>
           <SolidColorBrush x:Key="ProjectAccentBrush" Color="#2563EB"/>
           <SolidColorBrush x:Key="ProjectErrorBrush" Color="#B42318"/>
+          <SolidColorBrush x:Key="ProjectSelectedBrush" Color="#EDF2FF"/>
+          <SolidColorBrush x:Key="ProjectSelectedStrokeBrush" Color="#879DC8"/>
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
           <SolidColorBrush x:Key="ProjectCanvasBrush" Color="#202329"/>
@@ -28,6 +31,8 @@
           <SolidColorBrush x:Key="ProjectStrokeBrush" Color="#455060"/>
           <SolidColorBrush x:Key="ProjectAccentBrush" Color="#86B4FF"/>
           <SolidColorBrush x:Key="ProjectErrorBrush" Color="#FFAEA6"/>
+          <SolidColorBrush x:Key="ProjectSelectedBrush" Color="#293C5B"/>
+          <SolidColorBrush x:Key="ProjectSelectedStrokeBrush" Color="#86A6D7"/>
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
     </ResourceDictionary>
@@ -48,7 +53,25 @@
     </Style>
     <Style Selector="Button.tool"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
     <Style Selector="TextBox"><Setter Property="FontSize" Value="14"/><Setter Property="CornerRadius" Value="5"/><Setter Property="MinHeight" Value="34"/></Style>
-    <Style Selector="ListBoxItem"><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0,3"/><Setter Property="CornerRadius" Value="6"/></Style>
+    <Style Selector="ListBoxItem">
+      <Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0,2"/><Setter Property="CornerRadius" Value="7"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="Transparent"/><Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Template"><ControlTemplate>
+        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}">
+          <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" HorizontalContentAlignment="Stretch"/>
+        </Border>
+      </ControlTemplate></Setter>
+    </Style>
+    <Style Selector="ListBoxItem:pointerover"><Setter Property="Background" Value="{DynamicResource ProjectRowBrush}"/></Style>
+    <Style Selector="ListBoxItem:selected"><Setter Property="Background" Value="{DynamicResource ProjectSelectedBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource ProjectSelectedStrokeBrush}"/></Style>
+    <Style Selector="ListBoxItem:focus-visible"><Setter Property="BorderBrush" Value="{DynamicResource ProjectAccentBrush}"/></Style>
+    <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="Transparent"/>
+    </Style>
+    <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="Transparent"/>
+    </Style>
     <Style Selector="TextBlock"><Setter Property="Foreground" Value="{DynamicResource ProjectTextBrush}"/></Style>
   </Window.Styles>
   <Grid RowDefinitions="64,44,*,240,28">
@@ -85,11 +108,25 @@
     <Grid x:Name="WorkspaceGrid" Grid.Row="2" ColumnDefinitions="220,*,260">
       <Border x:Name="ClipPane" Background="{DynamicResource ProjectCardBrush}" Padding="12,16" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="0,0,1,0">
         <Grid RowDefinitions="Auto,*,Auto">
-          <Grid ColumnDefinitions="*" Margin="0,0,0,12">
-            <TextBlock Text="{Binding Strings[ProjectClips]}" FontSize="14" FontWeight="SemiBold"/>
-
-          </Grid>
-          <ListBox x:Name="ClipList" Grid.Row="1" ItemsSource="{Binding Clips}" SelectedItem="{Binding SelectedClip}" IsEnabled="{Binding !HasPropertyDraft}" Background="Transparent">
+          <StackPanel Spacing="8" Margin="0,0,0,12">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <TextBlock Text="{Binding Strings[ProjectClipsShort]}" FontSize="14" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding State.ClipCount}" FontSize="12" Foreground="{DynamicResource ProjectMutedBrush}" VerticalAlignment="Center"/>
+              </StackPanel>
+              <Button x:Name="ClipDensityToggle" Grid.Column="1" Classes="tool" MinHeight="28" Padding="6,3" Click="OnToggleClipDensity" ToolTip.Tip="{Binding #ClipDensityLabel.Text}" AutomationProperties.Name="{Binding #ClipDensityLabel.Text}">
+                <editor:EditorToolContent x:Name="ClipDensityLabel" Icon="{Binding ClipListToggleIcon}">
+                  <editor:EditorToolContent.Text>
+                    <MultiBinding Converter="{StaticResource ClipDensityLabel}">
+                      <Binding Path="IsClipListCompact"/><Binding Path="Strings[ProjectListCompact]"/><Binding Path="Strings[ProjectListThumbnails]"/>
+                    </MultiBinding>
+                  </editor:EditorToolContent.Text>
+                </editor:EditorToolContent>
+              </Button>
+            </Grid>
+            <TextBlock Text="{Binding Strings[ProjectListOrderHint]}" FontSize="11" Foreground="{DynamicResource ProjectMutedBrush}"/>
+          </StackPanel>
+          <ListBox x:Name="ClipList" Grid.Row="1" ItemsSource="{Binding Clips}" SelectedItem="{Binding SelectedClip}" IsEnabled="{Binding !HasPropertyDraft}" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <ListBox.ItemTemplate>
               <DataTemplate x:DataType="core:ProjectClip">
                 <editor:ProjectClipCard HorizontalAlignment="Stretch" ToolTip.Tip="{Binding Name}"/>
@@ -172,19 +209,24 @@
       </Border>
     </Grid>
     <Border x:Name="TimelinePane" Grid.Row="3" Background="{DynamicResource ProjectCardBrush}" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="0,1,0,0" Padding="12,8">
-      <Border.Styles><Style Selector="Button"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="8,5"/></Style></Border.Styles>
+      <Border.Styles>
+        <Style Selector="Button"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="8,6"/><Setter Property="MinHeight" Value="32"/><Setter Property="Margin" Value="1,2"/></Style>
+        <Style Selector="Border.toolDivider"><Setter Property="Width" Value="1"/><Setter Property="Height" Value="18"/><Setter Property="Margin" Value="7,8"/><Setter Property="Background" Value="{DynamicResource ProjectStrokeBrush}"/></Style>
+      </Border.Styles>
       <Grid RowDefinitions="Auto,*">
         <WrapPanel Orientation="Horizontal">
-          <Button x:Name="ClipsToggle" Content="{Binding Strings[ProjectClips]}" Click="OnToggleClips"/>
-          <Button x:Name="PropertiesToggle" Content="{Binding Strings[ProjectProperties]}" Click="OnToggleProperties"/>
-          <Button Content="{Binding Strings[ProjectUndo]}" Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}"/>
-          <Button Content="{Binding Strings[ProjectRedo]}" Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}"/>
-          <Button Content="{Binding Strings[ProjectSplit]}" Command="{Binding SplitAtPlayheadCommand}" IsEnabled="{Binding CanSplit}"/>
-          <Button Content="{Binding Strings[ProjectRangeStart]}" Command="{Binding MarkRangeStartCommand}" IsEnabled="{Binding CanEditTimeline}"/>
-          <Button Content="{Binding Strings[ProjectRangeEnd]}" Command="{Binding MarkRangeEndCommand}" IsEnabled="{Binding CanEditTimeline}"/>
-          <Button Content="{Binding Strings[ProjectDeleteRange]}" Command="{Binding DeleteRangeCommand}" IsEnabled="{Binding CanDeleteRange}"/>
-          <Button Content="{Binding Strings[ProjectFitTimeline]}" Click="OnFitTimeline"/>
-          <TextBlock Text="{Binding TimelineTimeText}" VerticalAlignment="Center" Margin="12,0" FontSize="12"/>
+          <Button x:Name="ClipsToggle" Click="OnToggleClips" AutomationProperties.Name="{Binding Strings[ProjectClipsShort]}"><editor:EditorToolContent Icon="clips" Text="{Binding Strings[ProjectClipsShort]}"/></Button>
+          <Button x:Name="PropertiesToggle" Click="OnToggleProperties" AutomationProperties.Name="{Binding Strings[ProjectPropertiesShort]}"><editor:EditorToolContent Icon="properties" Text="{Binding Strings[ProjectPropertiesShort]}"/></Button>
+          <Border Classes="toolDivider"/>
+          <Button Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}" AutomationProperties.Name="{Binding Strings[ProjectUndo]}"><editor:EditorToolContent Icon="undo" Text="{Binding Strings[ProjectUndo]}"/></Button>
+          <Button Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}" AutomationProperties.Name="{Binding Strings[ProjectRedo]}"><editor:EditorToolContent Icon="redo" Text="{Binding Strings[ProjectRedo]}"/></Button>
+          <Border Classes="toolDivider"/>
+          <Button Command="{Binding SplitAtPlayheadCommand}" IsEnabled="{Binding CanSplit}" AutomationProperties.Name="{Binding Strings[ProjectSplit]}"><editor:EditorToolContent Icon="split" Text="{Binding Strings[ProjectSplit]}"/></Button>
+          <Button Command="{Binding MarkRangeStartCommand}" IsEnabled="{Binding CanEditTimeline}" AutomationProperties.Name="{Binding Strings[ProjectRangeStart]}"><editor:EditorToolContent Icon="start" Text="{Binding Strings[ProjectRangeStart]}"/></Button>
+          <Button Command="{Binding MarkRangeEndCommand}" IsEnabled="{Binding CanEditTimeline}" AutomationProperties.Name="{Binding Strings[ProjectRangeEnd]}"><editor:EditorToolContent Icon="end" Text="{Binding Strings[ProjectRangeEnd]}"/></Button>
+          <Button Command="{Binding DeleteRangeCommand}" IsEnabled="{Binding CanDeleteRange}" AutomationProperties.Name="{Binding Strings[ProjectDeleteRange]}"><editor:EditorToolContent Icon="delete" Text="{Binding Strings[ProjectDeleteRange]}"/></Button>
+          <Border Classes="toolDivider"/>
+          <Button Click="OnFitTimeline" AutomationProperties.Name="{Binding Strings[ProjectFitTimeline]}"><editor:EditorToolContent Icon="fit" Text="{Binding Strings[ProjectFitTimeline]}"/></Button>
         </WrapPanel>
         <editor:ProjectTimelineControl x:Name="TimelineControl" Grid.Row="1" ToolTip.Tip="{Binding Strings[ProjectTimelineHelp]}"/>
       </Grid>

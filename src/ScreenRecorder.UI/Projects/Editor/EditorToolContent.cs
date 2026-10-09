@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.Shapes;
+using Avalonia.Layout;
+using Avalonia.Media;
+
+namespace ScreenRecorder.UI.Projects.Editor;
+
+/// <summary>Resolution-independent, consistently sized line icons with visible action labels.</summary>
+public sealed class EditorToolContent : UserControl
+{
+    public static readonly StyledProperty<string> TextProperty = AvaloniaProperty.Register<EditorToolContent, string>(nameof(Text), "");
+    public static readonly StyledProperty<string> IconProperty = AvaloniaProperty.Register<EditorToolContent, string>(nameof(Icon), "clips");
+    public string Text { get => GetValue(TextProperty); set => SetValue(TextProperty, value); }
+    public string Icon { get => GetValue(IconProperty); set => SetValue(IconProperty, value); }
+    private readonly TextBlock _label = new() { VerticalAlignment = VerticalAlignment.Center, FontSize = 12 };
+    private readonly Avalonia.Controls.Shapes.Path _icon = new() { Width = 16, Height = 16, Stretch = Stretch.Uniform,
+        StrokeThickness = 1.5, StrokeLineCap = PenLineCap.Round, StrokeJoin = PenLineJoin.Round,
+        VerticalAlignment = VerticalAlignment.Center };
+    public EditorToolContent()
+    {
+        _icon.Bind(Shape.StrokeProperty, this.GetObservable(ForegroundProperty));
+        Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { _icon, _label } };
+        UpdateLabel(); UpdateIcon();
+    }
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == TextProperty) UpdateLabel();
+        if (change.Property == IconProperty) UpdateIcon();
+    }
+    private void UpdateLabel()
+    {
+        _label.Text = Text;
+        _label.IsVisible = Text.Length > 0;
+    }
+    private void UpdateIcon()
+    {
+        _icon.Data = Geometry.Parse(Icon switch {
+            "properties" => "M2,4 H14 M2,8 H14 M2,12 H14 M5,2 V6 M11,6 V10 M6,10 V14",
+            "split" => "M6,6 L14,14 M6,10 L14,2 M3,3 A2.5,2.5 0 1 0 3,8 A2.5,2.5 0 1 0 3,3 M3,9 A2.5,2.5 0 1 0 3,14 A2.5,2.5 0 1 0 3,9",
+            "undo" => "M6,3 L2,7 L6,11 M2,7 H10 C15,7 15,14 10,14",
+            "redo" => "M10,3 L14,7 L10,11 M14,7 H6 C1,7 1,14 6,14",
+            "start" => "M6,2 H3 V14 H6 M10,5 L13,8 L10,11",
+            "end" => "M10,2 H13 V14 H10 M6,5 L3,8 L6,11",
+            "delete" => "M2,4 H14 M6,4 V2 H10 V4 M4,4 L5,14 H11 L12,4 M7,7 V11 M9,7 V11",
+            "fit" => "M5,2 H2 V5 M11,2 H14 V5 M2,11 V14 H5 M14,11 V14 H11 M5,8 H11",
+            "thumbnail" => "M2,2 H14 V14 H2 Z M3,11 L6,7 L9,10 L11,8 L14,12 M10,5 H11",
+            _ => "M2,3 H3 M6,3 H14 M2,8 H3 M6,8 H14 M2,13 H3 M6,13 H14"
+        });
+    }
+}
