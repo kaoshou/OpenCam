@@ -46,8 +46,8 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     public bool CanEditSelection => CanEdit && SelectedClip is not null && Clips.Contains(SelectedClip);
     public bool CanMoveEarlier => CanEditTimeline && CanEditSelection && GroupStart(Clips.IndexOf(SelectedClip!)) > 0;
     public bool CanMoveLater => CanEditTimeline && CanEditSelection && GroupEnd(Clips.IndexOf(SelectedClip!)) < Clips.Count - 1;
-    public string SaveStatus => Strings[StatusUnconfirmed ? "ProjectUnconfirmed" : IsBusy ? "ProjectSaving" :
-        Error is not null ? "ProjectSaveFailed" : State.IsDirty ? "ProjectUnsaved" : "ProjectSaved"];
+    public string SaveStatus => State.ProjectId is null ? "" : Strings[StatusUnconfirmed ? "ProjectUnconfirmed" : IsBusy ? "ProjectSaving" :
+        Error is not null ? "ProjectSaveFailed" : State.IsDirty || HasPropertyDraft ? "ProjectUnsaved" : "ProjectSaved"];
     public string ModeText => Strings["ProjectMode" + State.Mode];
     public string StartText => Strings[State.Mode == ProjectMode.Paused ? "ProjectContinue" : "ProjectRecord"];
     public string ClipCountText => $"{Clips.Count} / {State.ClipCount}";

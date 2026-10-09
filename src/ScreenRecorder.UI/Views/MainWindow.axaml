@@ -2,6 +2,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:ScreenRecorder.UI.ViewModels"
+        xmlns:editor="using:ScreenRecorder.UI.Projects.Editor"
         x:Class="ScreenRecorder.UI.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="{Binding Strings[AppTitle]}"
@@ -76,8 +77,11 @@
 
 
 
-                    <Button Content="{Binding Strings[ContentEditor]}" Click="OnProjectWorkspace"
-                            IsEnabled="{Binding CanOpenContentEditor}" FontSize="12" Padding="11,7.5" CornerRadius="8"/>
+                    <Button Click="OnProjectWorkspace" AutomationProperties.Name="{Binding Strings[ContentEditor]}"
+                            IsEnabled="{Binding CanOpenContentEditor}" FontSize="12" Padding="11,7.5" CornerRadius="8"
+                            Background="#EFF6FF" Foreground="#1D4ED8" BorderBrush="#BFDBFE" BorderThickness="1">
+                        <editor:EditorToolContent Icon="split" Text="{Binding Strings[ContentEditor]}"/>
+                    </Button>
 
                     <!-- 修復救援按鈕 (柔和琥珀金) -->
                     <Button Command="{Binding RecoverSessionsCommand}"
@@ -132,10 +136,16 @@
                     Padding="14,12" Margin="0,0,8,0" BoxShadow="0 4 16 #0F172A08">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Spacing="9" Margin="0,0,6,0">
-                    <StackPanel Spacing="4" IsVisible="{Binding UsesRecordingContent}" IsEnabled="{Binding CanStartRecording}">
-                        <TextBlock Text="{Binding Strings[ProjectNameOptional]}" FontSize="12"/>
-                        <TextBox Text="{Binding NextProjectName}" MaxLength="200"
-                                 Watermark="{Binding Strings[ProjectNameAutomatic]}"/>
+                    <StackPanel Spacing="8" IsVisible="{Binding UsesRecordingContent}">
+                        <TextBlock Text="{Binding CurrentRecordingProjectName}" FontSize="14" FontWeight="SemiBold"
+                                   TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding CurrentRecordingProjectDirectory}"/>
+                        <TextBlock Text="{Binding CurrentRecordingProjectDetails}" FontSize="12" Foreground="#64748B"/>
+                        <WrapPanel>
+                            <Button Command="{Binding NewRecordingProjectCommand}" IsEnabled="{Binding CanManageRecordingProject}"
+                                    Content="{Binding Strings[HomeProjectNew]}" FontSize="12" Padding="10,6" CornerRadius="6" Margin="0,0,6,4"/>
+                            <Button Click="OnOpenRecordingProject" IsEnabled="{Binding CanManageRecordingProject}"
+                                    Content="{Binding Strings[HomeProjectOpen]}" FontSize="12" Padding="10,6" CornerRadius="6" Margin="0,0,0,4"/>
+                        </WrapPanel>
                     </StackPanel>
                     <!-- 錄影目標即時提示徽章 (冰藍漸層微光標籤) -->
                     <Border BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="8" Padding="12,7">

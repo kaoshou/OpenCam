@@ -10,7 +10,18 @@ Change capture mode only while idle, not while paused. Existing audio/cursor con
 
 OpenCam is a reliability-first screen recorder for Windows and macOS. During recording, it writes to interruption-resistant MKV working files and packages them as MP4 after a normal stop. If a crash, power failure, or forced termination occurs, Crash Recovery can attempt to preserve content that was already written successfully.
 
-> This guide covers OpenCam v0.2.6 development-preview recording features. Editor integration is not fully accepted; Windows editor audiovisual preview and precision export backends are incomplete. The existing guide is not a claim that every new editor feature works. See the README and verification report for platform and acceptance limitations.
+> This guide covers OpenCam v0.2.7 development-preview features. Windows editor audiovisual preview and precision export backends are wired but still require Windows device acceptance. This version is available only as GitHub Actions artifacts, without a Release; use disposable media. This guide does not claim complete acceptance. See the README and verification report for limitations.
+
+### v0.2.7 preview: home and editor workflow
+
+1. With no project open, Start recording asks for a name prefilled with the date and time. Confirm creates the project and starts capture; Cancel does neither.
+2. With a project open, Start appends clips. Stop saves sources and automatically exports MP4 while retaining the editable project.
+3. New recording project creates without capturing. Open recording project selects `project.opencam`. The home screen shows the current name and clip count.
+4. After a saved pause or completed stop/export, Edit recording opens the current content. The editor handles editing, project saving and MP4 export; returning home retains the project.
+5. Active recording blocks editor entry and project creation/opening. A saved pause permits editing, but switching projects requires stopping. Resuming capture hides the editor.
+6. Project saved means the editing data was saved, not that an updated MP4 was exported. Retain the entire project folder and sources; do not move only the `.opencam` file.
+
+See the [README](../README.md) for Windows portable testing instructions. Start with short, disposable media: record/pause/resume/stop, edit and undo, save and reopen, append recording, then export MP4 and check audio/video synchronization.
 
 ## 1. System Requirements and First Launch
 

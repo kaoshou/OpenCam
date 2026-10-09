@@ -37,10 +37,9 @@ public sealed partial class ProjectWorkspaceViewModel
                 State.ServerInstanceId != state.ServerInstanceId || PlayheadTicks != ticks) return;
             if (!reply.Success || reply.Unconfirmed) { _failedPreviewTicks = ticks; return; }
             var frame = reply.Frame;
-            var span = TimelineClips.FirstOrDefault(c => ticks >= c.StartTicks && ticks < c.EndTicks);
             if (reply.State.ProjectId != state.ProjectId || reply.State.Revision != state.Revision ||
                 reply.State.ServerInstanceId != state.ServerInstanceId || frame is null ||
-                frame.Revision != state.Revision || frame.TimelineTicks != ticks || frame.ClipId != span?.ClipId) return;
+                frame.Revision != state.Revision || frame.TimelineTicks != ticks || !TimelineClips.Any(c => c.ClipId == frame.ClipId)) return;
             if (frame.Error is not null || frame.Rgba is { Length: not ProjectFrameReply.ByteCount })
             { _failedPreviewTicks = ticks; return; }
             if (frame.Rgba is null) return;

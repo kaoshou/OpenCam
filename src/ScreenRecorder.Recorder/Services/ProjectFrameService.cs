@@ -3,25 +3,33 @@ using System.Security.Cryptography;
 using ScreenRecorder.Core.Projects;
 using ScreenRecorder.Infrastructure.IPC;
 using ScreenRecorder.Media.Projects;
+using ScreenRecorder.Infrastructure.Projects;
+using System.Text.Json;
+using Serilog;
 
 namespace ScreenRecorder.Recorder.Services;
 
 /// <summary>One still decoder, bounded memory, latest-position wins. Caller serializes queries with capture start.</summary>
 public sealed class ProjectFrameService(ProjectRecordingCoordinator coordinator, IProjectMediaProcess process) : IAsyncDisposable
 {
-    private (Guid Project, long Revision, long Ticks) _key;
+    private (Guid Project, long Revision, long Ticks, Guid Thumbnail) _key;
     private Task<ProjectFrameReply>? _running;
     private CancellationTokenSource? _cancel;
     private bool _superseded;
+    private ProjectFrameCache? _cache;
+    private Guid _cacheProject;
 
-    public async Task<ProjectFrameReply> QueryAsync(Guid projectId, long revision, long ticks)
+    public async Task<ProjectFrameReply> QueryAsync(Guid projectId, long revision, long ticks, Guid thumbnailClipId = default)
     {
         if (coordinator.Current?.ProjectId != projectId || coordinator.Current.Revision != revision ||
             coordinator.Mode is not (ProjectMode.Ready or ProjectMode.Paused))
             throw new InvalidOperationException("Preview snapshot is no longer current.");
-        var timeline = ProjectTimeline.Build(coordinator.Current);
-        var position = timeline.Locate(ticks) ?? throw new InvalidDataException("Preview position is outside the timeline.");
-        var key = (projectId, revision, ticks);
+        var snapshot = coordinator.Current;
+        var selection = ProjectStillSelection.Create(snapshot, ticks, thumbnailClipId);
+        var (plan, index, frame) = selection;
+        var part = plan.Clips[index];
+        var position = new ProjectPosition(part.Clip.Id, part.Source.Id, part.Clip.InPts);
+        var key = (projectId, revision, ticks, thumbnailClipId);
         if (_running is not null)
         {
             if (!_running.IsCompleted)
@@ -34,6 +42,10 @@ public sealed class ProjectFrameService(ProjectRecordingCoordinator coordinator,
             _cancel!.Dispose();
         }
         var lease = await coordinator.OpenMediaSourceAsync(projectId, revision, position.ClipId, default);
+        if (_cacheProject != projectId) { _cache?.Dispose(); _cache = null; _cacheProject = projectId; }
+        try { _cache ??= await coordinator.OpenFrameCacheAsync(projectId, default); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        { Log.Debug(ex, "Frame cache unavailable; decoding without cache"); }
         _key = key;
         _superseded = false;
         _cancel = new(TimeSpan.FromSeconds(15));
@@ -49,10 +61,34 @@ public sealed class ProjectFrameService(ProjectRecordingCoordinator coordinator,
                             lease.Source.Sha256, StringComparison.OrdinalIgnoreCase))
                         throw new InvalidDataException("Original source fingerprint changed.");
                     lease.Stream.Position = 0;
-                    var job = ProjectMediaJob.ExtractFrame(position.SourcePts, lease.Source.Timing.TimeBase,
-                        ProjectFrameReply.Width, ProjectFrameReply.Height, lease.Clip.OutPts);
+                    // No revision/name in key: renaming can reuse identical pixels.
+                    // Source fingerprint is rechecked above; cache never bypasses source validation.
+                    var cacheKey = Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(new {
+                        Algorithm = 3, lease.Source.Sha256, lease.Source.Timing, plan.Canvas, frame,
+                        part.Clip.InPts, part.Clip.OutPts, part.Clip.Crop, part.Clip.Scale,
+                        part.Clip.PositionX, part.Clip.PositionY,
+                        StartNumerator = part.ExactStart.Numerator.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        StartDenominator = part.ExactStart.Denominator.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        part.StartFrame,
+                        Width = ProjectFrameReply.Width, Height = ProjectFrameReply.Height
+                    })));
+                    if (_cache is not null)
+                    {
+                        try {
+                            var cached = await _cache.ReadAsync(cacheKey, ProjectFrameReply.ByteCount, token);
+                            if (cached is not null) return new(revision, ticks, position.ClipId, cached);
+                        }
+                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                        { Log.Debug(ex, "Frame cache miss; rebuilding derived image"); }
+                    }
+                    var job = ProjectMediaJob.PreviewStill(plan, index, frame,
+                        ProjectFrameReply.Width, ProjectFrameReply.Height);
                     var result = await process.RunAsync(job, [lease.Stream], null, token);
                     if (result.Output.Length != ProjectFrameReply.ByteCount) throw new InvalidDataException("Invalid frame size.");
+                    if (_cache is not null)
+                        try { await _cache.PutAsync(cacheKey, result.Output, token); }
+                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                        { Log.Debug(ex, "Frame cache write skipped; source and preview are retained"); }
                     return new ProjectFrameReply(revision, ticks, position.ClipId, result.Output);
                 }
                 catch (Exception) { return new(revision, ticks, position.ClipId, null, "Preview could not be decoded. Original media is unchanged."); }
@@ -68,6 +104,7 @@ public sealed class ProjectFrameService(ProjectRecordingCoordinator coordinator,
         _cancel?.Dispose();
         _cancel = null;
         _running = null;
+        _cache?.Dispose(); _cache = null;
     }
     public async ValueTask DisposeAsync() => await SuspendAsync();
 }

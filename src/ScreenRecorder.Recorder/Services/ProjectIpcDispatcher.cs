@@ -145,7 +145,7 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
                 return Reply(new(true, null, Snapshot()) { Playback = current.State, Frame = current.Frame });
             }
             return Reply(new(true, null, Snapshot()) { Frame = await frames.QueryAsync(request.ProjectId.Value,
-                request.ExpectedRevision, request.TimelineTicks) });
+                request.ExpectedRevision, request.TimelineTicks, request.ClipId) });
         }
         catch (Exception ex) { return Reply(new(false, ex.Message, Snapshot())); }
         finally { _gate.Release(); }

@@ -13,6 +13,13 @@ public partial class MainViewModel
     private bool _openingContent;
     private Guid? _announcedExport;
     public bool UsesRecordingContent => _content is not null;
+    public Func<string, Task<string?>>? RequestRecordingProjectName { get; set; }
+    public bool CanManageRecordingProject => !IsPreparing && !IsRecovering && _content?.CanReplaceProject == true;
+    public string CurrentRecordingProjectName => _content?.Workspace.State.ProjectId is null
+        ? Strings["ProjectModeClosed"] : _content.Workspace.State.Name;
+    public string CurrentRecordingProjectDetails => _content?.Workspace.State.ProjectId is null ? "" :
+        $"{Strings["ProjectClips"]} {_content.Workspace.State.ClipCount}";
+    public string? CurrentRecordingProjectDirectory => _content?.Workspace.State.Directory;
     public bool IsContentExporting => _content?.Workspace.IsExporting == true;
     internal bool ForceQuitAuthorized => _forceQuitAuthorized;
 
@@ -25,7 +32,47 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(CanForceQuitUnconfirmed));
     }
     public bool CanOpenContentEditor => !IsRecovering && !IsPreparing &&
-        (_content?.CanOpenEditor ?? (!IsRecording && !IsPaused));
+        (_content is not null ? _content.Workspace.State.ProjectId is not null && _content.CanOpenEditor : (!IsRecording && !IsPaused));
+
+    private async Task<string?> AskProjectNameAsync()
+    {
+        if (RequestRecordingProjectName is null) return null; // Never start capture without confirmation.
+        var name = await RequestRecordingProjectName(Strings["ProjectDefaultName"] + " " + DateTime.Now.ToString("yyyy-MM-dd HH.mm.ss"));
+        if (name is null) return null;
+        name = name.Trim();
+        ProjectValidation.ValidateName(name);
+        return name;
+    }
+
+    [RelayCommand]
+    public async Task NewRecordingProjectAsync()
+    {
+        if (!CanManageRecordingProject || _content is null) return;
+        _openingContent = true; SyncRecordingContent();
+        try
+        {
+            var parent = OutputDirectory;
+            var name = await AskProjectNameAsync();
+            if (name is null) return;
+            await _ensureContentRecorder!();
+            await _content.ReplaceProjectAsync(parent, name);
+        }
+        catch (Exception ex) { _content.Workspace.Error = ex.Message; }
+        finally { _openingContent = false; SyncRecordingContent(); }
+    }
+
+    public async Task OpenRecordingProjectAsync(string path)
+    {
+        if (!CanManageRecordingProject || _content is null) return;
+        _openingContent = true; SyncRecordingContent();
+        try
+        {
+            await _ensureContentRecorder!();
+            await _content.ReplaceProjectAsync(path);
+        }
+        catch (Exception ex) { _content.Workspace.Error = ex.Message; }
+        finally { _openingContent = false; SyncRecordingContent(); }
+    }
 
     internal void ConfigureRecordingContent(IProjectClient client, Func<bool> permission, Func<Task> ensureRecorder)
     {
@@ -53,6 +100,7 @@ public partial class MainViewModel
         else if (IsPreparing) StatusMessage = Strings["StatusInitializing"];
         else if (IsRecording) StatusMessage = Strings["StatusRecordingActive"];
         else if (IsPaused) StatusMessage = Strings["StatusPausedMsg"];
+        else StatusMessage = Strings["StatusReady"];
         if (vm.State.Export is { State: RecordingExportState.Succeeded, FinalPath: not null } export && _announcedExport != export.ExportId)
         {
             _announcedExport = export.ExportId;
@@ -81,6 +129,8 @@ public partial class MainViewModel
         foreach (var name in new[] { nameof(CanOpenContentEditor), nameof(CanStartRecording), nameof(CanStopRecording), nameof(CanPauseOrResume) })
             OnPropertyChanged(name);
         OnPropertyChanged(nameof(IsContentExporting));
+        foreach (var name in new[] { nameof(CanManageRecordingProject), nameof(CurrentRecordingProjectName),
+            nameof(CurrentRecordingProjectDetails), nameof(CurrentRecordingProjectDirectory) }) OnPropertyChanged(name);
         OnPropertyChanged(nameof(CanForceQuitUnconfirmed));
         CancelContentExportCommand.NotifyCanExecuteChanged();
     }
@@ -95,6 +145,12 @@ public partial class MainViewModel
         SyncRecordingContent();
         try
         {
+            if (newContent)
+            {
+                var name = await AskProjectNameAsync();
+                if (name is null) return;
+                configuration.ProjectName = name;
+            }
             if (!_contentPermission!())
             {
                 vm.Error = Strings["StatusScreenPermissionRequired"];
@@ -122,6 +178,7 @@ public partial class MainViewModel
         var vm = _content.Workspace;
         if (vm.IsBusy || vm.StatusUnconfirmed || vm.IsExporting || vm.State.Mode == ProjectMode.Recording) return false;
         if (!await vm.StopPreviewAsync()) return false;
+        if (vm.State.Mode == ProjectMode.Interrupted) return true; // Preserve recovery bytes until explicitly confirmed.
         if (vm.State.ProjectId is null) return true;
         await vm.SaveAsync();
         return !vm.StatusUnconfirmed && !vm.State.IsDirty && !vm.HasPropertyDraft && vm.Error is null;

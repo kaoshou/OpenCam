@@ -98,26 +98,16 @@
         <TextBlock Text="{Binding SaveStatus}" FontSize="12" Foreground="{DynamicResource ProjectMutedBrush}"/>
       </StackPanel>
       <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-        <Button x:Name="NewProjectButton" Content="{Binding Strings[ProjectNew]}" Click="OnNew" IsEnabled="{Binding CanReplaceProject}"/>
-        <Button Content="{Binding Strings[ProjectOpen]}" Click="OnOpen" IsEnabled="{Binding CanReplaceProject}"/>
         <Button Content="{Binding Strings[ProjectSave]}" Command="{Binding SaveCommand}" IsEnabled="{Binding !IsBusy}"/>
         <Button x:Name="ExportButton" Click="OnExport" IsEnabled="{Binding CanExport}" Background="#2563EB" Foreground="White" AutomationProperties.Name="{Binding Strings[ProjectExportMp4]}">
           <editor:EditorToolContent Icon="export" Text="{Binding Strings[ProjectExportMp4]}"/>
         </Button>
-        <Button Content="{Binding Strings[ProjectClose]}" Click="OnClose"/>
+        <Button Content="{Binding Strings[ProjectCaptureSettings]}" Click="OnCaptureSettings" IsEnabled="{Binding CanReturnToRecording}"/>
       </StackPanel>
     </Grid>
     </Border>
-    <Border Grid.Row="1" Background="{DynamicResource ProjectCardBrush}" Padding="16,4" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="0,0,0,1">
+    <Border Grid.Row="1" IsVisible="{Binding IsExporting}" Background="{DynamicResource ProjectCardBrush}" Padding="16,4" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="0,0,0,1">
       <Grid ColumnDefinitions="*,Auto">
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <Button Content="{Binding StartText}" Click="OnRecord" IsEnabled="{Binding CanRecord}" Background="#2563EB" Foreground="White"/>
-          <Button Click="OnInsertRecording" IsEnabled="{Binding CanRecord}" AutomationProperties.Name="{Binding Strings[ProjectInsertHere]}">
-            <editor:EditorToolContent Icon="insert" Text="{Binding Strings[ProjectInsertHere]}"/>
-          </Button>
-          <Button Content="{Binding Strings[ProjectPause]}" Command="{Binding PauseCommand}" IsEnabled="{Binding CanPause}"/>
-          <Button Content="{Binding Strings[ProjectFinish]}" Click="OnFinishRecording" IsEnabled="{Binding CanFinish}"/>
-        </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
           <ProgressBar Width="100" Minimum="0" Maximum="100" Value="{Binding ExportProgress}" IsVisible="{Binding IsExporting}"/>
           <Button Content="{Binding Strings[ProjectExportCancel]}" Command="{Binding CancelExportCommand}" IsVisible="{Binding IsExporting}"/>
@@ -222,9 +212,6 @@
 
           <Button Content="{Binding Strings[ProjectRefresh]}" Command="{Binding RefreshCommand}" IsEnabled="{Binding CanReplaceProject}"/>
           <Button Content="{Binding Strings[ProjectRestoreBackup]}" Click="OnRestoreBackup" IsVisible="{Binding State.NeedsRecoveryConfirmation}"/>
-          <TextBlock Text="{Binding Strings[ProjectRecent]}" FontWeight="SemiBold" Margin="0,10,0,0"/>
-          <ComboBox x:Name="RecentProjects" HorizontalAlignment="Stretch" MaxWidth="198"/>
-          <Button Content="{Binding Strings[ProjectOpen]}" Click="OnOpenRecent" IsEnabled="{Binding CanReplaceProject}"/>
         </StackPanel>
         </ScrollViewer>
       </Border>
@@ -255,7 +242,6 @@
     <Grid Grid.Row="4" ColumnDefinitions="*,Auto" Margin="16,4">
       <TextBlock Text="{Binding ExportStatusText}" IsVisible="{Binding !HasEditorError}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding ExportStatusText}"/>
       <TextBlock Text="{Binding Error}" Foreground="{DynamicResource ProjectErrorBrush}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Error}"/>
-      <TextBlock Grid.Column="1" Text="{Binding SaveStatus}" FontSize="12" Foreground="{DynamicResource ProjectMutedBrush}"/>
     </Grid>
   </Grid>
 </Window>

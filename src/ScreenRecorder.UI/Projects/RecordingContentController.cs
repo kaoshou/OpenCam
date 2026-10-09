@@ -16,11 +16,12 @@ public sealed class RecordingContentController : ObservableObject
     public bool IsBusy { get => _isBusy; private set { SetProperty(ref _isBusy, value); NotifyState(); } }
     private bool Available => !IsBusy && !Workspace.IsBusy && !Workspace.StatusUnconfirmed && !Workspace.IsExporting;
     public bool CanStartNew => Available && Workspace.State.Mode is ProjectMode.Closed or ProjectMode.Ready;
+    public bool CanReplaceProject => Available && Workspace.State.Mode is ProjectMode.Closed or ProjectMode.Ready or ProjectMode.Interrupted;
     public bool CanResume => Available && Workspace.State.Mode is ProjectMode.Ready or ProjectMode.Paused;
     public bool CanPause => Available && Workspace.State.Mode == ProjectMode.Recording;
     public bool CanStop => Available && Workspace.State.Mode is ProjectMode.Recording or ProjectMode.Paused or ProjectMode.SaveFailed;
     public bool CanOpenEditor => Available && !Workspace.State.IsDirty &&
-        (Workspace.State.Mode is ProjectMode.Closed or ProjectMode.Ready ||
+        (Workspace.State.Mode is ProjectMode.Closed or ProjectMode.Ready or ProjectMode.Interrupted ||
          Workspace.State.Mode == ProjectMode.Paused && Workspace.State.ClipCount > 0);
 
     // Mandatory: callers must supply the real playback stop acknowledgement, never an implicit no-op.
@@ -34,7 +35,7 @@ public sealed class RecordingContentController : ObservableObject
 
     private void NotifyState()
     {
-        foreach (var property in new[] { nameof(CanStartNew), nameof(CanResume), nameof(CanPause), nameof(CanStop), nameof(CanOpenEditor) })
+        foreach (var property in new[] { nameof(CanStartNew), nameof(CanReplaceProject), nameof(CanResume), nameof(CanPause), nameof(CanStop), nameof(CanOpenEditor) })
             OnPropertyChanged(property);
     }
 
@@ -61,6 +62,16 @@ public sealed class RecordingContentController : ObservableObject
         if (await SaveCurrentAsync()) await Workspace.FinishAndExportAsync();
     });
     public Task RefreshAsync() => IsBusy ? Task.CompletedTask : Workspace.RefreshAsync();
+
+    public Task ReplaceProjectAsync(string path, string? name = null) => !CanReplaceProject ? Task.CompletedTask : RunAsync(async () =>
+    {
+        await StopPreviewAsync();
+        // Recovery must remain explicit; do not save over a damaged primary manifest.
+        if (Workspace.State.Mode != ProjectMode.Interrupted && !await SaveCurrentAsync()) return;
+        if (!await Workspace.CloseAsync()) return;
+        if (name is null) await Workspace.OpenAsync(path);
+        else await Workspace.CreateAsync(path, name);
+    });
 
     private async Task<bool> SaveCurrentAsync()
     {

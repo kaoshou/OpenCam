@@ -26,6 +26,7 @@ public partial class MainWindow : Window
             if (_identificationViewModel is not null)
             {
                 _identificationViewModel.PropertyChanged -= OnIdentificationViewModelPropertyChanged;
+                _identificationViewModel.RequestRecordingProjectName = null;
             }
             _displayIdentification.Close();
             _identificationViewModel = DataContext as MainViewModel;
@@ -36,6 +37,7 @@ public partial class MainWindow : Window
 
             if (DataContext is MainViewModel vm)
             {
+                vm.RequestRecordingProjectName = AskRecordingProjectNameAsync;
                 vm.RequestMinimizeWindow += (sender, args) =>
                 {
                     WindowState = WindowState.Minimized;
@@ -60,6 +62,14 @@ public partial class MainWindow : Window
 
     private void OnIdentificationViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(MainViewModel.IsRecording) &&
+            sender is MainViewModel { IsRecording: true } && _projectWindow?.IsVisible == true)
+        {
+            // Resume may come from a hotkey while the paused editor is visible.
+            // Keep its project, but never leave the editing window over an active capture.
+            _projectWindow.Hide();
+            Show(); Activate();
+        }
         if (e.PropertyName is nameof(MainViewModel.IsPreparing) or nameof(MainViewModel.IsRecording)
             or nameof(MainViewModel.IsMonitorSelected) or nameof(MainViewModel.SelectedMonitor)
             or nameof(MainViewModel.IsRecovering))
@@ -116,8 +126,8 @@ public partial class MainWindow : Window
 
     private async void OnProjectWorkspace(object? sender, RoutedEventArgs e)
     {
-        if (_projectWindow is not null) { _projectWindow.ShowForRecordingWindow(this); return; }
         if (DataContext is not MainViewModel vm || !vm.CanOpenContentEditor) return;
+        if (_projectWindow is not null) { _projectWindow.ShowForRecordingWindow(this); return; }
         try
         {
             var model = await vm.PrepareProjectWorkspaceAsync();
@@ -126,6 +136,40 @@ public partial class MainWindow : Window
             _projectWindow.ShowForRecordingWindow(this);
         }
         catch (Exception ex) { vm.StatusMessage = ex.Message; }
+    }
+
+    private async Task<string?> AskRecordingProjectNameAsync(string defaultName)
+    {
+        if (DataContext is not MainViewModel vm) return null;
+        var dialog = new Window { Title = vm.Strings["HomeProjectName"], Width = 460, Height = 235,
+            CanResize = false, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        var input = new TextBox { Text = defaultName, MaxLength = 200 };
+        var error = new TextBlock { Foreground = Avalonia.Media.Brushes.Firebrick, TextWrapping = Avalonia.Media.TextWrapping.Wrap };
+        var confirm = new Button { Content = vm.Strings["Confirm"], IsDefault = true };
+        var cancel = new Button { Content = vm.Strings["Cancel"], IsCancel = true };
+        confirm.Click += (_, _) => {
+            try {
+                var name = input.Text?.Trim() ?? "";
+                ScreenRecorder.Core.Projects.ProjectValidation.ValidateName(name);
+                dialog.Close(name);
+            }
+            catch (Exception ex) { error.Text = ex.Message; }
+        };
+        cancel.Click += (_, _) => dialog.Close((string?)null);
+        dialog.Content = new StackPanel { Margin = new(24), Spacing = 12, Children = {
+            new TextBlock { Text = vm.Strings["HomeProjectName"] }, input, error,
+            new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 12, Children = { confirm, cancel } }
+        }};
+        dialog.Opened += (_, _) => { input.Focus(); input.SelectAll(); };
+        return await dialog.ShowDialog<string?>(this);
+    }
+
+    private async void OnOpenRecordingProject(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm || !vm.CanManageRecordingProject) return;
+        var files = await StorageProvider.OpenFilePickerAsync(new() { Title = vm.Strings["HomeProjectOpen"], AllowMultiple = false,
+            FileTypeFilter = [new("OpenCam") { Patterns = ["*.opencam"] }] });
+        if (files.FirstOrDefault()?.TryGetLocalPath() is { } path) await vm.OpenRecordingProjectAsync(path);
     }
 
     private void OnIdentifyDisplaysClicked(object? sender, RoutedEventArgs e)

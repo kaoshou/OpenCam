@@ -5,18 +5,32 @@ namespace ScreenRecorder.Media.Projects;
 
 public sealed partial class ProjectMediaJob
 {
+    /// <summary>A bounded still uses exactly the playback/export composition, including clip effects.</summary>
+    public static ProjectMediaJob PreviewStill(ProjectRenderPlan plan, int index, long frame,
+        int width = 512, int height = 288)
+    {
+        var preview = PreviewVideo(plan, index, frame, width, height);
+        var args = preview._exportArguments!.ToArray();
+        args[Array.IndexOf(args, "-frames:v") + 1] = "1";
+        return new(preview.SourcePts, preview.TimeBase, width, height)
+        {
+            OutputLimit = checked(width * height * 4), ExactLength = checked(width * height * 4),
+            _exportArguments = args
+        };
+    }
+
     /// <summary>Same composition as export, streamed as fixed-sized RGBA output frames.</summary>
     public static ProjectMediaJob PreviewVideo(ProjectRenderPlan plan, int index, long skipFrames, int width = 512, int height = 288)
     {
         if (width <= 0 || height <= 0 || (long)width * height * 4 > MaximumFrameBytes)
             throw new ArgumentOutOfRangeException(nameof(width));
-        var export = EncodeClipVideo(plan, index);
+        var export = ComposeClipVideo(plan, index, skipFrames, true);
         var count = plan.Clips[index].EndFrame - plan.Clips[index].StartFrame - skipFrames;
         if (skipFrames < 0 || count <= 0) throw new ArgumentOutOfRangeException(nameof(skipFrames));
         var args = export._exportArguments!;
         var filterIndex = Array.IndexOf(args, "-filter_complex");
         var filter = args[filterIndex + 1] + FormattableString.Invariant(
-            $";[out]trim=start_frame={skipFrames},scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black,format=rgba[preview]");
+            $";[out]scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black,format=rgba[preview]");
         var length = checked(count * width * height * 4);
         return new(export.SourcePts, export.TimeBase, width, height) { IsLongRunning = true,
             OutputLimit = length, ExactLength = length,

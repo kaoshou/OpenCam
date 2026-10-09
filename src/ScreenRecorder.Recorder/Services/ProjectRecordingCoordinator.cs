@@ -39,6 +39,18 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
     public ProjectMode Mode { get; private set; } = ProjectMode.Closed;
     public string? LastError { get; private set; }
 
+    internal async Task<ProjectFrameCache> OpenFrameCacheAsync(Guid projectId, CancellationToken ct)
+    {
+        await _gate.WaitAsync(ct);
+        try
+        {
+            if (_handle is null || Current?.ProjectId != projectId)
+                throw new InvalidOperationException("Project is no longer open.");
+            return new ProjectFrameCache(_handle);
+        }
+        finally { _gate.Release(); }
+    }
+
     internal async Task<ProjectMediaLease> OpenMediaSourceAsync(Guid projectId, long revision,
         Guid clipId, CancellationToken ct)
     {

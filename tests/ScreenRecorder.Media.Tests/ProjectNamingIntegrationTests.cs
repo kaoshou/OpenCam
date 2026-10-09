@@ -9,34 +9,33 @@ namespace ScreenRecorder.Media.Tests;
 
 public partial class RecordingEncoderLifecycleTests
 {
-    [Avalonia.Headless.XUnit.AvaloniaTheory]
+    [Theory]
     [InlineData("{}")]
     [InlineData("{\"SchemaVersion\":\"broken\"}")]
-    public async Task CorruptRecentProjectDoesNotPreventEditorOpening(string malformed)
+    public async Task HomeCanOpenValidProjectAfterCorruptProjectReportsError(string malformed)
     {
         await using var scope = new RecordingScope();
         await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
         var dispatcher = new ProjectIpcDispatcher(coordinator);
-        var vm = new ProjectWorkspaceViewModel(new ProjectClient((command, request, ct) =>
-            dispatcher.DispatchAsync(new() { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) })));
         var main = new MainViewModel(forScreenshot: true);
-        await using var valid = await new JsonProjectStore().CreateAsync(scope.Configuration.OutputDirectory, "Valid");
+        main.ConfigureRecordingContent(new ProjectClient((command, request, ct) =>
+            dispatcher.DispatchAsync(new() { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) })),
+            () => true, () => Task.CompletedTask);
+        string validPath;
+        await using (var valid = await new JsonProjectStore().CreateAsync(scope.Configuration.OutputDirectory, "Valid"))
+            validPath = Path.Combine(valid.ProjectDirectory, "project.opencam");
         var bad = Path.Combine(scope.Configuration.OutputDirectory, "project.opencam");
         await File.WriteAllTextAsync(bad, malformed);
-        main.RecentProjectPaths.Clear();
-        main.RecentProjectPaths.Add(bad);
-        main.RecentProjectPaths.Add(Path.Combine(valid.ProjectDirectory, "project.opencam"));
-        var editor = new ProjectWorkspaceView(vm, main);
         try
         {
-            var refresh = typeof(ProjectWorkspaceView).GetMethod("RefreshRecentProjectsAsync",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
-            await (Task)refresh.Invoke(editor, null)!;
-            var combo = Avalonia.Controls.ControlExtensions.FindControl<Avalonia.Controls.ComboBox>(editor, "RecentProjects")!;
-            Assert.Equal(2, combo.Items.Count);
-            Assert.Contains("Valid", combo.Items[1]!.ToString());
+            await main.OpenRecordingProjectAsync(bad);
+            Assert.False(main.CanOpenContentEditor);
+            Assert.False(string.IsNullOrWhiteSpace(main.StatusMessage));
+            await main.OpenRecordingProjectAsync(validPath);
+            Assert.Equal("Valid", main.CurrentRecordingProjectName);
+            Assert.True(main.CanOpenContentEditor);
         }
-        finally { await editor.RequestCloseAsync(); main.Cleanup(); }
+        finally { main.Cleanup(); }
     }
 
     [Fact]

@@ -14,7 +14,11 @@ OpenCam 是一款以可靠性為優先的跨平台桌面螢幕錄影工具。錄
 
 🌐 [OpenCam 官方網站](https://kaoshou.github.io/OpenCam/)（可切換繁體中文／English）
 
-目前原始碼版本為 **0.2.6**，採用 **AGPL-3.0-or-later**。此開發分支為未完成驗收的測試版，僅提供 GitHub Actions artifacts，不代表正式發布。Windows 的編輯影音預覽及精剪輸出後端尚未完成；原錄影流程保留。請使用可拋棄的測試素材，勿以此版取代正式錄影環境。已發布的正式安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。
+目前原始碼版本為 **0.2.7**，採用 **AGPL-3.0-or-later**。此開發分支為未完成實機驗收的測試版，僅提供 GitHub Actions artifacts，**不建立正式 Release**。Windows 編輯影音預覽及精剪輸出後端已接線，仍待 Windows 實機驗證；本機測試通過不代表 Windows 音畫同步、錄影及輸出已驗收。請使用可拋棄的測試素材，勿以此版取代正式錄影環境。已發布的正式安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。
+
+測試版流程：未開啟專案時按「開始錄影」，確認預填的專案名稱後開始；已有專案則追加片段。停止後自動產生 MP4 並保留可編輯專案。新增／開啟專案集中在主畫面；「編輯錄製內容」只負責剪輯、儲存與輸出。錄影中禁止進入編輯器及切換專案，暫停保存後才可編輯。
+
+Windows 測試建議使用 portable：登入 GitHub，在指定 Actions 執行頁下載 `OpenCam-v0.2.7-Windows-x64` artifact；解開外層後，再完整解壓 `OpenCam_v0.2.7_Windows_x64_Portable.zip` 到獨立資料夾，執行其中的 `OpenCam.exe`。保留同資料夾的相依檔案，不從 ZIP 直接執行、不覆蓋正式版本，也不使用唯一一份重要專案測試。Actions 附件有保存期限；只有成功建置後才會出現下載。
 
 測試版的 macOS 錄影首頁可選填專案名稱；留白會使用日期時間，不必先建立專案。編輯器標題旁的鉛筆可改名，支援復原／重做及保存後重開。最近專案顯示名稱與修改日期，輸出的 MP4 也包含安全化的名稱。新專案資料夾包含名稱、日期及唯一識別碼；後續改名不會搬移資料夾或原始素材。編輯器左上角箭頭可返回錄影首頁，保留目前內容。這些整合流程仍需實機驗收。
 
@@ -171,7 +175,11 @@ This version adds bounded encoder probes and caching, actual Recorder encoder/fa
 
 This stage does not replace GDI capture or change audio formats, resolution, or FPS. Real Windows CPU comparisons and cursor-flicker validation remain pending; automated tests do not establish a performance or flicker fix. Download filenames now identify the version, operating system, and architecture: Windows x64 or macOS arm64 (Apple Silicon).
 
-The current source version is **0.2.6**, licensed under **AGPL-3.0-or-later**. This development branch is an unverified preview distributed only as GitHub Actions artifacts, not a stable release. Windows editor audiovisual preview and precision export backends are incomplete; the existing recording path is retained. Use disposable test media, not production recordings. Download stable packages from [Releases](https://github.com/kaoshou/OpenCam/releases).
+The current source version is **0.2.7**, licensed under **AGPL-3.0-or-later**. This development preview is distributed only as GitHub Actions artifacts, **without a formal Release**. Windows editor audiovisual preview and precision export backends are wired, but Windows device acceptance is pending. Passing local tests does not establish Windows recording, A/V synchronization or export reliability. Use disposable test media, not production recordings. Download stable packages from [Releases](https://github.com/kaoshou/OpenCam/releases).
+
+Preview workflow: Start asks for a prefilled project name when no project is open; otherwise it appends clips. Stop automatically exports MP4 while retaining the editable project. New/Open project actions live on the home screen; the editor handles editing, saving and export only. Recording blocks editor entry and project switching; editing is available after a pause has saved the segment.
+
+For Windows testing, sign in to GitHub and download the `OpenCam-v0.2.7-Windows-x64` artifact from the specified Actions run. Extract the outer archive, then fully extract `OpenCam_v0.2.7_Windows_x64_Portable.zip` into a separate folder and run `OpenCam.exe`. Keep its companion files, do not run from inside the ZIP or overwrite a stable installation, and test with disposable project copies. Artifacts expire and are available only after a successful build.
 
 In the macOS preview, the recording home offers an optional project name, defaulting to date and time without a creation wizard. The pencil beside the editor title renames the project with undo/redo and persistence. Recent projects show names and modification dates; exported MP4 filenames include a sanitized name. New project folders contain the name, date and a unique identifier; later renaming never moves folders or original media. The upper-left arrow returns to recording while retaining current content. These integrated workflows still require hands-on acceptance testing.
 

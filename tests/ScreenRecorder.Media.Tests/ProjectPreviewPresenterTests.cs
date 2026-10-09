@@ -8,6 +8,38 @@ namespace ScreenRecorder.Media.Tests;
 public sealed class ProjectPreviewPresenterTests
 {
     [Fact]
+    public async Task SelectingLateClipLoadsItsThumbnailWithoutGrowingMemoryOrMovingPlayhead()
+    {
+        var client = new ManyClipClient();
+        var vm = new ProjectWorkspaceViewModel(client);
+        await vm.RefreshAsync();
+        for (var i = 0; i < 64; i++) await vm.PollThumbnailAsync();
+        Assert.Equal(64, vm.Thumbnails.Count);
+        vm.SelectedClip = vm.Clips[90];
+        await vm.PollThumbnailAsync();
+        Assert.Contains(vm.Clips[90].Id, vm.Thumbnails.Keys);
+        Assert.InRange(vm.Thumbnails.Count, 1, 64);
+        Assert.Equal(0, vm.PlayheadTicks);
+    }
+
+    private sealed class ManyClipClient : IProjectClient
+    {
+        private readonly ProjectClip[] clips = Enumerable.Range(0, 100).Select(i => new ProjectClip {
+            Id = Guid.NewGuid(), Name = $"Clip {i}", InPts = 0, OutPts = 1000 }).ToArray();
+        private readonly ProjectSnapshot state = new(Guid.NewGuid(), "Long project", "/test", 0, 0,
+            ProjectMode.Ready, 100, false, false) { ServerInstanceId = Guid.NewGuid() };
+        public Task<ProjectReply> SendAsync(string command, ProjectRequest request, CancellationToken ct = default)
+        {
+            var timeline = clips.Select((clip, i) => new ProjectTimelineClip(clip.Id,
+                i * TimeSpan.TicksPerSecond, (i + 1) * TimeSpan.TicksPerSecond)).ToArray();
+            return Task.FromResult(command == "GetProjectFrame"
+                ? new ProjectReply(true, null, state) { Frame = new(0, request.TimelineTicks,
+                    clips[(int)(request.TimelineTicks / TimeSpan.TicksPerSecond)].Id, new byte[ProjectFrameReply.ByteCount]) }
+                : new ProjectReply(true, null, state, clips) { TimelineClips = timeline });
+        }
+    }
+
+    [Fact]
     public async Task AudiblePlaybackDoesNotChangeInspectorSelectionAndPauseKeepsPosition()
     {
         var client = new PreviewClient();

@@ -40,7 +40,7 @@ public partial class RecordingEncoderLifecycleTests
                     Width = media.Width, Height = media.Height, VideoCodec = media.VideoCodec, AudioCodec = media.AudioCodec };
                 await owner.SaveAsync(owner.Current with { Revision = 1, Sessions = ["fixture"], Sources = [source],
                     Clips = [new ProjectClip { Id = Guid.NewGuid(), SourceId = source.Id, Name = "含收音的測試片段",
-                        InPts = 2000, OutPts = 3000 }] }, 0);
+                        InPts = 2000, OutPts = 3000, PositionX = 50 }] }, 0);
             }
             await using var scope = new RecordingScope();
             await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, store, new ProjectSourceProbe());
@@ -75,7 +75,10 @@ public partial class RecordingEncoderLifecycleTests
             }
             var pixels = vm.PreviewFrame.Rgba!;
             Assert.Equal(ProjectFrameReply.ByteCount, pixels.Length);
-            var center = (144 * 512 + 256) * 4;
+            // A paused preview must apply the same placement as playback/export.
+            var left = (144 * 512 + 100) * 4;
+            Assert.Equal(new byte[] { 0, 0, 0, 255 }, pixels[left..(left + 4)]);
+            var center = (144 * 512 + 400) * 4;
             Assert.InRange(pixels[center], 0, 4);
             Assert.InRange(pixels[center + 2], 245, 255); // Actual fixture is blue, not a placeholder.
             Assert.Equal(255, pixels[center + 3]);

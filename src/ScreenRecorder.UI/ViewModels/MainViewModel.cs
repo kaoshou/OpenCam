@@ -628,8 +628,10 @@ public partial class MainViewModel : ObservableObject
     {
         if (_content is not null)
         {
-            if (!CanOpenContentEditor) throw new InvalidOperationException(Strings["ProjectFinishBeforeClose"]);
+            if (!_content.CanOpenEditor || IsRecovering || IsPreparing) throw new InvalidOperationException(Strings["ProjectFinishBeforeClose"]);
             await _ensureContentRecorder!();
+            // A hotkey may start/resume capture while the connection is being established.
+            if (!_content.CanOpenEditor || IsRecovering || IsPreparing) throw new InvalidOperationException(Strings["ProjectFinishBeforeClose"]);
             IsProjectWorkspaceOpen = true;
             return _content.Workspace;
         }
@@ -826,9 +828,9 @@ public partial class MainViewModel : ObservableObject
         _audioMeterTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
         _audioMeterTimer.Tick += OnAudioMeterTimerTick;
 
-        // The Windows editor media adapter is not yet available. Preserve its existing
-        // recorder route instead of switching it to an exporter it cannot execute.
-        if (!forScreenshot && OperatingSystem.IsMacOS())
+        // Both supported platforms share the record-first project/export lifecycle.
+        // Capture engines, audio selection and cursor policy remain platform-owned.
+        if (!forScreenshot && (OperatingSystem.IsMacOS() || OperatingSystem.IsWindows()))
             ConfigureRecordingContent(new ScreenRecorder.UI.Projects.ProjectClient(
                 (command, request, ct) => _ipcClient.SendCommandAsync(command, request, timeoutMs: 45000, cancellationToken: ct),
                 (request, ct) => _ipcClient.SendProjectFrameAsync(request, ct)), CheckProjectScreenPermission, EnsureRecorderProcessAsync);
@@ -1306,7 +1308,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     public async Task StartRecordingAsync()
     {
-        if (_content is not null) { if (CanStartRecording) await CaptureContentAsync(true); return; }
+        if (_content is not null) { if (CanStartRecording) await CaptureContentAsync(_content.Workspace.State.ProjectId is null); return; }
         if (!CanStartRecording) return;
 
         IsPreparing = true;

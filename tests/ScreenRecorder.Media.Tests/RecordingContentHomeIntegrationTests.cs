@@ -52,6 +52,7 @@ public partial class RecordingEncoderLifecycleTests
         main.ConfigureRecordingContent(new ProjectClient((command, request, ct) => dispatcher.DispatchAsync(new()
             { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) })), () => true, () => Task.CompletedTask);
         main.OutputDirectory = scope.Configuration.OutputDirectory;
+        main.RequestRecordingProjectName = name => Task.FromResult<string?>(name);
         try
         {
             await main.StartRecordingAsync();
@@ -82,6 +83,7 @@ public partial class RecordingEncoderLifecycleTests
         var main = new MainViewModel(forScreenshot: true);
         main.ConfigureRecordingContent(client, () => true, () => Task.CompletedTask);
         main.OutputDirectory = scope.Configuration.OutputDirectory;
+        main.RequestRecordingProjectName = name => Task.FromResult<string?>(name);
         try
         {
             await main.StartRecordingAsync();

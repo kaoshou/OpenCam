@@ -8,6 +8,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="ScreenRecorder.Media.Tests" />
     <InternalsVisibleTo Include="ScreenRecorder.Platform.macOS" />
+    <InternalsVisibleTo Include="ScreenRecorder.Platform.Windows" />
   </ItemGroup>
 
   <PropertyGroup>

@@ -141,11 +141,10 @@ public sealed class ProjectWorkspaceLayoutTests
             window.Measure(new Size(width, height));
             window.Arrange(new Rect(0, 0, width, height));
             window.UpdateLayout();
-            var recent = window.FindControl<ComboBox>("RecentProjects")!;
-            var card = recent.GetVisualAncestors().OfType<Border>().First();
+            var card = window.FindControl<Border>("InspectorPane")!;
             var action = card.GetVisualDescendants().OfType<Button>()
-                .Single(button => Equals(button.Content, vm.Strings["ProjectOpen"]));
-            var scroll = recent.GetVisualAncestors().OfType<ScrollViewer>().FirstOrDefault();
+                .Single(button => Equals(button.Content, vm.Strings["ProjectRefresh"]));
+            var scroll = card.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
             if (scroll is not null)
             {
                 scroll.ScrollToEnd();
@@ -153,7 +152,7 @@ public sealed class ProjectWorkspaceLayoutTests
             }
             var position = action.TranslatePoint(default, card)!.Value;
             Assert.True(position.Y >= 0 && position.Y + action.Bounds.Height <= card.Bounds.Height,
-                $"Recent-open action at {position.Y}..{position.Y + action.Bounds.Height} escapes card height {card.Bounds.Height}.");
+                $"Inspector action at {position.Y}..{position.Y + action.Bounds.Height} escapes card height {card.Bounds.Height}.");
             Assert.True(action.Bounds.Width > 0 && action.Bounds.Height >= 36);
             if (scroll is not null && scroll.Extent.Height > scroll.Viewport.Height)
             {
