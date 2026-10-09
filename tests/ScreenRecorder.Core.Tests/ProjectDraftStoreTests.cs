@@ -79,7 +79,11 @@ public sealed class ProjectDraftStoreTests : IDisposable
         var draft = Draft(h);
         await h.SaveDraftAsync(draft);
         Directory.CreateDirectory(Path.Combine(h.ProjectDirectory, "project.edits.json.bak"));
-        await Assert.ThrowsAnyAsync<IOException>(() => h.SaveDraftAsync(draft with { Sequence = 2 }));
+        var error = await Record.ExceptionAsync(() => h.SaveDraftAsync(draft with { Sequence = 2 }));
+        // Windows reports access denied for a destination directory; Unix
+        // reports an I/O error. Neither may replace the existing draft.
+        Assert.True(error is IOException || OperatingSystem.IsWindows() && error is UnauthorizedAccessException,
+            $"Expected a rejected directory replacement, got: {error}");
         Assert.Equal(1, (await h.ReadDraftAsync())!.Sequence);
     }
 

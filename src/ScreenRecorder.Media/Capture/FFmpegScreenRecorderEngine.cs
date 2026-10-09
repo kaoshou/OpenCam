@@ -446,9 +446,9 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
                 _stderrTail.Clear();
             }
 
-            _stderrReadingTask = Task.Run(
-                () => ReadStderrLoop(proc, proc.StandardError, cancellationToken),
-                CancellationToken.None);
+            // Begin draining immediately: scheduling a blocking pipe reader on
+            // the pool can let the startup deadline win before progress is read.
+            _stderrReadingTask = ReadStderrLoop(proc, proc.StandardError, cancellationToken);
 
             var exitTask = proc.WaitForExitAsync(cancellationToken);
             var startupTimeout = OperatingSystem.IsMacOS() &&
@@ -563,16 +563,18 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
             StringComparison.OrdinalIgnoreCase);
     }
 
-    private async Task ReadStderrLoop(
+    internal async Task ReadStderrLoop(
         Process process,
         StreamReader stderr,
         CancellationToken cancellationToken)
     {
         try
         {
-            while (!cancellationToken.IsCancellationRequested && !stderr.EndOfStream)
+            while (!cancellationToken.IsCancellationRequested)
             {
-                var line = await stderr.ReadLineAsync(cancellationToken);
+                // EndOfStream performs a synchronous read when its buffer is
+                // empty. ReadLineAsync already reports EOF with null.
+                var line = await stderr.ReadLineAsync(cancellationToken).ConfigureAwait(false);
                 if (line == null) break;
 
                 lock (_lock)
