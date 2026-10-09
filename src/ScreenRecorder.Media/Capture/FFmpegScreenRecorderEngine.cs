@@ -456,13 +456,13 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
                 ? MacOsAudioStartupTimeout
                 : StartupTimeout;
             var timeoutTask = Task.Delay(startupTimeout, cancellationToken);
-            var completed = await Task.WhenAny(_startupSignal.Task, exitTask, timeoutTask);
-
-            cancellationToken.ThrowIfCancellationRequested();
-            if (completed == _startupSignal.Task && await _startupSignal.Task)
+            if (await WaitForStartupConfirmationAsync(_startupSignal.Task, exitTask, timeoutTask, cancellationToken))
             {
                 return true;
             }
+
+            Log.Warning("FFmpeg startup rejected before termination: progress={ProgressStatus}, frames={Frames}, exited={Exited}, deadline={Deadline}",
+                _startupSignal.Task.Status, _framesRecorded, exitTask.IsCompleted, timeoutTask.IsCompleted);
 
             try
             {
@@ -561,6 +561,17 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
         return audioSection.Contains(
             $"[{deviceName}]",
             StringComparison.OrdinalIgnoreCase);
+    }
+
+    internal static async Task<bool> WaitForStartupConfirmationAsync(
+        Task<bool> firstFrame, Task exited, Task deadline, CancellationToken cancellationToken)
+    {
+        await Task.WhenAny(firstFrame, exited, deadline);
+        cancellationToken.ThrowIfCancellationRequested();
+        // A busy scheduler can resume us after both the deadline and real
+        // progress are ready. Judge current evidence, not which callback queued
+        // first. An observed exit or missing/false progress rejects startup.
+        return !exited.IsCompleted && firstFrame.IsCompleted && await firstFrame;
     }
 
     internal async Task ReadStderrLoop(

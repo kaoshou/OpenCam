@@ -8,6 +8,7 @@ namespace ScreenRecorder.Core.Tests;
 public class MockStorageService : IStorageService
 {
     public long SimulatedFreeSpace { get; set; } = 10L * 1024 * 1024 * 1024; // 10 GB
+    public Action? SpaceRead { get; set; }
 
     public string CreateSessionDirectory(string rootPath, string sessionId) => string.Empty;
     public string GetDefaultRecordingsPath() => string.Empty;
@@ -15,7 +16,11 @@ public class MockStorageService : IStorageService
     public string GetSessionLogFilePath(string sessionDirectory) => string.Empty;
     public string GetWorkingFilePath(string sessionDirectory) => string.Empty;
     public bool IsDiskSpaceSufficient(string directoryPath, long requiredBytes) => SimulatedFreeSpace >= requiredBytes;
-    public long GetAvailableFreeSpaceBytes(string directoryPath) => SimulatedFreeSpace;
+    public long GetAvailableFreeSpaceBytes(string directoryPath)
+    {
+        SpaceRead?.Invoke();
+        return SimulatedFreeSpace;
+    }
 }
 
 public class DiskSpaceMonitorTests
@@ -30,21 +35,14 @@ public class DiskSpaceMonitorTests
             CriticalThresholdBytes = 500L * 1024 * 1024
         };
 
-        bool warningTriggered = false;
-        long reportedSpace = 0;
-        monitor.DiskSpaceWarningTriggered += (s, space) =>
-        {
-            warningTriggered = true;
-            reportedSpace = space;
-        };
+        var warning = new TaskCompletionSource<long>(TaskCreationOptions.RunContinuationsAsynchronously);
+        monitor.DiskSpaceWarningTriggered += (s, space) => warning.TrySetResult(space);
 
         // 設定可用空間為 1 GB (低於 2GB 警告門檻，高於 500MB 臨界門檻)
         mockStorage.SimulatedFreeSpace = 1L * 1024 * 1024 * 1024;
 
         monitor.StartMonitoring("C:\\", TimeSpan.FromMilliseconds(50));
-        await Task.Delay(150);
-
-        Assert.True(warningTriggered);
+        var reportedSpace = await warning.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(1L * 1024 * 1024 * 1024, reportedSpace);
     }
 
@@ -58,21 +56,14 @@ public class DiskSpaceMonitorTests
             CriticalThresholdBytes = 500L * 1024 * 1024
         };
 
-        bool criticalTriggered = false;
-        long reportedSpace = 0;
-        monitor.DiskSpaceCriticalTriggered += (s, space) =>
-        {
-            criticalTriggered = true;
-            reportedSpace = space;
-        };
+        var critical = new TaskCompletionSource<long>(TaskCreationOptions.RunContinuationsAsynchronously);
+        monitor.DiskSpaceCriticalTriggered += (s, space) => critical.TrySetResult(space);
 
         // 設定可用空間為 200 MB (低於 500MB 臨界門檻)
         mockStorage.SimulatedFreeSpace = 200L * 1024 * 1024;
 
         monitor.StartMonitoring("C:\\", TimeSpan.FromMilliseconds(50));
-        await Task.Delay(150);
-
-        Assert.True(criticalTriggered);
+        var reportedSpace = await critical.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(200L * 1024 * 1024, reportedSpace);
     }
 
@@ -87,16 +78,27 @@ public class DiskSpaceMonitorTests
         };
 
         int triggerCount = 0;
-        monitor.DiskSpaceWarningTriggered += (s, space) => triggerCount++;
+        int readCount = 0;
+        var warning = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var polls = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        monitor.DiskSpaceWarningTriggered += (s, space) =>
+        {
+            Interlocked.Increment(ref triggerCount);
+            warning.TrySetResult();
+        };
+        mockStorage.SpaceRead = () =>
+        {
+            if (Interlocked.Increment(ref readCount) >= 6) polls.TrySetResult();
+        };
 
         // 設定可用空間為 1 GB (觸發 warning)
         mockStorage.SimulatedFreeSpace = 1L * 1024 * 1024 * 1024;
 
-        // 輪詢週期極短 (20ms)，在 120ms 內預期會 tick 5-6 次
+        // Wait for actual polling and delivery, not an assumed CI scheduling speed.
         monitor.StartMonitoring("C:\\", TimeSpan.FromMilliseconds(20));
-        await Task.Delay(120);
+        await Task.WhenAll(warning.Task, polls.Task).WaitAsync(TimeSpan.FromSeconds(5));
 
         // 驗證防抖機制：即便 tick 多次，Warning 事件依然只觸發 1 次！
-        Assert.Equal(1, triggerCount);
+        Assert.Equal(1, Volatile.Read(ref triggerCount));
     }
 }

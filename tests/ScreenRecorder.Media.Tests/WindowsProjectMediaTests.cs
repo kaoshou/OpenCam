@@ -2,14 +2,17 @@
 using ScreenRecorder.Media.FFmpeg;
 using ScreenRecorder.Media.Projects;
 using ScreenRecorder.Platform.Windows;
+using ScreenRecorder.Platform.macOS;
 using ScreenRecorder.Core.Projects;
 
 namespace ScreenRecorder.Media.Tests;
 
 public sealed class WindowsProjectMediaTests
 {
-    [WindowsOnlyFact]
-    public async Task TwoBoundInputsProduceVerifiedMp4WithoutReopeningOutputPath()
+    [NativeMediaTheory]
+    [InlineData(1)]
+    [InlineData(100)]
+    public async Task TwoBoundInputsProduceVerifiedMp4WithoutReopeningOutputPath(int segmentCount)
     {
         var root = Directory.CreateTempSubdirectory("OpenCam-win-mux-");
         try
@@ -20,15 +23,19 @@ public sealed class WindowsProjectMediaTests
             var outputPath = Path.Combine(root.FullName, "result.mp4");
             await RecordingContentExportIntegrationTests.Run(ffmpeg, ["-f", "lavfi", "-i",
                 "color=blue:s=64x36:r=30:d=1", "-c:v", "libx264", "-bf", "0", "-f", "h264", videoPath]);
-            await File.WriteAllBytesAsync(audioPath, new byte[48000 * 8]);
+            var segment = await File.ReadAllBytesAsync(videoPath);
+            await using (var video = new FileStream(videoPath, FileMode.Append, FileAccess.Write))
+                for (var i = 1; i < segmentCount; i++) await video.WriteAsync(segment);
+            await File.WriteAllBytesAsync(audioPath, new byte[segmentCount * 48000 * 8]);
             var id = Guid.NewGuid();
             var project = new RecordingProject { ProjectId = Guid.NewGuid(), Name = "Mux", Sessions = ["s"],
                 Canvas = new(64, 36, new(30, 1)), Sources = [new() { Id = id, SessionId = "s",
                     RelativePath = "sources/a.mkv", FileSize = 1, Sha256 = new('a', 64), Width = 64, Height = 36,
-                    VideoCodec = "h264", AudioCodec = "aac", Timing = new(new(1, 1000), 0, 1000) }],
-                Clips = [new() { Id = Guid.NewGuid(), SourceId = id, Name = "clip", InPts = 0, OutPts = 1000 }] };
+                    VideoCodec = "h264", AudioCodec = "aac", Timing = new(new(1, 1000), 0, segmentCount * 1000) }],
+                Clips = [new() { Id = Guid.NewGuid(), SourceId = id, Name = "clip", InPts = 0, OutPts = segmentCount * 1000 }] };
             var plan = ProjectRenderPlan.Create(project);
-            var process = new WindowsProjectMediaProcess(ffmpeg);
+            IProjectMediaProcess process = OperatingSystem.IsWindows()
+                ? new WindowsProjectMediaProcess(ffmpeg) : new MacProjectMediaProcess(ffmpeg);
             await using (var video = File.OpenRead(videoPath))
             await using (var audio = File.OpenRead(audioPath))
             await using (var output = new FileStream(outputPath, FileMode.CreateNew, FileAccess.ReadWrite))
