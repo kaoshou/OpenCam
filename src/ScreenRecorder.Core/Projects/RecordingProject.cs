@@ -21,6 +21,8 @@ public sealed record RecordingProject
     public ImmutableArray<ProjectClip> Clips { get; init; } = [];
     public ImmutableArray<string> Sessions { get; init; } = [];
     public ProjectViewState ViewState { get; init; } = new();
+    public bool AutoExportOnStop { get; init; } = true;
+    public Guid? ResolvedDraftId { get; init; }
 }
 
 public sealed record ProjectSource
