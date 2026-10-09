@@ -12,6 +12,84 @@ namespace ScreenRecorder.Media.Tests;
 
 public sealed class RecordingContentExportIntegrationTests
 {
+    [MacOsOnlyTheory]
+    [InlineData("", false)]
+    [InlineData("N/A", false)]
+    [InlineData("0", false)]
+    [InlineData("-1", false)]
+    [InlineData("", true)]
+    public async Task MissingPacketDurationFallsBackToVerifiedRender(string duration, bool outputProbe)
+    {
+        var root = Directory.CreateTempSubdirectory("OpenCam-duration-fallback-");
+        try
+        {
+            await using var owner = await SingleClip(root.FullName, audio: true);
+            var ffmpeg = FFmpegDiscovery.FindFFmpegExecutable()!;
+            var process = new DurationProbeProcess(new MacProjectMediaProcess(ffmpeg), duration, outputProbe);
+            var destination = Directory.CreateDirectory(Path.Combine(root.FullName, "out")).FullName;
+            var result = await new ProjectFfmpegExporter(process).ExportAsync(owner, owner.Current,
+                destination, Guid.NewGuid(), new Progress<double>(), default);
+            Assert.True(result.Success, result.Error);
+            Assert.Equal(outputProbe ? 2 : 1, process.Probes);
+            var pixels = await Run(ffmpeg, ["-i", result.FinalPath!, "-map", "0:v:0", "-an", "-pix_fmt", "rgb24",
+                "-c:v", "rawvideo", "-threads", "1", "-f", "rawvideo", "pipe:1"]);
+            Assert.Equal(9 * 64 * 36 * 3, pixels.Length);
+            var audio = await Run(ffmpeg, ["-i", result.FinalPath!, "-vn", "-ac", "1", "-ar", "48000", "-f", "f32le", "pipe:1"]);
+            Assert.InRange(audio.Length / 4, 14400, 15424);
+            Assert.Contains(Enumerable.Range(2000, 4000), i => Math.Abs(BitConverter.ToSingle(audio, i * 4)) > .01);
+            var source = owner.Current.Sources[0];
+            Assert.Equal(source.Sha256, Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(
+                Path.Combine(owner.ProjectDirectory, source.RelativePath)))));
+            Assert.Single(Directory.GetFiles(destination));
+        }
+        finally { root.Delete(true); }
+    }
+
+    [MacOsOnlyTheory]
+    [InlineData("permission")]
+    [InlineData("io")]
+    [InlineData("cancel")]
+    public async Task PacketInspectionOperationalFailureDoesNotRender(string failure)
+    {
+        var root = Directory.CreateTempSubdirectory("OpenCam-duration-fatal-");
+        try
+        {
+            await using var owner = await SingleClip(root.FullName);
+            Exception error = failure switch { "permission" => new UnauthorizedAccessException("injected"),
+                "io" => new IOException("injected"), _ => new OperationCanceledException("injected") };
+            var process = new DurationProbeProcess(new MacProjectMediaProcess(FFmpegDiscovery.FindFFmpegExecutable()!), "", false, error);
+            var destination = Directory.CreateDirectory(Path.Combine(root.FullName, "out")).FullName;
+            var observed = await Record.ExceptionAsync(() => new ProjectFfmpegExporter(process).ExportAsync(owner, owner.Current,
+                destination, Guid.NewGuid(), new Progress<double>(), default));
+            Assert.Same(error, observed);
+            Assert.Empty(Directory.GetFiles(destination));
+        }
+        finally { root.Delete(true); }
+    }
+
+    private sealed class DurationProbeProcess(MacProjectMediaProcess inner, string duration, bool outputProbe,
+        Exception? failure = null) : IProjectMediaProcess, IProjectStreamingMediaProcess
+    {
+        public int Probes { get; private set; }
+        public Task<ProjectMediaResult> RunAsync(ProjectMediaJob job, IReadOnlyList<FileStream> inputs, FileStream? output, CancellationToken ct)
+            => inner.RunAsync(job, inputs, output, ct);
+        public Task RunStreamingAsync(ProjectMediaJob job, FileStream input, Func<Stream, CancellationToken, Task> consume, CancellationToken ct)
+        {
+            Probes++;
+            if (failure is not null) throw failure;
+            return inner.RunStreamingAsync(job, input, async (stream, token) =>
+            {
+                // Alter only this optional ffprobe field; all encode/decode/verification is real.
+                if (Probes != (outputProbe ? 2 : 1)) { await consume(stream, token); return; }
+                using var reader = new StreamReader(stream, leaveOpen: true);
+                var text = await reader.ReadToEndAsync(token);
+                text = System.Text.RegularExpressions.Regex.Replace(text, @"\|duration=[^|\r\n]*", duration == "" ? "" : "|duration=" + duration);
+                using var changed = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(text));
+                await consume(changed, token);
+            }, ct);
+        }
+    }
+
     [MacOsOnlyFact]
     public async Task CleanupFailureCannotPublishAnOutputThenReportFailure()
     {

@@ -84,6 +84,17 @@ public class ProjectExportStrategyTests
         await Assert.ThrowsAsync<InvalidDataException>(() => Parse(new string('x', 65537)));
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("|duration=N/A")]
+    [InlineData("|duration=0")]
+    [InlineData("|duration=-1")]
+    public async Task UnavailablePacketDurationRequiresRendering(string duration)
+    {
+        await Assert.ThrowsAsync<ProjectRemuxIncompatibleException>(() =>
+            Parse($"packet|stream_index=0|pts=0|dts=0{duration}|flags=K_\n"));
+    }
+
     internal static Task<ProjectSourceEvidence> Parse(string value)
         => ProjectPacketInspector.ParseAsync(new MemoryStream(Encoding.UTF8.GetBytes(value)), default);
 

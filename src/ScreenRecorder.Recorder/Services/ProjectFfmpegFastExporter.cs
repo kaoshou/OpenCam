@@ -29,7 +29,13 @@ public sealed partial class ProjectFfmpegExporter
                 var source = ProjectPathPolicy.OpenSource(owner, clip.Source.RelativePath);
                 sources.Add(source);
                 await ValidateSource(source, clip.Source, ct);
-                evidence.Add(await ProjectPacketInspector.InspectAsync(streaming, source, ct));
+                try { evidence.Add(await ProjectPacketInspector.InspectAsync(streaming, source, ct)); }
+                catch (ProjectRemuxIncompatibleException ex)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    Log.Information("Project source cannot certify fast export; using rendering: {Reason}", ex.Message);
+                    return null;
+                }
             }
             var decision = ProjectExportPlanner.Select(plan, evidence);
             Log.Information("Project export strategy {Strategy}; reason {Reason}; clips {Count}; inspect {ElapsedMs}ms",

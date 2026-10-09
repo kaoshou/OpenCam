@@ -69,8 +69,11 @@ public static class ProjectPacketInspector
             if (parts[0] == "stream") { streams.Add(index, values); return; }
             if (!packets.TryGetValue(index, out var summary)) packets.Add(index, summary = new());
             var pts = Integer(values, "pts");
-            var duration = Integer(values, "duration");
-            if (duration <= 0) throw new InvalidDataException("Missing positive packet duration.");
+            // Packet duration is optional probe evidence, not proof that the source
+            // is corrupt. Without it we cannot certify stream-copy boundaries.
+            if (!values.TryGetValue("duration", out var durationText) ||
+                !long.TryParse(durationText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var duration) || duration <= 0)
+                throw new ProjectRemuxIncompatibleException("Packet duration is unavailable; verified rendering is required.");
             if (summary.Count == 0) summary.Key = values.GetValueOrDefault("flags", "").Contains('K');
             summary.First = Math.Min(summary.First, pts);
             summary.End = Math.Max(summary.End, checked(pts + duration));
