@@ -6,7 +6,7 @@ using ScreenRecorder.Core.Projects;
 namespace ScreenRecorder.Infrastructure.Projects;
 
 public sealed record SegmentCommitIntent(Guid OperationId, Guid SourceId, string SessionId,
-    string RelativePath, long ExpectedRevision, string Status = "pending");
+    string RelativePath, long ExpectedRevision, string Status = "pending", int? CaptureFps = null);
 
 /// <summary>Durable intent ledger; the manifest and its operation IDs resolve incomplete commits.</summary>
 public sealed class ProjectWriteJournal
@@ -16,6 +16,7 @@ public sealed class ProjectWriteJournal
     {
         if (intent is null || intent.OperationId == Guid.Empty || intent.SourceId == Guid.Empty ||
             intent.ExpectedRevision < 0 || intent.Status is not ("pending" or "complete") ||
+            intent.CaptureFps is < 1 or > 240 ||
             string.IsNullOrWhiteSpace(intent.SessionId) || intent.SessionId.Length > 200 ||
             intent.SessionId.IndexOfAny(['/', '\\', ':', '\0', '\r', '\n']) >= 0)
             throw new InvalidDataException("Invalid segment commit intent.");

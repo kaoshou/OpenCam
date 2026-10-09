@@ -262,6 +262,15 @@ public sealed class BoundDirectory : IDisposable
         return output;
     }
 
+    /// <summary>Remove one job-owned leaf without following a replaced parent or symbolic link.</summary>
+    public void DeleteOwnedFile(string name)
+    {
+        Leaf(name);
+        if (OperatingSystem.IsWindows()) File.Delete(Path.Combine(PathName, name));
+        else if (unlinkat(Handle, name, 0) != 0 && Marshal.GetLastWin32Error() != 2)
+            throw new IOException("Cannot remove owned temporary file.");
+    }
+
     private void DeleteLeaf(string name)
     {
         if (OperatingSystem.IsWindows()) File.Delete(Path.Combine(PathName, name));

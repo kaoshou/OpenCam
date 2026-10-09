@@ -224,6 +224,7 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _isProjectWorkspaceOpen;
     public List<string> RecentProjectPaths { get; private set; } = [];
+    [ObservableProperty] private string _nextProjectName = "";
 
     partial void OnIsProjectWorkspaceOpenChanged(bool value)
     {
@@ -231,13 +232,13 @@ public partial class MainViewModel : ObservableObject
             OnPropertyChanged(name);
     }
 
-    public bool CanStartRecording => !IsProjectWorkspaceOpen && CanStartRecordingForState(
+    public bool CanStartRecording => (_content?.CanStartNew ?? !IsProjectWorkspaceOpen) && CanStartRecordingForState(
         IsRecording,
         IsPaused,
         IsPreparing,
         IsRecovering);
-    public bool CanStopRecording => !IsProjectWorkspaceOpen && (IsRecording || IsPaused) && !IsPreparing;
-    public bool CanPauseOrResume => !IsProjectWorkspaceOpen && (IsRecording || IsPaused) && !IsPreparing && !_startupStatusUnconfirmed;
+    public bool CanStopRecording => (_startupStatusUnconfirmed || (_content?.CanStop ?? !IsProjectWorkspaceOpen)) && (IsRecording || IsPaused) && !IsPreparing;
+    public bool CanPauseOrResume => (_content is not null ? (_content.CanPause || _content.CanResume) : !IsProjectWorkspaceOpen) && (IsRecording || IsPaused) && !IsPreparing && !_startupStatusUnconfirmed;
     public bool CanRecoverSessions => !IsProjectWorkspaceOpen && CanRecoverSessionsForState(
         IsRecording,
         IsPaused,
@@ -307,7 +308,8 @@ public partial class MainViewModel : ObservableObject
         IsPreparing) && !_forceQuitAuthorized;
 
     public bool CanForceQuitUnconfirmed =>
-        _startupStatusUnconfirmed && _unconfirmedStopFailed && !_forceQuitAuthorized;
+        ((_startupStatusUnconfirmed && _unconfirmedStopFailed) ||
+         (_content?.Workspace.StatusUnconfirmed == true && _telemetryFailures >= 6)) && !_forceQuitAuthorized;
 
     internal void MarkUnconfirmedStopFailure()
     {
@@ -463,6 +465,7 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnIsRecordingChanged(bool value)
     {
+        OnPropertyChanged(nameof(CanOpenContentEditor));
         OnPropertyChanged(nameof(CanStartRecording));
         OnPropertyChanged(nameof(CanStopRecording));
         OnPropertyChanged(nameof(CanPauseOrResume));
@@ -485,6 +488,7 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnIsPausedChanged(bool value)
     {
+        OnPropertyChanged(nameof(CanOpenContentEditor));
         OnPropertyChanged(nameof(CanStartRecording));
         OnPropertyChanged(nameof(CanStopRecording));
         OnPropertyChanged(nameof(CanPauseOrResume));
@@ -507,6 +511,7 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnIsPreparingChanged(bool value)
     {
+        OnPropertyChanged(nameof(CanOpenContentEditor));
         if (value && !IsRecording && !IsPaused) { SetActualEncoder(null); SetActualCapture(null); }
         OnPropertyChanged(nameof(CanStartRecording));
         OnPropertyChanged(nameof(CanStopRecording));
@@ -606,6 +611,7 @@ public partial class MainViewModel : ObservableObject
 
     public RecordingConfiguration BuildProjectConfiguration() => ApplyRuntimeSettings(new RecordingConfiguration
     {
+        ProjectName = NextProjectName,
         WindowsCaptureMode = OperatingSystem.IsWindows() ? _windowsCaptureMode : WindowsCaptureMode.CompatibleGdi,
         Fps = SelectedFps,
         EncoderType = SelectedEncoder?.Type ?? HardwareEncoderType.Auto,
@@ -620,6 +626,13 @@ public partial class MainViewModel : ObservableObject
 
     public async Task<ScreenRecorder.UI.Projects.ProjectWorkspaceViewModel> PrepareProjectWorkspaceAsync()
     {
+        if (_content is not null)
+        {
+            if (!CanOpenContentEditor) throw new InvalidOperationException(Strings["ProjectFinishBeforeClose"]);
+            await _ensureContentRecorder!();
+            IsProjectWorkspaceOpen = true;
+            return _content.Workspace;
+        }
         if (IsProjectWorkspaceOpen || !CanStartRecording) throw new InvalidOperationException(Strings["ProjectFinishBeforeClose"]);
         await EnsureRecorderProcessAsync();
         var workspace = new ScreenRecorder.UI.Projects.ProjectWorkspaceViewModel(new ScreenRecorder.UI.Projects.ProjectClient(
@@ -812,6 +825,13 @@ public partial class MainViewModel : ObservableObject
         _telemetryTimer.Tick += OnTelemetryTimerTick;
         _audioMeterTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
         _audioMeterTimer.Tick += OnAudioMeterTimerTick;
+
+        // The Windows editor media adapter is not yet available. Preserve its existing
+        // recorder route instead of switching it to an exporter it cannot execute.
+        if (!forScreenshot && OperatingSystem.IsMacOS())
+            ConfigureRecordingContent(new ScreenRecorder.UI.Projects.ProjectClient(
+                (command, request, ct) => _ipcClient.SendCommandAsync(command, request, timeoutMs: 45000, cancellationToken: ct),
+                (request, ct) => _ipcClient.SendProjectFrameAsync(request, ct)), CheckProjectScreenPermission, EnsureRecorderProcessAsync);
 
         // 動態偵測所有實體顯示器
         Strings.PropertyChanged += (s, e) =>
@@ -1286,6 +1306,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     public async Task StartRecordingAsync()
     {
+        if (_content is not null) { if (CanStartRecording) await CaptureContentAsync(true); return; }
         if (!CanStartRecording) return;
 
         IsPreparing = true;
@@ -1395,6 +1416,13 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     public async Task TogglePauseResumeAsync()
     {
+        if (_content is not null)
+        {
+            if (!CanPauseOrResume) return;
+            if (IsPaused) await CaptureContentAsync(false);
+            else await _content.PauseAsync();
+            return;
+        }
         if (!CanPauseOrResume) return;
 
         if (IsPaused)
@@ -1462,6 +1490,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     public async Task StopRecordingAsync()
     {
+        if (_content is not null && !_startupStatusUnconfirmed) { if (CanStopRecording) await _content.StopAsync(); return; }
         if (IsProjectWorkspaceOpen) return;
         if ((!IsRecording && !IsPaused) || IsPreparing) return;
 
@@ -1848,6 +1877,16 @@ public partial class MainViewModel : ObservableObject
         {
             await QueryTelemetryAsync();
         }
+        catch (Exception ex)
+        {
+            if (_content is not null)
+            {
+                _content.Workspace.Error = ex.Message;
+                _content.Workspace.StatusUnconfirmed = true;
+                NoteContentConnectionFailure();
+            }
+            else Log.Warning(ex, "Recorder telemetry failed");
+        }
         finally
         {
             Interlocked.Exchange(ref _telemetryPollInFlight, 0);
@@ -1856,6 +1895,29 @@ public partial class MainViewModel : ObservableObject
 
     internal async Task QueryTelemetryAsync()
     {
+        if (_content is not null)
+        {
+            await _content.Workspace.PollRecordingAsync();
+            if (_content.Workspace.StatusUnconfirmed && !_content.IsBusy) await _content.RefreshAsync();
+            if (_content.Workspace.StatusUnconfirmed) { NoteContentConnectionFailure(); return; }
+            _telemetryFailures = 0;
+            if (!IsRecording && !IsPaused) return;
+            // Capture telemetry supplies meters and health, never overwrites project ownership.
+            var projectResponse = await _ipcClient.SendCommandAsync("GetTelemetry", new { }, timeoutMs: 1500);
+            if (projectResponse.Success && !string.IsNullOrEmpty(projectResponse.ErrorMessage))
+            {
+                var value = JsonSerializer.Deserialize<RecorderTelemetry>(projectResponse.ErrorMessage);
+                if (value is not null)
+                {
+                    ApplyEncoderTelemetry(value);
+                    ElapsedTimeText = value.ElapsedTime.ToString(@"hh\:mm\:ss");
+                    FileSizeText = $"{value.CurrentFileSizeBytes / (1024.0 * 1024.0):F1} MB";
+                    DiskRemainingText = $"{value.AvailableDiskSpaceBytes / (1024.0 * 1024.0 * 1024.0):F1} GB";
+                    StatusMessage = ResolveRecorderHealthStatus(value, StatusMessage);
+                }
+            }
+            return;
+        }
         if (!IsRecording && !IsPaused) return;
 
         try

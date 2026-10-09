@@ -7,15 +7,15 @@ namespace ScreenRecorder.Recorder.Services;
 
 /// <summary>Called only after the existing IPC authentication/size gate.</summary>
 public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator, ProjectWaveformService? waveforms = null,
-    ProjectFrameService? frames = null)
+    ProjectFrameService? frames = null, ProjectPreviewCoordinator? preview = null)
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Guid _instanceId = Guid.NewGuid();
     private readonly Dictionary<Guid, (string Fingerprint, bool Success, string? Error)> _operations = new();
     public static bool IsProjectCommand(string command) => command is "CreateProject" or "OpenProject" or "GetProjectStatus"
-        or "GetProjectClips" or "GetProjectWaveform" or "StartProjectRecording" or "PauseProjectRecording" or "FinishProjectRecording"
-        or "SaveProject" or "RenameProjectClip" or "ApplyProjectEdit" or "UndoProject" or "RedoProject" or "CloseProject" or "RestoreProjectBackup"
-        or "StartNewRecordingContent" or "FinishRecordingContent" or "RetryRecordingContentExport" or "CancelRecordingContentExport";
+        or "GetProjectClips" or "GetProjectWaveform" or "PlayProjectPreview" or "StopProjectPreview" or "StartProjectRecording" or "PauseProjectRecording" or "FinishProjectRecording"
+        or "SaveProject" or "RenameProject" or "RenameProjectClip" or "ApplyProjectEdit" or "UndoProject" or "RedoProject" or "CloseProject" or "RestoreProjectBackup"
+        or "StartNewRecordingContent" or "StartProjectInsertion" or "FinishRecordingContent" or "RetryRecordingContentExport" or "CancelRecordingContentExport" or "ExportRecordingContent";
 
     private ProjectSnapshot Snapshot() => new(coordinator.Current?.ProjectId, coordinator.Current?.Name ?? "",
         coordinator.ProjectDirectory, coordinator.Current?.Revision ?? 0, coordinator.SavedRevision, coordinator.Mode,
@@ -66,12 +66,31 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
                 return Reply(new(true, null, Snapshot()) { Waveform = waveform });
             }
             if (request.OperationId == Guid.Empty) throw new InvalidDataException("An operation ID is required.");
+            if (message.MessageType is "PlayProjectPreview" or "StopProjectPreview")
+            {
+                // No playback backend means no audio can be running. A Stop acknowledgement
+                // must still be possible so capture and close do not become dead ends.
+                if (preview is null && message.MessageType == "StopProjectPreview")
+                    return Reply(new(true, null, Snapshot()));
+                if (preview is null) throw new PlatformNotSupportedException("Audible preview is unavailable on this platform.");
+                if (request.ServerInstanceId != _instanceId || request.ExpectedRevision != coordinator.Current!.Revision)
+                    throw new InvalidOperationException("Preview request belongs to an obsolete snapshot.");
+                if (message.MessageType == "StopProjectPreview")
+                {
+                    await preview.StopAsync();
+                    return Reply(new(true, null, Snapshot()) { Playback = preview.State });
+                }
+                if (frames is not null) await frames.SuspendAsync();
+                if (waveforms is not null) await waveforms.SuspendAsync();
+                return Reply(new(true, null, Snapshot()) { Playback = await preview.PlayAsync(request.ProjectId!.Value,
+                    request.ExpectedRevision, request.TimelineTicks) });
+            }
             if (_operations.Count >= 20000) throw new InvalidOperationException("Save and restart OpenCam before issuing more project commands.");
             if (waveforms is not null && message.MessageType is
-                "StartProjectRecording" or "StartNewRecordingContent" or "CloseProject")
+                "StartProjectRecording" or "StartProjectInsertion" or "StartNewRecordingContent" or "CloseProject" or "ExportRecordingContent" or "RetryRecordingContentExport" or "FinishRecordingContent")
                 await waveforms.SuspendAsync();
             if (frames is not null && message.MessageType is
-                "StartProjectRecording" or "StartNewRecordingContent" or "CloseProject" or "OpenProject" or "CreateProject")
+                "StartProjectRecording" or "StartProjectInsertion" or "StartNewRecordingContent" or "CloseProject" or "OpenProject" or "CreateProject" or "ExportRecordingContent" or "RetryRecordingContentExport" or "FinishRecordingContent")
                 await frames.SuspendAsync();
             ProjectCommandResult result = message.MessageType switch
             {
@@ -80,12 +99,16 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
                 "StartNewRecordingContent" => await coordinator.StartNewContentAsync(request.Configuration ?? throw new InvalidDataException("Missing capture configuration."), request.OperationId),
                 "FinishRecordingContent" => await coordinator.FinishAndExportAsync(request.OperationId),
                 "RetryRecordingContentExport" => await coordinator.RetryExportAsync(request.OperationId),
+                "ExportRecordingContent" => await coordinator.ExportAsync(request.Path ?? "", request.ExpectedRevision, request.OperationId),
                 "CancelRecordingContentExport" => await coordinator.RequestExportCancellationAsync(request.ExportId ?? throw new InvalidDataException("Missing export identity.")),
                 "StartProjectRecording" => await coordinator.StartAsync(request.Configuration ?? throw new InvalidDataException("Missing capture configuration."), request.OperationId),
+                "StartProjectInsertion" => await coordinator.StartInsertionAsync(request.Configuration ?? throw new InvalidDataException("Missing capture configuration."),
+                    request.ExpectedRevision, request.TimelineTicks, request.OperationId),
                 "PauseProjectRecording" => await coordinator.PauseAsync(request.OperationId),
                 "FinishProjectRecording" => await coordinator.FinishAsync(request.OperationId),
                 "SaveProject" => await coordinator.SaveAsync(request.ExpectedRevision),
                 "RenameProjectClip" => await coordinator.RenameClipAsync(request.ClipId, request.Name ?? "", request.ExpectedRevision),
+                "RenameProject" => await coordinator.RenameProjectAsync(request.Name ?? "", request.ExpectedRevision),
                 "ApplyProjectEdit" => await coordinator.ApplyEditAsync(request.Edit ?? throw new InvalidDataException("Missing clip edit."),
                     request.ExpectedRevision, request.OperationId),
                 "UndoProject" => await coordinator.UndoAsync(request.ExpectedRevision),
@@ -115,6 +138,12 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
                 request.ProjectId != coordinator.Current?.ProjectId || request.ExpectedRevision != coordinator.Current.Revision)
                 throw new InvalidOperationException("Preview request belongs to an obsolete snapshot.");
             if (frames is null) throw new PlatformNotSupportedException("Preview decoder is unavailable.");
+            if (request.PlaybackGeneration is { } generation)
+            {
+                if (preview is null) throw new PlatformNotSupportedException("Audible preview is unavailable.");
+                var current = preview.Query(generation);
+                return Reply(new(true, null, Snapshot()) { Playback = current.State, Frame = current.Frame });
+            }
             return Reply(new(true, null, Snapshot()) { Frame = await frames.QueryAsync(request.ProjectId.Value,
                 request.ExpectedRevision, request.TimelineTicks) });
         }

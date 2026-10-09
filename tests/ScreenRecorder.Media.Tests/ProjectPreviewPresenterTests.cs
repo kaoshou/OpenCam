@@ -8,6 +8,28 @@ namespace ScreenRecorder.Media.Tests;
 public sealed class ProjectPreviewPresenterTests
 {
     [Fact]
+    public async Task AudiblePlaybackDoesNotChangeInspectorSelectionAndPauseKeepsPosition()
+    {
+        var client = new PreviewClient();
+        var vm = new ProjectWorkspaceViewModel(client);
+        await vm.RefreshAsync();
+        vm.SelectedClip = client.Clip;
+        await vm.TogglePlaybackAsync();
+        Assert.True(vm.IsPlayingPreview);
+        var poll = vm.PollPreviewAsync();
+        client.Pending.SetResult(new(true, null, client.State) {
+            Playback = new(client.Generation, 500000, true, null),
+            Frame = new(0, 333333, client.Clip.Id, new byte[ProjectFrameReply.ByteCount]) });
+        await poll;
+        Assert.Equal(500000, vm.PlayheadTicks);
+        Assert.Same(client.Clip, vm.SelectedClip);
+        vm.ClipVolumePercent = 50;
+        Assert.True(vm.CanPreview); // Editing a draft must never disable Pause.
+        await vm.TogglePlaybackAsync();
+        Assert.False(vm.IsPlayingPreview);
+        Assert.Equal(500000, vm.PlayheadTicks);
+    }
+    [Fact]
     public async Task ThumbnailComesFromClipStartAndIsClearedByRevision()
     {
         var client = new PreviewClient();
@@ -65,9 +87,12 @@ public sealed class ProjectPreviewPresenterTests
         public ProjectSnapshot State = new(Guid.NewGuid(), "Test", "/test", 0, 0, ProjectMode.Ready, 1, false, false)
             { ServerInstanceId = Guid.NewGuid() };
         public TaskCompletionSource<ProjectReply> Pending = new();
+        public Guid Generation = Guid.NewGuid();
         public void Complete(long ticks, byte[]? rgba = null) => Pending.SetResult(new(true, null, State) {
             Frame = new(0, ticks, Clip.Id, rgba ?? new byte[ProjectFrameReply.ByteCount]) });
         public Task<ProjectReply> SendAsync(string command, ProjectRequest request, CancellationToken ct = default) =>
+            command == "PlayProjectPreview" ? Task.FromResult(new ProjectReply(true, null, State) { Playback = new(Generation, request.TimelineTicks, true, null) }) :
+            command == "StopProjectPreview" ? Task.FromResult(new ProjectReply(true, null, State) { Playback = new(Generation, 500000, false, null) }) :
             command == "GetProjectFrame" ? Pending.Task : Task.FromResult(new ProjectReply(true, null, State, [Clip]) {
                 TimelineClips = [new(Clip.Id, 0, TimeSpan.TicksPerSecond)] });
     }

@@ -23,9 +23,20 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     [ObservableProperty] private string _clipName = "";
     public ObservableCollection<ProjectClip> Clips { get; } = [];
     public bool IsExporting => State.Export?.State == RecordingExportState.Running;
+    public bool CanExport => CanEdit && State.ClipCount > 0;
+    public double ExportProgress => (State.Export?.Progress ?? 0) * 100;
+    public bool HasEditorError => !string.IsNullOrEmpty(Error);
+    public string ExportStatusText => State.Export is not { } export ? "" : export.State switch
+    {
+        RecordingExportState.Running => Strings["ProjectExportRunning"] + $" {ExportProgress:0}%",
+        RecordingExportState.Succeeded => Strings["ProjectExportSucceeded"] + " " + export.FinalPath,
+        RecordingExportState.Canceled => Strings["ProjectExportCanceled"],
+        _ => Strings["ProjectExportFailed"] + " " + export.Error
+    };
     public bool CanEdit => !IsBusy && !StatusUnconfirmed && !IsExporting && State.Mode is ProjectMode.Ready or ProjectMode.Paused;
     public bool CanEditTimeline => CanEdit && !HasPropertyDraft;
     public bool CanReplaceProject => !IsBusy && !HasPropertyDraft;
+    public bool CanReturnToRecording => !IsBusy && !StatusUnconfirmed && State.Mode is not (ProjectMode.Recording or ProjectMode.SavingSegment);
     public bool CanRecord => CanEditTimeline && State.ProjectId is not null;
     public bool CanPause => !IsBusy && !StatusUnconfirmed && State.Mode == ProjectMode.Recording;
     public bool CanFinish => !HasPropertyDraft && !IsBusy && !StatusUnconfirmed && State.Mode is ProjectMode.Recording or ProjectMode.Paused or ProjectMode.SaveFailed;
@@ -50,9 +61,11 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     {
         foreach (var property in new[] { nameof(CanEdit), nameof(CanRecord), nameof(CanPause), nameof(CanFinish), nameof(CanClose),
             nameof(CanUndo), nameof(CanRedo), nameof(SaveStatus), nameof(ModeText), nameof(StartText), nameof(ClipCountText), nameof(IsExporting),
+            nameof(CanExport), nameof(ExportProgress), nameof(ExportStatusText), nameof(HasEditorError), nameof(CanReturnToRecording),
             nameof(CanEditSelection), nameof(CanMoveEarlier), nameof(CanMoveLater), nameof(CanEditTimeline), nameof(CanReplaceProject) })
             OnPropertyChanged(property);
         StateChanged?.Invoke(this, EventArgs.Empty);
+        NotifyPlayback();
         NotifyTimeline();
     }
 
@@ -78,8 +91,27 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     public Task CreateAsync(string parent, string name) => ExecuteAsync("CreateProject", new() { Path = parent, Name = name });
     public Task OpenAsync(string path) => ExecuteAsync("OpenProject", new() { Path = path });
     public Task StartAsync(RecordingConfiguration configuration) => ExecuteAsync("StartProjectRecording", new() { Configuration = configuration });
+    public Task StartNewContentAsync(RecordingConfiguration configuration) => ExecuteAsync("StartNewRecordingContent", new() { Configuration = configuration });
+    public Task FinishAndExportAsync() => ExecuteAsync("FinishRecordingContent");
+    public async Task StartInsertionAsync(RecordingConfiguration configuration, long confirmedTicks, long confirmedRevision)
+    {
+        if (!CanRecord || State.Revision != confirmedRevision || confirmedTicks < 0 || confirmedTicks > DurationTicks)
+        { Error = Strings["ProjectInsertionChanged"]; return; }
+        await SaveAsync();
+        if (!CanRecord || State.Revision != confirmedRevision || State.IsDirty || Error is not null) return;
+        await ExecuteAsync("StartProjectInsertion", new() { Configuration = configuration, TimelineTicks = confirmedTicks });
+    }
     [RelayCommand] public Task PauseAsync() => ExecuteAsync("PauseProjectRecording");
     [RelayCommand] public Task FinishAsync() => ExecuteAsync("FinishProjectRecording");
+    public async Task ExportAsync(string directory)
+    {
+        if (!CanExport) return;
+        await SaveAsync();
+        if (!CanExport || HasPropertyDraft || State.IsDirty || Error is not null) return;
+        await ExecuteAsync("ExportRecordingContent", new() { Path = directory });
+    }
+    [RelayCommand] public Task CancelExportAsync() => IsExporting
+        ? ExecuteAsync("CancelRecordingContentExport", new() { ExportId = State.Export!.ExportId }) : Task.CompletedTask;
     [RelayCommand] public async Task SaveAsync()
     {
         if (HasPropertyDraft)
@@ -94,6 +126,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     public Task RestoreBackupAsync() => ExecuteAsync("RestoreProjectBackup");
     [RelayCommand] public Task RenameSelectedAsync() => SelectedClip is null ? Task.CompletedTask : RenameAsync(SelectedClip.Id, ClipName);
     public Task RenameAsync(Guid clipId, string name) => ExecuteAsync("RenameProjectClip", new() { ClipId = clipId, Name = name });
+    public Task RenameProjectAsync(string name) => ExecuteAsync("RenameProject", new() { Name = name });
     [RelayCommand] public Task DeleteSelectedAsync() => !CanEditTimeline || !CanEditSelection ? Task.CompletedTask :
         ExecuteAsync("ApplyProjectEdit", new() { Edit = new ProjectClipEdit.Remove(SelectedClip!.Id) });
     [RelayCommand] public Task MoveSelectedEarlierAsync()
@@ -139,6 +172,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
 
     public async Task<bool> CloseAsync()
     {
+        if (IsPlayingPreview && !await StopPreviewAsync()) return false;
         if (CanClose && HasPropertyDraft)
         {
             await SaveAsync();
@@ -161,6 +195,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
 
     private async Task ExecuteAsync(string command, ProjectRequest? request = null)
     {
+        if (command != "GetProjectStatus" && IsPlayingPreview && !await StopPreviewAsync()) return;
         await _gate.WaitAsync();
         try
         {

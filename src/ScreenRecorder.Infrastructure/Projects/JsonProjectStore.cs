@@ -10,13 +10,27 @@ public sealed class JsonProjectStore : IProjectStore
 {
     internal static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true, MaxDepth = ProjectValidation.MaximumJsonDepth };
 
+    public sealed record Summary(string Path, string Name, DateTime Modified)
+    {
+        public override string ToString() => Modified == DateTime.MinValue ? Name : $"{Name} · {Modified:yyyy-MM-dd HH:mm}";
+    }
+
+    public static async Task<Summary> ReadSummaryAsync(string manifestPath, CancellationToken ct = default)
+    {
+        var full = Path.GetFullPath(manifestPath);
+        if (Path.GetFileName(full) != "project.opencam") throw new InvalidDataException("Invalid project filename.");
+        using var root = BoundDirectory.Open(Path.GetDirectoryName(full)!);
+        var project = Parse(await root.ReadTextAsync("project.opencam", ct));
+        return new(full, project.Name, File.GetLastWriteTime(full));
+    }
+
     public async Task<IProjectHandle> CreateAsync(string parentDirectory, string name, CancellationToken ct = default)
     {
         ProjectValidation.ValidateName(name);
         ct.ThrowIfCancellationRequested();
         var parent = BoundDirectory.Open(parentDirectory);
         BoundDirectory root;
-        try { root = parent.OpenChild("OpenCam-" + Guid.NewGuid().ToString("N"), create: true, exclusive: true); }
+        try { root = parent.OpenChild($"OpenCam-{ProjectNaming.FileStem(name)}-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}", create: true, exclusive: true); }
         catch { parent.Dispose(); throw; }
         FileStream? claim = null;
         try
@@ -61,7 +75,8 @@ public sealed class JsonProjectStore : IProjectStore
             throw new InvalidDataException("Project exceeds metadata limit.");
         using var doc = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = ProjectValidation.MaximumJsonDepth });
         if (doc.RootElement.ValueKind != JsonValueKind.Object ||
-            !doc.RootElement.TryGetProperty("SchemaVersion", out var schema) || !schema.TryGetInt32(out var version))
+            !doc.RootElement.TryGetProperty("SchemaVersion", out var schema) ||
+            schema.ValueKind != JsonValueKind.Number || !schema.TryGetInt32(out var version))
             throw new InvalidDataException("Missing project schema.");
         if (version != 1) throw new NotSupportedException("Project schema is not supported; no files have been changed.");
         var project = JsonSerializer.Deserialize<RecordingProject>(json, JsonOptions)

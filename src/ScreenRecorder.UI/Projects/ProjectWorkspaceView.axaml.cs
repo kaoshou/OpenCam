@@ -11,6 +11,13 @@ namespace ScreenRecorder.UI.Projects;
 public partial class ProjectWorkspaceView : Window
 {
     private MainViewModel? _main;
+    private Window? _recordingWindow;
+    public void ShowForRecordingWindow(Window home)
+    {
+        _recordingWindow = home;
+        if (!IsVisible) Show(home);
+        Activate();
+    }
     private bool _closed, _closing;
     private EditorLayout? _layout;
     private Avalonia.Media.Imaging.WriteableBitmap? _previewBitmap;
@@ -61,14 +68,15 @@ public partial class ProjectWorkspaceView : Window
     {
         DataContext = vm;
         _main = main;
-        RecentProjects.ItemsSource = main.RecentProjectPaths;
+        NewProjectButton.IsVisible = !main.UsesRecordingContent;
+        Opened += async (_, _) => await RefreshRecentProjectsAsync();
         var timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         timer.Tick += async (_, _) => { await vm.PollRecordingAsync(); await vm.PollWaveformAsync();
             if (vm.PreviewFrame is not null) await vm.PollThumbnailAsync(); };
         Opened += (_, _) => timer.Start();
         Closed += (_, _) => timer.Stop();
-        var previewTimer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(180) };
-        previewTimer.Tick += async (_, _) => await vm.PollPreviewAsync();
+        var previewTimer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
+        previewTimer.Tick += async (_, _) => { if (IsVisible) await vm.PollPreviewAsync(); };
         vm.PropertyChanged += OnPreviewChanged;
         Opened += (_, _) => previewTimer.Start();
         Closed += (_, _) => {
@@ -93,6 +101,13 @@ public partial class ProjectWorkspaceView : Window
     }
     private ProjectWorkspaceViewModel Model => (ProjectWorkspaceViewModel)DataContext!;
 
+    private async void OnExport(object? sender, RoutedEventArgs e)
+    {
+        if (!Model.CanExport) return;
+        var folders = await StorageProvider.OpenFolderPickerAsync(new() { Title = Model.Strings["ProjectExportChooseFolder"], AllowMultiple = false });
+        if (folders.FirstOrDefault()?.TryGetLocalPath() is { } path) await Model.ExportAsync(path);
+    }
+
     private async void OnNew(object? sender, RoutedEventArgs e)
     {
         if (Model.IsBusy || !await Model.CloseAsync()) return;
@@ -100,7 +115,7 @@ public partial class ProjectWorkspaceView : Window
         var path = folders.FirstOrDefault()?.TryGetLocalPath();
         if (path is null) return;
         await Model.CreateAsync(path, Model.Strings["ProjectDefaultName"] + " " + DateTime.Now.ToString("yyyy-MM-dd HH.mm"));
-        RecentProjects.ItemsSource = _main?.RecentProjectPaths;
+        await RefreshRecentProjectsAsync();
     }
     private async void OnOpen(object? sender, RoutedEventArgs e)
     {
@@ -109,17 +124,107 @@ public partial class ProjectWorkspaceView : Window
             FileTypeFilter = [new("OpenCam") { Patterns = ["*.opencam"] }] });
         var path = files.FirstOrDefault()?.TryGetLocalPath();
         if (path is not null) await Model.OpenAsync(path);
-        RecentProjects.ItemsSource = _main?.RecentProjectPaths;
+        await RefreshRecentProjectsAsync();
     }
     private async void OnOpenRecent(object? sender, RoutedEventArgs e)
     {
-        if (RecentProjects.SelectedItem is string path && !Model.IsBusy && await Model.CloseAsync()) await Model.OpenAsync(path);
+        if (RecentProjects.SelectedItem is ScreenRecorder.Infrastructure.Projects.JsonProjectStore.Summary item &&
+            !Model.IsBusy && await Model.CloseAsync()) await Model.OpenAsync(item.Path);
+    }
+    private async Task RefreshRecentProjectsAsync()
+    {
+        var paths = _main?.RecentProjectPaths.ToArray() ?? [];
+        var summaries = new List<ScreenRecorder.Infrastructure.Projects.JsonProjectStore.Summary>();
+        foreach (var path in paths)
+        {
+            try { summaries.Add(await ScreenRecorder.Infrastructure.Projects.JsonProjectStore.ReadSummaryAsync(path)); }
+            catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or System.Text.Json.JsonException or NotSupportedException or ArgumentException)
+            {
+                // Keep missing/corrupt projects selectable, so Open can report the actual
+                // recovery error instead of silently dropping the user's recent entry.
+                summaries.Add(new(path, System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(path)) ?? path, DateTime.MinValue));
+            }
+        }
+        if (!_closed) RecentProjects.ItemsSource = summaries;
     }
     private async void OnRecord(object? sender, RoutedEventArgs e)
     {
-        if (Model.CanRecord && _main?.CheckProjectScreenPermission() == true) await Model.StartAsync(_main.BuildProjectConfiguration());
+        if (!Model.CanRecord || _main is null) return;
+        if (_main.UsesRecordingContent) await _main.StartEditorRecordingAsync();
+        else if (_main.CheckProjectScreenPermission()) await Model.StartAsync(_main.BuildProjectConfiguration());
+        else Model.Error = _main.StatusMessage;
     }
-    private void OnCaptureSettings(object? sender, RoutedEventArgs e) => Owner?.Activate();
+    private async void OnCaptureSettings(object? sender, RoutedEventArgs e)
+    {
+        await ReturnToRecordingAsync();
+    }
+    public async Task ReturnToRecordingAsync()
+    {
+        if (!Model.CanReturnToRecording) return;
+        if (!await Model.StopPreviewAsync()) return;
+        if ((_recordingWindow ?? Owner) is Window home)
+        {
+            // Owned windows stay above their owner on macOS. Activate alone cannot expose
+            // the controls underneath; hide (not close) the editor and retain its content.
+            Hide(); home.Show(); home.WindowState = WindowState.Normal; home.Activate();
+        }
+    }
+    private async void OnRenameProject(object? sender, RoutedEventArgs e)
+    {
+        if (!Model.CanRecord) return;
+        var dialog = new Window { Width = 440, Height = 200, CanResize = false,
+            Title = Model.Strings["ProjectRename"], WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        var input = new TextBox { Text = Model.State.Name, MaxLength = 200 };
+        var confirm = new Button { Content = Model.Strings["Confirm"] };
+        var cancel = new Button { Content = Model.Strings["Cancel"] };
+        confirm.Click += (_, _) => { if (!string.IsNullOrWhiteSpace(input.Text)) dialog.Close(true); };
+        cancel.Click += (_, _) => dialog.Close(false);
+        dialog.Content = new StackPanel { Margin = new(24), Spacing = 16, Children = {
+            input, new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 12, Children = { confirm, cancel } }
+        }};
+        dialog.Opened += (_, _) => { input.Focus(); input.SelectAll(); };
+        if (await dialog.ShowDialog<bool>(this))
+        {
+            await Model.RenameProjectAsync(input.Text!.Trim());
+            await RefreshRecentProjectsAsync();
+        }
+    }
+    private async void OnFinishRecording(object? sender, RoutedEventArgs e)
+    {
+        if (!Model.CanFinish) return;
+        if (_main?.UsesRecordingContent == true) await _main.StopRecordingAsync();
+        else await Model.FinishAsync();
+    }
+    private async void OnInsertRecording(object? sender, RoutedEventArgs e)
+    {
+        if (!Model.CanRecord || _main is null) return;
+        await Model.SaveAsync();
+        if (!Model.CanRecord || Model.Error is not null) return;
+        var ticks = Model.PlayheadTicks;
+        var revision = Model.State.Revision;
+        var inside = Model.TimelineClips.FirstOrDefault(c => ticks > c.StartTicks && ticks < c.EndTicks);
+        var name = inside is null ? Model.Strings["ProjectInsertionBoundary"] :
+            Model.Clips.First(c => c.Id == inside.ClipId).Name;
+        var message = string.Format(Model.Strings["ProjectInsertionConfirm"],
+            TimeSpan.FromTicks(ticks).ToString(@"hh\:mm\:ss\.fff"), name);
+        var dialog = new Window { Width = 480, Height = 240, CanResize = false,
+            Title = Model.Strings["ProjectInsertHere"], WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        var confirm = new Button { Content = Model.Strings["Confirm"] };
+        var cancel = new Button { Content = Model.Strings["Cancel"] };
+        confirm.Click += (_, _) => dialog.Close(true);
+        cancel.Click += (_, _) => dialog.Close(false);
+        dialog.Content = new StackPanel { Margin = new(24), Spacing = 20, Children = {
+            new TextBlock { Text = message, TextWrapping = Avalonia.Media.TextWrapping.Wrap },
+            new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 12, Children = { confirm, cancel } }
+        }};
+        if (await dialog.ShowDialog<bool>(this))
+        {
+            if (_main.UsesRecordingContent) await _main.StartEditorRecordingAsync(ticks, revision);
+            else if (_main.CheckProjectScreenPermission())
+                await Model.StartInsertionAsync(_main.BuildProjectConfiguration(), ticks, revision);
+            else Model.Error = _main.StatusMessage;
+        }
+    }
     private void OnFitTimeline(object? sender, RoutedEventArgs e) => TimelineControl.Fit();
     private void OnToggleClipDensity(object? sender, RoutedEventArgs e) => Model.IsClipListCompact = !Model.IsClipListCompact;
     private async void OnRestoreBackup(object? sender, RoutedEventArgs e)
@@ -144,7 +249,11 @@ public partial class ProjectWorkspaceView : Window
         _closing = true;
         try
         {
-            if (!await Model.CloseAsync()) return false;
+            if (_main?.UsesRecordingContent == true)
+            {
+                if (!await _main.LeaveContentEditorAsync()) return false;
+            }
+            else if (!await Model.CloseAsync()) return false;
             _closed = true;
             Close();
             return true;

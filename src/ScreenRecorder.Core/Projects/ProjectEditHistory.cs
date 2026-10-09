@@ -6,8 +6,10 @@ namespace ScreenRecorder.Core.Projects;
 /// <summary>In-memory edit history, separate from durable save acknowledgements.</summary>
 public sealed class ProjectEditHistory
 {
-    private readonly Stack<ImmutableArray<ProjectClip>> _undo = new();
-    private readonly Stack<ImmutableArray<ProjectClip>> _redo = new();
+    private sealed record Snapshot(string Name, ImmutableArray<ProjectClip> Clips);
+    private readonly Stack<Snapshot> _undo = new();
+    private readonly Stack<Snapshot> _redo = new();
+    private Snapshot Capture() => new(Current.Name, Current.Clips);
     public RecordingProject Current { get; private set; }
     public bool CanUndo => _undo.Count > 0;
     public bool CanRedo => _redo.Count > 0;
@@ -16,6 +18,17 @@ public sealed class ProjectEditHistory
     {
         ProjectValidation.Validate(project);
         Current = project;
+    }
+
+    public void RenameProject(string name)
+    {
+        ProjectValidation.ValidateName(name);
+        if (Current.Name == name) return;
+        var next = Current with { Name = name, Revision = checked(Current.Revision + 1) };
+        ProjectValidation.Validate(next);
+        _undo.Push(Capture());
+        _redo.Clear();
+        Current = next;
     }
 
     public void RenameClip(Guid clipId, string name)
@@ -31,7 +44,7 @@ public sealed class ProjectEditHistory
             Clips = Current.Clips.SetItem(index, Current.Clips[index] with { Name = name })
         };
         ProjectValidation.Validate(next);
-        _undo.Push(Current.Clips);
+        _undo.Push(Capture());
         _redo.Clear();
         Current = next;
     }
@@ -43,7 +56,7 @@ public sealed class ProjectEditHistory
         var next = Current with { Revision = checked(Current.Revision + 1), Clips = clips };
         ProjectValidation.Validate(next);
         _ = ProjectTimeline.Build(next);
-        _undo.Push(Current.Clips);
+        _undo.Push(Capture());
         _redo.Clear();
         Current = next;
     }
@@ -65,19 +78,32 @@ public sealed class ProjectEditHistory
         Current = committed;
     }
 
-    private static void AppendToHistory(Stack<ImmutableArray<ProjectClip>> stack, ImmutableArray<ProjectClip> additions)
+    /// <summary>One insertion is one Undo; sources remain owned even when its clips are undone.</summary>
+    public void AcceptRecordingInsertion(RecordingProject committed)
     {
-        var snapshots = stack.Reverse().Select(clips => clips.AddRange(additions)).ToArray();
+        ProjectValidation.Validate(committed);
+        if (committed.ProjectId != Current.ProjectId || committed.Revision != checked(Current.Revision + 1) ||
+            committed.Sources.Length != Current.Sources.Length + 1 ||
+            Current.Sources.Any(source => !committed.Sources.Contains(source)))
+            throw new InvalidDataException("Insertion must preserve all existing original sources.");
+        _undo.Push(Capture());
+        _redo.Clear();
+        Current = committed;
+    }
+
+    private static void AppendToHistory(Stack<Snapshot> stack, ImmutableArray<ProjectClip> additions)
+    {
+        var snapshots = stack.Reverse().Select(snapshot => snapshot with { Clips = snapshot.Clips.AddRange(additions) }).ToArray();
         stack.Clear();
         foreach (var snapshot in snapshots) stack.Push(snapshot);
     }
 
-    private void Restore(Stack<ImmutableArray<ProjectClip>> from, Stack<ImmutableArray<ProjectClip>> to)
+    private void Restore(Stack<Snapshot> from, Stack<Snapshot> to)
     {
         if (from.Count == 0) return;
-        var next = Current with { Revision = checked(Current.Revision + 1), Clips = from.Peek() };
+        var next = Current with { Revision = checked(Current.Revision + 1), Name = from.Peek().Name, Clips = from.Peek().Clips };
         ProjectValidation.Validate(next);
-        to.Push(Current.Clips);
+        to.Push(Capture());
         from.Pop();
         Current = next;
     }

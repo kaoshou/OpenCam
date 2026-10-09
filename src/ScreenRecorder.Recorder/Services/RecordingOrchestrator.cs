@@ -193,7 +193,8 @@ public class RecordingOrchestrator : IAsyncDisposable
             var actualBounds = ResolveCaptureBounds(config);
             _projectDisplaySignature = ownership is null ? null : GetProjectDisplaySignature(config);
 
-            var sessionId = DateTimeOffset.Now.ToString("yyyyMMdd_HHmmss") + "_" + Guid.NewGuid().ToString("N")[..6];
+            var sessionId = ownership?.PreparedSessionId ??
+                DateTimeOffset.Now.ToString("yyyyMMdd_HHmmss") + "_" + Guid.NewGuid().ToString("N")[..6];
             _projectSessionDirectory?.Dispose();
             _projectSessionDirectory = ownership is null ? null : ProjectSessionDirectory.Create(ownership.Handle, sessionId);
             var sessionDir = _projectSessionDirectory?.Directory.CurrentPath ?? _storageService.CreateSessionDirectory(rootPath, sessionId);

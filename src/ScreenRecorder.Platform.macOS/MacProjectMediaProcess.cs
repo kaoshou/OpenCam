@@ -4,11 +4,12 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 using ScreenRecorder.Media.Projects;
+using ScreenRecorder.Media.FFmpeg;
 
 namespace ScreenRecorder.Platform.macOS;
 
 /// <summary>Seekable bound-FD frame / bounded PCM extraction. No media path is reopened.</summary>
-public sealed class MacProjectMediaProcess : IProjectMediaProcess
+public sealed class MacProjectMediaProcess : IProjectMediaProcess, IProjectStreamingMediaProcess
 {
     private readonly string _executable;
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -25,8 +26,10 @@ public sealed class MacProjectMediaProcess : IProjectMediaProcess
     {
         if (!OperatingSystem.IsMacOS()) throw new PlatformNotSupportedException();
         ArgumentNullException.ThrowIfNull(job);
-        if (boundInputs.Count != 1 || !boundInputs[0].CanRead || boundInputs[0].CanWrite || !boundInputs[0].CanSeek)
-            throw new ArgumentException("Media extraction requires exactly one read-only seekable source.");
+        if (boundInputs.Count != job.InputCount || boundInputs.Any(s => !s.CanRead || s.CanWrite || !s.CanSeek))
+            throw new ArgumentException("Media job requires read-only seekable bound sources.");
+        if (job.RequiresOutput && boundOutput is null)
+            throw new ArgumentException("This media job requires a bound output stream.");
         if (boundOutput is not null && (!boundOutput.CanWrite || !boundOutput.CanSeek ||
             boundOutput.Length != 0 || boundOutput.Position != 0))
             throw new ArgumentException("Output must be a new empty writable stream.");
@@ -34,22 +37,47 @@ public sealed class MacProjectMediaProcess : IProjectMediaProcess
         try
         {
             ct.ThrowIfCancellationRequested();
-            boundInputs[0].Position = 0;
-            return await RunBoundAsync(job, boundInputs[0], boundOutput, ct);
+            foreach (var input in boundInputs) input.Position = 0;
+            return await RunBoundAsync(job, boundInputs, boundOutput, ct);
         }
         finally { _gate.Release(); }
     }
 
-    private async Task<ProjectMediaResult> RunBoundAsync(ProjectMediaJob job, FileStream source,
-        FileStream? destination, CancellationToken ct)
+    public async Task RunStreamingAsync(ProjectMediaJob job, FileStream boundInput,
+        Func<Stream, CancellationToken, Task> consume, CancellationToken ct)
+    {
+        if (!OperatingSystem.IsMacOS()) throw new PlatformNotSupportedException();
+        ArgumentNullException.ThrowIfNull(consume);
+        if (job.InputCount != 1 || !boundInput.CanRead || boundInput.CanWrite || !boundInput.CanSeek)
+            throw new ArgumentException("Streaming requires one bound read-only source.");
+        await _gate.WaitAsync(ct);
+        try
+        {
+            boundInput.Position = 0;
+            await RunBoundAsync(job, [boundInput], null, ct, consume);
+        }
+        finally { _gate.Release(); }
+    }
+
+    private async Task<ProjectMediaResult> RunBoundAsync(ProjectMediaJob job, IReadOnlyList<FileStream> sources,
+        FileStream? destination, CancellationToken ct, Func<Stream, CancellationToken, Task>? consume = null)
     {
         using var output = NativePipe.Create();
         using var error = NativePipe.Create();
         var actions = IntPtr.Zero;
         var attributes = IntPtr.Zero;
-        var sourceHeld = false;
+        var sourceHeld = new bool[sources.Count];
+        // Exposing FileStream.SafeFileHandle synchronizes its managed position back to
+        // the native descriptor on Unix. Never expose it again while a child is reading:
+        // doing so rewinds the shared descriptor and repeats input indefinitely.
+        var sourceHandles = sources.Select(source => source.SafeFileHandle).ToArray();
+        var sourceFds = sourceHandles.Select(handle => handle.DangerousGetHandle().ToInt32()).ToArray();
+        var destinationHandle = destination?.SafeFileHandle;
         var destinationHeld = false;
-        var strings = new[] { _executable }.Concat(job.FileDescriptorArguments())
+        var executable = job.IsProbe
+            ? FFmpegDiscovery.FindFFprobeExecutable() ?? throw new FileNotFoundException("ffprobe is required for export verification.")
+            : _executable;
+        var strings = new[] { executable }.Concat(job.FileDescriptorArguments())
             .Select(Marshal.StringToCoTaskMemUTF8).ToArray();
         var argv = Marshal.AllocHGlobal((strings.Length + 1) * IntPtr.Size);
         int pid;
@@ -60,18 +88,21 @@ public sealed class MacProjectMediaProcess : IProjectMediaProcess
             Check(posix_spawn_file_actions_init(out actions));
             Check(posix_spawnattr_init(out attributes));
             Check(posix_spawnattr_setflags(ref attributes, 0x4000)); // POSIX_SPAWN_CLOEXEC_DEFAULT
-            source.SafeFileHandle.DangerousAddRef(ref sourceHeld);
-            destination?.SafeFileHandle.DangerousAddRef(ref destinationHeld);
-            Check(posix_spawn_file_actions_adddup2(ref actions, source.SafeFileHandle.DangerousGetHandle().ToInt32(), 0));
+            for (var i = 0; i < sources.Count; i++) sourceHandles[i].DangerousAddRef(ref sourceHeld[i]);
+            destinationHandle?.DangerousAddRef(ref destinationHeld);
+            Check(posix_spawn_file_actions_adddup2(ref actions, sourceFds[0], 0));
             Check(posix_spawn_file_actions_adddup2(ref actions,
-                destination?.SafeFileHandle.DangerousGetHandle().ToInt32() ?? output.WriteFd, 1));
+                destinationHandle?.DangerousGetHandle().ToInt32() ?? output.WriteFd, 1));
             Check(posix_spawn_file_actions_adddup2(ref actions, error.WriteFd, 2));
-            Check(posix_spawn(out pid, _executable, ref actions, ref attributes, argv, Marshal.ReadIntPtr(_NSGetEnviron())));
+            // Do this last: descriptor 3 may previously have held any of the copied handles.
+            if (sources.Count == 2)
+                Check(posix_spawn_file_actions_adddup2(ref actions, sourceFds[1], 3));
+            Check(posix_spawn(out pid, executable, ref actions, ref attributes, argv, Marshal.ReadIntPtr(_NSGetEnviron())));
         }
         finally
         {
-            if (sourceHeld) source.SafeFileHandle.DangerousRelease();
-            if (destinationHeld) destination!.SafeFileHandle.DangerousRelease();
+            for (var i = 0; i < sources.Count; i++) if (sourceHeld[i]) sourceHandles[i].DangerousRelease();
+            if (destinationHeld) destinationHandle!.DangerousRelease();
             if (actions != IntPtr.Zero) posix_spawn_file_actions_destroy(ref actions);
             if (attributes != IntPtr.Zero) posix_spawnattr_destroy(ref attributes);
             Marshal.FreeHGlobal(argv);
@@ -80,13 +111,24 @@ public sealed class MacProjectMediaProcess : IProjectMediaProcess
         output.CloseWriter();
         error.CloseWriter();
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeout.CancelAfter(TimeSpan.FromSeconds(15)); // Single frame / bounded PCM chunk, never a long export deadline.
-        var stdout = ReadBoundedAsync(output.Reader, job.ExpectedOutputBytes);
+        if (!job.IsLongRunning) timeout.CancelAfter(TimeSpan.FromSeconds(15));
+        var limit = job.OutputLimit > 0 ? job.OutputLimit : job.ExpectedOutputBytes;
+        var counted = new CountingReadStream(output.Reader, limit);
+        async Task<byte[]> ConsumeAsync()
+        {
+            await consume!(counted, timeout.Token);
+            return [];
+        }
+        var stdout = consume is null
+            ? ReadBoundedAsync(output.Reader, destination is null ? checked((int)limit) : 0)
+            : ConsumeAsync();
         var stderr = ReadBoundedAsync(error.Reader, ProjectMediaJob.MaximumDiagnosticBytes);
         var killed = false;
         var reaped = false;
         var overQuota = false;
         var status = 0;
+        var activity = System.Diagnostics.Stopwatch.StartNew();
+        long lastProgress = -1;
         try
         {
             while (true)
@@ -100,9 +142,13 @@ public sealed class MacProjectMediaProcess : IProjectMediaProcess
                     reaped = errno == 10; // ECHILD: never signal a potentially reused PID.
                     throw new Win32Exception(errno);
                 }
-                overQuota |= destination is not null && destination.Length > job.ExpectedOutputBytes;
-                if (!killed && (timeout.IsCancellationRequested || stdout.IsFaulted || stderr.IsFaulted || overQuota))
+                var progress = (destination?.Length ?? 0) + counted.Count + sourceFds.Sum(fd => lseek(fd, 0, 1));
+                if (progress != lastProgress) { lastProgress = progress; activity.Restart(); }
+                if (job.IsLongRunning && activity.Elapsed > TimeSpan.FromSeconds(30)) timeout.Cancel();
+                overQuota |= destination is not null && destination.Length > limit;
+                if (!killed && (timeout.IsCancellationRequested || stdout.IsFaulted || stdout.IsCanceled || stderr.IsFaulted || overQuota))
                 {
+                    timeout.Cancel();
                     if (kill(pid, 9) != 0 && Marshal.GetLastPInvokeError() != 3)
                         throw new Win32Exception(Marshal.GetLastPInvokeError());
                     killed = true;
@@ -110,18 +156,21 @@ public sealed class MacProjectMediaProcess : IProjectMediaProcess
                 await Task.Delay(10);
             }
             await Task.WhenAll(stdout, stderr);
-            timeout.Token.ThrowIfCancellationRequested();
-            overQuota |= destination is not null && destination.Length > job.ExpectedOutputBytes;
+            overQuota |= destination is not null && destination.Length > limit;
             if (overQuota) throw new InvalidDataException("Media output limit exceeded.");
+            timeout.Token.ThrowIfCancellationRequested();
             var diagnostic = Encoding.UTF8.GetString(await stderr);
             if (status != 0) throw new InvalidDataException($"Media decoder status {status}: {diagnostic}");
             var bytes = await stdout;
-            if ((destination?.Length ?? bytes.Length) != job.ExpectedOutputBytes)
+            var length = destination?.Length ?? (consume is null ? bytes.LongLength : counted.Count);
+            var exact = job.OutputLimit > 0 ? job.ExactLength : job.ExpectedOutputBytes;
+            if (length <= 0 || (exact is { } expected && length != expected))
                 throw new InvalidDataException("Missing or incomplete media at requested source interval.");
             return new(bytes, diagnostic);
         }
         finally
         {
+            timeout.Cancel();
             if (!reaped)
             {
                 kill(pid, 9);
@@ -130,6 +179,30 @@ public sealed class MacProjectMediaProcess : IProjectMediaProcess
             // No callback can signal the child after reaping. Caller streams remain caller-owned.
             try { await Task.WhenAll(stdout, stderr); } catch { }
         }
+    }
+
+    private sealed class CountingReadStream(Stream inner, long limit) : Stream
+    {
+        private long _count;
+        public long Count => Interlocked.Read(ref _count);
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => Count; set => throw new NotSupportedException(); }
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken ct = default)
+        {
+            var read = await inner.ReadAsync(buffer, ct);
+            if (Interlocked.Add(ref _count, read) > limit) throw new InvalidDataException("Streaming media output limit exceeded.");
+            return read;
+        }
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken ct) =>
+            ReadAsync(buffer.AsMemory(offset, count), ct).AsTask();
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override void Flush() => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
     private static async Task<byte[]> ReadBoundedAsync(Stream reader, int limit)
@@ -190,4 +263,5 @@ public sealed class MacProjectMediaProcess : IProjectMediaProcess
     [DllImport(Lib, SetLastError = true)] private static extern int fcntl(int fd, int command, int argument);
     [DllImport(Lib, SetLastError = true)] private static extern int waitpid(int pid, out int status, int options);
     [DllImport(Lib, SetLastError = true)] private static extern int kill(int pid, int signal);
+    [DllImport(Lib, SetLastError = true)] private static extern long lseek(int fd, long offset, int whence);
 }

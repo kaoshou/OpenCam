@@ -38,6 +38,8 @@ public sealed class EditorToolContent : UserControl
     private void UpdateIcon()
     {
         _icon.Data = Geometry.Parse(Icon switch {
+            "back" => "M7,2 L1,8 L7,14 M1,8 H15",
+            "rename" => "M2,10 L10,2 L14,6 L6,14 H2 Z M8,4 L12,8",
             "properties" => "M2,4 H14 M2,8 H14 M2,12 H14 M5,2 V6 M11,6 V10 M6,10 V14",
             "split" => "M6,6 L14,14 M6,10 L14,2 M3,3 A2.5,2.5 0 1 0 3,8 A2.5,2.5 0 1 0 3,3 M3,9 A2.5,2.5 0 1 0 3,14 A2.5,2.5 0 1 0 3,9",
             "undo" => "M6,3 L2,7 L6,11 M2,7 H10 C15,7 15,14 10,14",
@@ -47,6 +49,8 @@ public sealed class EditorToolContent : UserControl
             "delete" => "M2,4 H14 M6,4 V2 H10 V4 M4,4 L5,14 H11 L12,4 M7,7 V11 M9,7 V11",
             "fit" => "M5,2 H2 V5 M11,2 H14 V5 M2,11 V14 H5 M14,11 V14 H11 M5,8 H11",
             "thumbnail" => "M2,2 H14 V14 H2 Z M3,11 L6,7 L9,10 L11,8 L14,12 M10,5 H11",
+            "export" => "M8,11 V2 M4,6 L8,2 L12,6 M2,10 V14 H14 V10",
+            "insert" => "M2,2 V14 M14,2 V14 M8,4 V12 M4,8 H12",
             _ => "M2,3 H3 M6,3 H14 M2,8 H3 M6,8 H14 M2,13 H3 M6,13 H14"
         });
     }

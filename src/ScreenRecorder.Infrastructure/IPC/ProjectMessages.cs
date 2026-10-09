@@ -15,6 +15,7 @@ public sealed record ProjectRequest
     public string? Name { get; init; }
     public Guid ClipId { get; init; }
     public long TimelineTicks { get; init; }
+    public Guid? PlaybackGeneration { get; init; }
     public ProjectClipEdit? Edit { get; init; }
     public RecordingConfiguration? Configuration { get; init; }
     public int Offset { get; init; }
@@ -38,7 +39,10 @@ public sealed record ProjectReply(bool Success, string? Error, ProjectSnapshot S
     public ProjectTimelineClip[]? TimelineClips { get; init; }
     public ProjectWaveformReply? Waveform { get; init; }
     public ProjectFrameReply? Frame { get; init; }
+    public ProjectPlaybackState? Playback { get; init; }
 }
+
+public sealed record ProjectPlaybackState(Guid Generation, long TimelineTicks, bool Playing, string? Error);
 
 /// <summary>Fixed-size RGBA still, sent exclusively over authenticated media IPC.</summary>
 public sealed record ProjectFrameReply(long Revision, long TimelineTicks, Guid ClipId, byte[]? Rgba, string? Error = null)

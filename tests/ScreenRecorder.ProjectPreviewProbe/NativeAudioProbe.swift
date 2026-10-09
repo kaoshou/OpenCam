@@ -161,10 +161,81 @@ func integrated(_ path: String) throws -> [String: Any] {
             "scope": "Actual decoded packets scheduled by real output sample clock; no acoustic loopback or GUI-render claim"]
 }
 
+// Incremental diagnostic input: stereo interleaved float32, 48kHz, <=8 scheduled blocks.
+// This mode uses the real output clock but does not capture a microphone or other application.
+func streamingPcm() throws -> [String: Any] {
+    let engine = AVAudioEngine(), player = AVAudioPlayerNode()
+    let format = AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 2)!
+    let evidence = RenderEvidence()
+    let slots = DispatchSemaphore(value: 8), completed = DispatchGroup()
+    let clockQueue = DispatchQueue(label: "OpenCam.stream-clock")
+    let timer = DispatchSource.makeTimerSource(queue: clockQueue)
+    engine.attach(player)
+    engine.connect(player, to: engine.mainMixerNode, format: format)
+    engine.mainMixerNode.installTap(onBus: 0, bufferSize: 256, format: nil) { pcm, _ in evidence.observe(pcm) }
+    timer.schedule(deadline: .now(), repeating: .milliseconds(2))
+    timer.setEventHandler {
+        if let time = player.lastRenderTime.flatMap({ player.playerTime(forNodeTime: $0) }) {
+            let samples = Int64(Double(time.sampleTime) * 48_000 / time.sampleRate)
+            let line = "{\"sampleClock\":\(samples)}\n"
+            FileHandle.standardOutput.write(Data(line.utf8))
+        }
+    }
+    timer.resume()
+    defer {
+        timer.cancel(); clockQueue.sync {}
+        player.stop(); engine.stop(); engine.mainMixerNode.removeTap(onBus: 0)
+    }
+    var total = 0, blocks = 0, started = false
+    while true {
+        var bytes = Data()
+        while bytes.count < 8192 {
+            guard let part = try FileHandle.standardInput.read(upToCount: 8192 - bytes.count), !part.isEmpty else { break }
+            bytes.append(part)
+        }
+        if bytes.isEmpty { break }
+        try check(bytes.count % 8 == 0 && total + bytes.count / 8 <= 48_000 * 10, "PCM input quota or alignment error")
+        try check(slots.wait(timeout: .now() + 3) == .success, "Audio output stopped consuming scheduled blocks")
+        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(bytes.count / 8))!
+        buffer.frameLength = buffer.frameCapacity
+        try bytes.withUnsafeBytes { data in
+            for frame in 0..<Int(buffer.frameLength) {
+                for channel in 0..<2 {
+                    let value = Float(bitPattern: data.loadUnaligned(fromByteOffset: frame * 8 + channel * 4, as: UInt32.self).littleEndian)
+                    try check(value.isFinite, "Non-finite audio sample")
+                    buffer.floatChannelData![channel][frame] = value
+                }
+            }
+        }
+        completed.enter()
+        player.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack) { _ in
+            slots.signal(); completed.leave()
+        }
+        blocks += 1; total += Int(buffer.frameLength)
+        if !started && blocks >= 4 { try engine.start(); player.play(); started = true }
+    }
+    try check(total > 0, "No PCM received")
+    if !started { try engine.start(); player.play() }
+    try check(completed.wait(timeout: .now() + 5) == .success, "Audio drain timed out")
+    timer.cancel(); clockQueue.sync {}
+    let lastClock = player.lastRenderTime.flatMap { player.playerTime(forNodeTime: $0) }?.sampleTime ?? -1
+    let before = ProcessInfo.processInfo.systemUptime
+    player.stop(); engine.stop()
+    let stopMs = (ProcessInfo.processInfo.systemUptime - before) * 1000
+    let stoppedCount = evidence.frames
+    pump(0.25)
+    try check(evidence.frames > 0 && evidence.frames == stoppedCount && !player.isPlaying && !engine.isRunning,
+              "Streaming output did not render, or continued after stop")
+    return ["status": "PASS", "sampleClock": lastClock, "submittedSamples": total, "blocks": blocks,
+            "renderedNonSilentFrames": evidence.frames, "maximumQueuedBlocks": 8,
+            "stopMs": stopMs, "postStopObservationMs": 250]
+}
+
 do {
     let args = Array(CommandLine.arguments.dropFirst())
     let result: [String: Any]
     if args == ["--self-test"] { result = try selfTest() }
+    else if args == ["--stream-pcm"] { result = try streamingPcm() }
     else if args.count == 2 && args[0] == "--integrated" { result = try integrated(args[1]) }
     else { throw NSError(domain: "OpenCamAudioProbe", code: 5, userInfo: [NSLocalizedDescriptionKey: "Required: --self-test or --integrated fixture.json"]) }
     let data = try JSONSerialization.data(withJSONObject: result, options: [.sortedKeys])

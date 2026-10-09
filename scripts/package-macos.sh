@@ -42,10 +42,12 @@ done
 source_file="$repo_root/src/ScreenRecorder.Platform.macOS/Native/OpenCamSystemAudio/main.swift"
 microphone_source="$repo_root/src/ScreenRecorder.Platform.macOS/Native/OpenCamMicrophone/main.swift"
 cursor_source="$repo_root/src/ScreenRecorder.Platform.macOS/Native/OpenCamCursorOverlay/main.swift"
+preview_audio_source="$repo_root/src/ScreenRecorder.Platform.macOS/Native/OpenCamProjectAudio/main.swift"
 icon_source="$repo_root/src/ScreenRecorder.UI/Assets/app_icon.png"
 [[ -f "$source_file" ]] || fail "missing system audio helper source"
 [[ -f "$microphone_source" ]] || fail "missing microphone helper source"
 [[ -f "$cursor_source" ]] || fail "missing cursor overlay helper source"
+[[ -f "$preview_audio_source" ]] || fail "missing project preview audio helper source"
 [[ -f "$icon_source" ]] || fail "missing app icon source"
 [[ -f "$repo_root/LICENSE" ]] || fail "missing project license"
 [[ -f "$repo_root/NOTICE.md" ]] || fail "missing project notice"
@@ -94,13 +96,17 @@ xcrun swiftc "$cursor_source" \
   -framework AppKit \
   -o "$cursor_helper"
 
+preview_audio_helper="$app_path/Contents/MacOS/OpenCam.ProjectAudio"
+xcrun swiftc "$preview_audio_source" -O -target arm64-apple-macos13.0 -framework AVFoundation -o "$preview_audio_helper"
+
 chmod +x \
   "$app_path/Contents/MacOS/OpenCam" \
   "$app_path/Contents/MacOS/ffmpeg" \
   "$app_path/Contents/MacOS/ffprobe" \
   "$helper" \
   "$microphone_helper" \
-  "$cursor_helper"
+  "$cursor_helper" \
+  "$preview_audio_helper"
 
 plist="$app_path/Contents/Info.plist"
 plutil -create xml1 "$plist"

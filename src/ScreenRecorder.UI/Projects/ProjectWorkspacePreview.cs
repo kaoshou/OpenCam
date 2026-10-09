@@ -8,7 +8,7 @@ public sealed partial class ProjectWorkspaceViewModel
     private int _pollingPreview;
     private long? _failedPreviewTicks;
     public ProjectFrameReply? PreviewFrame { get; private set; }
-    public string PreviewStatus => DurationTicks == 0 ? Strings["ProjectFrameEmpty"] : Strings[_failedPreviewTicks == PlayheadTicks
+    public string PreviewStatus => IsPlayingPreview ? Strings["ProjectPreviewPlaying"] : DurationTicks == 0 ? Strings["ProjectFrameEmpty"] : Strings[_failedPreviewTicks == PlayheadTicks
         ? "ProjectFrameUnavailable" : PreviewFrame is null ? "ProjectFrameLoading" : "ProjectStillPreview"];
 
     private void ClearPreview()
@@ -21,6 +21,7 @@ public sealed partial class ProjectWorkspaceViewModel
 
     public async Task PollPreviewAsync()
     {
+        if (IsPlayingPreview) { await PollPlaybackAsync(); return; }
         if (!CanEdit || State.ProjectId is null || DurationTicks == 0 ||
             PreviewFrame?.TimelineTicks == PlayheadTicks || _failedPreviewTicks == PlayheadTicks ||
             Interlocked.CompareExchange(ref _pollingPreview, 1, 0) != 0) return;

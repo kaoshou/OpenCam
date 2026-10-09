@@ -6,6 +6,8 @@ using ScreenRecorder.Core.Projects;
 using ScreenRecorder.ProjectPreviewProbe;
 
 var candidate = args.SkipWhile(a => a != "--candidate").Skip(1).FirstOrDefault() ?? "none";
+if (candidate == "ffmpeg-streaming-macos")
+    return await StreamingPlaybackProbe.RunAsync(args);
 if (candidate == "ffmpeg-integrated-macos")
     return await IntegratedPlaybackProbe.RunAsync(args);
 if (candidate == "libvlc-stream")

@@ -4,4 +4,4 @@ using ScreenRecorder.Core.Projects;
 namespace ScreenRecorder.Recorder.Services;
 
 // Internal capability: no ordinary recording/IPC configuration can set this policy.
-internal sealed record ProjectSessionOwnership(IProjectHandle Handle);
+internal sealed record ProjectSessionOwnership(IProjectHandle Handle, string? PreparedSessionId = null);

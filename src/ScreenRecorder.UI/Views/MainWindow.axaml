@@ -12,10 +12,6 @@
         WindowStartupLocation="CenterScreen">
 
     <DockPanel>
-    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="16,12,16,0" Spacing="12">
-        <Button Content="{Binding Strings[ProjectWorkspace]}" Click="OnProjectWorkspace" />
-        <TextBlock Text="{Binding Strings[ProjectEntryHint]}" VerticalAlignment="Center" Foreground="#64748B" FontSize="12"/>
-    </StackPanel>
     <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="16,14">
         <!-- 頂部控制工具列卡片 (現代曜石白微光卡片) -->
         <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" 
@@ -80,6 +76,9 @@
 
 
 
+                    <Button Content="{Binding Strings[ContentEditor]}" Click="OnProjectWorkspace"
+                            IsEnabled="{Binding CanOpenContentEditor}" FontSize="12" Padding="11,7.5" CornerRadius="8"/>
+
                     <!-- 修復救援按鈕 (柔和琥珀金) -->
                     <Button Command="{Binding RecoverSessionsCommand}"
                             Background="#FFFBEB" BorderBrush="#FDE68A" BorderThickness="1" Foreground="#92400E"
@@ -133,6 +132,11 @@
                     Padding="14,12" Margin="0,0,8,0" BoxShadow="0 4 16 #0F172A08">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Spacing="9" Margin="0,0,6,0">
+                    <StackPanel Spacing="4" IsVisible="{Binding UsesRecordingContent}" IsEnabled="{Binding CanStartRecording}">
+                        <TextBlock Text="{Binding Strings[ProjectNameOptional]}" FontSize="12"/>
+                        <TextBox Text="{Binding NextProjectName}" MaxLength="200"
+                                 Watermark="{Binding Strings[ProjectNameAutomatic]}"/>
+                    </StackPanel>
                     <!-- 錄影目標即時提示徽章 (冰藍漸層微光標籤) -->
                     <Border BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="8" Padding="12,7">
                         <Border.Background>
@@ -421,10 +425,11 @@
 
         <!-- 底部狀態列卡片 (簡潔淡雅曜石白) -->
         <Border Grid.Row="3" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="9" Padding="12,7" BoxShadow="0 1 4 #0F172A06">
-            <Grid ColumnDefinitions="*,Auto">
+            <Grid ColumnDefinitions="*,Auto,Auto">
                 <TextBlock Grid.Column="0" Text="{Binding StatusMessage}" Foreground="#334155" FontSize="11.5" 
                            TextTrimming="CharacterEllipsis" FontWeight="Medium" VerticalAlignment="Center" />
-                <Button Grid.Column="1" Click="OnAboutClicked" Background="Transparent" BorderThickness="0" 
+                <Button Grid.Column="1" Content="{Binding Strings[ProjectExportCancel]}" Command="{Binding CancelContentExportCommand}" IsVisible="{Binding IsContentExporting}"/>
+                <Button Grid.Column="2" Click="OnAboutClicked" Background="Transparent" BorderThickness="0"
                         Padding="4,0" Cursor="Hand" Margin="8,0,0,0">
                     <TextBlock Text="{Binding VersionAndAboutText}" Foreground="#64748B" FontSize="11" TextDecorations="Underline" VerticalAlignment="Center" />
                 </Button>

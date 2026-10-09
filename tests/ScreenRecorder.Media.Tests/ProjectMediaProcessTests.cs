@@ -10,6 +10,27 @@ namespace ScreenRecorder.Media.Tests;
 public sealed class ProjectMediaProcessTests
 {
     [MacOsOnlyFact]
+    [System.Runtime.Versioning.SupportedOSPlatform("macos")]
+    public async Task ProgressPollingDoesNotRewindTheChildSourceBetweenReads()
+    {
+        var root = Directory.CreateTempSubdirectory("OpenCam-fd-progress-");
+        try
+        {
+            var bytes = Enumerable.Range(0, 160 * 90 * 4).Select(i => (byte)(i % 251)).ToArray();
+            var path = Path.Combine(root.FullName, "pixels");
+            await File.WriteAllBytesAsync(path, bytes);
+            var helper = Path.Combine(root.FullName, "slow-read.sh");
+            await File.WriteAllTextAsync(helper, "#!/bin/sh\ni=0\nwhile [ $i -lt 14 ]; do\n/bin/dd bs=4096 count=1 2>/dev/null\n/bin/sleep 0.03\ni=$((i+1))\ndone\n/bin/dd bs=256 count=1 2>/dev/null\n");
+            File.SetUnixFileMode(helper, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            await using var input = File.OpenRead(path);
+            var result = await new MacProjectMediaProcess(helper).RunAsync(
+                ProjectMediaJob.ExtractFrame(0, new(1, 1000), 160, 90), [input], null, default);
+            Assert.Equal(bytes, result.Output);
+        }
+        finally { root.Delete(true); }
+    }
+
+    [MacOsOnlyFact]
     public async Task RenamedSourceStillUsesOriginalHandle()
     {
         var directory = Directory.CreateTempSubdirectory("OpenCam-frame-process-");

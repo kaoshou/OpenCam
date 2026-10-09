@@ -14,7 +14,9 @@ OpenCam 是一款以可靠性為優先的跨平台桌面螢幕錄影工具。錄
 
 🌐 [OpenCam 官方網站](https://kaoshou.github.io/OpenCam/)（可切換繁體中文／English）
 
-目前原始碼版本為 **0.2.5**，採用 **AGPL-3.0-or-later**。已發布的 Windows 與 Apple Silicon macOS 安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。
+目前原始碼版本為 **0.2.6**，採用 **AGPL-3.0-or-later**。此開發分支為未完成驗收的測試版，僅提供 GitHub Actions artifacts，不代表正式發布。Windows 的編輯影音預覽及精剪輸出後端尚未完成；原錄影流程保留。請使用可拋棄的測試素材，勿以此版取代正式錄影環境。已發布的正式安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。
+
+測試版的 macOS 錄影首頁可選填專案名稱；留白會使用日期時間，不必先建立專案。編輯器標題旁的鉛筆可改名，支援復原／重做及保存後重開。最近專案顯示名稱與修改日期，輸出的 MP4 也包含安全化的名稱。新專案資料夾包含名稱、日期及唯一識別碼；後續改名不會搬移資料夾或原始素材。編輯器左上角箭頭可返回錄影首頁，保留目前內容。這些整合流程仍需實機驗收。
 
 ## v0.2.5：Windows 新版擷取（實驗功能）
 
@@ -169,7 +171,9 @@ This version adds bounded encoder probes and caching, actual Recorder encoder/fa
 
 This stage does not replace GDI capture or change audio formats, resolution, or FPS. Real Windows CPU comparisons and cursor-flicker validation remain pending; automated tests do not establish a performance or flicker fix. Download filenames now identify the version, operating system, and architecture: Windows x64 or macOS arm64 (Apple Silicon).
 
-The current source version is **0.2.5**, licensed under **AGPL-3.0-or-later**. Download published Windows and Apple Silicon macOS packages from [Releases](https://github.com/kaoshou/OpenCam/releases).
+The current source version is **0.2.6**, licensed under **AGPL-3.0-or-later**. This development branch is an unverified preview distributed only as GitHub Actions artifacts, not a stable release. Windows editor audiovisual preview and precision export backends are incomplete; the existing recording path is retained. Use disposable test media, not production recordings. Download stable packages from [Releases](https://github.com/kaoshou/OpenCam/releases).
+
+In the macOS preview, the recording home offers an optional project name, defaulting to date and time without a creation wizard. The pencil beside the editor title renames the project with undo/redo and persistence. Recent projects show names and modification dates; exported MP4 filenames include a sanitized name. New project folders contain the name, date and a unique identifier; later renaming never moves folders or original media. The upper-left arrow returns to recording while retaining current content. These integrated workflows still require hands-on acceptance testing.
 
 ## v0.2.3 Security Changes and Validation Status
 

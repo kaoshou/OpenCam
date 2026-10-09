@@ -16,7 +16,7 @@ public sealed partial class ProjectWorkspaceViewModel
     public async Task PollThumbnailAsync()
     {
         // Preview and thumbnails share one media worker. Scrubbing has priority over background cards.
-        if (IsClipListCompact || !CanEdit || State.ProjectId is null || _thumbnails.Count >= 64 ||
+        if (IsPlayingPreview || IsClipListCompact || !CanEdit || State.ProjectId is null || _thumbnails.Count >= 64 ||
             Interlocked.CompareExchange(ref _pollingPreview, 1, 0) != 0) return;
         try
         {

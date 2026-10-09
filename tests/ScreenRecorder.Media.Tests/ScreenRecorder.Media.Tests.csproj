@@ -19,6 +19,9 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Compile Include="../ScreenRecorder.ProjectPreviewProbe/MacFileDescriptorProcess.cs" Link="PreviewProbe/MacFileDescriptorProcess.cs" />
+    <Compile Include="../ScreenRecorder.ProjectPreviewProbe/StreamingVideoDecoder.cs" Link="PreviewProbe/StreamingVideoDecoder.cs" />
+    <Compile Include="../ScreenRecorder.ProjectPreviewProbe/StreamingAudioDecoder.cs" Link="PreviewProbe/StreamingAudioDecoder.cs" />
   </ItemGroup>
 
   <ItemGroup>

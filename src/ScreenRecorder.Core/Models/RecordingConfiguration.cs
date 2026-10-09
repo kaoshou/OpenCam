@@ -9,6 +9,7 @@ namespace ScreenRecorder.Core.Models;
 /// </summary>
 public class RecordingConfiguration
 {
+    public string? ProjectName { get; set; }
     private WindowsCaptureMode _windowsCaptureMode;
     public WindowsCaptureMode WindowsCaptureMode
     {

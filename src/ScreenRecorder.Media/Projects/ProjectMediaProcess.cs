@@ -12,11 +12,17 @@ public interface IProjectMediaProcess
         FileStream? boundOutput, CancellationToken ct);
 }
 
+public interface IProjectStreamingMediaProcess
+{
+    Task RunStreamingAsync(ProjectMediaJob job, FileStream boundInput,
+        Func<Stream, CancellationToken, Task> consume, CancellationToken ct);
+}
+
 /// <summary>RGBA pixels or mono 48 kHz float32 little-endian PCM; empty Output when written to the bound stream.</summary>
 public sealed record ProjectMediaResult(byte[] Output, string Diagnostic);
 
 /// <summary>Closed set of validated operations, never UI-supplied command-line arguments.</summary>
-public sealed class ProjectMediaJob
+public sealed partial class ProjectMediaJob
 {
     public const int MaximumFrameBytes = 64 * 1024 * 1024;
     public const int MaximumDiagnosticBytes = 1024 * 1024;
@@ -30,6 +36,13 @@ public sealed class ProjectMediaJob
     public long EndPts { get; }
     public long? FrameEndPts { get; private init; }
     public int ExpectedOutputBytes => IsAudio ? checked(AudioSampleCount * 4) : checked(Width * Height * 4);
+    internal int InputCount { get; private init; } = 1;
+    internal bool RequiresOutput { get; private init; }
+    internal bool IsLongRunning { get; private init; }
+    internal bool IsProbe { get; private init; }
+    internal long? ExactLength { get; private init; }
+    internal long OutputLimit { get; private init; }
+    private string[]? _exportArguments;
 
     private ProjectMediaJob(long pts, ProjectRational timeBase, int width, int height,
         int audioSamples = 0, bool hasAudio = false, long endPts = 0)
@@ -87,6 +100,7 @@ public sealed class ProjectMediaJob
 
     internal string[] FileDescriptorArguments()
     {
+        if (_exportArguments is not null) return _exportArguments;
         if (IsAudio)
         {
             var start = ((decimal)SourcePts * TimeBase.Numerator / TimeBase.Denominator).ToString(CultureInfo.InvariantCulture);

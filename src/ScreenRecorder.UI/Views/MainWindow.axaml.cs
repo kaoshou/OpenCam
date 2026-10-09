@@ -89,6 +89,15 @@ public partial class MainWindow : Window
         _displayIdentification.Close();
         base.OnClosing(e);
 
+        if (DataContext is MainViewModel { ForceQuitAuthorized: true }) return;
+
+        if (DataContext is MainViewModel { IsApplicationCloseBlocked: true })
+        {
+            e.Cancel = true;
+            _ = ShowRecordingCloseWarningAsync();
+            return;
+        }
+
         if (_projectWindow is not null)
         {
             e.Cancel = true;
@@ -96,11 +105,6 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (DataContext is MainViewModel { IsApplicationCloseBlocked: true })
-        {
-            e.Cancel = true;
-            _ = ShowRecordingCloseWarningAsync();
-        }
     }
 
     private async Task CloseProjectAndMainAsync()
@@ -112,14 +116,14 @@ public partial class MainWindow : Window
 
     private async void OnProjectWorkspace(object? sender, RoutedEventArgs e)
     {
-        if (_projectWindow is not null) { _projectWindow.Activate(); return; }
-        if (DataContext is not MainViewModel vm || !vm.CanStartRecording) return;
+        if (_projectWindow is not null) { _projectWindow.ShowForRecordingWindow(this); return; }
+        if (DataContext is not MainViewModel vm || !vm.CanOpenContentEditor) return;
         try
         {
             var model = await vm.PrepareProjectWorkspaceAsync();
             _projectWindow = new(model, vm);
             _projectWindow.Closed += (_, _) => { _projectWindow = null; vm.IsProjectWorkspaceOpen = false; };
-            _projectWindow.Show(this);
+            _projectWindow.ShowForRecordingWindow(this);
         }
         catch (Exception ex) { vm.StatusMessage = ex.Message; }
     }

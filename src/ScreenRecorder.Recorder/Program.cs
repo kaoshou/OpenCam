@@ -49,16 +49,25 @@ public class Program
 
             var orchestrator = serviceProvider.GetRequiredService<RecordingOrchestrator>();
             var displayService = serviceProvider.GetRequiredService<IDisplayService>();
-            await using var projects = new ProjectRecordingCoordinator(orchestrator,
-                new ScreenRecorder.Infrastructure.Projects.JsonProjectStore(), new ProjectSourceProbe());
             var mediaExecutable = ScreenRecorder.Media.FFmpeg.FFmpegDiscovery.FindFFmpegExecutable();
+            IRecordingContentExporter? contentExporter = OperatingSystem.IsMacOS() && mediaExecutable is not null
+                ? new ProjectFfmpegExporter(new ScreenRecorder.Platform.macOS.MacProjectMediaProcess(mediaExecutable)) : null;
+            await using var projects = new ProjectRecordingCoordinator(orchestrator,
+                new ScreenRecorder.Infrastructure.Projects.JsonProjectStore(), new ProjectSourceProbe(), contentExporter);
             await using var projectWaveforms = OperatingSystem.IsMacOS() && mediaExecutable is not null
                 ? new ProjectWaveformService(projects, new ScreenRecorder.Platform.macOS.MacProjectMediaProcess(mediaExecutable))
                 : null;
             await using var projectFrames = OperatingSystem.IsMacOS() && mediaExecutable is not null
                 ? new ProjectFrameService(projects, new ScreenRecorder.Platform.macOS.MacProjectMediaProcess(mediaExecutable))
                 : null;
-            var projectDispatcher = new ProjectIpcDispatcher(projects, projectWaveforms, projectFrames);
+            var previewAudioHelper = Path.Combine(AppContext.BaseDirectory, "OpenCam.ProjectAudio");
+            var previewDecoder = OperatingSystem.IsMacOS() && mediaExecutable is not null && File.Exists(previewAudioHelper)
+                ? new ScreenRecorder.Media.Projects.ProjectPreviewDecoder(
+                    () => new ScreenRecorder.Platform.macOS.MacProjectMediaProcess(mediaExecutable),
+                    () => new ScreenRecorder.Platform.macOS.MacProjectAudioOutput(previewAudioHelper)) : null;
+            await using var projectPreview = previewDecoder is not null
+                ? new ProjectPreviewCoordinator(projects, previewDecoder.PlayAsync) : null;
+            var projectDispatcher = new ProjectIpcDispatcher(projects, projectWaveforms, projectFrames, projectPreview);
 
             var pipeName = NamedPipeConstants.PipeBaseName;
             var pipeIndex = Array.IndexOf(args, "--pipe");

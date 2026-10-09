@@ -20,6 +20,12 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
     private ProjectEditHistory? _history;
     private RecordingSession? _session;
     private RecordingContentExportJob? _export;
+    private Func<Task>? _stopPreview;
+    internal void AttachPreviewStop(Func<Task> stop)
+    {
+        if (_stopPreview is not null) throw new InvalidOperationException("Preview owner already registered.");
+        _stopPreview = stop;
+    }
     public RecordingExportStatus? ExportStatus => _export?.Status;
     private bool IsExporting => _export is not null && !_export.Completion.IsCompleted;
     public RecordingProject? Current => _history?.Current ?? _handle?.Current;
@@ -93,6 +99,8 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
                 if (old.Fingerprint != fingerprint) throw new InvalidDataException("Operation ID reused for different command.");
                 return old.Result;
             }
+            // Persisting already accepted edits is safe even if audio shutdown is unconfirmed.
+            if (_stopPreview is not null && fingerprint != "save") await _stopPreview();
             await action();
             LastError = null;
             var result = Result(true, op);
@@ -148,6 +156,8 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
         CancellationToken ct = default) => Run(async () =>
     {
         RequireNoExport();
+        if (!string.IsNullOrWhiteSpace(config.ProjectName))
+            ProjectValidation.ValidateName(config.ProjectName.Trim());
         if (_session is not null || recorder.CurrentSession is not null ||
             Mode is not (ProjectMode.Closed or ProjectMode.Ready))
             throw new InvalidOperationException("Finish and save the current recording before starting new content.");
@@ -162,7 +172,7 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
         OutputDirectory = null;
         _export?.Dispose();
         _export = null;
-        _handle = await new RecordingContentFactory(store, TimeProvider.System).CreateAsync(config.OutputDirectory, ct);
+        _handle = await new RecordingContentFactory(store, TimeProvider.System).CreateAsync(config.OutputDirectory, ct, config.ProjectName);
         _history = new(_handle.Current);
         Mode = ProjectMode.Ready;
         await StartCoreAsync(config, ct);
@@ -171,7 +181,25 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
     public Task<ProjectCommandResult> StartAsync(RecordingConfiguration config, Guid operationId, CancellationToken ct = default) =>
         Run(() => StartCoreAsync(config, ct), operationId, "start:" + JsonSerializer.Serialize(config), ct);
 
-    private async Task StartCoreAsync(RecordingConfiguration config, CancellationToken ct)
+    public Task<ProjectCommandResult> StartInsertionAsync(RecordingConfiguration config, long expectedRevision,
+        long timelineTicks, Guid operationId, CancellationToken ct = default) => Run(async () =>
+    {
+        RequireNoExport();
+        if (_handle is null || Mode is not (ProjectMode.Ready or ProjectMode.Paused) ||
+            Current!.Revision != expectedRevision || operationId == Guid.Empty)
+            throw new InvalidOperationException("Insertion requires a saved, current editable timeline.");
+        await FlushEditsAsync(ct);
+        await ValidateSourcesAsync(ct);
+        // Validate before ending a paused session; invalid positions must not change its state.
+        _ = ProjectInsertion.Anchor(_handle.Current, timelineTicks);
+        if (Mode == ProjectMode.Paused) await FinishCoreAsync(operationId, ct);
+        var anchor = ProjectInsertion.Anchor(_handle.Current, timelineTicks);
+        var sessionId = "insert_" + operationId.ToString("N");
+        await new ProjectInsertionJournal().PrepareAsync(_handle, new(operationId, sessionId, anchor), ct);
+        await StartCoreAsync(config, ct, sessionId);
+    }, operationId, $"insert:{expectedRevision}:{timelineTicks}:" + JsonSerializer.Serialize(config), ct);
+
+    private async Task StartCoreAsync(RecordingConfiguration config, CancellationToken ct, string? preparedSessionId = null)
     {
         RequireNoExport();
         if (_handle is null || Mode is not (ProjectMode.Ready or ProjectMode.Paused))
@@ -190,7 +218,7 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
         else
         {
             OutputDirectory = config.OutputDirectory;
-            var start = await recorder.StartProjectRecordingAsync(config, new(_handle), ct);
+            var start = await recorder.StartProjectRecordingAsync(config, new(_handle, preparedSessionId), ct);
             if (recorder.CurrentSession?.ProjectId == _handle.Current.ProjectId)
                 _session = recorder.CurrentSession;
             if (!start.Success)
@@ -265,6 +293,20 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
         _export = new(exporter, _handle, Current!, OutputDirectory);
     }
 
+    public Task<ProjectCommandResult> ExportAsync(string outputDirectory, long expectedRevision, Guid operationId,
+        CancellationToken ct = default) => Run(async () =>
+    {
+        RequireNoExport();
+        if (_handle is null || Mode is not (ProjectMode.Ready or ProjectMode.Paused))
+            throw new InvalidOperationException("Pause or finish recording before exporting.");
+        CheckRevision(expectedRevision);
+        if (string.IsNullOrWhiteSpace(outputDirectory) || !Path.IsPathFullyQualified(outputDirectory))
+            throw new InvalidDataException("Select an absolute output directory.");
+        await FlushEditsAsync(ct);
+        OutputDirectory = outputDirectory;
+        BeginExport();
+    }, operationId, "export:" + expectedRevision + ":" + outputDirectory, ct);
+
     public async Task<ProjectCommandResult> CancelExportAsync(Guid exportId, CancellationToken ct = default)
     {
         RecordingContentExportJob? job = null;
@@ -296,7 +338,14 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
 
     private async Task CommitSessionAsync(Guid operationId, CancellationToken ct)
     {
-        try { await _committer.CommitAsync(_handle!, _session!, operationId, ct); }
+        try
+        {
+            await _committer.CommitAsync(_handle!, _session!, operationId, ct, (committed, inserted) =>
+            {
+                if (inserted) _history!.AcceptRecordingInsertion(committed);
+                else _history!.AcceptRecordingAppend(committed);
+            });
+        }
         finally
         {
             // A later source/journal write may fail after earlier sources reached disk.
@@ -307,6 +356,9 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
 
     public Task<ProjectCommandResult> RenameClipAsync(Guid clipId, string name, long expectedRevision, CancellationToken ct = default) =>
         EditAsync(expectedRevision, history => history.RenameClip(clipId, name), ct);
+
+    public Task<ProjectCommandResult> RenameProjectAsync(string name, long expectedRevision, CancellationToken ct = default) =>
+        EditAsync(expectedRevision, history => history.RenameProject(name.Trim()), ct);
 
     public Task<ProjectCommandResult> ApplyEditAsync(ProjectClipEdit edit, long expectedRevision, Guid operationId,
         CancellationToken ct = default) => Run(async () =>
@@ -386,6 +438,7 @@ public sealed class ProjectRecordingCoordinator(RecordingOrchestrator recorder, 
 
     public async ValueTask DisposeAsync()
     {
+        if (_stopPreview is not null) await _stopPreview();
         await _gate.WaitAsync();
         try
         {

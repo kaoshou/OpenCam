@@ -10,6 +10,19 @@ internal static class MacFileDescriptorProcess
 {
     // Diagnostic only: one FFmpeg child, no shell, no reopening source paths, no product integration.
     internal static async Task<string> RunAsync(string executable, string[] arguments, FileStream source, CancellationToken ct)
+        => await RunStreamingAsync(executable, arguments, source, async (output, error, token, abort) =>
+        {
+            using var stdout = new StreamReader(output, leaveOpen: true);
+            using var stderr = new StreamReader(error, leaveOpen: true);
+            var text = ReadBoundedAsync(stdout);
+            var diagnostics = ReadBoundedAsync(stderr);
+            await JoinReadersAsync(text, diagnostics, abort);
+            return await text;
+        }, ct);
+
+    // Callback must honor cancellation. Diagnostic has a fixed 15-second lifetime, not a product playback limit.
+    internal static async Task<T> RunStreamingAsync<T>(string executable, string[] arguments, FileStream source,
+        Func<Stream, Stream, CancellationToken, Action, Task<T>> consume, CancellationToken ct)
     {
         if (!OperatingSystem.IsMacOS()) throw new PlatformNotSupportedException();
         if (!Path.IsPathFullyQualified(executable)) throw new ArgumentException("Require an absolute executable path.");
@@ -20,6 +33,7 @@ internal static class MacFileDescriptorProcess
         var actions = IntPtr.Zero;
         var attributes = IntPtr.Zero;
         var added = false;
+        var sourceHandle = source.SafeFileHandle;
         var strings = new[] { executable }.Concat(arguments).Select(Marshal.StringToCoTaskMemUTF8).ToArray();
         var argv = Marshal.AllocHGlobal((strings.Length + 1) * IntPtr.Size);
         int pid;
@@ -30,15 +44,15 @@ internal static class MacFileDescriptorProcess
             Check(posix_spawn_file_actions_init(out actions));
             Check(posix_spawnattr_init(out attributes));
             Check(posix_spawnattr_setflags(ref attributes, 0x4000)); // CLOEXEC_DEFAULT: only explicit dup2 actions survive.
-            source.SafeFileHandle.DangerousAddRef(ref added);
-            Check(posix_spawn_file_actions_adddup2(ref actions, source.SafeFileHandle.DangerousGetHandle().ToInt32(), 0));
+            sourceHandle.DangerousAddRef(ref added);
+            Check(posix_spawn_file_actions_adddup2(ref actions, sourceHandle.DangerousGetHandle().ToInt32(), 0));
             Check(posix_spawn_file_actions_adddup2(ref actions, output.WriteFd, 1));
             Check(posix_spawn_file_actions_adddup2(ref actions, error.WriteFd, 2));
             Check(posix_spawn(out pid, executable, ref actions, ref attributes, argv, Marshal.ReadIntPtr(_NSGetEnviron())));
         }
         finally
         {
-            if (added) source.SafeFileHandle.DangerousRelease();
+            if (added) sourceHandle.DangerousRelease();
             if (actions != IntPtr.Zero) posix_spawn_file_actions_destroy(ref actions);
             if (attributes != IntPtr.Zero) posix_spawnattr_destroy(ref attributes);
             Marshal.FreeHGlobal(argv);
@@ -49,8 +63,7 @@ internal static class MacFileDescriptorProcess
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(TimeSpan.FromSeconds(15));
         // Only this loop signals/reaps the child. A cancellation callback must never kill a reused PID after waitpid.
-        var stdout = ReadBoundedAsync(output.Reader);
-        var stderr = ReadBoundedAsync(error.Reader);
+        var consumed = consume(output.Reader.BaseStream, error.Reader.BaseStream, timeout.Token, () => timeout.Cancel());
         var killed = false;
         var reaped = false;
         var status = 0;
@@ -68,27 +81,45 @@ internal static class MacFileDescriptorProcess
                     reaped = errno == 10;
                     throw new Win32Exception(errno);
                 }
-                if (!killed && (timeout.IsCancellationRequested || stdout.IsFaulted || stderr.IsFaulted))
+                if (!killed && (timeout.IsCancellationRequested || consumed.IsFaulted || consumed.IsCanceled))
                 {
                     CheckSignal(kill(pid, 9));
                     killed = true;
                 }
                 await Task.Delay(10);
             }
-            await Task.WhenAll(stdout, stderr);
+            var resultValue = await consumed;
             timeout.Token.ThrowIfCancellationRequested();
-            if (status != 0) throw new InvalidDataException($"Media child status {status}: {await stderr}");
-            return await stdout;
+            if (status != 0) throw new InvalidDataException($"Media child status {status}");
+            return resultValue;
         }
         finally
         {
+            timeout.Cancel();
             if (!reaped)
             {
                 kill(pid, 9);
                 while (waitpid(pid, out _, 0) < 0 && Marshal.GetLastPInvokeError() == 4) { }
             }
             // Drains terminate at EOF after child exit, including output-limit and cancellation failures.
-            try { await Task.WhenAll(stdout, stderr); } catch { }
+            try { await consumed; } catch { }
+        }
+    }
+
+    // A failed reader requests child termination before joining the other pipe reader.
+    // Returning early would leave an outstanding read racing disposal; WhenAll alone can wait on a blocked child.
+    internal static async Task JoinReadersAsync(Task first, Task second, Action abort)
+    {
+        try
+        {
+            await await Task.WhenAny(first, second);
+            await Task.WhenAll(first, second);
+        }
+        catch
+        {
+            abort();
+            try { await Task.WhenAll(first, second); } catch { }
+            throw;
         }
     }
 
