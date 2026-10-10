@@ -5,8 +5,10 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$FfmpegUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-09-25-15-37/ffmpeg-n8.1.3-win64-gpl-8.1.zip"
-$ExpectedSha256 = "8efaa4e62db01a71580dc5a7ec0625dea7a4dfc5fac2d680f94804503d18a34c"
+# Pin a month-end build (upstream retains these for two years; daily builds expire).
+# Keep the URL, SHA-256 and archive layout pinned together; never fall back to latest.
+$FfmpegUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-09-30-13-08/ffmpeg-n8.1.3-9-g29e619e767-win64-gpl-8.1.zip"
+$ExpectedSha256 = "7b801cdd3a1a0bb54ae6f572187e68b4ed54f52086cfee133fab2180bfb429fa"
 $TempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("opencam-ffmpeg-" + [Guid]::NewGuid().ToString("N"))
 $ArchivePath = Join-Path $TempRoot "ffmpeg.zip"
 $ExtractRoot = Join-Path $TempRoot "extracted"
@@ -20,20 +22,20 @@ try {
     }
 
     Expand-Archive -Path $ArchivePath -DestinationPath $ExtractRoot -Force
-    if (-not (Test-Path "$ExtractRoot\ffmpeg-n8.1.3-win64-gpl-8.1\bin\ffmpeg.exe")) {
+    if (-not (Test-Path "$ExtractRoot\ffmpeg-n8.1.3-9-g29e619e767-win64-gpl-8.1\bin\ffmpeg.exe")) {
         throw "Pinned FFmpeg archive layout is missing bin\ffmpeg.exe"
     }
-    if (-not (Test-Path "$ExtractRoot\ffmpeg-n8.1.3-win64-gpl-8.1\bin\ffprobe.exe")) {
+    if (-not (Test-Path "$ExtractRoot\ffmpeg-n8.1.3-9-g29e619e767-win64-gpl-8.1\bin\ffprobe.exe")) {
         throw "Pinned FFmpeg archive layout is missing bin\ffprobe.exe"
     }
 
     New-Item -ItemType Directory -Path $Destination -Force | Out-Null
-    Copy-Item "$ExtractRoot\ffmpeg-n8.1.3-win64-gpl-8.1\bin\ffmpeg.exe" $Destination -Force
-    Copy-Item "$ExtractRoot\ffmpeg-n8.1.3-win64-gpl-8.1\bin\ffprobe.exe" $Destination -Force
+    Copy-Item "$ExtractRoot\ffmpeg-n8.1.3-9-g29e619e767-win64-gpl-8.1\bin\ffmpeg.exe" $Destination -Force
+    Copy-Item "$ExtractRoot\ffmpeg-n8.1.3-9-g29e619e767-win64-gpl-8.1\bin\ffprobe.exe" $Destination -Force
     $NoticeDir = Join-Path (Resolve-Path $Destination).Path "ffmpeg-notices"
     New-Item -ItemType Directory -Path "$NoticeDir\upstream" -Force | Out-Null
     # Retain the archive's documentation/licenses, not just its executables.
-    Get-ChildItem "$ExtractRoot\ffmpeg-n8.1.3-win64-gpl-8.1" |
+    Get-ChildItem "$ExtractRoot\ffmpeg-n8.1.3-9-g29e619e767-win64-gpl-8.1" |
         Where-Object { $_.Name -ne "bin" } |
         Copy-Item -Destination "$NoticeDir\upstream" -Recurse -Force
     foreach ($Tool in @("ffmpeg", "ffprobe")) {

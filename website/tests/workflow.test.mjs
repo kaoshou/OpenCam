@@ -20,8 +20,8 @@ test('desktop releases are gated by tests and reproducible FFmpeg inputs', async
   const windowsInstaller = await readFile(
     resolve(import.meta.dirname, '../../scripts/install-windows-ffmpeg.ps1'),
     'utf8');
-  const pinnedUrl = 'https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-09-25-15-37/ffmpeg-n8.1.3-win64-gpl-8.1.zip';
-  const sha256 = '8efaa4e62db01a71580dc5a7ec0625dea7a4dfc5fac2d680f94804503d18a34c';
+  const pinnedUrl = 'https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-09-30-13-08/ffmpeg-n8.1.3-9-g29e619e767-win64-gpl-8.1.zip';
+  const sha256 = '7b801cdd3a1a0bb54ae6f572187e68b4ed54f52086cfee133fab2180bfb429fa';
 
   assert.match(yaml, /permissions:\s*\n\s*contents: read/);
   assert.equal((yaml.match(/contents: write/g) ?? []).length, 1);
@@ -43,6 +43,6 @@ test('desktop releases are gated by tests and reproducible FFmpeg inputs', async
   const hashCheck = windowsInstaller.indexOf('Get-FileHash -Algorithm SHA256');
   const extraction = windowsInstaller.indexOf('Expand-Archive');
   assert.ok(hashCheck >= 0 && extraction > hashCheck, 'checksum must be verified before extraction');
-  assert.match(windowsInstaller, /Test-Path[^\n]*ffmpeg-n8\.1\.3-win64-gpl-8\.1\\bin\\ffmpeg\.exe/);
-  assert.match(windowsInstaller, /Test-Path[^\n]*ffmpeg-n8\.1\.3-win64-gpl-8\.1\\bin\\ffprobe\.exe/);
+  assert.match(windowsInstaller, /Test-Path[^\n]*ffmpeg-n8\.1\.3-9-g29e619e767-win64-gpl-8\.1\\bin\\ffmpeg\.exe/);
+  assert.match(windowsInstaller, /Test-Path[^\n]*ffmpeg-n8\.1\.3-9-g29e619e767-win64-gpl-8\.1\\bin\\ffprobe\.exe/);
 });
