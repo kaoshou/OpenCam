@@ -41,7 +41,7 @@ public sealed partial class ProjectMediaJob
         var videoStart = (decimal)sources[0].Video.FirstPts * sources[0].Video.TimeBase.Numerator / sources[0].Video.TimeBase.Denominator;
         var firstStart = (decimal)sources[0].FormatStartSeconds;
         job._exportArguments = ["-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-copyts",
-            "-protocol_whitelist", "fd,pipe", "-safe", "0", "-f", "concat", "-itsoffset", Number(firstStart - videoStart), "-i", "fd:",
+            "-protocol_whitelist", "fd,pipe", "-safe", "0", "-auto_convert", "0", "-f", "concat", "-itsoffset", Number(firstStart - videoStart), "-i", "fd:",
             "-map", "0:v:0", ..(!videoOnly && sources[0].Audio is not null ? new[] { "-map", "0:a:0" } : new[] { "-an" }),
             "-c", "copy", "-avoid_negative_ts", "disabled", "-f", "mp4", "-fd", "1", "fd:"];
         return job;
@@ -81,7 +81,7 @@ public sealed partial class ProjectMediaJob
             OutputLimit = checked(sourceLength * 32 + 1024 * 1024) };
         job._exportArguments = ["-v", "error", "-protocol_whitelist", "fd,pipe", "-i", "fd:",
             "-show_packets", "-show_streams", "-show_format", "-show_data_hash", "sha256", "-show_entries",
-            "packet=stream_index,pts,dts,duration,flags:stream=index,codec_name,codec_type,width,height,pix_fmt,time_base,r_frame_rate,sample_rate,channels,channel_layout,extradata_hash:format=start_time",
+            "packet=stream_index,pts,dts,duration,flags,data_hash:stream=index,codec_name,codec_type,width,height,pix_fmt,time_base,r_frame_rate,sample_rate,channels,channel_layout,extradata_hash:format=start_time",
             "-of", "compact=p=1:nk=0"];
         return job;
     }

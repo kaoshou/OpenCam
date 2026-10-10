@@ -34,8 +34,10 @@ public sealed partial class ProjectFfmpegExporter(IProjectMediaProcess process) 
         }
         try
         {
+            ReportPhase(progress, RecordingExportPhase.Inspecting);
             var fast = await TryFastExportAsync(owner, snapshot, plan, directory, temporary, exportId, Create, owned, progress, ct);
             if (fast is not null) return fast;
+            ReportPhase(progress, RecordingExportPhase.Rendering);
             var drive = new DriveInfo(directory.CurrentPath);
             var estimated = checked(plan.AudioSampleCount * 16 + plan.DurationTicks / TimeSpan.TicksPerSecond * 2_000_000 + 64 * 1024 * 1024);
             if (drive.AvailableFreeSpace < estimated)
@@ -73,6 +75,7 @@ public sealed partial class ProjectFfmpegExporter(IProjectMediaProcess process) 
                 output.Flush(true);
             }
             progress.Report(0.9);
+            ReportPhase(progress, RecordingExportPhase.Verifying);
             await using (var output = directory.Read(temporary))
                 await ProjectOutputVerifier.VerifyAsync(process, output, plan, ct);
             // Complete fallible intermediate cleanup before publishing the new final file.
@@ -105,4 +108,7 @@ public sealed partial class ProjectFfmpegExporter(IProjectMediaProcess process) 
                 source.Sha256, StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("Original source fingerprint changed; export stopped.");
     }
+
+    private static void ReportPhase(IProgress<double> progress, RecordingExportPhase phase)
+        => (progress as IRecordingExportProgress)?.ReportPhase(phase);
 }

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 using System.Globalization;
 using System.Text;
+using System.Security.Cryptography;
 using ScreenRecorder.Core.Projects;
 
 namespace ScreenRecorder.Media.Projects;
@@ -9,15 +10,16 @@ namespace ScreenRecorder.Media.Projects;
 public static class ProjectPacketInspector
 {
     public static async Task<ProjectSourceEvidence> InspectAsync(IProjectStreamingMediaProcess process, FileStream source,
-        CancellationToken ct, Action<int, long, long>? observe = null)
+        CancellationToken ct, Action<int, long, long>? observe = null, Action<int, string>? observeHash = null)
     {
         ProjectSourceEvidence? evidence = null;
         await process.RunStreamingAsync(ProjectMediaJob.InspectPackets(source.Length), source,
-            async (stream, token) => { evidence = await ParseAsync(stream, token, observe); }, ct);
+            async (stream, token) => { evidence = await ParseAsync(stream, token, observe, observeHash); }, ct);
         return evidence ?? throw new InvalidDataException("Missing source evidence.");
     }
 
-    public static async Task<ProjectSourceEvidence> ParseAsync(Stream stream, CancellationToken ct, Action<int, long, long>? observe = null)
+    public static async Task<ProjectSourceEvidence> ParseAsync(Stream stream, CancellationToken ct, Action<int, long, long>? observe = null,
+        Action<int, string>? observeHash = null)
     {
         var packets = new Dictionary<int, PacketSummary>();
         var streams = new Dictionary<int, Dictionary<string, string>>();
@@ -46,6 +48,7 @@ public static class ProjectPacketInspector
             return new(Build(videos[0]), audios.Length == 0 ? null : Build(audios[0])) { FormatStartSeconds = formatStart };
         }
         catch (OverflowException ex) { throw new InvalidDataException("Probe timestamp overflow.", ex); }
+        finally { foreach (var p in packets.Values) { p.Hash.Dispose(); p.TimingHash.Dispose(); } }
 
         void ReadLine(string text)
         {
@@ -69,6 +72,10 @@ public static class ProjectPacketInspector
             if (parts[0] == "stream") { streams.Add(index, values); return; }
             if (!packets.TryGetValue(index, out var summary)) packets.Add(index, summary = new());
             var pts = Integer(values, "pts");
+            summary.Origin ??= pts;
+            Span<byte> timestamp = stackalloc byte[8];
+            System.Buffers.Binary.BinaryPrimitives.WriteInt64LittleEndian(timestamp, checked(pts - summary.Origin.Value));
+            summary.TimingHash.AppendData(timestamp);
             // Packet duration is optional probe evidence, not proof that the source
             // is corrupt. Without it we cannot certify stream-copy boundaries.
             if (!values.TryGetValue("duration", out var durationText) ||
@@ -79,6 +86,11 @@ public static class ProjectPacketInspector
             summary.End = Math.Max(summary.End, checked(pts + duration));
             summary.Duration = Math.Max(summary.Duration, duration);
             summary.Count = checked(summary.Count + 1);
+            var hash = values.GetValueOrDefault("data_hash", "");
+            if (hash.Length == 71 && hash.StartsWith("SHA256:", StringComparison.Ordinal) && hash.AsSpan(7).ToArray().All(Uri.IsHexDigit))
+                summary.Hash.AppendData(Convert.FromHexString(hash[7..]));
+            else summary.HashComplete = false;
+            observeHash?.Invoke(index, hash);
             observe?.Invoke(index, pts, duration);
             if (long.TryParse(values.GetValueOrDefault("dts"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var dts))
             {
@@ -97,7 +109,9 @@ public static class ProjectPacketInspector
             return new(fields.GetValueOrDefault("codec_name", ""), fields.GetValueOrDefault("extradata_hash", ""),
                 OptionalInt("width"), OptionalInt("height"), fields.GetValueOrDefault("pix_fmt", ""), new(n, d),
                 fields.GetValueOrDefault("r_frame_rate", ""), OptionalInt("sample_rate"), Layout(),
-                p.Count, p.First, p.End, p.Duration, p.Key, p.Monotonic);
+                p.Count, p.First, p.End, p.Duration, p.Key, p.Monotonic)
+                { PacketHash = p.HashComplete ? Convert.ToHexString(p.Hash.GetHashAndReset()) : "",
+                    PresentationTimingHash = Convert.ToHexString(p.TimingHash.GetHashAndReset()) };
             int OptionalInt(string name) => fields.TryGetValue(name, out var value) && int.TryParse(value, out var parsed) ? parsed : 0;
             string Layout() => fields.GetValueOrDefault("channel_layout", "") is "" or "unknown"
                 ? OptionalInt("channels") switch { 1 => "mono", 2 => "stereo", _ => "unknown" }
@@ -110,6 +124,10 @@ public static class ProjectPacketInspector
             ? result : throw new InvalidDataException($"Missing packet {name}.");
     private sealed class PacketSummary
     {
+        public readonly IncrementalHash Hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        public readonly IncrementalHash TimingHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        public long? Origin;
+        public bool HashComplete = true;
         public long Count, Duration;
         public long First = long.MaxValue, End = long.MinValue;
         public long? Dts;

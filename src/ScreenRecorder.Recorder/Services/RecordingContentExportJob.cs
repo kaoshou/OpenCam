@@ -4,7 +4,7 @@ using ScreenRecorder.Core.Projects;
 namespace ScreenRecorder.Recorder.Services;
 
 /// <summary>The coordinator keeps the source owner alive until Completion, including cancellation.</summary>
-internal sealed class RecordingContentExportJob : IProgress<double>, IDisposable
+internal sealed class RecordingContentExportJob : IRecordingExportProgress, IDisposable
 {
     private readonly object _sync = new();
     private readonly CancellationTokenSource _cancellation = new();
@@ -54,5 +54,12 @@ internal sealed class RecordingContentExportJob : IProgress<double>, IDisposable
     }
 
     public void Cancel() => _cancellation.Cancel();
+    public void ReportPhase(RecordingExportPhase phase)
+    {
+        if (!Enum.IsDefined(phase)) return;
+        lock (_sync)
+            if (_status.State == RecordingExportState.Running)
+                _status = _status with { Phase = phase };
+    }
     public void Dispose() => _cancellation.Dispose();
 }

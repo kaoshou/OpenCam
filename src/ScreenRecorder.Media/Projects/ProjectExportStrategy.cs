@@ -9,6 +9,8 @@ public sealed record ProjectStreamEvidence(string Codec, string InitializationHa
     string PixelFormat, ProjectRational TimeBase, string FrameRate, int SampleRate, string ChannelLayout,
     long PacketCount, long FirstPts, long EndPts, long MaximumDuration, bool StartsWithKeyframe, bool MonotonicDts)
 {
+    public string PacketHash { get; init; } = "";
+    public string PresentationTimingHash { get; init; } = "";
     public double StartSeconds => (double)FirstPts * TimeBase.Numerator / TimeBase.Denominator;
     public double EndSeconds => (double)EndPts * TimeBase.Numerator / TimeBase.Denominator;
     public double TickSeconds => (double)TimeBase.Numerator / TimeBase.Denominator;

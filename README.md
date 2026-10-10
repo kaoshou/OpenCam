@@ -14,7 +14,9 @@ OpenCam 讓你錄影、剪輯，再繼續錄影。這款以可靠性為優先的
 
 🌐 [OpenCam 官方網站](https://kaoshou.github.io/OpenCam/)（可切換繁體中文／English）
 
-目前原始碼版本為 **0.3.0**，正在準備錄影與剪輯更新，採用 **AGPL-3.0-or-later**。本頁描述目前開發分支功能，**不表示 v0.3.0 已發布或已通過全部驗收**。Windows 原生錄影、編輯影音預覽、輸出與長時間音畫同步實機驗收仍待完成；Windows FFmpeg 完整對應原始碼核對亦尚未完成。套件未簽章。發布前請使用可拋棄素材測試，已發布安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。詳見 [v0.3.0 預定更新與發布門檻](docs/releases/v0.3.0.md)。
+目前原始碼版本為 **0.3.1**，採用 **AGPL-3.0-or-later**。Windows 原生錄影、編輯影音預覽、輸出與長時間音畫同步實機驗收仍待完成；Windows FFmpeg 完整對應原始碼核對亦尚未完成。套件未簽章，發布不代表全部驗收通過。請保留重要素材備份，已發布安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。詳見 [v0.3.1 更新與限制](docs/releases/v0.3.1.md)。
+
+**v0.3.1** 增加首頁可用高度，並讓相容、未剪輯的多段錄影在音訊正規化時保留原影片編碼，只重新編碼音訊。輸出狀態會說明目前處理階段；驗證不相容時仍安全退回完整轉檔。暫時 PCM 處理需要額外磁碟空間，完成或取消後清理，不改寫原始 MKV。
 
 未開啟專案時按「開始錄影」，確認預填名稱後建立專案並開始；已有或重新開啟的專案則追加片段。主畫面可新增／開啟專案、選擇每個專案的「停止後自動輸出 MP4」（預設開啟），也可手動輸出。關閉自動輸出後，停止只保存內容，稍後仍可剪輯及輸出。錄影中禁止進入編輯器及切換專案，暫停保存後才可編輯；返回主畫面保留目前專案。
 
@@ -181,7 +183,9 @@ OpenCam is built with .NET 8, Avalonia UI, and FFmpeg, and supports Windows and 
 
 🌐 [OpenCam official website](https://kaoshou.github.io/OpenCam/) (English / 繁體中文)
 
-The current source version is **0.3.0**, being prepared under **AGPL-3.0-or-later**. This page describes the development branch; it does **not** claim v0.3.0 is published or all acceptance gates passed. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending, as does verification of complete corresponding sources for the Windows FFmpeg build. Packages are unsigned. Use disposable test media before release. Published packages are available from [Releases](https://github.com/kaoshou/OpenCam/releases); see the [planned v0.3.0 notes and gates](docs/releases/v0.3.0.md).
+The current source version is **0.3.1**, under **AGPL-3.0-or-later**. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending, as does verification of complete corresponding sources for the Windows FFmpeg build. Packages are unsigned; publication does not establish complete acceptance. Keep backups of important media. Published packages are available from [Releases](https://github.com/kaoshou/OpenCam/releases); see [v0.3.1 changes and limitations](docs/releases/v0.3.1.md).
+
+**v0.3.1** adds home-window space and preserves encoded video when compatible whole, unedited recordings need audio normalization. Only audio is re-encoded; progress identifies each export phase. Verification incompatibility safely falls back to rendering. Temporary PCM staging requires additional disk space and is cleaned up on completion or cancellation, without rewriting original MKVs.
 
 Start asks for a prefilled project name when no project is open; an existing or reopened project receives appended clips. New/Open project actions live on the home screen, alongside a per-project auto-export-on-stop switch (on by default) and manual export. With auto-export off, Stop saves content for later editing and export. Recording blocks editor entry and project switching; editing is available after a pause has saved the segment. Returning home retains the project.
 

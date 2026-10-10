@@ -7,7 +7,7 @@
         x:DataType="vm:MainViewModel"
         Title="{Binding Strings[AppTitle]}"
         Icon="/Assets/app_icon.png"
-        Width="840" Height="720"
+        Width="840" Height="820"
         MinWidth="820" MinHeight="580"
         Background="#F8FAFC"
         WindowStartupLocation="CenterScreen">

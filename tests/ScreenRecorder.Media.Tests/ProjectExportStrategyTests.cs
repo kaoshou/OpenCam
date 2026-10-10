@@ -95,6 +95,21 @@ public class ProjectExportStrategyTests
             Parse($"packet|stream_index=0|pts=0|dts=0{duration}|flags=K_\n"));
     }
 
+    [Fact]
+    public async Task InteriorTimingChangeCannotHideBehindMatchingPacketPayloadsAndEndpoints()
+    {
+        var hash = "SHA256:" + new string('a', 64);
+        var packets = string.Concat(new[] { 0, 33, 66 }.Select(t =>
+            $"packet|stream_index=0|pts={t}|dts={t}|duration=33|flags=K_|data_hash={hash}\n"));
+        const string stream = "stream|index=0|codec_name=h264|codec_type=video|width=64|height=36|pix_fmt=yuv420p|time_base=1/1000|r_frame_rate=30/1\n";
+        var original = (await Parse(packets + stream)).Video;
+        var moved = (await Parse(packets.Replace("pts=33", "pts=40") + stream)).Video;
+        Assert.Equal(original.PacketHash, moved.PacketHash);
+        Assert.Equal(original.FirstPts, moved.FirstPts);
+        Assert.Equal(original.EndPts, moved.EndPts);
+        Assert.NotEqual(original.PresentationTimingHash, moved.PresentationTimingHash);
+    }
+
     internal static Task<ProjectSourceEvidence> Parse(string value)
         => ProjectPacketInspector.ParseAsync(new MemoryStream(Encoding.UTF8.GetBytes(value)), default);
 

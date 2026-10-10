@@ -17,6 +17,7 @@ public partial class MainWindow : Window
         new(new AvaloniaDisplayBadgePresenter(), new AvaloniaDisplayIdentificationTimer());
     private MainViewModel? _identificationViewModel;
     private bool _projectCloseAuthorized, _closingProject;
+    private bool _initialSizeApplied;
 
     public MainWindow()
     {
@@ -65,6 +66,18 @@ public partial class MainWindow : Window
     protected override void OnOpened(EventArgs e)
     {
         base.OnOpened(e);
+        if (!_initialSizeApplied && Screens.ScreenFromWindow(this) is { } screen)
+        {
+            _initialSizeApplied = true;
+            var decoration = Math.Max(0, (FrameSize?.Height ?? ClientSize.Height) - ClientSize.Height);
+            var height = HomeWindowSizing.InitialHeight(screen.WorkingArea.Height, screen.Scaling, decoration);
+            MinHeight = Math.Min(MinHeight, height);
+            Height = height;
+            // Initial centering used the unbounded size; keep the frame inside the work area.
+            var top = screen.WorkingArea.Y + Math.Max(0,
+                (screen.WorkingArea.Height - (int)Math.Ceiling((height + decoration) * screen.Scaling)) / 2);
+            Position = new Avalonia.PixelPoint(Position.X, top);
+        }
         Screens.Changed += OnScreensChanged;
     }
 

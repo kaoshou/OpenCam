@@ -40,9 +40,12 @@ public sealed partial class ProjectFfmpegExporter
             var decision = ProjectExportPlanner.Select(plan, evidence);
             Log.Information("Project export strategy {Strategy}; reason {Reason}; clips {Count}; inspect {ElapsedMs}ms",
                 decision.Strategy, decision.Reason, evidence.Count, watch.ElapsedMilliseconds);
-            // Until the continuous normalized-audio path is connected, use the proven exact renderer.
-            // Never pass a multi-source job to the single-source remux or publish drifting AAC.
-            if (decision.Strategy is ProjectExportStrategy.Render or ProjectExportStrategy.ConcatConvertAudio) return null;
+            if (decision.Strategy == ProjectExportStrategy.Render) return null;
+            if (decision.Strategy == ProjectExportStrategy.ConcatConvertAudio)
+                return await TryNormalizedAudioExportAsync(snapshot, plan, directory, temporary, exportId,
+                    create, owned, progress, streaming, sources, evidence, ct);
+            ReportPhase(progress, decision.Strategy == ProjectExportStrategy.ConvertAudioOnly
+                ? RecordingExportPhase.ConvertingAudio : RecordingExportPhase.Copying);
             var totalBytes = sources.Sum(s => s.Length);
             var estimatedBytes = checked(totalBytes * 2 + (decision.Strategy == ProjectExportStrategy.ConvertAudioOnly ? plan.AudioSampleCount * 8 : 0) + 16 * 1024 * 1024);
             if (new DriveInfo(directory.CurrentPath).AvailableFreeSpace < estimatedBytes)
@@ -73,6 +76,7 @@ public sealed partial class ProjectFfmpegExporter
                 }
                 Log.Information("Project {Strategy} completed in {ElapsedMs}ms", decision.Strategy, watch.ElapsedMilliseconds);
                 progress.Report(.9);
+                ReportPhase(progress, RecordingExportPhase.Verifying);
                 watch.Restart();
                 await using (var output = directory.Read(temporary))
                     await ProjectRemuxVerifier.VerifyAsync(process, streaming, output, evidence,

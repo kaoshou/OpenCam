@@ -10,7 +10,9 @@ Change capture mode only while idle, not while paused. Existing audio/cursor con
 
 OpenCam lets you record, edit, and resume recording. It writes MKV sources, retains them alongside a reopenable editing project, and exports MP4 when needed. Crash Recovery can attempt to preserve successfully written recordings; project recovery drafts protect interrupted unsaved edits.
 
-> This guide covers OpenCam v0.3.0 on the development branch, not a published release or completed acceptance. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending. Complete corresponding-source verification for Windows FFmpeg also remains pending, and packages are unsigned. Use disposable media; see the [planned release notes and gates](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.3.0.md).
+> This guide covers OpenCam v0.3.1, not a claim of completed acceptance. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending. Complete corresponding-source verification for Windows FFmpeg also remains pending, and packages are unsigned. Use disposable media; see the [release notes and limitations](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.3.1.md).
+
+v0.3.1 increases the default home height and preserves encoded video for compatible whole, unedited multi-clip exports needing audio normalization. Progress distinguishes inspection, copy, audio conversion, rendering and verification. Temporary PCM requires extra disk space and is cleaned up on completion/cancellation without modifying original MKVs. Unsafe copy cases still require rendering.
 
 ### v0.3.0: home and project workflow
 
