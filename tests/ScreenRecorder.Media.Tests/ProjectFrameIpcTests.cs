@@ -10,6 +10,33 @@ namespace ScreenRecorder.Media.Tests;
 public partial class RecordingEncoderLifecycleTests
 {
     [Fact]
+    public async Task LargeMediaTransferSurvivesSlowReaderWithinBoundedBudget()
+    {
+        var name = SessionPipeNameFactory.Create(OperatingSystem.IsWindows());
+        var key = AuthenticatedIpc.CreateKey();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pixels = new byte[3840 * 2160 * 4];
+        Random.Shared.NextBytes(pixels);
+        await using var server = new NamedPipeIpcServer(name, key, _ => {
+            entered.TrySetResult();
+            return Task.FromResult(new ProjectReply(true, null, ProjectSnapshot.Closed) {
+                Frame = new(0, 0, Guid.NewGuid(), pixels) { PixelWidth = 3840, PixelHeight = 2160 } });
+        });
+        server.Start();
+        using var pipe = new System.IO.Pipes.NamedPipeClientStream(".", name, System.IO.Pipes.PipeDirection.InOut, System.IO.Pipes.PipeOptions.Asynchronous);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+        await pipe.ConnectAsync(timeout.Token);
+        var nonce = await AuthenticatedIpc.ReadChallengeAsync(pipe, key, timeout.Token);
+        await AuthenticatedIpc.WriteAsync(pipe, key, nonce, false, new IpcMessage { MessageType = "GetProjectFrame", PayloadJson = "{}" }, timeout.Token);
+        await entered.Task.WaitAsync(timeout.Token);
+        // Reproduce a reader delayed beyond the control channel's two-second budget.
+        await Task.Delay(TimeSpan.FromSeconds(3), timeout.Token);
+        var reply = await AuthenticatedMediaIpc.ReadAsync(pipe, key, nonce, timeout.Token);
+        Assert.True(reply.Success);
+        Assert.Equal(pixels, reply.Frame!.Rgba);
+    }
+
+    [Fact]
     public async Task StalledMediaTransferReportsItsStageWithoutLoggingPixels()
     {
         var previous = Serilog.Log.Logger;

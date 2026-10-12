@@ -12,6 +12,13 @@ public static class AuthenticatedMediaIpc
     public const int MaximumMetadataBytes = 64 * 1024;
     private const int Magic = 0x4D434F50;
 
+    // Only authenticated, size-bounded pixels receive this budget. A 4K RGBA
+    // frame is ~32 MiB: the control channel's two seconds can truncate it on
+    // a loaded host. Keep an absolute bound even when the peer never reads.
+    internal static TimeSpan ResponseBudget(int pixelBytes) => TimeSpan.FromSeconds(
+        2 + Math.Ceiling(Math.Clamp(pixelBytes, 0, MaximumPixelBytes) / (8d * 1024 * 1024)));
+    internal static readonly TimeSpan RequestBudget = TimeSpan.FromSeconds(12);
+
     public static async Task WriteAsync(Stream stream, byte[] key, byte[] nonce, ProjectReply reply, CancellationToken ct)
     {
         var pixels = reply.Frame?.Rgba ?? [];

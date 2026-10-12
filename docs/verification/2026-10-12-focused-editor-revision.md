@@ -64,3 +64,11 @@ Actions 38267307358 的 Windows 唯一失敗為 `SessionHeartbeat_TransientStore
 - 真實管線停滯測試：新增日誌前因無診斷而失敗，新增後通過；媒體傳輸相關 7 案例通過。
 - 完整 Release 回歸：Core 207、Media 694 通過，19 略過、0 失敗。SDK 8.0.425（重新下載官方 SDK 修復暫存缺檔），本次 PATH FFmpeg 9.0.1。這不是 Windows／macOS 視覺實機驗收。
 - 本機無法重現原 CI 的 4K EOF；本次是診斷修補，不宣稱偶發 IPC 或 Windows 心跳問題已根治。待新 CI 提供失敗階段後再決定行為修正。
+
+### 後續證據與有限傳輸預算修補
+
+- Actions 38275272540 新診斷確認：4K EOF 前，server `media-response` 被取消，連線累計 2149 ms。這定位到固定兩秒媒體回應期限，不是編譯失敗。
+- 真實 pipe 回歸讓 4K reader 延後三秒讀取：舊版重現 `EndOfStreamException`；修補後像素完整相等。
+- 已認證媒體回應採 `2 + ceil(pixelBytes / 8 MiB)` 秒，上限依 64 MiB 尺寸限制為十秒；4K 約 32 MiB 為六秒。client 媒體請求十二秒上限。認證、控制訊息兩秒期限、HMAC、尺寸與併發限制不變。
+- 八個定向測試通過，包括不讀取連線仍逾時及控制通道不被媒體阻塞；獨立審查無阻擋。此修補不保證任意負載下預覽皆成功，也未證明先前 Windows heartbeat 偶發根因。
+- 完整 Release 回歸 Core 207、Media 695 通過，19 略過、0 失敗（SDK 8.0.425、PATH FFmpeg 7.1.2）；日誌 `/tmp/opencam-v032-media-budget-full.log`。仍待 GitHub Actions 驗證。

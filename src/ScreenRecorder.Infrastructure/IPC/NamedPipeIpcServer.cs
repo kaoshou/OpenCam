@@ -178,7 +178,7 @@ public class NamedPipeIpcServer : IAsyncDisposable
                     stage = "media-handler";
                     var response = await _mediaHandler(message);
                     stage = "media-response";
-                    deadline.CancelAfter(TimeSpan.FromSeconds(2));
+                    deadline.CancelAfter(AuthenticatedMediaIpc.ResponseBudget(response.Frame?.Rgba?.Length ?? 0));
                     await AuthenticatedMediaIpc.WriteAsync(pipeServer, _key, nonce, response, deadline.Token);
                 }
                 else

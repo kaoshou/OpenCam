@@ -57,7 +57,7 @@ public class NamedPipeIpcClient : IAsyncDisposable
     {
         using var pipe = new NamedPipeClientStream(".", _pipeName + "-frames", PipeDirection.InOut, PipeOptions.Asynchronous);
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        deadline.CancelAfter(TimeSpan.FromSeconds(3));
+        deadline.CancelAfter(AuthenticatedMediaIpc.RequestBudget);
         try
         {
             await pipe.ConnectAsync(deadline.Token);
