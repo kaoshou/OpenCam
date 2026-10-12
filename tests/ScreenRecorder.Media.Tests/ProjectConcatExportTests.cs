@@ -16,6 +16,29 @@ public sealed class NativeMediaTheoryAttribute : TheoryAttribute
 
 public class ProjectConcatExportTests
 {
+    private sealed class ExportDiagnostics : IDisposable
+    {
+        private readonly Serilog.ILogger _previous = Serilog.Log.Logger;
+        private readonly Serilog.Core.Logger _logger;
+        private readonly ExportDiagnosticSink _sink = new();
+        public ExportDiagnostics()
+        {
+            _logger = new Serilog.LoggerConfiguration().MinimumLevel.Information().WriteTo.Sink(_sink).CreateLogger();
+            Serilog.Log.Logger = _logger;
+        }
+        public override string ToString() => string.Join(Environment.NewLine, _sink.Events);
+        public void Dispose() { Serilog.Log.Logger = _previous; _logger.Dispose(); }
+    }
+
+    private sealed class ExportDiagnosticSink : Serilog.Core.ILogEventSink
+    {
+        public System.Collections.Concurrent.ConcurrentQueue<string> Events { get; } = new();
+        public void Emit(Serilog.Events.LogEvent entry)
+        {
+            Events.Enqueue($"{entry.Timestamp:O} {entry.RenderMessage()} {entry.Exception}");
+            while (Events.Count > 24) Events.TryDequeue(out _);
+        }
+    }
     [Theory]
     [InlineData(47, 0)] // AAC packet padding differs from the 960 ms video interval.
     [InlineData(45, -21)] // Exact packet count still cannot carry per-segment priming.
@@ -52,6 +75,7 @@ public class ProjectConcatExportTests
         int bFrames = 0, double audioDelay = 0, double audioDuration = 1, bool cancel = false, int fault = 0,
         bool variable = false)
     {
+        using var diagnostics = new ExportDiagnostics();
         var framesPerClip = variable ? 23 : 30;
         var root = Directory.CreateTempSubdirectory("OpenCam-concat-");
         var inputs = new List<FileStream>();
@@ -121,11 +145,13 @@ public class ProjectConcatExportTests
                 var export = await exporter.ExportAsync(owner, project, destination,
                     Guid.NewGuid(), progress, cancellation.Token);
                 Assert.True(export.Success, export.Error);
-                Assert.Equal(fault == 1
+                var expectedPhases = fault == 1
                     ? new[] { RecordingExportPhase.Inspecting, RecordingExportPhase.ConvertingAudio,
                         RecordingExportPhase.Verifying, RecordingExportPhase.Rendering, RecordingExportPhase.Verifying }
                     : new[] { RecordingExportPhase.Inspecting, RecordingExportPhase.ConvertingAudio,
-                        RecordingExportPhase.Verifying }, progress.Phases);
+                        RecordingExportPhase.Verifying };
+                Assert.True(expectedPhases.SequenceEqual(progress.Phases),
+                    $"Expected: {string.Join(", ", expectedPhases)}; Actual: {string.Join(", ", progress.Phases)}{Environment.NewLine}{diagnostics}");
                 path = Assert.IsType<string>(export.FinalPath);
             }
             else

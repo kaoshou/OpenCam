@@ -72,3 +72,10 @@ Actions 38267307358 的 Windows 唯一失敗為 `SessionHeartbeat_TransientStore
 - 已認證媒體回應採 `2 + ceil(pixelBytes / 8 MiB)` 秒，上限依 64 MiB 尺寸限制為十秒；4K 約 32 MiB 為六秒。client 媒體請求十二秒上限。認證、控制訊息兩秒期限、HMAC、尺寸與併發限制不變。
 - 八個定向測試通過，包括不讀取連線仍逾時及控制通道不被媒體阻塞；獨立審查無阻擋。此修補不保證任意負載下預覽皆成功，也未證明先前 Windows heartbeat 偶發根因。
 - 完整 Release 回歸 Core 207、Media 695 通過，19 略過、0 失敗（SDK 8.0.425、PATH FFmpeg 7.1.2）；日誌 `/tmp/opencam-v032-media-budget-full.log`。仍待 GitHub Actions 驗證。
+
+### Windows 快速輸出回退診斷
+
+- Actions 38276655256：macOS／portable 驗證與 macOS 建置通過；Windows 唯一失敗為三段 AAC、兩個 B-frame 的快速輸出，實際回退 Rendering，原階段要求未滿足。現有日誌未收集回退原因，不能猜測原因或放寬斷言。
+- 測試增加最多 24 筆輸出策略／回退原因日誌，順序與數量要求維持完全相同。正式輸出程式不變。
+- 初次診斷 helper 同時作為 IDisposable sink，logger 釋放造成遞迴與測試 host crash；尚未推送，已拆開 owner 與 sink。中止的完整測試不是 PASS。
+- 修正後片段輸出相關 16 案例全部通過（SDK 8.0.425、FFmpeg 7.1.2），獨立生命週期審查通過；日誌 `/tmp/opencam-v032-concat-targeted.log`。Windows 回退原因仍待新 CI 診斷。
