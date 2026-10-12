@@ -462,12 +462,14 @@ public class ActualRecordingIntegrationTests : IDisposable
         Assert.True(stopSuccess, stopError);
     }
 
-    [Fact]
-    public async Task SessionHeartbeat_TransientStoreFailure_RetriesOnNextTick()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(3000)]
+    public async Task SessionHeartbeat_TransientStoreFailure_RetriesOnNextTick(int failureDelayMs)
     {
         var stateMachine = new RecordingStateMachine();
         var storageService = new StorageService();
-        var sessionStore = new FailOnceRecordingSessionStore();
+        var sessionStore = new FailOnceRecordingSessionStore(failureDelayMs);
         var diskMonitor = new DiskSpaceMonitor(storageService);
         var displayService = new FixedDisplayService();
 
@@ -502,7 +504,10 @@ public class ActualRecordingIntegrationTests : IDisposable
         Assert.NotNull(started);
 
         sessionStore.FailNextSave();
-        await Task.Delay(4500);
+        // Wait for a completed durable retry, not two nominal timer intervals.
+        // Stop must not supply the successful save that satisfies this test.
+        await sessionStore.SavedAfterFailure.Task.WaitAsync(TimeSpan.FromSeconds(20));
+        Assert.Equal(RecordingState.Recording, orchestrator.CurrentState);
 
         var afterRetry = await sessionStore.LoadSessionAsync(sessionDirectory);
         Assert.NotNull(afterRetry);
@@ -891,23 +896,29 @@ public class ActualRecordingIntegrationTests : IDisposable
             Task.FromResult(false);
     }
 
-    private sealed class FailOnceRecordingSessionStore : IRecordingSessionStore
+    private sealed class FailOnceRecordingSessionStore(int failureDelayMs = 0) : IRecordingSessionStore
     {
         private readonly JsonRecordingSessionStore _inner = new();
         private int _failNextSave;
+        private int _failureInjected;
+        public TaskCompletionSource SavedAfterFailure { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public void FailNextSave() => Interlocked.Exchange(ref _failNextSave, 1);
 
-        public Task SaveSessionAsync(
+        public async Task SaveSessionAsync(
             RecordingSession session,
             CancellationToken cancellationToken = default)
         {
             if (Interlocked.Exchange(ref _failNextSave, 0) == 1)
             {
+                await Task.Delay(failureDelayMs, cancellationToken);
+                Interlocked.Exchange(ref _failureInjected, 1);
                 throw new IOException("Injected transient session-store failure");
             }
 
-            return _inner.SaveSessionAsync(session, cancellationToken);
+            var isRetry = Volatile.Read(ref _failureInjected) == 1;
+            await _inner.SaveSessionAsync(session, cancellationToken);
+            if (isRetry) SavedAfterFailure.TrySetResult();
         }
 
         public Task<RecordingSession?> LoadSessionAsync(
