@@ -4,7 +4,7 @@
 
 ## 0.3.2 發布前驗證補充
 
-- macOS / .NET SDK 8.0.408、FFmpeg 7.1.2：`dotnet test ScreenRecorder.sln -c Release -m:1 -p:NuGetAudit=false`，Core 207 通過，Media/UI 692 通過、19 略過，0 失敗。
+- macOS / .NET SDK 8.0.425、FFmpeg 7.1.2：`dotnet test ScreenRecorder.sln -c Release -m:1 -p:NuGetAudit=false`，Core 207 通過，Media/UI 692 通過、19 略過，0 失敗。
 - `npm test --prefix website`：30 通過；版本一致性及 `git diff --check` 通過。
 - 首輪 12 個整合案例使用舊流程；更新為關閉編輯器後才操作首頁，保留實際視窗鎖定／返回驗證。點選片段新增預覽請求，時間軸測試補接媒體通道；不略過失敗案例或放寬資料安全斷言。
 - 聚焦獨立審查未發現阻擋；修正說明為「合併片段後」升級 schema 3。
