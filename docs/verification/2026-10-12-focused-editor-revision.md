@@ -56,3 +56,11 @@ Actions 38267307358 的 Windows 唯一失敗為 `SessionHeartbeat_TransientStore
 | 輸出 MP4 選路徑及檔名，取消，再選同名檔 | 新檔符合指定路徑；取消不輸出；同名檔不被覆寫 |
 
 若與預期不同，請保留操作步驟、畫面、app log、專案複本及輸出檔。不要以唯一重要素材驗收。
+
+## 2026-10-13：macOS CI 媒體傳輸診斷（尚未證明根因修復）
+
+- Actions 38272470011：Windows 與 portable 驗證通過；macOS 唯一失敗為 `HdPreviewTraversesMediaPipeWithoutRelaxingControlPipe(pattern: 4)`，4K 傳輸在約 2 秒後收到 EOF。不能僅憑時間推論為伺服器逾時。
+- 保留原有期限、認證、大小上限與控制／媒體管線隔離，增加取消／例外的固定階段及連線累計耗時日誌；測試失敗時附上最多 16 筆診斷，不記錄像素或金鑰。
+- 真實管線停滯測試：新增日誌前因無診斷而失敗，新增後通過；媒體傳輸相關 7 案例通過。
+- 完整 Release 回歸：Core 207、Media 694 通過，19 略過、0 失敗。SDK 8.0.425（重新下載官方 SDK 修復暫存缺檔），本次 PATH FFmpeg 9.0.1。這不是 Windows／macOS 視覺實機驗收。
+- 本機無法重現原 CI 的 4K EOF；本次是診斷修補，不宣稱偶發 IPC 或 Windows 心跳問題已根治。待新 CI 提供失敗階段後再決定行為修正。

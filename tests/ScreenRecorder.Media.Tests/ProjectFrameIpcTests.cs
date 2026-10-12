@@ -10,6 +10,58 @@ namespace ScreenRecorder.Media.Tests;
 public partial class RecordingEncoderLifecycleTests
 {
     [Fact]
+    public async Task StalledMediaTransferReportsItsStageWithoutLoggingPixels()
+    {
+        var previous = Serilog.Log.Logger;
+        var sink = new MediaDiagnosticSink();
+        using var logger = new Serilog.LoggerConfiguration().WriteTo.Sink(sink).CreateLogger();
+        Serilog.Log.Logger = logger;
+        try
+        {
+            var name = SessionPipeNameFactory.Create(OperatingSystem.IsWindows());
+            var key = AuthenticatedIpc.CreateKey();
+            await using var server = new NamedPipeIpcServer(name, key, _ => Task.FromResult(
+                new ProjectReply(true, null, ProjectSnapshot.Closed) { Frame = new(0, 0, Guid.NewGuid(), new byte[3840 * 2160 * 4])
+                    { PixelWidth = 3840, PixelHeight = 2160 } }));
+            server.Start();
+            using var pipe = new System.IO.Pipes.NamedPipeClientStream(".", name, System.IO.Pipes.PipeDirection.InOut, System.IO.Pipes.PipeOptions.Asynchronous);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+            await pipe.ConnectAsync(timeout.Token);
+            var nonce = await AuthenticatedIpc.ReadChallengeAsync(pipe, key, timeout.Token);
+            await AuthenticatedIpc.WriteAsync(pipe, key, nonce, false, new IpcMessage { MessageType = "GetProjectFrame", PayloadJson = "{}" }, timeout.Token);
+            var entry = await sink.Timeout.Task.WaitAsync(timeout.Token);
+            Assert.Equal("\"media-response\"", entry.Properties["Stage"].ToString());
+            Assert.DoesNotContain("Rgba", entry.RenderMessage());
+        }
+        finally { Serilog.Log.Logger = previous; }
+    }
+
+    private sealed class MediaDiagnosticSink : Serilog.Core.ILogEventSink
+    {
+        public System.Collections.Concurrent.ConcurrentQueue<string> Events { get; } = new();
+        public TaskCompletionSource<Serilog.Events.LogEvent> Timeout { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public void Emit(Serilog.Events.LogEvent entry)
+        {
+            Events.Enqueue($"{entry.Timestamp:O} {entry.RenderMessage()} {entry.Exception}");
+            while (Events.Count > 16) Events.TryDequeue(out _);
+            if (entry.Properties.ContainsKey("Stage")) Timeout.TrySetResult(entry);
+        }
+    }
+
+    private sealed class MediaDiagnosticCapture : IDisposable
+    {
+        private readonly Serilog.ILogger _previous = Serilog.Log.Logger;
+        private readonly Serilog.Core.Logger _logger;
+        public MediaDiagnosticSink Sink { get; } = new();
+        public MediaDiagnosticCapture()
+        {
+            _logger = new Serilog.LoggerConfiguration().MinimumLevel.Warning().WriteTo.Sink(Sink).CreateLogger();
+            Serilog.Log.Logger = _logger;
+        }
+        public void Dispose() { Serilog.Log.Logger = _previous; _logger.Dispose(); }
+    }
+
+    [Fact]
     public async Task SlowMediaReaderDoesNotBlockStopAndTransfersAreSerialized()
     {
         var name = SessionPipeNameFactory.Create(OperatingSystem.IsWindows());
@@ -49,6 +101,7 @@ public partial class RecordingEncoderLifecycleTests
     [InlineData(4)]
     public async Task HdPreviewTraversesMediaPipeWithoutRelaxingControlPipe(int pattern)
     {
+        using var diagnostics = new MediaDiagnosticCapture();
         var name = SessionPipeNameFactory.Create(OperatingSystem.IsWindows());
         var key = AuthenticatedIpc.CreateKey();
         var width = pattern == 4 ? 3840 : pattern == 3 ? 1920 : 1280;
@@ -67,7 +120,7 @@ public partial class RecordingEncoderLifecycleTests
         server.Start();
         await using var client = new NamedPipeIpcClient(name, key);
         var result = await client.SendProjectFrameAsync(new());
-        Assert.True(result.Success, result.Error);
+        Assert.True(result.Success, $"{result.Error}; {width}x{height}; server: {string.Join(" | ", diagnostics.Sink.Events)}");
         var decoded = result.Frame!;
         Assert.True(decoded.HasValidPixels);
         Assert.Equal(rgba, decoded.Rgba);

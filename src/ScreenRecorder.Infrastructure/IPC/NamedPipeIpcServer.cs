@@ -157,6 +157,8 @@ public class NamedPipeIpcServer : IAsyncDisposable
         using (pipeServer)
         {
             var enteredMessageGate = false;
+            var stage = "authentication";
+            var elapsed = System.Diagnostics.Stopwatch.StartNew();
             try
             {
                 // Incomplete or unauthenticated peers must never own the command gate.
@@ -166,25 +168,32 @@ public class NamedPipeIpcServer : IAsyncDisposable
                 var nonce = await AuthenticatedIpc.SendChallengeAsync(pipeServer, _key, deadline.Token);
                 var message = await AuthenticatedIpc.ReadAsync<IpcMessage>(pipeServer, _key, nonce, false, deadline.Token);
                 deadline.CancelAfter(Timeout.InfiniteTimeSpan);
+                stage = "command-gate";
                 await _messageGate.WaitAsync(cancellationToken);
                 enteredMessageGate = true;
                 ClientConnectionChanged?.Invoke(this, true);
 
                 if (_mediaHandler is not null)
                 {
+                    stage = "media-handler";
                     var response = await _mediaHandler(message);
+                    stage = "media-response";
                     deadline.CancelAfter(TimeSpan.FromSeconds(2));
                     await AuthenticatedMediaIpc.WriteAsync(pipeServer, _key, nonce, response, deadline.Token);
                 }
                 else
                 {
+                    stage = "command-handler";
                     var response = await _messageHandler(message);
+                    stage = "command-response";
                     deadline.CancelAfter(TimeSpan.FromSeconds(2));
                     await AuthenticatedIpc.WriteAsync(pipeServer, _key, nonce, true, response, deadline.Token, _mediaResponse);
                 }
             }
             catch (OperationCanceledException)
             {
+                if (!cancellationToken.IsCancellationRequested)
+                    Log.Warning("IPC connection canceled at {Stage} after {ElapsedMs} ms", stage, elapsed.ElapsedMilliseconds);
             }
             catch (ObjectDisposedException) when (cancellationToken.IsCancellationRequested)
             {
@@ -195,8 +204,8 @@ public class NamedPipeIpcServer : IAsyncDisposable
                 {
                     Log.Error(
                         ex,
-                        "IPC connection failed for pipe {PipeName}",
-                        _pipeName);
+                        "IPC connection failed for pipe {PipeName} at {Stage} after {ElapsedMs} ms",
+                        _pipeName, stage, elapsed.ElapsedMilliseconds);
                 }
             }
             finally
