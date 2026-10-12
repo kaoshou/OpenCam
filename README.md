@@ -14,7 +14,9 @@ OpenCam 讓你錄影、剪輯，再繼續錄影。這款以可靠性為優先的
 
 🌐 [OpenCam 官方網站](https://kaoshou.github.io/OpenCam/)（可切換繁體中文／English）
 
-目前原始碼版本為 **0.3.1**，採用 **AGPL-3.0-or-later**。Windows 原生錄影、編輯影音預覽、輸出與長時間音畫同步實機驗收仍待完成；Windows FFmpeg 完整對應原始碼核對亦尚未完成。套件未簽章，發布不代表全部驗收通過。請保留重要素材備份，已發布安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。詳見 [v0.3.1 更新與限制](docs/releases/v0.3.1.md)。
+目前原始碼版本為 **0.3.2**，採用 **AGPL-3.0-or-later**。Windows 原生錄影、編輯影音預覽、輸出與長時間音畫同步實機驗收仍待完成；Windows FFmpeg 完整對應原始碼核對亦尚未完成。套件未簽章，發布不代表全部驗收通過。請保留重要素材備份，已發布安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。詳見 [v0.3.2 更新與限制](docs/releases/v0.3.2.md)。
+
+**v0.3.2** 改善全螢幕預覽進度控制、片段合併及右鍵群組操作、離開編輯器的儲存提醒與 MP4 檔名選擇；新增專案總錄影時間，允許暫停時切換自動輸出，並修正缺少封包長度的 MKV 導致停止失敗。合併片段使用 schema 3，舊版無法開啟；舊專案已保存的少算時間不會自動更正。
 
 **v0.3.1** 增加首頁可用高度，並讓相容、未剪輯的多段錄影在音訊正規化時保留原影片編碼，只重新編碼音訊。輸出狀態會說明目前處理階段；驗證不相容時仍安全退回完整轉檔。暫時 PCM 處理需要額外磁碟空間，完成或取消後清理，不改寫原始 MKV。
 
@@ -183,7 +185,9 @@ OpenCam is built with .NET 8, Avalonia UI, and FFmpeg, and supports Windows and 
 
 🌐 [OpenCam official website](https://kaoshou.github.io/OpenCam/) (English / 繁體中文)
 
-The current source version is **0.3.1**, under **AGPL-3.0-or-later**. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending, as does verification of complete corresponding sources for the Windows FFmpeg build. Packages are unsigned; publication does not establish complete acceptance. Keep backups of important media. Published packages are available from [Releases](https://github.com/kaoshou/OpenCam/releases); see [v0.3.1 changes and limitations](docs/releases/v0.3.1.md).
+The current source version is **0.3.2**, under **AGPL-3.0-or-later**. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending, as does verification of complete corresponding sources for the Windows FFmpeg build. Packages are unsigned; publication does not establish complete acceptance. Keep backups of important media. Published packages are available from [Releases](https://github.com/kaoshou/OpenCam/releases); see [v0.3.2 changes and limitations](docs/releases/v0.3.2.md).
+
+**v0.3.2** improves fullscreen seeking, clip merging and context-menu grouping, exit/save prompts and MP4 filename selection. It adds project recording duration, allows toggling automatic export while paused, and fixes stopping failures with MKVs missing packet duration. Merged clips require schema 3 and cannot be opened by older versions; previously saved underestimated timings are not corrected automatically.
 
 **v0.3.1** adds home-window space and preserves encoded video when compatible whole, unedited recordings need audio normalization. Only audio is re-encoded; progress identifies each export phase. Verification incompatibility safely falls back to rendering. Temporary PCM staging requires additional disk space and is cleaned up on completion or cancellation, without rewriting original MKVs.
 

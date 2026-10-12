@@ -133,7 +133,9 @@ public partial class RecordingEncoderLifecycleTests
         await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
         var dispatcher = new ProjectIpcDispatcher(coordinator);
         var vm = new ProjectWorkspaceViewModel(new ProjectClient((command, request, ct) => dispatcher.DispatchAsync(new()
-            { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) })));
+            { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) }),
+            (request, ct) => dispatcher.DispatchMediaAsync(new()
+            { MessageType = "GetProjectFrame", PayloadJson = JsonSerializer.Serialize(request) })));
         await vm.CreateAsync(scope.Configuration.OutputDirectory, "Timeline gestures");
         for (var i = 0; i < 2; i++) { await vm.StartAsync(scope.Configuration); await vm.PauseAsync(); }
         var timeline = new ScreenRecorder.UI.Projects.Editor.ProjectTimelineControl { DataContext = vm };
@@ -151,7 +153,7 @@ public partial class RecordingEncoderLifecycleTests
             Avalonia.Headless.HeadlessWindowExtensions.MouseDown(window, point, Avalonia.Input.MouseButton.Left);
             Avalonia.Headless.HeadlessWindowExtensions.MouseUp(window, point, Avalonia.Input.MouseButton.Left);
             Assert.Equal(second, vm.SelectedClip!.Id);
-            Assert.InRange(vm.PlayheadTicks, 4_999_999, 5_000_001);
+            Assert.Equal(TimeSpan.TicksPerSecond, vm.PlayheadTicks); // Selecting a clip seeks its start.
             var revision = coordinator.Current!.Revision;
             Avalonia.Headless.HeadlessWindowExtensions.MouseDown(window, point, Avalonia.Input.MouseButton.Left);
             for (var i = 0; i < 100; i++)

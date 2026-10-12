@@ -93,6 +93,8 @@ public partial class RecordingEncoderLifecycleTests
         try
         {
             var editor = await main.PrepareProjectWorkspaceAsync();
+            Assert.True(await main.LeaveContentEditorAsync());
+            main.IsProjectWorkspaceOpen = false; // The window's Closed handler normally clears this.
             await main.StartRecordingAsync();
             Assert.True(main.IsRecording);
             Assert.False(main.IsPreparing);
@@ -164,7 +166,7 @@ public partial class RecordingEncoderLifecycleTests
     }
 
     [Fact]
-    public async Task HomeInsertionUsesSameOwnerAndCanReturnFromPausedEditor()
+    public async Task HomeResumeUsesSameOwnerAfterReturningFromPausedEditor()
     {
         await using var scope = new RecordingScope();
         await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
@@ -180,13 +182,17 @@ public partial class RecordingEncoderLifecycleTests
             await main.TogglePauseResumeAsync();
             var vm = await main.PrepareProjectWorkspaceAsync();
             Assert.True(await main.LeaveContentEditorAsync());
+            main.IsProjectWorkspaceOpen = false;
             Assert.Equal(ProjectMode.Paused, vm.State.Mode);
-            await main.StartEditorRecordingAsync(TimeSpan.TicksPerSecond / 2, vm.State.Revision);
+            await main.TogglePauseResumeAsync();
             Assert.True(main.IsRecording);
             await main.TogglePauseResumeAsync();
-            Assert.Equal(3, vm.Clips.Count);
-            await vm.UndoAsync();
+            Assert.Equal(2, vm.Clips.Count);
+            vm.SelectedClip = vm.Clips[1];
+            await vm.DeleteSelectedAsync();
             Assert.Single(vm.Clips);
+            await vm.UndoAsync();
+            Assert.Equal(2, vm.Clips.Count); // Undo edits, never discard a newly recorded source.
             await vm.FinishAsync();
         }
         finally { main.Cleanup(); }
@@ -212,8 +218,13 @@ public partial class RecordingEncoderLifecycleTests
             await main.TogglePauseResumeAsync();
             var editor = await main.PrepareProjectWorkspaceAsync();
             Assert.Equal(ProjectMode.Paused, editor.State.Mode);
-            Assert.True(main.CanStopRecording); // An open editor must not disable home controls.
+            Assert.False(main.CanStopRecording);
             await main.StartEditorRecordingAsync();
+            Assert.False(main.IsRecording);
+            Assert.Single(scope.Factory.Paths);
+            Assert.True(await main.LeaveContentEditorAsync());
+            main.IsProjectWorkspaceOpen = false;
+            await main.TogglePauseResumeAsync();
             Assert.True(main.IsRecording);
             Assert.Equal(ProjectMode.Recording, editor.State.Mode);
             await main.StopRecordingAsync();
@@ -225,7 +236,7 @@ public partial class RecordingEncoderLifecycleTests
     }
 
     [Fact]
-    public async Task EditorPermissionFailureIsVisibleInEditorAndDoesNotStartCapture()
+    public async Task HomePermissionFailureAfterLeavingEditorDoesNotStartCapture()
     {
         await using var scope = new RecordingScope();
         await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
@@ -238,6 +249,11 @@ public partial class RecordingEncoderLifecycleTests
             var editor = await main.PrepareProjectWorkspaceAsync();
             await editor.CreateAsync(scope.Configuration.OutputDirectory, "Permission test");
             await main.StartEditorRecordingAsync();
+            Assert.Null(editor.Error);
+            Assert.Empty(scope.Factory.Paths);
+            Assert.True(await main.LeaveContentEditorAsync());
+            main.IsProjectWorkspaceOpen = false;
+            await main.StartRecordingAsync();
             Assert.Equal(main.Strings["StatusScreenPermissionRequired"], editor.Error);
             Assert.Empty(scope.Factory.Paths);
         }

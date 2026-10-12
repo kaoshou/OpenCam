@@ -85,6 +85,7 @@ public partial class RecordingEncoderLifecycleTests
         {
             for (var i = 0; i < 3; i++)
             {
+                if (i > 0) editor = new ProjectWorkspaceView(vm, main); // MainWindow recreates closed editor windows.
                 editor.ShowForRecordingWindow(home);
                 Assert.True(editor.IsVisible);
                 await editor.ReturnToRecordingAsync();

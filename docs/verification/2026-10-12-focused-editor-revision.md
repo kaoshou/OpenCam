@@ -1,6 +1,14 @@
 # 編輯器精簡修訂驗證 — 2026-10-12
 
-基礎版本：646df879（0.3.1）。使用獨立 `codex/focused-editor-revision` 分支；未採用昨天的素材插入、疊加及預覽直接操控實作。本次沒有變更版本、合併、推送或發布。
+基礎版本：646df879（0.3.1）。使用獨立 `codex/focused-editor-revision` 分支；未採用昨天的素材插入、疊加及預覽直接操控實作。初期僅本機測試；後續使用者已授權升為 0.3.2、合併 master、推送與發布。
+
+## 0.3.2 發布前驗證補充
+
+- macOS / .NET SDK 8.0.408、FFmpeg 7.1.2：`dotnet test ScreenRecorder.sln -c Release -m:1 -p:NuGetAudit=false`，Core 207 通過，Media/UI 692 通過、19 略過，0 失敗。
+- `npm test --prefix website`：30 通過；版本一致性及 `git diff --check` 通過。
+- 首輪 12 個整合案例使用舊流程；更新為關閉編輯器後才操作首頁，保留實際視窗鎖定／返回驗證。點選片段新增預覽請求，時間軸測試補接媒體通道；不略過失敗案例或放寬資料安全斷言。
+- 聚焦獨立審查未發現阻擋；修正說明為「合併片段後」升級 schema 3。
+- 此為本機自動驗證，尚不代表 Windows 原生、長時間音画同步、實際磁碟耗盡或完整實體 Release Gate 通過；GitHub Actions 建置仍須另行核對。
 
 ## 已實作
 

@@ -10,7 +10,9 @@ Change capture mode only while idle, not while paused. Existing audio/cursor con
 
 OpenCam lets you record, edit, and resume recording. It writes MKV sources, retains them alongside a reopenable editing project, and exports MP4 when needed. Crash Recovery can attempt to preserve successfully written recordings; project recovery drafts protect interrupted unsaved edits.
 
-> This guide covers OpenCam v0.3.1, not a claim of completed acceptance. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending. Complete corresponding-source verification for Windows FFmpeg also remains pending, and packages are unsigned. Use disposable media; see the [release notes and limitations](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.3.1.md).
+> This guide covers OpenCam v0.3.2, not a claim of completed acceptance. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending. Complete corresponding-source verification for Windows FFmpeg also remains pending, and packages are unsigned. Use disposable media; see the [release notes and limitations](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.3.2.md).
+
+v0.3.2 adds fullscreen seeking, clip context menus, adjacent merging and connected group borders. Selecting a clip seeks its beginning; MP4 export accepts a destination and filename. The home screen shows total project recording time and allows changing automatic export while paused. Merging clips upgrades the project to schema 3, which older versions cannot open; back up the entire project before upgrading.
 
 v0.3.1 increases the default home height and preserves encoded video for compatible whole, unedited multi-clip exports needing audio normalization. Progress distinguishes inspection, copy, audio conversion, rendering and verification. Temporary PCM requires extra disk space and is cleaned up on completion/cancellation without modifying original MKVs. Unsafe copy cases still require rendering.
 
@@ -20,7 +22,7 @@ v0.3.1 increases the default home height and preserves encoded video for compati
 2. With an existing or reopened project, Start appends clips. Auto-export MP4 on stop is on by default for each project. Turn it off to save content on Stop and manually export later.
 3. New recording project creates without capturing. Open recording project selects `project.opencam`. The home screen shows the current name and clip count.
 4. After a saved pause or completed stop/export, Edit recording opens the current content. The editor handles editing, project saving and MP4 export; returning home retains the project.
-5. Active recording blocks editor entry and project creation/opening. A saved pause permits editing, but switching projects requires stopping. Resuming capture hides the editor.
+5. Active recording blocks editor entry and project creation/opening. A saved pause permits editing, but switching projects requires stopping. The home window is locked while the editor is open; return home before resuming recording. Both return and close paths prompt about unsaved edits.
 6. Project saved means the editing data was saved, not that an updated MP4 was exported. Retain the entire project folder and sources; do not move only the `.opencam` file.
 
 See the [README](../README.md) for Windows portable testing instructions. Start with short, disposable media: record/pause/resume/stop, edit and undo, save and reopen, append recording, then export MP4 and check audio/video synchronization.

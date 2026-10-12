@@ -185,6 +185,14 @@ public partial class RecordingEncoderLifecycleTests
             edit.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             editor = Assert.Single(home.OwnedWindows.OfType<ProjectWorkspaceView>());
             if (returnBeforeResume) await editor.ReturnToRecordingAsync();
+            else
+            {
+                await main.TogglePauseResumeAsync();
+                Assert.Equal(ProjectMode.Paused, coordinator.Mode);
+                Assert.True(editor.IsVisible);
+                Assert.Single(scope.Factory.Paths);
+                await editor.ReturnToRecordingAsync();
+            }
             await main.TogglePauseResumeAsync();
             Assert.False(editor.IsVisible);
             var projectId = coordinator.Current!.ProjectId;
@@ -240,12 +248,16 @@ public partial class RecordingEncoderLifecycleTests
             if (recover)
             {
                 await editor.RestoreBackupAsync();
+                Assert.False(main.CanStartRecording);
+                Assert.True(await main.LeaveContentEditorAsync());
+                main.IsProjectWorkspaceOpen = false;
                 Assert.True(main.CanStartRecording);
                 Assert.Equal("Backup", main.CurrentRecordingProjectName);
             }
             else
             {
                 Assert.True(await main.LeaveContentEditorAsync());
+                main.IsProjectWorkspaceOpen = false;
                 Assert.True(main.CanManageRecordingProject);
                 await main.NewRecordingProjectAsync();
                 Assert.Equal("Other", main.CurrentRecordingProjectName);
@@ -360,6 +372,8 @@ public partial class RecordingEncoderLifecycleTests
             await main.NewRecordingProjectAsync();
             Assert.Empty(scope.Factory.Paths);
             var model = await main.PrepareProjectWorkspaceAsync();
+            Assert.True(await main.LeaveContentEditorAsync());
+            main.IsProjectWorkspaceOpen = false;
             Assert.Equal("Existing lesson", main.CurrentRecordingProjectName);
             Assert.Equal(main.Strings["StatusReady"], main.StatusMessage);
             var id = coordinator.Current!.ProjectId;
@@ -374,6 +388,8 @@ public partial class RecordingEncoderLifecycleTests
             await model.RefreshAsync();
             Assert.True(main.CanOpenContentEditor);
             Assert.Single((await main.PrepareProjectWorkspaceAsync()).Clips);
+            Assert.True(await main.LeaveContentEditorAsync());
+            main.IsProjectWorkspaceOpen = false;
             await main.NewRecordingProjectAsync();
             Assert.NotEqual(id, coordinator.Current!.ProjectId);
             await main.OpenRecordingProjectAsync(path);
@@ -400,6 +416,8 @@ public partial class RecordingEncoderLifecycleTests
         {
             var editor = await main.PrepareProjectWorkspaceAsync();
             await editor.CreateAsync(scope.Configuration.OutputDirectory, "Keep my project");
+            Assert.True(await main.LeaveContentEditorAsync());
+            main.IsProjectWorkspaceOpen = false;
             var id = editor.State.ProjectId;
             await main.StartRecordingAsync();
             Assert.Equal(id, coordinator.Current!.ProjectId);
