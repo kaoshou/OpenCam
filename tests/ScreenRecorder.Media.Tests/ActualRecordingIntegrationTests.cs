@@ -470,6 +470,8 @@ public class ActualRecordingIntegrationTests : IDisposable
         var stateMachine = new RecordingStateMachine();
         var storageService = new StorageService();
         var sessionStore = new FailOnceRecordingSessionStore(failureDelayMs);
+        stateMachine.StateChanged += (_, change) => sessionStore.Trace(
+            $"state {change.PreviousState}->{change.NewState}: {change.Reason}");
         var diskMonitor = new DiskSpaceMonitor(storageService);
         var displayService = new FixedDisplayService();
 
@@ -506,7 +508,14 @@ public class ActualRecordingIntegrationTests : IDisposable
         sessionStore.FailNextSave();
         // Wait for a completed durable retry, not two nominal timer intervals.
         // Stop must not supply the successful save that satisfies this test.
-        await sessionStore.SavedAfterFailure.Task.WaitAsync(TimeSpan.FromSeconds(20));
+        try { await sessionStore.SavedAfterFailure.Task.WaitAsync(TimeSpan.FromSeconds(20)); }
+        catch (TimeoutException ex)
+        {
+            var watchdog = typeof(RecordingOrchestrator).GetField("_watchdogTask",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.GetValue(orchestrator) as Task;
+            throw new TimeoutException($"Heartbeat retry timed out; state={orchestrator.CurrentState}, watchdog={watchdog?.Status}, " +
+                $"lastHeartbeat={orchestrator.CurrentSession?.LastHeartbeatTime:O}\n{string.Join("\n", sessionStore.Events)}", ex);
+        }
         Assert.Equal(RecordingState.Recording, orchestrator.CurrentState);
 
         var afterRetry = await sessionStore.LoadSessionAsync(sessionDirectory);
@@ -902,6 +911,12 @@ public class ActualRecordingIntegrationTests : IDisposable
         private int _failNextSave;
         private int _failureInjected;
         public TaskCompletionSource SavedAfterFailure { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public System.Collections.Concurrent.ConcurrentQueue<string> Events { get; } = new();
+        public void Trace(string message)
+        {
+            Events.Enqueue($"{DateTimeOffset.UtcNow:O} {message}");
+            while (Events.Count > 40) Events.TryDequeue(out _);
+        }
 
         public void FailNextSave() => Interlocked.Exchange(ref _failNextSave, 1);
 
@@ -909,15 +924,18 @@ public class ActualRecordingIntegrationTests : IDisposable
             RecordingSession session,
             CancellationToken cancellationToken = default)
         {
+            Trace($"save entered; failureInjected={Volatile.Read(ref _failureInjected)}");
             if (Interlocked.Exchange(ref _failNextSave, 0) == 1)
             {
                 await Task.Delay(failureDelayMs, cancellationToken);
                 Interlocked.Exchange(ref _failureInjected, 1);
+                Trace("injecting save failure");
                 throw new IOException("Injected transient session-store failure");
             }
 
             var isRetry = Volatile.Read(ref _failureInjected) == 1;
             await _inner.SaveSessionAsync(session, cancellationToken);
+            Trace($"save persisted; isRetry={isRetry}");
             if (isRetry) SavedAfterFailure.TrySetResult();
         }
 
