@@ -110,10 +110,20 @@ public partial class MainViewModel
         SyncRecordingContent();
     }
 
+    public string TotalRecordingTimeText
+    {
+        get
+        {
+            var time = TimeSpan.FromTicks(Math.Max(0, _content?.Workspace.State.TotalRecordingTicks ?? 0));
+            return $"{(long)time.TotalHours:00}:{time.Minutes:00}:{time.Seconds:00}";
+        }
+    }
+
     private void SyncRecordingContent()
     {
         if (_content is null) return;
         var vm = _content.Workspace;
+        OnPropertyChanged(nameof(TotalRecordingTimeText));
         OnPropertyChanged(nameof(AutoExportRecordingOnStop));
         OnPropertyChanged(nameof(CanChangeProjectExportPolicy));
         OnPropertyChanged(nameof(CanExportRecordingContent));

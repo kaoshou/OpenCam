@@ -10,7 +10,7 @@ public partial class ProjectNameDialog : Window
 {
     public ProjectNameDialog() : this("", false) { }
 
-    public ProjectNameDialog(string name, bool rename)
+    public ProjectNameDialog(string name, bool rename, bool clip = false)
     {
         InitializeComponent();
         var strings = LanguageManager.Instance;
@@ -18,8 +18,14 @@ public partial class ProjectNameDialog : Window
         Description.Text = strings[rename ? "ProjectRenameDescription" : "ProjectCreateDescription"];
         HeadingIcon.Icon = rename ? "rename" : "folder";
         NameLabel.Text = strings["HomeProjectName"];
+        if (clip)
+        {
+            Title = Heading.Text = strings["ClipRenameAction"];
+            Description.Text = strings["ClipRenameDescription"];
+            NameLabel.Text = strings["ProjectClipName"];
+        }
         NameInput.Text = name;
-        Avalonia.Automation.AutomationProperties.SetName(NameInput, strings["HomeProjectName"]);
+        Avalonia.Automation.AutomationProperties.SetName(NameInput, NameLabel.Text);
         ConfirmButton.Content = strings[rename ? "ProjectRenameConfirm" : "Confirm"];
         CancelButton.Content = strings["Cancel"];
         NameInput.TextChanged += (_, _) => ValidationError.IsVisible = false;

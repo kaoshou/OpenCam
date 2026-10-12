@@ -10,6 +10,25 @@ namespace ScreenRecorder.Media.Tests;
 public class FocusedEditorSafetyTests
 {
     [AvaloniaFact]
+    public async Task HomeShowsProjectTotalWithoutWrappingAtTwentyFourHours()
+    {
+        var client = new Client();
+        client.State = client.State with { HasUnsavedEdits = false,
+            TotalRecordingTicks = new TimeSpan(39, 2, 3).Ticks };
+        var main = new MainViewModel(forScreenshot: true);
+        main.ConfigureRecordingContent(client, () => true, () => Task.CompletedTask);
+        try
+        {
+            Assert.Equal("00:00:00", main.TotalRecordingTimeText);
+            await main.OpenRecordingProjectAsync("/test/project.opencam");
+            Assert.Equal("39:02:03", main.TotalRecordingTimeText);
+            await main.CloseRecordingProjectAsync();
+            Assert.Equal("00:00:00", main.TotalRecordingTimeText);
+        }
+        finally { main.Cleanup(); }
+    }
+
+    [AvaloniaFact]
     public void ContentControllerCannotBypassVisibleEditorLock()
     {
         var main = new MainViewModel(forScreenshot: true);
@@ -74,7 +93,7 @@ public class FocusedEditorSafetyTests
 
     private sealed class Client : IProjectClient
     {
-        public ProjectSnapshot State { get; } = new(Guid.NewGuid(), "Test", "/test", 1, 0,
+        public ProjectSnapshot State { get; set; } = new(Guid.NewGuid(), "Test", "/test", 1, 0,
             ProjectMode.Ready, 0, false, false) { HasUnsavedEdits = true };
         public Task<ProjectReply> SendAsync(string command, ProjectRequest request, CancellationToken ct = default)
             => Task.FromResult(new ProjectReply(true, null, command == "CloseProject" ? ProjectSnapshot.Closed : State));

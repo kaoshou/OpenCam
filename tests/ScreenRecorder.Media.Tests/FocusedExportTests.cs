@@ -23,6 +23,19 @@ public partial class RecordingEncoderLifecycleTests
         await vm.StartAsync(scope.Configuration); await vm.PauseAsync();
         await vm.StartAsync(scope.Configuration); await vm.PauseAsync();
         Assert.Equal(2, vm.Clips.Count);
+        await vm.GroupWithPreviousAsync();
+        Assert.Null(vm.Clips[0].GroupId); // No selection: no edit.
+        vm.SelectedClip = vm.Clips[1];
+        await vm.GroupWithPreviousAsync();
+        Assert.NotNull(vm.Clips[0].GroupId);
+        Assert.Equal(vm.Clips[0].GroupId, vm.Clips[1].GroupId);
+        await vm.UndoAsync();
+        Assert.All(vm.Clips, clip => Assert.Null(clip.GroupId));
+        vm.SelectedClip = vm.Clips[0];
+        await vm.GroupWithNextAsync();
+        Assert.NotNull(vm.Clips[0].GroupId);
+        Assert.Equal(vm.Clips[0].GroupId, vm.Clips[1].GroupId);
+        await vm.UndoAsync();
         vm.SelectedClip = vm.Clips[1];
         Assert.Equal(0, vm.PlayheadTicks); // Passive selection does not seek.
         await vm.SelectClipForPlaybackAsync(vm.Clips[1].Id);

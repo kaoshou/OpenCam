@@ -264,10 +264,10 @@
           </Grid>
           <Button Content="{Binding Strings[ProjectDeleteClip]}" Command="{Binding DeleteSelectedCommand}" IsEnabled="{Binding CanEditTimeline}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
           <Button Command="{Binding MergeWithPreviousCommand}" IsEnabled="{Binding CanMergePrevious}" HorizontalAlignment="Stretch">
-            <editor:EditorToolContent Icon="group" Text="{Binding Strings[ProjectMergePrevious]}"/>
+            <TextBlock Text="{Binding Strings[ProjectMergePrevious]}"/>
           </Button>
           <Button Command="{Binding MergeWithNextCommand}" IsEnabled="{Binding CanMergeNext}" HorizontalAlignment="Stretch">
-            <editor:EditorToolContent Icon="group" Text="{Binding Strings[ProjectMergeNext]}"/>
+            <TextBlock Text="{Binding Strings[ProjectMergeNext]}"/>
           </Button>
           <Button Content="{Binding Strings[ProjectGroupNext]}" Command="{Binding GroupWithNextCommand}" IsEnabled="{Binding CanMoveLater}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
           <Button Content="{Binding Strings[ProjectUngroup]}" Command="{Binding UngroupSelectedCommand}" IsEnabled="{Binding CanUngroup}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>

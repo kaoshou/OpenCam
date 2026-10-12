@@ -6,6 +6,7 @@ using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using Avalonia.VisualTree;
 using ScreenRecorder.Core.Projects;
 
 namespace ScreenRecorder.UI.Projects.Editor;
@@ -54,6 +55,13 @@ public sealed class ProjectClipCard : UserControl
     {
         _groupBorder.Background = Brushes.Transparent;
         _groupBorder.BorderThickness = new(0);
+        var row = this.FindAncestorOfType<ListBoxItem>();
+        if (row is not null)
+        {
+            row.Margin = new(0, 2);
+            row.BorderThickness = new(1);
+            row.CornerRadius = new(7);
+        }
         ToolTip.SetTip(this, null);
         if (DataContext is not ProjectClip clip) { Release(); return; }
         _name.Text = clip.Name;
@@ -85,6 +93,12 @@ public sealed class ProjectClipCard : UserControl
             var index = _model.Clips.IndexOf(clip);
             var first = index == 0 || _model.Clips[index - 1].GroupId != group;
             var last = index == _model.Clips.Count - 1 || _model.Clips[index + 1].GroupId != group;
+            if (row is not null)
+            {
+                row.Margin = new(0, first ? 2 : 0, 0, last ? 2 : 0);
+                row.BorderThickness = new(0);
+                row.CornerRadius = new(first ? 6 : 0, first ? 6 : 0, last ? 6 : 0, last ? 6 : 0);
+            }
             _groupBorder.BorderThickness = new(3, first ? 1 : 0, 1, last ? 1 : 0);
             _groupBorder.CornerRadius = new(first ? 6 : 0, first ? 6 : 0, last ? 6 : 0, last ? 6 : 0);
             var label = $"{_model.Strings["ProjectGroupLabel"]} {ordinal}";
@@ -92,7 +106,6 @@ public sealed class ProjectClipCard : UserControl
             ToolTip.SetTip(this, label);
             if (compact) _grid.ColumnDefinitions = new("24,*,88");
         }
-        if (!clip.Parts.IsEmpty) _name.Text = $"{clip.Name} · [{clip.Parts.Length}]";
         _duration.HorizontalAlignment = compact ? Avalonia.Layout.HorizontalAlignment.Right : Avalonia.Layout.HorizontalAlignment.Left;
         if (compact) { Release(); return; }
         var bytes = _model?.Thumbnails.GetValueOrDefault(clip.Id)?.Rgba;

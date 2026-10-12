@@ -113,6 +113,14 @@ public sealed partial class ProjectWorkspaceViewModel
         var last = GroupEnd(GroupEnd(selected) + 1);
         return ExecuteAsync("ApplyProjectEdit", new() { Edit = new ProjectClipEdit.Group(Clips[first].Id, Clips[last].Id, Guid.NewGuid()) });
     }
+    [RelayCommand] public Task GroupWithPreviousAsync()
+    {
+        if (!CanMoveEarlier) return Task.CompletedTask;
+        var selected = Clips.IndexOf(SelectedClip!);
+        var first = GroupStart(GroupStart(selected) - 1);
+        var last = GroupEnd(selected);
+        return ExecuteAsync("ApplyProjectEdit", new() { Edit = new ProjectClipEdit.Group(Clips[first].Id, Clips[last].Id, Guid.NewGuid()) });
+    }
     [RelayCommand] public Task UngroupSelectedAsync() => !CanUngroup ? Task.CompletedTask :
         ExecuteAsync("ApplyProjectEdit", new() { Edit = new ProjectClipEdit.Ungroup(SelectedClip!.GroupId!.Value) });
 }

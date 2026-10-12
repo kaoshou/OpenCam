@@ -19,6 +19,25 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
     private IProjectHandle? _handle;
     private ProjectEditHistory? _history;
     private RecordingSession? _session;
+    private long _committedSessionElapsedTicks;
+    private RecordingProject? _durationProject;
+    private long _retainedDurationTicks;
+    public long TotalRecordingTicks
+    {
+        get
+        {
+            var project = Current;
+            if (project is null) return 0;
+            if (!ReferenceEquals(project, _durationProject))
+            {
+                _retainedDurationTicks = ProjectTimeline.Build(project).DurationTicks;
+                _durationProject = project;
+            }
+            var live = Mode == ProjectMode.Recording && _session is not null && recorder.CurrentSession == _session
+                ? Math.Max(0, recorder.GetTelemetry().ElapsedTime.Ticks - _committedSessionElapsedTicks) : 0;
+            return _retainedDurationTicks + Math.Min(live, long.MaxValue - _retainedDurationTicks);
+        }
+    }
     private RecordingContentExportJob? _export;
     private Func<Task>? _stopPreview;
     internal void AttachPreviewStop(Func<Task> stop)
@@ -231,6 +250,7 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
         else
         {
             OutputDirectory = config.OutputDirectory;
+            _committedSessionElapsedTicks = 0;
             var start = await recorder.StartProjectRecordingAsync(config, new(_handle, preparedSessionId), ct);
             if (recorder.CurrentSession?.ProjectId == _handle.Current.ProjectId)
                 _session = recorder.CurrentSession;
@@ -364,6 +384,7 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
                 if (inserted) _history!.AcceptRecordingInsertion(committed);
                 else _history!.AcceptRecordingAppend(committed);
             });
+            _committedSessionElapsedTicks = recorder.GetTelemetry().ElapsedTime.Ticks;
         }
         finally
         {

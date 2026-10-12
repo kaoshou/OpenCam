@@ -25,7 +25,49 @@ public partial class ProjectWorkspaceView
         ClipList.AddHandler(PointerMovedEvent, OnClipDragMoved, RoutingStrategies.Tunnel);
         ClipList.AddHandler(PointerReleasedEvent, OnClipDragReleased, RoutingStrategies.Tunnel);
         ClipList.PointerCaptureLost += (_, _) => CancelClipDrag();
+        ClipList.ContextRequested += OnClipContextRequested;
         Closed += (_, _) => CancelClipDrag();
+    }
+
+    private void OnClipContextRequested(object? sender, ContextRequestedEventArgs e)
+    {
+        ClipList.ContextMenu?.Close();
+        ClipList.ContextMenu = null;
+        e.Handled = true;
+        if (DataContext is not ProjectWorkspaceViewModel vm || !vm.CanEditTimeline) return;
+        var row = (e.Source as Visual)?.FindAncestorOfType<ListBoxItem>(includeSelf: true);
+        var clip = row?.DataContext as ProjectClip;
+        // Keyboard context-menu requests use the current selection; blank space does not.
+        if (clip is null && !e.TryGetPosition(ClipList, out _)) clip = vm.SelectedClip;
+        if (clip is null) return;
+        CancelClipDrag();
+        vm.SelectedClip = clip;
+        var id = clip.Id;
+        var project = vm.State.ProjectId;
+        var revision = vm.State.Revision;
+        bool Valid() => vm.CanEditTimeline && vm.State.ProjectId == project &&
+            vm.State.Revision == revision && vm.SelectedClip?.Id == id;
+        MenuItem Item(string key, bool enabled, Func<Task> action)
+        {
+            var item = new MenuItem { Header = vm.Strings[key], IsEnabled = enabled };
+            item.Click += async (_, _) => { if (Valid()) await action(); };
+            return item;
+        }
+        var menu = new ContextMenu();
+        menu.Items.Add(Item("ClipRenameAction", true, async () =>
+        {
+            var name = await new ProjectNameDialog(clip.Name, rename: true, clip: true).ShowDialog<string?>(this);
+            if (name is not null && Valid()) await vm.RenameAsync(id, name);
+        }));
+        menu.Items.Add(Item("ClipMergeUp", vm.CanMergePrevious, vm.MergeWithPreviousAsync));
+        menu.Items.Add(Item("ClipMergeDown", vm.CanMergeNext, vm.MergeWithNextAsync));
+        menu.Items.Add(Item("ClipGroupUp", vm.CanMoveEarlier, vm.GroupWithPreviousAsync));
+        menu.Items.Add(Item("ClipGroupDown", vm.CanMoveLater, vm.GroupWithNextAsync));
+        menu.Items.Add(new Separator());
+        menu.Items.Add(Item("ProjectDeleteClip", true, vm.DeleteSelectedAsync));
+        ClipList.ContextMenu = menu;
+        menu.Open(ClipList);
+        e.Handled = true;
     }
 
     private void OnClipDragPressed(object? sender, PointerPressedEventArgs e)

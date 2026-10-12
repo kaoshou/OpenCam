@@ -368,6 +368,11 @@
                                        HorizontalAlignment="Center" />
                         </Border>
 
+                        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                            <TextBlock Text="{Binding Strings[ProjectTotalRecordingTime]}" Foreground="#94A3B8" FontSize="12"/>
+                            <TextBlock Text="{Binding TotalRecordingTimeText}" Foreground="#CBD5E1" FontSize="12"/>
+                        </StackPanel>
+
                         <!-- 獨立來源音量：只繪出實際量測值，停用或中斷時清空 -->
                         <StackPanel Spacing="6">
                             <Border Background="#111827" BorderBrush="#1F2937" BorderThickness="1" CornerRadius="7" Padding="8,5">
