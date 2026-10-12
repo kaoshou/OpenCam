@@ -49,6 +49,9 @@ public class ClipListPolishTests
             items[5].RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
             Assert.Equal(count, client.Requests.Count); // A stale popup cannot delete another selection.
             menu.Close();
+            rows[0].RaiseEvent(new ContextRequestedEventArgs { RoutedEvent = Control.ContextRequestedEvent });
+            Assert.Equal(7, list.ContextMenu!.Items.OfType<MenuItem>().Count());
+            list.ContextMenu.Close();
         }
         finally { await window.RequestCloseAsync(); }
     }

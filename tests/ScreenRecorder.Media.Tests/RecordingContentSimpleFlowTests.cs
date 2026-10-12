@@ -22,8 +22,10 @@ namespace ScreenRecorder.Media.Tests;
 
 public sealed class RecordingContentSimpleFlowTests
 {
-    [MacOsOnlyFact]
-    public async Task NoEditor_StartStopProducesVerifiedMp4AndKeepsReopenableOriginals()
+    [MacOsOnlyTheory]
+    [InlineData(0)]
+    [InlineData(3)]
+    public async Task NoEditor_StartStopProducesVerifiedMp4AndKeepsReopenableOriginals(int pauseCycles)
     {
         var directory = Directory.CreateTempSubdirectory("OpenCam-simple-flow-");
         try
@@ -46,6 +48,24 @@ public sealed class RecordingContentSimpleFlowTests
             await controller.StartNewAsync(config);
             Assert.Equal(ProjectMode.Recording, controller.Workspace.State.Mode);
             await Task.Delay(700);
+            for (var i = 0; i < pauseCycles; i++)
+            {
+                await controller.Workspace.PauseAsync();
+                Assert.True(coordinator.Mode == ProjectMode.Paused, coordinator.LastError);
+                Assert.Equal(coordinator.TotalRecordingTicks, coordinator.SessionRecordingTicks);
+                await controller.Workspace.SetAutoExportOnStopAsync(false);
+                Assert.False(coordinator.Current!.AutoExportOnStop);
+                await controller.Workspace.SetAutoExportOnStopAsync(true);
+                Assert.True(coordinator.Current.AutoExportOnStop);
+                await controller.ResumeAsync(config);
+                Assert.True(coordinator.Mode == ProjectMode.Recording, coordinator.LastError);
+                await Task.Delay(700);
+            }
+            if (pauseCycles > 0)
+            {
+                await controller.Workspace.PauseAsync();
+                Assert.True(coordinator.Mode == ProjectMode.Paused, coordinator.LastError);
+            }
             await controller.StopAsync();
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             while (coordinator.ExportStatus?.State == RecordingExportState.Running)
@@ -65,12 +85,13 @@ public sealed class RecordingContentSimpleFlowTests
             Assert.Equal(60, info.Fps);
             Assert.True(info.Duration > TimeSpan.FromMilliseconds(400));
             var manifest = Path.Combine(coordinator.ProjectDirectory!, "project.opencam");
-            var original = Assert.Single(coordinator.Current.Sources);
+            Assert.Equal(pauseCycles + 1, coordinator.Current.Sources.Length);
+            var original = coordinator.Current.Sources[0];
             var sourcePath = Path.Combine(coordinator.ProjectDirectory!, original.RelativePath);
             Assert.Equal(original.Sha256, Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(sourcePath))));
             Assert.True(await controller.Workspace.CloseAsync());
             await controller.Workspace.OpenAsync(manifest);
-            Assert.Single(controller.Workspace.Clips);
+            Assert.Equal(pauseCycles + 1, controller.Workspace.Clips.Count);
             Assert.True(controller.CanOpenEditor);
             // Saving without requesting export leaves the existing MP4 alone.
             var hash = SHA256.HashData(await File.ReadAllBytesAsync(output));

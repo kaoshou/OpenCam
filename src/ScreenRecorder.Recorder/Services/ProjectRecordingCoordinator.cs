@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 using System.Text.Json;
 using System.Security.Cryptography;
+using System.Collections.Immutable;
 using ScreenRecorder.Core.Enums;
 using ScreenRecorder.Core.Models;
 using ScreenRecorder.Core.Projects;
@@ -20,14 +21,17 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
     private ProjectEditHistory? _history;
     private RecordingSession? _session;
     private long _committedSessionElapsedTicks;
+    private long _committedSessionMediaTicks;
     private RecordingProject? _durationProject;
     private long _retainedDurationTicks;
-    public long TotalRecordingTicks
+    public long TotalRecordingTicks => RecordingTimes.Total;
+    public long SessionRecordingTicks => RecordingTimes.Session;
+    public (long Session, long Total) RecordingTimes
     {
         get
         {
             var project = Current;
-            if (project is null) return 0;
+            if (project is null) return (0, 0);
             if (!ReferenceEquals(project, _durationProject))
             {
                 _retainedDurationTicks = ProjectTimeline.Build(project).DurationTicks;
@@ -35,7 +39,8 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
             }
             var live = Mode == ProjectMode.Recording && _session is not null && recorder.CurrentSession == _session
                 ? Math.Max(0, recorder.GetTelemetry().ElapsedTime.Ticks - _committedSessionElapsedTicks) : 0;
-            return _retainedDurationTicks + Math.Min(live, long.MaxValue - _retainedDurationTicks);
+            return (_committedSessionMediaTicks + Math.Min(live, long.MaxValue - _committedSessionMediaTicks),
+                _retainedDurationTicks + Math.Min(live, long.MaxValue - _retainedDurationTicks));
         }
     }
     private RecordingContentExportJob? _export;
@@ -251,6 +256,7 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
         {
             OutputDirectory = config.OutputDirectory;
             _committedSessionElapsedTicks = 0;
+            _committedSessionMediaTicks = 0;
             var start = await recorder.StartProjectRecordingAsync(config, new(_handle, preparedSessionId), ct);
             if (recorder.CurrentSession?.ProjectId == _handle.Current.ProjectId)
                 _session = recorder.CurrentSession;
@@ -385,6 +391,15 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
                 else _history!.AcceptRecordingAppend(committed);
             });
             _committedSessionElapsedTicks = recorder.GetTelemetry().ElapsedTime.Ticks;
+            // Use persisted media duration for completed pieces in BOTH clocks.
+            // Engine elapsed time can differ from the muxed presentation timeline.
+            var current = _handle!.Current;
+            _committedSessionMediaTicks = ProjectTimeline.Build(current with {
+                Clips = current.Sources.Where(s => s.SessionId == _session!.SessionId).Select(s => new ProjectClip {
+                    Id = s.Id, SourceId = s.Id, Name = "Recorded segment",
+                    InPts = s.Timing.StartPts, OutPts = checked(s.Timing.StartPts + s.Timing.DurationTs)
+                }).ToImmutableArray()
+            }).DurationTicks;
         }
         finally
         {
@@ -472,6 +487,8 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
         DraftError = null;
         _handle = null;
         _history = null;
+        _committedSessionMediaTicks = 0;
+        _committedSessionElapsedTicks = 0;
         OutputDirectory = null;
         _export?.Dispose();
         _export = null;

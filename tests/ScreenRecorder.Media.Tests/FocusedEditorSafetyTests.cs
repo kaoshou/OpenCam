@@ -9,12 +9,30 @@ namespace ScreenRecorder.Media.Tests;
 
 public class FocusedEditorSafetyTests
 {
+    [AvaloniaTheory]
+    [InlineData(ProjectMode.Paused, true)]
+    [InlineData(ProjectMode.Recording, false)]
+    public async Task PausedProjectCanChangeAutoExportButRecordingCannot(ProjectMode mode, bool expected)
+    {
+        var client = new Client();
+        client.State = client.State with { Mode = mode, HasUnsavedEdits = false };
+        var main = new MainViewModel(forScreenshot: true);
+        main.ConfigureRecordingContent(client, () => true, () => Task.CompletedTask);
+        try
+        {
+            await main.OpenRecordingProjectAsync("/test/project.opencam");
+            Assert.Equal(expected, main.CanChangeProjectExportPolicy);
+        }
+        finally { main.Cleanup(); }
+    }
+
     [AvaloniaFact]
     public async Task HomeShowsProjectTotalWithoutWrappingAtTwentyFourHours()
     {
         var client = new Client();
         client.State = client.State with { HasUnsavedEdits = false,
             TotalRecordingTicks = new TimeSpan(39, 2, 3).Ticks };
+        client.State = client.State with { SessionRecordingTicks = new TimeSpan(39, 2, 3).Ticks };
         var main = new MainViewModel(forScreenshot: true);
         main.ConfigureRecordingContent(client, () => true, () => Task.CompletedTask);
         try
@@ -22,6 +40,7 @@ public class FocusedEditorSafetyTests
             Assert.Equal("00:00:00", main.TotalRecordingTimeText);
             await main.OpenRecordingProjectAsync("/test/project.opencam");
             Assert.Equal("39:02:03", main.TotalRecordingTimeText);
+            Assert.Equal("39:02:03", main.ElapsedTimeText);
             await main.CloseRecordingProjectAsync();
             Assert.Equal("00:00:00", main.TotalRecordingTimeText);
         }

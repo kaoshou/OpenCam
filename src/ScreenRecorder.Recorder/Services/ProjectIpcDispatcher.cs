@@ -17,14 +17,18 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
         or "SaveProject" or "FindProjectExport" or "DiscardProjectEdits" or "ResolveProjectDraft" or "SetProjectAutoExport" or "RenameProject" or "RenameProjectClip" or "ApplyProjectEdit" or "UndoProject" or "RedoProject" or "CloseProject" or "RestoreProjectBackup"
         or "StartNewRecordingContent" or "StartProjectInsertion" or "FinishRecordingContent" or "RetryRecordingContentExport" or "CancelRecordingContentExport" or "ExportRecordingContent";
 
-    private ProjectSnapshot Snapshot() => new(coordinator.Current?.ProjectId, coordinator.Current?.Name ?? "",
+    private ProjectSnapshot Snapshot()
+    {
+        var times = coordinator.RecordingTimes;
+        return new(coordinator.Current?.ProjectId, coordinator.Current?.Name ?? "",
         coordinator.ProjectDirectory, coordinator.Current?.Revision ?? 0, coordinator.SavedRevision, coordinator.Mode,
         coordinator.Current?.Clips.Length ?? 0, coordinator.CanUndo, coordinator.CanRedo, coordinator.LastError)
         { NeedsRecoveryConfirmation = coordinator.NeedsRecoveryConfirmation, ServerInstanceId = _instanceId, Export = coordinator.ExportStatus,
             Canvas = coordinator.Current?.Canvas, HasUnsavedEdits = coordinator.IsDirty,
-            TotalRecordingTicks = coordinator.TotalRecordingTicks,
+            TotalRecordingTicks = times.Total, SessionRecordingTicks = times.Session,
             HasRecoverableDraft = coordinator.HasRecoverableDraft, DraftError = coordinator.DraftError,
             AutoExportOnStop = coordinator.Current?.AutoExportOnStop ?? true };
+    }
 
     public async Task<IpcResponse> DispatchAsync(IpcMessage message)
     {

@@ -1917,7 +1917,7 @@ public partial class MainViewModel : ObservableObject
                 if (value is not null)
                 {
                     ApplyEncoderTelemetry(value);
-                    ElapsedTimeText = value.ElapsedTime.ToString(@"hh\:mm\:ss");
+                    // Both clocks were sampled together in the project snapshot above.
                     FileSizeText = $"{value.CurrentFileSizeBytes / (1024.0 * 1024.0):F1} MB";
                     DiskRemainingText = $"{value.AvailableDiskSpaceBytes / (1024.0 * 1024.0 * 1024.0):F1} GB";
                     StatusMessage = ResolveRecorderHealthStatus(value, StatusMessage);

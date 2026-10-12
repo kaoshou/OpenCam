@@ -63,6 +63,8 @@ public partial class ProjectWorkspaceView
         menu.Items.Add(Item("ClipMergeDown", vm.CanMergeNext, vm.MergeWithNextAsync));
         menu.Items.Add(Item("ClipGroupUp", vm.CanMoveEarlier, vm.GroupWithPreviousAsync));
         menu.Items.Add(Item("ClipGroupDown", vm.CanMoveLater, vm.GroupWithNextAsync));
+        if (clip.GroupId is not null)
+            menu.Items.Add(Item("ProjectUngroup", vm.CanUngroup, vm.UngroupSelectedAsync));
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("ProjectDeleteClip", true, vm.DeleteSelectedAsync));
         ClipList.ContextMenu = menu;

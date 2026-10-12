@@ -19,7 +19,8 @@ public partial class MainViewModel
     public Func<string, Task<ExistingExportDecision>>? RequestExistingProjectExport { get; set; }
     public Action<string>? OpenExistingProjectExport { get; set; }
     public bool AutoExportRecordingOnStop => _content?.Workspace.State.AutoExportOnStop ?? true;
-    public bool CanChangeProjectExportPolicy => CanManageRecordingProject && HasRecordingProject;
+    public bool CanChangeProjectExportPolicy => !IsProjectWorkspaceOpen && !IsPreparing && !IsRecovering &&
+        _content?.CanResume == true && HasRecordingProject;
     public bool CanExportRecordingContent => !IsProjectWorkspaceOpen && _content?.Workspace.CanExport == true;
     public Task SetProjectAutoExportAsync(bool value) => _content?.Workspace.SetAutoExportOnStopAsync(value) ?? Task.CompletedTask;
     public Func<string, Task<string?>>? RequestMp4Destination { get; set; }
@@ -123,6 +124,8 @@ public partial class MainViewModel
     {
         if (_content is null) return;
         var vm = _content.Workspace;
+        var sessionTime = TimeSpan.FromTicks(Math.Max(0, vm.State.SessionRecordingTicks));
+        ElapsedTimeText = $"{(long)sessionTime.TotalHours:00}:{sessionTime.Minutes:00}:{sessionTime.Seconds:00}";
         OnPropertyChanged(nameof(TotalRecordingTimeText));
         OnPropertyChanged(nameof(AutoExportRecordingOnStop));
         OnPropertyChanged(nameof(CanChangeProjectExportPolicy));

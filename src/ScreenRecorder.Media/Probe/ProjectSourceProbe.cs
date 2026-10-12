@@ -59,7 +59,7 @@ public sealed class ProjectSourceProbe(string? executable = null) : IProjectSour
         async Task ReadAsync()
         {
             // Constant memory even for long recordings; no packet/frame arrays.
-            var packets = new Dictionary<int, (long First, long End)>();
+            var packets = new Dictionary<int, PacketRange>();
             string? audio = null;
             ProjectMediaInfo? video = null;
             var line = new StringBuilder();
@@ -93,12 +93,12 @@ public sealed class ProjectSourceProbe(string? executable = null) : IProjectSour
                 if (parts[0] == "packet")
                 {
                     if (!Number(values, "stream_index", out var index) || index is < 0 or > 255 ||
-                        !Number(values, "pts", out var pts) || !Number(values, "duration", out var duration) || duration <= 0)
+                        !Number(values, "pts", out var pts))
                         return;
-                    var end = checked(pts + duration);
-                    if (packets.TryGetValue((int)index, out var previous))
-                        packets[(int)index] = (Math.Min(previous.First, pts), Math.Max(previous.End, end));
-                    else packets.Add((int)index, (pts, end));
+                    if (!packets.TryGetValue((int)index, out var range))
+                        packets.Add((int)index, range = new PacketRange());
+                    Number(values, "duration", out var duration);
+                    range.Add(pts, duration);
                 }
                 else if (parts[0] == "stream")
                 {
@@ -116,6 +116,38 @@ public sealed class ProjectSourceProbe(string? executable = null) : IProjectSour
                     video = new(new(new(num, den), range.First, checked(range.End - range.First)),
                         (int)width, (int)height, codec, null);
                 }
+            }
+        }
+    }
+
+    // Capture MKV can omit duration while still providing valid presentation timestamps.
+    // Keep extrema in presentation order (not decode order, which may contain B-frames).
+    // Only the last frame needs inference; use its nearest observed presentation interval.
+    private sealed class PacketRange
+    {
+        public long First { get; private set; } = long.MaxValue;
+        private long _last = long.MinValue, _previous = long.MinValue;
+        private long _lastDuration, _knownEnd = long.MinValue;
+        public void Add(long pts, long duration)
+        {
+            First = Math.Min(First, pts);
+            if (duration > 0) _knownEnd = Math.Max(_knownEnd, checked(pts + duration));
+            if (pts > _last)
+            {
+                _previous = _last; _last = pts; _lastDuration = duration;
+            }
+            else if (pts == _last) _lastDuration = Math.Max(_lastDuration, duration);
+            else if (pts > _previous) _previous = pts;
+        }
+        public long End
+        {
+            get
+            {
+                var duration = _lastDuration > 0 ? _lastDuration :
+                    _previous != long.MinValue ? checked(_last - _previous) : 0;
+                if (duration <= 0)
+                    throw new InvalidDataException("Video has no determinable final frame duration.");
+                return Math.Max(_knownEnd, checked(_last + duration));
             }
         }
     }

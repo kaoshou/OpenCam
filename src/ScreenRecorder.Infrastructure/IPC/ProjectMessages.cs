@@ -42,6 +42,7 @@ public sealed record ProjectSnapshot(Guid? ProjectId, string Name, string? Direc
     public bool AutoExportOnStop { get; init; } = true;
     public bool IsDirty => HasUnsavedEdits ?? Revision != SavedRevision;
     public long TotalRecordingTicks { get; init; }
+    public long SessionRecordingTicks { get; init; }
 }
 
 public sealed record ProjectReply(bool Success, string? Error, ProjectSnapshot State,

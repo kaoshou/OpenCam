@@ -8,8 +8,10 @@ namespace ScreenRecorder.Media.Tests;
 
 public sealed class ProjectSourceProbeTests
 {
-    [Fact]
-    public async Task Probe_UsesRealMkvPacketTimestamps_AndNeverChangesOriginal()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Probe_UsesRealMkvPacketTimestamps_AndNeverChangesOriginal(bool missingPacketDuration)
     {
         var dir = Directory.CreateTempSubdirectory("OpenCam-project-probe-");
         try
@@ -18,12 +20,28 @@ public sealed class ProjectSourceProbeTests
             var start = new ProcessStartInfo(FFmpegDiscovery.FindFFmpegExecutable()!) {
                 UseShellExecute = false, RedirectStandardError = true };
             foreach (var arg in new[] { "-nostdin", "-v", "error", "-f", "lavfi", "-i", "testsrc=duration=1:size=320x240:rate=30",
-                "-c:v", "libx264", "-pix_fmt", "yuv420p", path }) start.ArgumentList.Add(arg);
+                "-c:v", "libx264", "-pix_fmt", "yuv420p" }) start.ArgumentList.Add(arg);
+            if (missingPacketDuration)
+            {
+                start.ArgumentList.Add("-bsf:v");
+                start.ArgumentList.Add("h264_metadata=tick_rate=60000/1");
+            }
+            start.ArgumentList.Add(path);
             using var process = Process.Start(start)!;
             var errors = process.StandardError.ReadToEndAsync();
             await process.WaitForExitAsync();
             Assert.Equal(0, process.ExitCode);
             Assert.Empty(await errors);
+            if (missingPacketDuration)
+            {
+                // Reproduce capture files whose DefaultDuration is sub-millisecond.
+                // Their real packet PTS remain 0,33,67,... but ffprobe duration is N/A.
+                var bytes = await File.ReadAllBytesAsync(path);
+                var offset = bytes.AsSpan().IndexOf(new byte[] { 0x23, 0xe3, 0x83, 0x84 });
+                Assert.True(offset >= 0);
+                System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(bytes.AsSpan(offset + 4, 4), 33333);
+                await File.WriteAllBytesAsync(path, bytes);
+            }
             var original = SHA256.HashData(await File.ReadAllBytesAsync(path));
             await using var stream = File.OpenRead(path);
             var info = await new ProjectSourceProbe().ProbeAsync(stream);
