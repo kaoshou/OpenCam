@@ -20,12 +20,18 @@ public partial class MainViewModel
     public Action<string>? OpenExistingProjectExport { get; set; }
     public bool AutoExportRecordingOnStop => _content?.Workspace.State.AutoExportOnStop ?? true;
     public bool CanChangeProjectExportPolicy => CanManageRecordingProject && HasRecordingProject;
-    public bool CanExportRecordingContent => _content?.Workspace.CanExport == true;
+    public bool CanExportRecordingContent => !IsProjectWorkspaceOpen && _content?.Workspace.CanExport == true;
     public Task SetProjectAutoExportAsync(bool value) => _content?.Workspace.SetAutoExportOnStopAsync(value) ?? Task.CompletedTask;
-    [RelayCommand] public Task ExportRecordingContentAsync() => _content?.Workspace.ExportAsync(OutputDirectory) ?? Task.CompletedTask;
+    public Func<string, Task<string?>>? RequestMp4Destination { get; set; }
+    [RelayCommand] public async Task ExportRecordingContentAsync()
+    {
+        if (!CanExportRecordingContent || RequestMp4Destination is null) return;
+        var path = await RequestMp4Destination(_content!.Workspace.State.Name);
+        if (path is not null && CanExportRecordingContent) await _content.Workspace.ExportFileAsync(path);
+    }
     public bool HasRecordingProject => _content?.Workspace.State.ProjectId is not null;
     public Task<bool> CloseRecordingProjectAsync() => _content?.Workspace.CloseAsync() ?? Task.FromResult(true);
-    public bool CanManageRecordingProject => !IsPreparing && !IsRecovering && _content?.CanReplaceProject == true;
+    public bool CanManageRecordingProject => !IsProjectWorkspaceOpen && !IsPreparing && !IsRecovering && _content?.CanReplaceProject == true;
     public string CurrentRecordingProjectName => _content?.Workspace.State.ProjectId is null
         ? Strings["ProjectModeClosed"] : _content.Workspace.State.Name;
     public string CurrentRecordingProjectDetails => _content?.Workspace.State.ProjectId is null ? "" :
@@ -158,7 +164,7 @@ public partial class MainViewModel
 
     private async Task CaptureContentAsync(bool newContent, long? insertionTicks = null, long? revision = null)
     {
-        if (_content is null || _openingContent) return;
+        if (_content is null || _openingContent || IsProjectWorkspaceOpen) return;
         var vm = _content.Workspace;
         if (!(newContent ? _content.CanStartNew : _content.CanResume)) return;
         var configuration = BuildProjectConfiguration(); // Freeze before any asynchronous work.

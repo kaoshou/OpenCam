@@ -29,7 +29,7 @@ public sealed class ProjectFrameService(ProjectRecordingCoordinator coordinator,
         var selection = ProjectStillSelection.Create(snapshot, ticks, thumbnailClipId);
         var (plan, index, frame) = selection;
         var part = plan.Clips[index];
-        var position = new ProjectPosition(part.Clip.Id, part.Source.Id, part.Clip.InPts);
+        var position = new ProjectPosition(ProjectClipProjection.LogicalId(snapshot, part.Clip.Id), part.Source.Id, part.Clip.InPts);
         var key = (projectId, revision, ticks, thumbnailClipId, quality);
         var size = ProjectPreviewFormat.Resolve(snapshot.Canvas, quality);
         var width = thumbnailClipId == Guid.Empty ? size.Width : ProjectFrameReply.Width;
@@ -48,7 +48,7 @@ public sealed class ProjectFrameService(ProjectRecordingCoordinator coordinator,
             await _running;
             _cancel!.Dispose();
         }
-        var lease = await coordinator.OpenMediaSourceAsync(projectId, revision, position.ClipId, default);
+        var lease = await coordinator.OpenMediaSourceAsync(projectId, revision, part.Clip.Id, default);
         if (_cacheProject != projectId) { _cache?.Dispose(); _cache = null; _cacheProject = projectId; }
         try { _cache ??= await coordinator.OpenFrameCacheAsync(projectId, default); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

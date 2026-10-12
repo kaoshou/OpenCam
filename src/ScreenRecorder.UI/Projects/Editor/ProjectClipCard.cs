@@ -18,6 +18,7 @@ public sealed class ProjectClipCard : UserControl
     private readonly TextBlock _duration = new() { FontSize = 11, Foreground = Brushes.SlateGray };
     private readonly TextBlock _ordinal = new() { FontSize = 11, Foreground = Brushes.SlateGray, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center };
     private readonly Grid _grid = new();
+    private readonly Border _groupBorder = new();
     private readonly Border _thumbnail;
     private WriteableBitmap? _bitmap;
     private byte[]? _pixels;
@@ -28,7 +29,8 @@ public sealed class ProjectClipCard : UserControl
         _thumbnail = new Border { Background = new SolidColorBrush(Color.Parse("#11161F")), CornerRadius = new(4),
             Width = 64, Height = 40, Child = _image, ClipToBounds = true };
         _grid.Children.Add(_thumbnail); _grid.Children.Add(_name); _grid.Children.Add(_duration); _grid.Children.Add(_ordinal);
-        Content = _grid;
+        _groupBorder.Child = _grid;
+        Content = _groupBorder;
         _name.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;
         _duration.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;
         AttachedToVisualTree += (_, _) => {
@@ -50,6 +52,9 @@ public sealed class ProjectClipCard : UserControl
     private void Release() { _image.Source = null; _bitmap?.Dispose(); _bitmap = null; _pixels = null; }
     private void Refresh()
     {
+        _groupBorder.Background = Brushes.Transparent;
+        _groupBorder.BorderThickness = new(0);
+        ToolTip.SetTip(this, null);
         if (DataContext is not ProjectClip clip) { Release(); return; }
         _name.Text = clip.Name;
         var span = _model?.TimelineClips.FirstOrDefault(c => c.ClipId == clip.Id);
@@ -69,6 +74,25 @@ public sealed class ProjectClipCard : UserControl
         Grid.SetColumn(_duration, 2);
         Grid.SetRow(_duration, compact ? 0 : 1);
         _duration.Text = compact ? time : $"{number} · {time}";
+        if (clip.GroupId is Guid group && _model is not null)
+        {
+            var groups = _model.Clips.Where(c => c.GroupId is not null).Select(c => c.GroupId).Distinct().ToList();
+            var ordinal = groups.IndexOf(group) + 1;
+            var colors = new[] { "#5785C4", "#6A9C85", "#A180BB", "#B58C58" };
+            var color = Color.Parse(colors[(ordinal - 1) % colors.Length]);
+            _groupBorder.BorderBrush = new SolidColorBrush(color);
+            _groupBorder.Background = new SolidColorBrush(Color.FromArgb(24, color.R, color.G, color.B));
+            var index = _model.Clips.IndexOf(clip);
+            var first = index == 0 || _model.Clips[index - 1].GroupId != group;
+            var last = index == _model.Clips.Count - 1 || _model.Clips[index + 1].GroupId != group;
+            _groupBorder.BorderThickness = new(3, first ? 1 : 0, 1, last ? 1 : 0);
+            _groupBorder.CornerRadius = new(first ? 6 : 0, first ? 6 : 0, last ? 6 : 0, last ? 6 : 0);
+            var label = $"{_model.Strings["ProjectGroupLabel"]} {ordinal}";
+            _duration.Text = compact ? $"G{ordinal} · {time}" : $"{label} · {time}";
+            ToolTip.SetTip(this, label);
+            if (compact) _grid.ColumnDefinitions = new("24,*,88");
+        }
+        if (!clip.Parts.IsEmpty) _name.Text = $"{clip.Name} · [{clip.Parts.Length}]";
         _duration.HorizontalAlignment = compact ? Avalonia.Layout.HorizontalAlignment.Right : Avalonia.Layout.HorizontalAlignment.Left;
         if (compact) { Release(); return; }
         var bytes = _model?.Thumbnails.GetValueOrDefault(clip.Id)?.Rgba;

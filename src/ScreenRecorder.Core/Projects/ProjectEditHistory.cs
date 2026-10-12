@@ -53,7 +53,8 @@ public sealed class ProjectEditHistory
     {
         var clips = ProjectClipEditor.Apply(Current, edit);
         if (clips.SequenceEqual(Current.Clips)) return;
-        var next = Current with { Revision = checked(Current.Revision + 1), Clips = clips };
+        var next = Current with { Revision = checked(Current.Revision + 1), Clips = clips,
+            SchemaVersion = clips.Any(c => !c.Parts.IsEmpty) ? 3 : Current.SchemaVersion };
         ProjectValidation.Validate(next);
         _ = ProjectTimeline.Build(next);
         _undo.Push(Capture());

@@ -31,6 +31,7 @@ public partial class MainWindow : Window
                 _identificationViewModel.RequestRecordingProjectName = null;
                 _identificationViewModel.RequestUnsavedProjectDecision = null;
                 _identificationViewModel.RequestProjectDraftRecovery = null;
+                _identificationViewModel.RequestMp4Destination = null;
             }
             _displayIdentification.Close();
             _identificationViewModel = DataContext as MainViewModel;
@@ -42,6 +43,7 @@ public partial class MainWindow : Window
             if (DataContext is MainViewModel vm)
             {
                 vm.RequestRecordingProjectName = AskRecordingProjectNameAsync;
+                vm.RequestMp4Destination = name => ScreenRecorder.UI.Projects.ProjectExportFileDialog.ChooseAsync(this, name);
                 vm.RequestUnsavedProjectDecision = () => ScreenRecorder.UI.Projects.ProjectSaveDialogs.AskUnsavedAsync(
                     _projectWindow?.IsVisible == true ? _projectWindow : this);
                 vm.RequestProjectDraftRecovery = () => ScreenRecorder.UI.Projects.ProjectSaveDialogs.AskRecoveryAsync(
@@ -146,8 +148,8 @@ public partial class MainWindow : Window
         _closingProject = true;
         try
         {
-            if (DataContext is MainViewModel vm && !await vm.CloseRecordingProjectAsync()) return;
             if (_projectWindow is not null && !await _projectWindow.RequestCloseAsync()) return;
+            if (DataContext is MainViewModel vm && !await vm.CloseRecordingProjectAsync()) return;
             _projectCloseAuthorized = true;
             Close();
         }
@@ -165,7 +167,7 @@ public partial class MainWindow : Window
             _projectWindow.Closed += (_, _) => { _projectWindow = null; vm.IsProjectWorkspaceOpen = false; };
             _projectWindow.ShowForRecordingWindow(this);
         }
-        catch (Exception ex) { vm.StatusMessage = ex.Message; }
+        catch (Exception ex) { vm.IsProjectWorkspaceOpen = _projectWindow?.IsVisible == true; vm.StatusMessage = ex.Message; }
     }
 
     private async void OnProjectAutoExportChanged(object? sender, RoutedEventArgs e)

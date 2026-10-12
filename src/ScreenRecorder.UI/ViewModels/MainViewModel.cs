@@ -228,17 +228,18 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnIsProjectWorkspaceOpenChanged(bool value)
     {
-        foreach (var name in new[] { nameof(CanStartRecording), nameof(CanStopRecording), nameof(CanPauseOrResume), nameof(CanRecoverSessions) })
+        foreach (var name in new[] { nameof(CanStartRecording), nameof(CanStopRecording), nameof(CanPauseOrResume), nameof(CanRecoverSessions),
+            nameof(CanManageRecordingProject), nameof(CanExportRecordingContent), nameof(CanChangeProjectExportPolicy) })
             OnPropertyChanged(name);
     }
 
-    public bool CanStartRecording => (_content?.CanStartNew ?? !IsProjectWorkspaceOpen) && CanStartRecordingForState(
+    public bool CanStartRecording => !IsProjectWorkspaceOpen && (_content?.CanStartNew ?? true) && CanStartRecordingForState(
         IsRecording,
         IsPaused,
         IsPreparing,
         IsRecovering);
-    public bool CanStopRecording => (_startupStatusUnconfirmed || (_content?.CanStop ?? !IsProjectWorkspaceOpen)) && (IsRecording || IsPaused) && !IsPreparing;
-    public bool CanPauseOrResume => (_content is not null ? (_content.CanPause || _content.CanResume) : !IsProjectWorkspaceOpen) && (IsRecording || IsPaused) && !IsPreparing && !_startupStatusUnconfirmed;
+    public bool CanStopRecording => !IsProjectWorkspaceOpen && (_startupStatusUnconfirmed || (_content?.CanStop ?? true)) && (IsRecording || IsPaused) && !IsPreparing;
+    public bool CanPauseOrResume => !IsProjectWorkspaceOpen && (_content is null || _content.CanPause || _content.CanResume) && (IsRecording || IsPaused) && !IsPreparing && !_startupStatusUnconfirmed;
     public bool CanRecoverSessions => !IsProjectWorkspaceOpen && CanRecoverSessionsForState(
         IsRecording,
         IsPaused,

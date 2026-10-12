@@ -108,7 +108,7 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
                 "StartNewRecordingContent" => await coordinator.StartNewContentAsync(request.Configuration ?? throw new InvalidDataException("Missing capture configuration."), request.OperationId),
                 "FinishRecordingContent" => await coordinator.FinishAndExportAsync(request.OperationId),
                 "RetryRecordingContentExport" => await coordinator.RetryExportAsync(request.OperationId),
-                "ExportRecordingContent" => await coordinator.ExportAsync(request.Path ?? "", request.ExpectedRevision, request.OperationId),
+                "ExportRecordingContent" => await coordinator.ExportAsync(request.Path ?? "", request.ExpectedRevision, request.OperationId, pathIsFile: request.PathIsExportFile),
                 "CancelRecordingContentExport" => await coordinator.RequestExportCancellationAsync(request.ExportId ?? throw new InvalidDataException("Missing export identity.")),
                 "StartProjectRecording" => await coordinator.StartAsync(request.Configuration ?? throw new InvalidDataException("Missing capture configuration."), request.OperationId),
                 "StartProjectInsertion" => await coordinator.StartInsertionAsync(request.Configuration ?? throw new InvalidDataException("Missing capture configuration."),

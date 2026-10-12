@@ -10,6 +10,7 @@ public static class ProjectExportFingerprint
     public static string Compute(RecordingProject project, string exportProfile)
     {
         ProjectValidation.Validate(project);
+        project = ProjectClipProjection.Expand(project);
         var payload = new { Profile = exportProfile, project.Canvas, Clips = project.Clips.Select(c => new {
             Source = project.Sources.Single(s => s.Id == c.SourceId), c.InPts, c.OutPts, c.Volume, c.Muted,
             c.FadeInTicks, c.FadeOutTicks, c.Crop, c.Scale, c.PositionX, c.PositionY }).ToArray() };

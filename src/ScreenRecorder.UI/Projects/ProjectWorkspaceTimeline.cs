@@ -17,6 +17,35 @@ public sealed partial class ProjectWorkspaceViewModel
     public bool CanSplit => CanEditTimeline && PlayheadClip is not null;
     public bool CanDeleteRange => CanEditTimeline && RangeStartTicks is >= 0 && RangeEndTicks > RangeStartTicks && RangeEndTicks <= DurationTicks;
     public bool CanUngroup => CanEditTimeline && CanEditSelection && SelectedClip?.GroupId is not null;
+    public bool CanMergePrevious => CanMerge(-1);
+    public bool CanMergeNext => CanMerge(1);
+    private bool CanMerge(int direction)
+    {
+        if (!CanEditTimeline || !CanEditSelection || SelectedClip is null) return false;
+        var i = Clips.IndexOf(SelectedClip) + direction;
+        return i >= 0 && i < Clips.Count && Clips[i].GroupId == SelectedClip.GroupId;
+    }
+    [RelayCommand] public Task MergeWithPreviousAsync() => MergeAdjacentAsync(true);
+    [RelayCommand] public Task MergeWithNextAsync() => MergeAdjacentAsync(false);
+    private async Task MergeAdjacentAsync(bool previous)
+    {
+        if (!(previous ? CanMergePrevious : CanMergeNext)) return;
+        var selected = SelectedClip!;
+        var mergedId = previous ? Clips[Clips.IndexOf(selected) - 1].Id : selected.Id;
+        await ExecuteAsync("ApplyProjectEdit", new() { Edit = new ProjectClipEdit.Merge(selected.Id, previous) });
+        if (Error is null) await SelectClipForPlaybackAsync(mergedId);
+    }
+    public async Task SelectClipForPlaybackAsync(Guid clipId)
+    {
+        if (!CanEditTimeline) return;
+        var project = State.ProjectId; var revision = State.Revision;
+        if (!await StopPreviewAsync() || State.ProjectId != project || State.Revision != revision) return;
+        var clip = Clips.FirstOrDefault(c => c.Id == clipId);
+        var span = TimelineClips.FirstOrDefault(c => c.ClipId == clipId);
+        if (clip is null || span is null) return;
+        SelectedClip = clip; Seek(span.StartTicks);
+        await PollPreviewAsync();
+    }
     public string TimelineTimeText => $"{FormatTime(PlayheadTicks)} / {FormatTime(DurationTicks)}";
     private static string FormatTime(long ticks) => TimeSpan.FromTicks(ticks).ToString(@"hh\:mm\:ss\.fff");
     partial void OnPlayheadTicksChanged(long value)
@@ -41,6 +70,8 @@ public sealed partial class ProjectWorkspaceViewModel
         OnPropertyChanged(nameof(CanDeleteRange));
         OnPropertyChanged(nameof(TimelineTimeText));
         OnPropertyChanged(nameof(CanUngroup));
+        OnPropertyChanged(nameof(CanMergePrevious));
+        OnPropertyChanged(nameof(CanMergeNext));
     }
     private void PublishTimeline(IReadOnlyList<ProjectTimelineClip> spans)
     {

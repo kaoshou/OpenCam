@@ -36,6 +36,7 @@ public sealed class ProjectRenderPlan
     public static ProjectRenderPlan Create(RecordingProject project)
     {
         ProjectValidation.Validate(project);
+        project = ProjectClipProjection.Expand(project);
         var sources = project.Sources.ToDictionary(s => s.Id);
         var clips = ImmutableArray.CreateBuilder<ProjectRenderClip>(project.Clips.Length);
         BigInteger numerator = 0, denominator = 1;

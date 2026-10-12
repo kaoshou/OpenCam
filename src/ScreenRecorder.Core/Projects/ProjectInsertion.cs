@@ -13,6 +13,8 @@ public static class ProjectInsertion
         if (timelineTicks < 0 || timelineTicks > timeline.DurationTicks)
             throw new InvalidDataException("Insertion is outside the retained timeline.");
         var point = timeline.Locate(timelineTicks);
+        if (point is not null && project.Clips.First(c => c.Id == point.ClipId).Parts.Length > 0)
+            point = point with { SourcePts = ProjectTimeline.SourcePts(timeline.Segments.First(s => s.Clip.Id == point.ClipId), timelineTicks) };
         return new(project.ProjectId, project.Revision, timelineTicks, point?.ClipId, point?.SourcePts);
     }
 

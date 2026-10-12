@@ -24,6 +24,22 @@ public sealed class ProjectTimeline
     public static ProjectTimeline Build(RecordingProject project)
     {
         ProjectValidation.Validate(project);
+        if (project.Clips.Any(c => !c.Parts.IsEmpty))
+        {
+            var flat = Build(ProjectClipProjection.Expand(project));
+            var logical = new List<Segment>();
+            foreach (var clip in project.Clips)
+            {
+                var ids = ProjectClipProjection.Leaves(clip).Select(c => c.Id).ToHashSet();
+                var spans = flat.Segments.Where(s => ids.Contains(s.Clip.Id)).ToArray();
+                var first = spans[0]; var last = spans[^1];
+                logical.Add(new(clip, clip.Parts.IsEmpty ? first.TimeBase : new(1, TimeSpan.TicksPerSecond),
+                    first.StartTicks, last.EndTicks, first.ExactStartNumerator, first.ExactStartDenominator));
+            }
+            var result = new ProjectTimeline(logical, flat.DurationTicks);
+            result._flat = flat; result._project = project;
+            return result;
+        }
         var sources = project.Sources.ToDictionary(s => s.Id);
         var segments = new List<Segment>(project.Clips.Length);
         BigInteger numerator = 0, denominator = 1;
@@ -56,6 +72,11 @@ public sealed class ProjectTimeline
 
     public ProjectPosition? Locate(long timelineTicks)
     {
+        if (_flat is not null)
+        {
+            var leaf = _flat.Locate(timelineTicks);
+            return leaf is null ? null : leaf with { ClipId = ProjectClipProjection.LogicalId(_project!, leaf.ClipId) };
+        }
         if (timelineTicks < 0 || timelineTicks >= DurationTicks) return null;
         var low = 0;
         var high = Segments.Count - 1;
@@ -69,6 +90,8 @@ public sealed class ProjectTimeline
         }
         return null;
     }
+    private ProjectTimeline? _flat;
+    private RecordingProject? _project;
 
     internal static long SourcePts(Segment segment, long ticks)
     {

@@ -9,7 +9,7 @@ public static class ProjectValidation
     public static void Validate(RecordingProject p)
     {
         Require(p is not null, "Missing project.");
-        Require(p.SchemaVersion == 1, "Unsupported project schema.");
+        Require(p.SchemaVersion is 1 or 3, "Unsupported project schema.");
         Require(p.ProjectId != Guid.Empty && p.Revision >= 0, "Invalid project identity.");
         Require(p.RecoveryDraftBaseRevision is null ||
             p.RecoveryDraftBaseRevision >= 0 && p.RecoveryDraftBaseRevision < p.Revision, "Invalid recovery draft base.");
@@ -46,10 +46,7 @@ public static class ProjectValidation
         foreach (var c in p.Clips)
         {
             Require(c is not null && c.Id != Guid.Empty && ids.Add(c.Id), "Invalid or duplicate clip.");
-            Require(sources.TryGetValue(c.SourceId, out var s), "Clip source missing.");
-            ValidateName(c.Name);
-            Require(c.InPts >= s!.Timing.StartPts && c.OutPts > c.InPts &&
-                c.OutPts <= s.Timing.StartPts + s.Timing.DurationTs, "Clip outside source range.");
+            Require(!c.Parts.IsDefault, "Invalid compound intervals.");
             Require(c.GroupId != Guid.Empty, "Invalid group identity.");
             if (c.GroupId != previousGroup)
             {
@@ -57,6 +54,19 @@ public static class ProjectValidation
                 Require(c.GroupId is not Guid nextGroup || !closedGroups.Contains(nextGroup), "Group members must be adjacent.");
                 previousGroup = c.GroupId;
             }
+            if (!c.Parts.IsEmpty)
+            {
+                Require(p.SchemaVersion == 3 && c.SourceId == Guid.Empty && c.InPts == 0, "Invalid compound identity.");
+                Require(c.Parts.Length <= 10000 && c.Parts.All(x => x is not null && x.Parts.IsEmpty && x.GroupId is null), "Nested compound intervals are not supported.");
+                Validate(p with { Clips = c.Parts });
+                Require(ProjectTimeline.Build(p with { Clips = c.Parts }).DurationTicks == c.OutPts, "Invalid compound duration.");
+                ValidateName(c.Name);
+                continue;
+            }
+            Require(sources.TryGetValue(c.SourceId, out var s), "Clip source missing.");
+            ValidateName(c.Name);
+            Require(c.InPts >= s!.Timing.StartPts && c.OutPts > c.InPts &&
+                c.OutPts <= s.Timing.StartPts + s.Timing.DurationTs, "Clip outside source range.");
             Require(FiniteRange(c.Volume, 0, 2) && FiniteRange(c.Crop, 0, 40) &&
                 FiniteRange(c.Scale, 1, 2) && FiniteRange(c.PositionX, -50, 50) &&
                 FiniteRange(c.PositionY, -50, 50), "Invalid clip properties.");
@@ -66,6 +76,9 @@ public static class ProjectValidation
                 (decimal)c.FadeInTicks / TimeSpan.TicksPerSecond <= durationSeconds &&
                 (decimal)c.FadeOutTicks / TimeSpan.TicksPerSecond <= durationSeconds, "Invalid fade duration.");
         }
+        Require(p.Clips.Sum(c => Math.Max(1, c.Parts.Length)) <= 10000, "Too many source intervals.");
+        var leafIds = p.Clips.SelectMany(ProjectClipProjection.Leaves).Select(c => c.Id).ToArray();
+        Require(leafIds.Distinct().Count() == leafIds.Length, "Duplicate source interval identity.");
         var v = p.ViewState;
         Require(v is not null && v.PlayheadTicks >= 0 && FiniteRange(v.Zoom, 1, 8) &&
             FiniteRange(v.TimelineHeight, 190, 380), "Invalid view state.");

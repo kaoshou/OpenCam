@@ -11,6 +11,7 @@ namespace ScreenRecorder.Core.Projects;
 [JsonDerivedType(typeof(ProjectClipEdit.Remove), "remove")]
 [JsonDerivedType(typeof(ProjectClipEdit.Move), "move")]
 [JsonDerivedType(typeof(ProjectClipEdit.Group), "group")]
+[JsonDerivedType(typeof(ProjectClipEdit.Merge), "merge")]
 [JsonDerivedType(typeof(ProjectClipEdit.Ungroup), "ungroup")]
 [JsonDerivedType(typeof(ProjectClipEdit.RemoveRange), "removeRange")]
 [JsonDerivedType(typeof(ProjectClipEdit.Properties), "properties")]
@@ -24,6 +25,7 @@ public abstract record ProjectClipEdit
     public sealed record Remove(Guid ClipId) : ProjectClipEdit;
     public sealed record Move(Guid ClipId, Guid? BeforeClipId) : ProjectClipEdit;
     public sealed record Group(Guid FirstClipId, Guid LastClipId, Guid GroupId) : ProjectClipEdit;
+    public sealed record Merge(Guid ClipId, bool WithPrevious) : ProjectClipEdit;
     public sealed record Ungroup(Guid GroupId) : ProjectClipEdit;
     public sealed record RemoveRange(long StartTicks, long EndTicks) : ProjectClipEdit;
     public sealed record Properties(Guid ClipId, string Name, double Volume, bool Muted,

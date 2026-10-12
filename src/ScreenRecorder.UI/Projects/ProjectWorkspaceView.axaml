@@ -190,6 +190,9 @@
             </ScrollViewer>
           </Border>
           <StackPanel x:Name="PreviewControls" Grid.Row="2" Spacing="5" Margin="0,4">
+            <Slider x:Name="FullscreenSeek" IsVisible="False" Minimum="0" Maximum="{Binding DurationTicks}"
+                    IsEnabled="{Binding CanPreview}" ValueChanged="OnFullscreenSeekChanged"
+                    AutomationProperties.Name="{Binding Strings[ProjectPreviewPlay]}"/>
             <Grid ColumnDefinitions="*,Auto">
               <TextBlock Text="{Binding TimelineTimeText}" FontSize="11" FontFamily="monospace" VerticalAlignment="Center"/>
               <Button Grid.Column="1" Content="{Binding PlaybackButtonText}" Command="{Binding TogglePlaybackCommand}" IsEnabled="{Binding CanPreview}" CornerRadius="20" Padding="12,5"/>
@@ -250,6 +253,7 @@
               </StackPanel>
             </Expander>
             <TextBlock Text="{Binding Strings[ProjectPropertyDraft]}" IsVisible="{Binding HasPropertyDraft}" FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource ProjectAccentBrush}"/>
+            <TextBlock Text="{Binding Strings[ProjectMixedParts]}" IsVisible="{Binding HasMixedProperties}" FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource ProjectAccentBrush}"/>
             <Button x:Name="ApplyPropertiesButton" Content="{Binding Strings[ProjectApplyProperties]}" Command="{Binding ApplyPropertiesCommand}" IsEnabled="{Binding HasPropertyDraft}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Background="#2563EB" Foreground="White"/>
             <Button Classes="tool" Content="{Binding Strings[ProjectResetProperties]}" Command="{Binding ResetPropertiesCommand}" IsEnabled="{Binding HasPropertyDraft}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
           </StackPanel>
@@ -259,6 +263,12 @@
             <Button Grid.Column="2" Content="{Binding Strings[ProjectMoveLater]}" Command="{Binding MoveSelectedLaterCommand}" IsEnabled="{Binding CanMoveLater}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
           </Grid>
           <Button Content="{Binding Strings[ProjectDeleteClip]}" Command="{Binding DeleteSelectedCommand}" IsEnabled="{Binding CanEditTimeline}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+          <Button Command="{Binding MergeWithPreviousCommand}" IsEnabled="{Binding CanMergePrevious}" HorizontalAlignment="Stretch">
+            <editor:EditorToolContent Icon="group" Text="{Binding Strings[ProjectMergePrevious]}"/>
+          </Button>
+          <Button Command="{Binding MergeWithNextCommand}" IsEnabled="{Binding CanMergeNext}" HorizontalAlignment="Stretch">
+            <editor:EditorToolContent Icon="group" Text="{Binding Strings[ProjectMergeNext]}"/>
+          </Button>
           <Button Content="{Binding Strings[ProjectGroupNext]}" Command="{Binding GroupWithNextCommand}" IsEnabled="{Binding CanMoveLater}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
           <Button Content="{Binding Strings[ProjectUngroup]}" Command="{Binding UngroupSelectedCommand}" IsEnabled="{Binding CanUngroup}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
           <Separator Margin="0,8"/>

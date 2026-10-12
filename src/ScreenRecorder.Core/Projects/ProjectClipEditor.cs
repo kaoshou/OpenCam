@@ -16,6 +16,13 @@ internal static class ProjectClipEditor
         }
         switch (edit)
         {
+            case ProjectClipEdit.Merge merge:
+                var mergeIndex = Index(merge.ClipId);
+                var firstIndex = merge.WithPrevious ? mergeIndex - 1 : mergeIndex;
+                if (firstIndex < 0 || firstIndex + 1 >= clips.Count) throw new InvalidDataException("No adjacent clip.");
+                clips[firstIndex] = ProjectClipProjection.Combine(project, clips[firstIndex], clips[firstIndex + 1]);
+                clips.RemoveAt(firstIndex + 1);
+                break;
             case ProjectClipEdit.Properties properties:
                 var propertyIndex = Index(properties.ClipId);
                 clips[propertyIndex] = clips[propertyIndex] with {
@@ -24,10 +31,20 @@ internal static class ProjectClipEditor
                     Scale = properties.Scale, Crop = properties.Crop,
                     PositionX = properties.PositionX, PositionY = properties.PositionY
                 };
+                if (!clips[propertyIndex].Parts.IsEmpty)
+                {
+                    var updated = clips[propertyIndex].Parts.Select(part => {
+                        var duration = ProjectTimeline.Build(project with { Clips = [part] }).DurationTicks;
+                        return part with { Volume = properties.Volume, Muted = properties.Muted,
+                            FadeInTicks = Math.Min(properties.FadeInTicks, duration), FadeOutTicks = Math.Min(properties.FadeOutTicks, duration),
+                            Scale = properties.Scale, Crop = properties.Crop, PositionX = properties.PositionX, PositionY = properties.PositionY };
+                    }).ToImmutableArray();
+                    clips[propertyIndex] = ProjectClipProjection.Wrap(project, clips[propertyIndex], updated);
+                }
                 break;
             case ProjectClipEdit.TrimEdge edge:
                 var edgeClip = clips[Index(edge.ClipId)];
-                var timeBase = project.Sources.First(s => s.Id == edgeClip.SourceId).Timing.TimeBase;
+                var timeBase = edgeClip.Parts.IsEmpty ? project.Sources.First(s => s.Id == edgeClip.SourceId).Timing.TimeBase : new ProjectRational(1, TimeSpan.TicksPerSecond);
                 var delta = (BigInteger)edge.DeltaTicks * timeBase.Denominator / (TimeSpan.TicksPerSecond * (BigInteger)timeBase.Numerator);
                 var boundary = (edge.Start ? edgeClip.InPts : edgeClip.OutPts) + delta;
                 if (boundary < long.MinValue || boundary > long.MaxValue)
@@ -35,6 +52,13 @@ internal static class ProjectClipEditor
                 return Apply(project, new ProjectClipEdit.Trim(edge.ClipId,
                     edge.Start ? (long)boundary : edgeClip.InPts, edge.Start ? edgeClip.OutPts : (long)boundary));
             case ProjectClipEdit.SplitAtTimeline splitAt:
+                var splitting = clips[Index(splitAt.ClipId)];
+                if (!splitting.Parts.IsEmpty)
+                {
+                    var span = ProjectTimeline.Build(project).Segments.Single(s => s.Clip.Id == splitting.Id);
+                    return Apply(project, new ProjectClipEdit.Split(splitAt.ClipId,
+                        ProjectTimeline.SourcePts(span, splitAt.TimelineTicks), splitAt.RightClipId));
+                }
                 var position = ProjectTimeline.Build(project).Locate(splitAt.TimelineTicks);
                 if (position is null || position.ClipId != splitAt.ClipId)
                     throw new InvalidDataException("Split position is outside the selected clip.");
@@ -114,8 +138,9 @@ internal static class ProjectClipEditor
         return clips.ToImmutableArray();
     }
 
-    private static ProjectClip WithRange(RecordingProject project, ProjectClip clip, long input, long output)
+    internal static ProjectClip WithRange(RecordingProject project, ProjectClip clip, long input, long output)
     {
+        if (!clip.Parts.IsEmpty) return ProjectClipProjection.Slice(project, clip, input, output);
         var source = project.Sources.First(s => s.Id == clip.SourceId);
         if (input < source.Timing.StartPts || output <= input ||
             output > source.Timing.StartPts + source.Timing.DurationTs)

@@ -61,7 +61,7 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
             if (_handle is null || current?.ProjectId != projectId || current.Revision != revision ||
                 Mode is not (ProjectMode.Ready or ProjectMode.Paused))
                 throw new InvalidOperationException("Media snapshot is no longer available.");
-            var clip = current.Clips.SingleOrDefault(c => c.Id == clipId)
+            var clip = current.Clips.SelectMany(ProjectClipProjection.Leaves).SingleOrDefault(c => c.Id == clipId)
                 ?? throw new InvalidDataException("Clip is not part of the current project.");
             var source = current.Sources.Single(s => s.Id == clip.SourceId);
             return new(ProjectPathPolicy.OpenSource(_handle, source.RelativePath), source, clip);
@@ -299,17 +299,17 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
         BeginExport();
     }, operationId, "retry-export", ct);
 
-    private void BeginExport()
+    private void BeginExport(string? fileName = null)
     {
         if (exporter is null) throw new InvalidOperationException("Verified content export is not available yet. Sources remain saved.");
         if (_handle is null || Current!.Clips.IsEmpty) throw new InvalidOperationException("There is no content to export.");
         if (string.IsNullOrWhiteSpace(OutputDirectory)) throw new InvalidOperationException("Select an output directory before exporting.");
         _export?.Dispose();
-        _export = new(exporter, _handle, Current!, OutputDirectory);
+        _export = new(exporter, _handle, Current!, OutputDirectory, fileName: fileName);
     }
 
     public Task<ProjectCommandResult> ExportAsync(string outputDirectory, long expectedRevision, Guid operationId,
-        CancellationToken ct = default) => Run(async () =>
+        CancellationToken ct = default, bool pathIsFile = false) => Run(async () =>
     {
         RequireNoExport();
         if (_handle is null || Mode is not (ProjectMode.Ready or ProjectMode.Paused))
@@ -317,10 +317,14 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
         CheckRevision(expectedRevision);
         if (string.IsNullOrWhiteSpace(outputDirectory) || !Path.IsPathFullyQualified(outputDirectory))
             throw new InvalidDataException("Select an absolute output directory.");
+        var fileName = pathIsFile ? Path.GetFileName(outputDirectory) : null;
+        if (pathIsFile && (!string.Equals(Path.GetExtension(fileName), ".mp4", StringComparison.OrdinalIgnoreCase) ||
+            File.Exists(outputDirectory) || Directory.Exists(outputDirectory)))
+            throw new InvalidDataException("Choose a new MP4 filename / 請指定尚未存在的 MP4 檔名，既有檔案不會被覆寫。");
         await EnsureSavedForOperationAsync(ct);
-        OutputDirectory = outputDirectory;
-        BeginExport();
-    }, operationId, "export:" + expectedRevision + ":" + outputDirectory, ct);
+        OutputDirectory = pathIsFile ? Path.GetDirectoryName(outputDirectory)! : outputDirectory;
+        BeginExport(fileName);
+    }, operationId, "export:" + expectedRevision + ":" + pathIsFile + ":" + outputDirectory, ct);
 
     public async Task<ProjectCommandResult> CancelExportAsync(Guid exportId, CancellationToken ct = default)
     {

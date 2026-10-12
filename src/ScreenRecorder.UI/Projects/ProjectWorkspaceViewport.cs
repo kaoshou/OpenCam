@@ -29,6 +29,7 @@ public partial class ProjectWorkspaceView
     private void InitializePreviewViewport()
     {
         PreviewScroll.SizeChanged += (_, _) => UpdatePreviewViewport();
+        InitializeFullscreenSeek();
         PropertyChanged += (_, change) => { if (change.Property.Name == "RenderScaling") UpdatePreviewViewport(); };
         PointerMoved += (_, _) => ShowPreviewControls();
         PreviewScroll.PointerPressed += (_, e) => {
@@ -46,7 +47,7 @@ public partial class ProjectWorkspaceView
         PreviewScroll.PointerCaptureLost += (_, _) => _panStart = null;
         _previewControlsTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
         _previewControlsTimer.Tick += (_, _) => {
-            if (IsPreviewFullscreen && Environment.TickCount64 - _lastPreviewActivity >= 3000 && !PreviewControls.IsKeyboardFocusWithin)
+            if (IsPreviewFullscreen && !_seekDragging && Environment.TickCount64 - _lastPreviewActivity >= 3000 && !PreviewControls.IsKeyboardFocusWithin)
             { PreviewControls.Opacity = 0; PreviewControls.IsHitTestVisible = false; }
         };
         Closed += (_, _) => _previewControlsTimer.Stop();
@@ -95,6 +96,8 @@ public partial class ProjectWorkspaceView
             _previousClips = ClipPane.IsVisible; _previousInspector = InspectorPane.IsVisible;
             _previousFocus = FocusManager?.GetFocusedElement();
             IsPreviewFullscreen = true;
+            FullscreenSeek.IsVisible = true;
+            SyncFullscreenSeek();
             EditorHeader.IsVisible = EditorFooter.IsVisible = TimelinePane.IsVisible = PreviewSplitter.IsVisible = false;
             ClipPane.IsVisible = InspectorPane.IsVisible = false; ApplyPanelWidths();
             for (var i = 0; i < EditorRoot.RowDefinitions.Count; i++) EditorRoot.RowDefinitions[i].Height = i == 2 ? new(1, GridUnitType.Star) : new(0);
@@ -104,6 +107,8 @@ public partial class ProjectWorkspaceView
         else
         {
             IsPreviewFullscreen = false; _previewControlsTimer!.Stop();
+            FullscreenSeek.IsVisible = false;
+            _seekDragging = false;
             WindowState = _previousWindowState;
             if (_previousWindowState == WindowState.Normal) { Position = _previousPosition; Width = _previousSize.Width; Height = _previousSize.Height; }
             EditorHeader.IsVisible = EditorFooter.IsVisible = TimelinePane.IsVisible = PreviewSplitter.IsVisible = true;

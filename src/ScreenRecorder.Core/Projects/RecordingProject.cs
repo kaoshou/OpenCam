@@ -44,6 +44,8 @@ public sealed record ProjectSource
 
 public sealed record ProjectClip
 {
+    // Flat retained source intervals. Nested compound clips are rejected.
+    public ImmutableArray<ProjectClip> Parts { get; init; } = [];
     public Guid Id { get; init; }
     public Guid SourceId { get; init; }
     public long InPts { get; init; }

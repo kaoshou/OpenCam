@@ -12,10 +12,13 @@ public partial class ProjectWorkspaceView : Window
 {
     private MainViewModel? _main;
     private Window? _recordingWindow;
+    private bool _homeWasEnabled;
     public void ShowForRecordingWindow(Window home)
     {
+        if (_recordingWindow is null) _homeWasEnabled = home.IsEnabled;
         _recordingWindow = home;
         if (!IsVisible) Show(home);
+        home.IsEnabled = false;
         Activate();
     }
     private bool _closed, _closing;
@@ -26,6 +29,7 @@ public partial class ProjectWorkspaceView : Window
         InitializeComponent();
         InitializePreviewViewport();
         InitializeClipListDrag();
+        Closed += (_, _) => { if (_recordingWindow is not null) _recordingWindow.IsEnabled = _homeWasEnabled; };
         Opened += (_, _) => UpdateEditorLayout();
         SizeChanged += (_, _) => UpdateEditorLayout();
         if (PlatformSettings is not null)
@@ -111,8 +115,8 @@ public partial class ProjectWorkspaceView : Window
     private async void OnExport(object? sender, RoutedEventArgs e)
     {
         if (!Model.CanExport) return;
-        var folders = await StorageProvider.OpenFolderPickerAsync(new() { Title = Model.Strings["ProjectExportChooseFolder"], AllowMultiple = false });
-        if (folders.FirstOrDefault()?.TryGetLocalPath() is { } path) await Model.ExportAsync(path);
+        if (await ProjectExportFileDialog.ChooseAsync(this, Model.State.Name) is { } path)
+            await Model.ExportFileAsync(path);
     }
 
     private async void OnCaptureSettings(object? sender, RoutedEventArgs e)
@@ -122,16 +126,11 @@ public partial class ProjectWorkspaceView : Window
     public async Task ReturnToRecordingAsync()
     {
         if (!Model.CanReturnToRecording) return;
-        if (_main?.UsesRecordingContent == true)
+        var home = _recordingWindow ?? Owner;
+        if (!await RequestCloseAsync()) return;
+        if (home is Window window)
         {
-            if (!await _main.LeaveContentEditorAsync()) return;
-        }
-        else if (!await Model.StopPreviewAsync()) return;
-        if ((_recordingWindow ?? Owner) is Window home)
-        {
-            // Owned windows stay above their owner on macOS. Activate alone cannot expose
-            // the controls underneath; hide (not close) the editor and retain its content.
-            Hide(); home.Show(); home.WindowState = WindowState.Normal; home.Activate();
+            window.Show(); window.WindowState = WindowState.Normal; window.Activate();
         }
     }
     private async void OnRenameProject(object? sender, RoutedEventArgs e)
@@ -175,6 +174,7 @@ public partial class ProjectWorkspaceView : Window
             else if (!await Model.CloseAsync()) return false;
             _closed = true;
             Close();
+            if (_main is not null) _main.IsProjectWorkspaceOpen = false;
             return true;
         }
         finally { _closing = false; }

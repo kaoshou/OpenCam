@@ -207,8 +207,10 @@ public sealed class ProjectTimelineControl : Control
         var moving = _movingClip; var before = _beforeClip;
         var commit = _dragging && _model?.CanEditTimeline == true && _model.State.Revision == _gestureRevision;
         var hit = _hit;
+        var clicked = !_dragging && !_seeking && _hit == TimelineHit.Move ? _movingClip : null;
         var delta = (long)Math.Clamp((_dragX - _downX) / TrackWidth * VisibleTicks, long.MinValue + 1024d, long.MaxValue - 1024d);
         CancelGesture();
+        if (clicked is Guid clickedId) _ = _model!.SelectClipForPlaybackAsync(clickedId);
         if (commit && moving is Guid id)
         {
             if (hit == TimelineHit.Move) _ = _model!.MoveClipAsync(id, before);

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 using System.Numerics;
+using System.Collections.Immutable;
 using System.Security.Cryptography;
 using ScreenRecorder.Core.Projects;
 using ScreenRecorder.Media.Projects;
@@ -48,17 +49,20 @@ public sealed class ProjectWaveformService(ProjectRecordingCoordinator coordinat
                 _running = null;
                 if (_key == key && !_superseded) return finished;
             }
-            var lease = await coordinator.OpenMediaSourceAsync(projectId, revision, clipId, default);
+            var selected = coordinator.Current.Clips.Single(c => c.Id == clipId);
+            var parts = ProjectClipProjection.Leaves(selected).ToArray();
             _key = key;
             _superseded = false;
             _cancel = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var token = _cancel.Token;
             _running = Task.Run(async () =>
             {
-                using (lease)
-                {
                     try
                     {
+                        var decoded = new List<ProjectWaveformResult>();
+                        foreach (var part in parts)
+                        {
+                        using var lease = await coordinator.OpenMediaSourceAsync(projectId, revision, part.Id, token);
                         if (lease.Stream.Length != lease.Source.FileSize ||
                             !string.Equals(Convert.ToHexString(await SHA256.HashDataAsync(lease.Stream, token)),
                                 lease.Source.Sha256, StringComparison.OrdinalIgnoreCase))
@@ -70,15 +74,46 @@ public sealed class ProjectWaveformService(ProjectRecordingCoordinator coordinat
                         var buckets = (int)BigInteger.Min(256, samples);
                         var data = await new ProjectWaveformReader(process).ReadAsync(lease.Stream,
                             lease.Clip.InPts, lease.Clip.OutPts, tb, lease.Source.AudioCodec is not null, buckets, token);
-                        return new ProjectWaveformReply(clipId, revision, data);
+                        decoded.Add(data);
+                        }
+                        return new ProjectWaveformReply(clipId, revision, Combine(decoded));
                     }
                     catch (OperationCanceledException) { return new(clipId, revision, null, "Waveform loading canceled."); }
                     catch (Exception) { return new(clipId, revision, null, "Waveform could not be decoded. Original media is unchanged."); }
-                }
             });
             return new(clipId, revision, null);
         }
         finally { _gate.Release(); }
+    }
+
+    internal static ProjectWaveformResult Combine(IReadOnlyList<ProjectWaveformResult> parts)
+    {
+        if (parts.Count == 1) return parts[0];
+        var samples = parts.Sum(p => p.SampleCount);
+        var count = (int)Math.Min(256, samples);
+        var minima = new float[count]; var maxima = new float[count];
+        var energy = new double[count]; var weights = new double[count];
+        long offset = 0;
+        foreach (var part in parts)
+        {
+            for (var i = 0; i < part.Buckets.Length; i++)
+            {
+                var start = offset + (double)i * part.SampleCount / part.Buckets.Length;
+                var end = offset + (double)(i + 1) * part.SampleCount / part.Buckets.Length;
+                var bucket = part.Buckets[i];
+                for (var j = Math.Max(0, (int)(start * count / samples)); j < count && (double)j * samples / count < end; j++)
+                {
+                    var weight = Math.Min(end, (double)(j + 1) * samples / count) - Math.Max(start, (double)j * samples / count);
+                    if (weight <= 0) continue;
+                    minima[j] = Math.Min(minima[j], bucket.Minimum); maxima[j] = Math.Max(maxima[j], bucket.Maximum);
+                    energy[j] += bucket.Rms * bucket.Rms * weight; weights[j] += weight;
+                }
+            }
+            offset += part.SampleCount;
+        }
+        return new(parts.Any(p => p.HasAudio), parts.All(p => p.IsSilent), samples,
+            Enumerable.Range(0, count).Select(i => new ProjectWaveformBucket(minima[i], maxima[i],
+                weights[i] > 0 ? (float)Math.Sqrt(energy[i] / weights[i]) : 0)).ToImmutableArray());
     }
 
     public async Task SuspendAsync()

@@ -1,5 +1,5 @@
 ﻿; SPDX-License-Identifier: AGPL-3.0-or-later
-#define MyAppName "OpenCam 螢幕錄影工具"
+#define MyAppName "OpenCam"
 #define MyAppShortcutName "OpenCam"
 #ifndef MyAppVersion
   #error MyAppVersion must be provided with /DMyAppVersion=<version>

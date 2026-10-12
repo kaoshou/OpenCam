@@ -93,6 +93,7 @@ public sealed partial class ProjectRecordingCoordinator
         if (restore)
         {
             _history!.ReplaceEdits(Current! with { Name = draft.Name, Clips = draft.Clips,
+                SchemaVersion = draft.Clips.Any(c => !c.Parts.IsEmpty) ? 3 : Current!.SchemaVersion,
                 Revision = checked(Current!.Revision + 1) }, true);
             _draftId = draft.Id; _draftSequence = draft.Sequence;
         }

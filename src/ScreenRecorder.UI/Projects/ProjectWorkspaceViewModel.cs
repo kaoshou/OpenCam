@@ -117,6 +117,12 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
         if (!await ShouldExportAgainAsync(directory)) return;
         await ExecuteAsync("ExportRecordingContent", new() { Path = directory });
     }
+    public async Task ExportFileAsync(string path)
+    {
+        if (!CanExport || !await ResolveUnsavedAsync()) return;
+        if (!CanExport || HasPropertyDraft || State.IsDirty || Error is not null) return;
+        await ExecuteAsync("ExportRecordingContent", new() { Path = path, PathIsExportFile = true });
+    }
     [RelayCommand] public Task CancelExportAsync()
     {
         if (_exportLookup is not null) { _exportLookup.Cancel(); return Task.CompletedTask; }

@@ -91,7 +91,14 @@ public partial class ProjectWorkspaceView
 
     private async void OnClipDragReleased(object? sender, PointerReleasedEventArgs e)
     {
-        if (!_listDragging) { CancelClipDrag(); return; }
+        if (!_listDragging)
+        {
+            var clip = _dragClip;
+            var valid = DragStillValid();
+            CancelClipDrag();
+            if (valid && clip is Guid id) await Model.SelectClipForPlaybackAsync(id);
+            return;
+        }
         _dragPoint = e.GetPosition(ClipList); UpdateClipDrop();
         var drop = DragStillValid() ? _listDrop : null;
         CancelClipDrag(); e.Handled = true;
