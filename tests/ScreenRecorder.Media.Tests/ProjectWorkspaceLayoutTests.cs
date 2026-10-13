@@ -24,6 +24,27 @@ public sealed class ProjectLayoutApp : Application
 public sealed class ProjectWorkspaceLayoutTests
 {
     [AvaloniaFact]
+    public void RemovingDefaultSubtitleSelectsRemainingTrackAtMinimumWidth()
+    {
+        var a = new ScreenRecorder.Core.Projects.ProjectSubtitleTrack(Guid.NewGuid(), "很長的教材字幕檔名.srt", "zh-TW", "", 1, new string('A',64), new string('A',64));
+        var b = a with { Id = Guid.NewGuid(), OriginalName = "English.srt", Language = "en" };
+        var vm = new ProjectWorkspaceViewModel(new ClosedProjectClient()) { State = ProjectSnapshot.Closed with { Subtitles = new([a,b],a.Id) } };
+        var dialog = new ProjectSubtitlesDialog(vm) { Width = 640 };
+        try
+        {
+            dialog.Show();dialog.UpdateLayout();
+            var rows = dialog.FindControl<StackPanel>("SubtitleRows")!;
+            var remove = rows.GetVisualDescendants().OfType<Button>().First();
+            remove.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));dialog.UpdateLayout();
+            Assert.True(Assert.Single(rows.GetVisualDescendants().OfType<RadioButton>()).IsChecked);
+            var language = Assert.Single(rows.GetVisualDescendants().OfType<ComboBox>());
+            Assert.True(language.Bounds.Width >= 230);
+            Assert.True(rows.GetVisualDescendants().OfType<Border>().First().Bounds.Width <= rows.Bounds.Width);
+        }
+        finally { dialog.Close(); }
+    }
+
+    [AvaloniaFact]
     public void ChangingSubtitleLanguagePreservesChosenDefaultTrack()
     {
         var a = new ScreenRecorder.Core.Projects.ProjectSubtitleTrack(Guid.NewGuid(), "a.srt", "zh-TW", "", 1, new string('A', 64), new string('A', 64));
@@ -33,11 +54,15 @@ public sealed class ProjectWorkspaceLayoutTests
         try
         {
             dialog.Show(); dialog.UpdateLayout();
-            var defaults = dialog.FindControl<ComboBox>("DefaultSubtitlePicker")!;
-            defaults.SelectedIndex = 1;
+            var defaults = dialog.FindControl<StackPanel>("SubtitleRows")!.GetVisualDescendants().OfType<RadioButton>().ToArray();
+            Assert.Equal(2, defaults.Length);
+            defaults[1].IsChecked = true;
             var firstLanguage = dialog.FindControl<StackPanel>("SubtitleRows")!.GetVisualDescendants().OfType<ComboBox>().First();
             firstLanguage.SelectedIndex = 3;
-            Assert.Equal(1, defaults.SelectedIndex);
+            Assert.True(defaults[1].IsChecked);
+            Assert.False(defaults[0].IsChecked);
+            Assert.True(firstLanguage.Bounds.Width >= 230);
+            Assert.DoesNotContain(dialog.GetVisualDescendants().OfType<ComboBox>(), c => c.Name == "DefaultSubtitlePicker");
         }
         finally { dialog.Close(); }
     }
@@ -87,6 +112,10 @@ public sealed class ProjectWorkspaceLayoutTests
             var export = window.FindControl<Button>("ExportButton")!;
             Assert.Contains(export.GetVisualDescendants().OfType<ScreenRecorder.UI.Projects.Editor.EditorToolContent>(),
                 icon => icon.Icon == "chevron-down");
+            var arrow = export.GetVisualDescendants().OfType<ScreenRecorder.UI.Projects.Editor.EditorToolContent>().Single(i => i.Icon == "chevron-down");
+            var path = arrow.GetVisualDescendants().OfType<Avalonia.Controls.Shapes.Path>().Single();
+            Assert.True(path.Bounds.Width <= 10 && path.Bounds.Height <= 6);
+            Assert.Equal(Avalonia.Layout.VerticalAlignment.Center, arrow.VerticalAlignment);
         }
         finally { await window.RequestCloseAsync(); }
     }

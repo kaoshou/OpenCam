@@ -20,6 +20,7 @@ public sealed class EditorToolContent : UserControl
         VerticalAlignment = VerticalAlignment.Center };
     public EditorToolContent()
     {
+        VerticalAlignment = VerticalAlignment.Center;
         _icon.Bind(Shape.StrokeProperty, this.GetObservable(ForegroundProperty));
         _label.Bind(TextBlock.ForegroundProperty, this.GetObservable(ForegroundProperty));
         Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { _icon, _label } };
@@ -38,6 +39,8 @@ public sealed class EditorToolContent : UserControl
     }
     private void UpdateIcon()
     {
+        _icon.Width = Icon == "chevron-down" ? 10 : 16;
+        _icon.Height = Icon == "chevron-down" ? 6 : 16;
         _icon.Data = Geometry.Parse(Icon switch {
             "chevron-down" => "M2,5 L8,11 L14,5",
             "subtitles" => "M1,3 H15 V13 H1 Z M4,7 H7 M4,10 H6 M9,7 H12 M9,10 H11",

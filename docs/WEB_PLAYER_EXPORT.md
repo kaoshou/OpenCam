@@ -50,13 +50,19 @@ window.OpenCamPlayerData = {
 
 ## 多語字幕（尚未發布的開發功能）
 
-編輯器「附加影片字幕」可選取或拖放 SRT／VTT。依檔名判斷 zh-TW、en、ko 等語言，無法判斷時先使用繁體中文（台灣），可手動更改。預設字幕優先繁體中文；沒有該軌時使用第一軌並提示，也可自行選定。相同語言可替換或保留多軌。
+編輯器「附加影片字幕」可選取或拖放 SRT／VTT。依檔名判斷 zh-TW、en、ko 等語言，無法判斷時先使用繁體中文（台灣），可手動更改。預設字幕優先繁體中文；沒有該軌時使用第一軌並提示，也可在字幕卡片勾選「設為預設」（單選），不使用上方下拉選單。相同語言可替換或保留多軌。
 
 字幕複製至專案 `subtitles/<唯一識別碼>.srt|.vtt`，同名檔不覆蓋。最多32軌，每檔10 MiB、100,000則字幕、每則10,000字；支援 UTF-8 及具有 BOM 的 UTF-16。取消匯入可能留下未引用資產，以免誤刪復原／重做需要的資料。套用只修改編輯狀態，仍須儲存專案。**保存字幕會升為專案格式4，已發布的舊版0.3.3無法開啟；請先備份。** 無字幕專案不因此自動升級。
 
 一般與全螢幕預覽都可選語言或關閉字幕，調整大小、配色、背景透明度及位置。預覽選擇不改變專案預設字幕。字幕時間依最終影片時間軸；裁剪、重排或續錄後須確認同步，不自動改寫時間。可在附加視窗確認新基準，或輸出時選擇此次附加／不附加／取消。
 
 網頁仍只有三個固定檔案；`opencam-player.js` 的可選 `subtitles` 欄位包含 `defaultTrackId` 和 `tracks`，每軌含 `id`、`language`、`label`、`cues`，每則為秒數 `start`／`end` 與純文字 `text`。字幕不燒入 MP4、不額外重編碼。CC 選單預設開啟指定語言，可關閉及即時改變外觀；瀏覽器儲存偏好不可用時仍可操作。字幕不執行 HTML／樣式指令，原生畫中畫字幕不在支援範圍。離線瀏覽器、觸控及 Windows 原生視窗仍待人工驗收。
+
+### 逐字稿搜尋
+
+網頁右側可切換「章節／逐字稿」。逐字稿語言與影片字幕開關獨立；即使關閉畫面字幕仍可搜尋、閱讀。使用已附加的字幕，不辨識語音或連線到外部服務。輸入文字後以不區分大小寫的純文字搜尋，顯示結果數與關鍵字標示；點擊一列跳至開始時間，保持原本播放／暫停狀態。
+
+預設「跟隨播放」會顯示當前字幕，搜尋期間暫停跟隨，也可關閉開關自行閱讀。每次顯示100列，可載入更多；播放跳至較遠時間時跟隨切換到對應批次，不一次建立全部字幕元素。固定區域內捲動，手機版也限制清單高度。沒有字幕時顯示說明。依然維持三檔案結構，標題摘要只顯示長度與章節數；頁尾及原始碼來源註記保留。
 
 ## English
 
@@ -67,3 +73,5 @@ Move the entire folder or upload it to a static site. Playback uses local files 
 External tools should verify `opencam-player.js`, `format: "opencam.web-player"`, supported `schemaVersion`, and the entry/media files. Parse the strict JSON assignment without evaluating JavaScript. Generator version and schema version are independent. Original MKV media and existing packages are never overwritten.
 
 Unreleased subtitle support: select or drop SRT/VTT files in the editor, choose inferred/manual languages and the default track. Unique project-owned paths prevent identical filenames from overwriting each other. Apply edits the draft; save is explicit. Saving subtitles upgrades project format to4, which released0.3.3 cannot open: back up first. Preview/fullscreen language and appearance choices do not change the authored default. Timeline changes require a subtitle-sync decision before web export; no automatic retiming or MP4 burn-in occurs. Optional subtitle data is embedded in `opencam-player.js`; the package still has three files. Native picture-in-picture captions are not supported. Offline browser, touch and Windows-native visual validation remain manual.
+
+Choose the default using the radio control on each subtitle card. The Web sidebar now switches between chapters and transcript, with independent transcript language, case-insensitive plain-text search, keyword highlighting and click-to-seek preserving play/pause state. Follow-playback is optional and suspended during search. Rows render in batches of100 inside a scrolling panel; no transcription service or additional package files are required.

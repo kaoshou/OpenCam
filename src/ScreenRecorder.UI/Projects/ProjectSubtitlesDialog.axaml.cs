@@ -20,6 +20,8 @@ public partial class ProjectSubtitlesDialog : Window
     private readonly List<SubtitleRow> _rows = [];
     private bool _busy;
     private bool _defaultChosenByUser, _refreshingDefault;
+    private Guid? _defaultTrackId;
+    private readonly List<(Guid Id, RadioButton Radio, Border Card)> _defaultCards = [];
     private LanguageManager Strings => LanguageManager.Instance;
     private sealed class SubtitleRow(ProjectSubtitleTrack track, bool unknown = false)
     {
@@ -35,8 +37,8 @@ public partial class ProjectSubtitlesDialog : Window
         .Select(code => new LanguageChoice(code, Label(code))).Append(new(null, Strings["SubtitleCustomLanguage"])).ToArray();
     private static string Label(string code)
     {
-        if (code == "zh-TW") return "繁體中文（台灣） · zh-TW";
-        try { return System.Globalization.CultureInfo.GetCultureInfo(code).NativeName + " · " + code; }
+        if (code == "zh-TW") return "繁體中文（台灣）";
+        try { return System.Globalization.CultureInfo.GetCultureInfo(code).NativeName; }
         catch (System.Globalization.CultureNotFoundException) { return code; }
     }
 
@@ -46,14 +48,13 @@ public partial class ProjectSubtitlesDialog : Window
         Title = Heading.Text = Strings["SubtitleAttach"];
         Description.Text = Strings["SubtitleWebOnly"];
         SelectFilesButton.Content = Strings["SubtitleSelect"];
-        DefaultLabel.Text = Strings["SubtitleDefault"];
+        DefaultLabel.Text = Strings["SubtitleDefaultHint"];
         DropHint.Text = Strings["SubtitleDropHint"];
         CancelSubtitleButton.Content = Strings["Cancel"];
         ApplySubtitleButton.Content = Strings["SubtitleApply"];
         ConfirmSubtitleSync.Content = Strings["SubtitleConfirmSync"];
         ConfirmSubtitleSync.IsVisible = model.State.SubtitlesNeedSyncConfirmation;
         _defaultChosenByUser = model.State.Subtitles.DefaultTrackId is not null;
-        DefaultSubtitlePicker.SelectionChanged += (_, _) => { if (!_refreshingDefault) _defaultChosenByUser = true; };
         _rows.AddRange(model.State.Subtitles.Tracks.Select(t => new SubtitleRow(t)));
         DragDrop.SetAllowDrop(DropSurface, true);
         DropSurface.AddHandler(DragDrop.DragOverEvent, OnDragOver);
@@ -63,50 +64,61 @@ public partial class ProjectSubtitlesDialog : Window
 
     private void RenderRows(Guid? preferred = null)
     {
-        preferred ??= (DefaultSubtitlePicker.SelectedItem as SubtitleRow)?.Track.Id;
+        preferred ??= _defaultTrackId;
         SubtitleRows.Children.Clear();
+        _defaultCards.Clear();
         for (var i = 0; i < _rows.Count; i++)
         {
             var row = _rows[i]; row.Number = i + 1;
             var name = new StackPanel { Spacing = 4, Margin = new Thickness(0, 0, 12, 0) };
             name.Children.Add(new TextBlock { Text = $"{row.Number}. {row.Track.OriginalName}", FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap });
             name.Children.Add(new TextBlock { Text = Path.GetExtension(row.Track.RelativePath).TrimStart('.').ToUpperInvariant(), FontSize = 11, Foreground = Brushes.SlateGray });
-            if (row.Unknown) name.Children.Add(new TextBlock { Text = Strings["SubtitleUnknown"], FontSize = 11, Foreground = Brushes.DarkOrange, TextWrapping = TextWrapping.Wrap });
+            var warning = new TextBlock { Text = Strings["SubtitleUnknown"], FontSize = 11, Foreground = Brush.Parse("#B45309"), TextWrapping = TextWrapping.Wrap, IsVisible = row.Unknown };
             var languages = Languages;
-            var picker = new ComboBox { ItemsSource = languages, SelectedItem = languages.FirstOrDefault(l => l.Code == row.Language) ?? languages[^1], MinWidth = 165 };
+            var picker = new ComboBox { ItemsSource = languages, SelectedItem = languages.FirstOrDefault(l => l.Code == row.Language) ?? languages[^1], MinWidth = 230, HorizontalAlignment = HorizontalAlignment.Stretch };
+            var code = new TextBlock { Text = row.Language, FontSize = 11, Foreground = Brushes.SlateGray, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10,0,0,0) };
             var custom = new TextBox { Text = row.Language, IsVisible = (picker.SelectedItem as LanguageChoice)?.Code is null, MaxLength = 64 };
-            var languagePanel = new StackPanel { Spacing = 5, Children = { picker, custom }, Margin = new Thickness(0, 0, 10, 0) };
-            custom.TextChanged += (_, _) => { row.Language = custom.Text ?? ""; RefreshDefault(); };
+            var languageLine = new Grid { ColumnDefinitions = new("*,Auto"), Children = { picker, code } }; Grid.SetColumn(code,1);
+            var languagePanel = new StackPanel { Spacing = 5, Children = { languageLine, custom }, Margin = new Thickness(0, 0, 14, 0) };
+            custom.TextChanged += (_, _) => { row.Language = custom.Text ?? ""; code.Text = row.Language; RefreshDefault(); };
             picker.SelectionChanged += (_, _) => {
                 var selected = picker.SelectedItem as LanguageChoice;
                 custom.IsVisible = selected?.Code is null;
                 row.Language = selected?.Code ?? custom.Text ?? "";
-                row.Unknown = false; RefreshDefault();
+                row.Unknown = false; warning.IsVisible = false; code.Text = row.Language; RefreshDefault();
             };
             var remove = new Button { Content = Strings["SubtitleRemove"], HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center };
             remove.Click += (_, _) => {
-                if ((DefaultSubtitlePicker.SelectedItem as SubtitleRow)?.Track.Id == row.Track.Id) _defaultChosenByUser = false;
+                if (_defaultTrackId == row.Track.Id) { _defaultChosenByUser = false; _defaultTrackId = null; }
                 _rows.Remove(row); RenderRows();
             };
-            var grid = new Grid { ColumnDefinitions = new("*,185,Auto"), Children = { name, languagePanel, remove } };
-            Grid.SetColumn(languagePanel, 1); Grid.SetColumn(remove, 2);
-            SubtitleRows.Children.Add(new Border { Background = Brushes.White, BorderBrush = Brush.Parse("#E2E8F0"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Padding = new Thickness(12), Child = grid });
+            var radio = new RadioButton { Content = Strings["SubtitleSetDefault"], GroupName = "SubtitleDefault", VerticalAlignment = VerticalAlignment.Center, FontSize = 12 };
+            radio.IsCheckedChanged += (_, _) => { if (!_refreshingDefault && radio.IsChecked == true) { _defaultChosenByUser = true; RefreshDefault(row.Track.Id); } };
+            var top = new Grid { ColumnDefinitions = new("*,Auto"), Children = { name, remove } }; Grid.SetColumn(remove,1);
+            var bottom = new Grid { ColumnDefinitions = new("*,Auto"), Children = { languagePanel,radio } }; Grid.SetColumn(radio,1);
+            var card = new Border { Background = Brushes.White, BorderBrush = Brush.Parse("#E2E8F0"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10), Padding = new Thickness(14),
+                Child = new StackPanel { Spacing = 12, Children = { top,bottom,warning } } };
+            _defaultCards.Add((row.Track.Id,radio,card)); SubtitleRows.Children.Add(card);
         }
         RefreshDefault(preferred);
     }
 
     private void RefreshDefault(Guid? preferred = null)
     {
-        preferred ??= (DefaultSubtitlePicker.SelectedItem as SubtitleRow)?.Track.Id;
+        preferred ??= _defaultTrackId;
         _refreshingDefault = true;
         try
         {
-            DefaultSubtitlePicker.ItemsSource = _rows.ToArray();
-            DefaultSubtitlePicker.SelectedItem = _rows.FirstOrDefault(r => r.Track.Id == preferred) ??
-                _rows.FirstOrDefault(r => r.Language == "zh-TW") ?? _rows.FirstOrDefault();
+            _defaultTrackId = (_rows.FirstOrDefault(r => r.Track.Id == preferred) ??
+                _rows.FirstOrDefault(r => r.Language == "zh-TW") ?? _rows.FirstOrDefault())?.Track.Id;
+            foreach (var (id,radio,card) in _defaultCards)
+            {
+                var selected = id == _defaultTrackId; radio.IsChecked = selected;
+                card.Background = Brush.Parse(selected ? "#EFF6FF" : "#FFFFFF");
+                card.BorderBrush = Brush.Parse(selected ? "#93C5FD" : "#E2E8F0");
+            }
         }
         finally { _refreshingDefault = false; }
-        DefaultSubtitlePicker.IsEnabled = !_busy && _rows.Count > 0;
         Notice.Text = _rows.Count == 0 ? Strings["SubtitleDefaultInitial"] :
             !_defaultChosenByUser && _rows.All(r => r.Language != "zh-TW") ? Strings["SubtitleDefaultFallback"] : "";
     }
@@ -114,7 +126,7 @@ public partial class ProjectSubtitlesDialog : Window
     private void SetBusy(bool value)
     {
         _busy = value; SelectFilesButton.IsEnabled = !value; ApplySubtitleButton.IsEnabled = !value;
-        CancelSubtitleButton.IsEnabled = !value; SubtitleRows.IsEnabled = !value; DefaultSubtitlePicker.IsEnabled = !value && _rows.Count > 0;
+        CancelSubtitleButton.IsEnabled = !value; SubtitleRows.IsEnabled = !value;
     }
     private async void OnSelectFiles(object? sender, RoutedEventArgs e)
     {
@@ -149,7 +161,7 @@ public partial class ProjectSubtitlesDialog : Window
                 if (_rows.Count >= 32 && replace is null) { ErrorText.Text = Strings["SubtitleLocalOnly"]; break; }
                 var track = await _model.ImportSubtitleAsync(path);
                 if (track is null) { ErrorText.Text = _model.Error ?? Strings["SubtitleLocalOnly"]; continue; }
-                var oldDefault = (DefaultSubtitlePicker.SelectedItem as SubtitleRow)?.Track.Id;
+                var oldDefault = _defaultTrackId;
                 if (replace is not null) _rows.Remove(replace);
                 _rows.Add(new(track, ProjectSubtitleLanguage.Infer(Path.GetFileName(path)) is null));
                 var preferred = !_defaultChosenByUser ? (_rows.FirstOrDefault(r => r.Language == "zh-TW") ?? _rows.FirstOrDefault())?.Track.Id :
@@ -188,7 +200,7 @@ public partial class ProjectSubtitlesDialog : Window
         try
         {
             var settings = new ProjectSubtitleSettings(_rows.Select(r => r.Track with { Language = ProjectSubtitleLanguage.Normalize(r.Language) }).ToImmutableArray(),
-                (DefaultSubtitlePicker.SelectedItem as SubtitleRow)?.Track.Id);
+                _defaultTrackId);
             ProjectValidation.ValidateSubtitles(settings);
             await _model.SetSubtitlesAsync(settings, ConfirmSubtitleSync.IsChecked == true);
             if (_model.StatusUnconfirmed || _model.Error is not null) { ErrorText.Text = _model.Error; return; }

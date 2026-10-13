@@ -11,6 +11,8 @@ class Element {
   value=''; classList={values:new Set(),add(name){this.values.add(name)},remove(name){this.values.delete(name)},
     contains(name){return this.values.has(name)},toggle(name,force){const next=force??!this.values.has(name);if(next)this.values.add(name);else this.values.delete(name);return next}};
   append(...items){this.children.push(...items)}
+  replaceChildren(...items){this.children=[...items]}
+  scrollIntoView(){this.scrolled=true}
   setAttribute(name,value){this.attributes[name]=value}
   contains(item){return item===this||this.children.some(child=>child.contains(item))}
   addEventListener(name,handler){(this.listeners[name]??=[]).push(handler)}
@@ -22,7 +24,8 @@ function setup(data = {format:'opencam.web-player',schemaVersion:1,title:'教材
   const ids = Object.fromEntries(['video','error','title','summary','chapters','now','speed','stage','layout','controls',
     'seek','play','mute','volume','current-time','total-time','wide','fullscreen',
     'caption-button','caption-menu','caption-language','caption-overlay','caption-text','caption-size','caption-size-value',
-    'caption-theme','caption-opacity','caption-position','caption-reset'].map(id=>[id,new Element()]));
+    'caption-theme','caption-opacity','caption-position','caption-reset','chapter-tab','transcript-tab','chapter-panel',
+    'transcript-panel','transcript-language','transcript-search','transcript-list','transcript-status','transcript-more','transcript-follow'].map(id=>[id,new Element()]));
   Object.assign(ids.video,{controls:true,readyState:1,currentTime:0,duration:12,playbackRate:1,paused:true,ended:false,volume:1,muted:false,
     play(){this.playCalled=true;this.paused=false;this.dispatch('play');return Promise.resolve()},
     pause(){this.paused=true;this.dispatch('pause')}});
@@ -45,6 +48,48 @@ const subtitleLesson=()=>({format:'opencam.web-player',schemaVersion:1,title:'Su
     {id:'tw',language:'zh-TW',label:'繁體中文',cues:[{start:0,end:2,text:'教材 <img onerror=alert(1)>'},{start:1,end:3,text:'重疊'}]},
     {id:'en',language:'en',label:'English',cues:[{start:0,end:3,text:'Lesson'}]}
   ]}});
+test('summary contains duration and chapter count without repeating product branding',()=>{
+  assert.equal(setup().summary.textContent,'影片總長度 0:12 · 3 章節');
+});
+test('transcript searches plain text and seeks without changing paused or playing state',()=>{
+  const ids=setup(subtitleLesson());ids['transcript-tab'].dispatch('click');
+  ids['transcript-search'].value='重疊';ids['transcript-search'].dispatch('input');ids.runTimers();
+  const rows=ids['transcript-list'].children;assert.equal(rows.length,1);
+  rows[0].dispatch('click');assert.equal(ids.video.currentTime,1);assert.equal(ids.video.paused,true);
+  ids.video.play();rows[0].dispatch('click');assert.equal(ids.video.paused,false);
+  ids['caption-language'].value='off';ids['caption-language'].dispatch('change');
+  assert.equal(ids['transcript-list'].children.length,1);
+  ids['transcript-search'].value='';ids['transcript-search'].dispatch('input');ids.runTimers();
+  assert.equal(ids['transcript-list'].children[0].children[1].textContent,'教材 <img onerror=alert(1)>');
+});
+test('transcript language is independent, has empty states and bounded batches',()=>{
+  const ids=setup(subtitleLesson());ids['transcript-language'].value='en';ids['transcript-language'].dispatch('change');
+  assert.equal(ids['transcript-list'].children[0].children[1].textContent,'Lesson');
+  assert.equal(ids['caption-text'].textContent,'教材 <img onerror=alert(1)>');
+  ids['transcript-search'].value='missing';ids['transcript-search'].dispatch('input');ids.runTimers();
+  assert.equal(ids['transcript-list'].children.length,0);assert.ok(ids['transcript-status'].textContent.includes('0'));
+  const lesson=subtitleLesson();lesson.subtitles.tracks[0].cues=Array.from({length:1000},(_,i)=>({start:i,end:i+1,text:'Cue '+i}));
+  const many=setup(lesson);assert.equal(many['transcript-list'].children.length,100);
+  many['transcript-more'].dispatch('click');assert.equal(many['transcript-list'].children.length,200);
+  assert.ok(setup()['transcript-status'].textContent.includes('字幕'));
+});
+test('transcript follows distant playback in batches but search and follow-off stop automatic scrolling',()=>{
+  const lesson=subtitleLesson();lesson.subtitles.tracks[0].cues=Array.from({length:1000},(_,i)=>({start:i,end:i+1,text:'Cue '+i}));
+  const ids=setup(lesson);ids['transcript-tab'].dispatch('click');
+  ids.video.currentTime=555.5;ids.video.dispatch('timeupdate');
+  assert.equal(ids['transcript-list'].children.length,100);
+  const current=ids['transcript-list'].children[55];assert.equal(current.attributes['aria-current'],'true');assert.equal(current.scrolled,true);
+  ids['transcript-follow'].checked=false;ids.video.currentTime=777;ids.video.dispatch('timeupdate');
+  assert.equal(ids['transcript-list'].children[0].children[1].textContent,'Cue 500');
+  ids['transcript-search'].value='Cue 12';ids['transcript-search'].dispatch('input');ids.runTimers();
+  assert.equal(ids['transcript-list'].children.length,11);
+  assert.equal(ids['transcript-list'].children[0].children[1].children[1].textContent,'Cue 12');
+});
+test('transcript seeks before metadata and preserves pause when metadata arrives',()=>{
+  const ids=setup(subtitleLesson());ids.video.readyState=0;
+  ids['transcript-list'].children[1].dispatch('click');assert.equal(ids.video.currentTime,0);assert.equal(ids.video.paused,true);
+  ids.video.readyState=1;ids.video.dispatch('loadedmetadata');assert.equal(ids.video.currentTime,1);assert.equal(ids.video.paused,true);
+});
 test('subtitles default on, remain plain text, support overlaps and clear exactly at the end',()=>{
   const ids=setup(subtitleLesson());
   assert.equal(ids['caption-button'].hidden,false);

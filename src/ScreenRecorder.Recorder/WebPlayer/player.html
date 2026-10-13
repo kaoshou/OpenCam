@@ -23,6 +23,7 @@ footer{margin-top:24px;padding:18px;border-top:1px solid #e2e8f0;text-align:cent
 .stage{position:relative;background:#0c1422;outline-offset:-3px}.controls{display:none;position:absolute;bottom:0;left:0;right:0;padding:36px 16px 12px;background:linear-gradient(transparent,#000b);color:white;transition:opacity .18s}.stage.enhanced .controls{display:block}.stage.controls-hidden .controls{opacity:0;pointer-events:none}.stage.controls-hidden{cursor:none}.control-row{display:flex;align-items:center;gap:8px;margin-top:6px}.control-button{display:grid;place-items:center;flex-shrink:0;width:34px;height:34px;padding:6px;border:0;border-radius:7px;color:white;background:transparent;cursor:pointer;font:inherit}.control-button:hover{background:#ffffff24}.control-button svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.pause-icon{display:none}.control-button.playing .play-icon{display:none}.control-button.playing .pause-icon{display:block}.control-button[aria-pressed=true]{background:#ffffff24}.volume{width:70px;min-width:0}.seek{display:block;width:100%;margin:0;cursor:pointer}.controls input{accent-color:#60a5fa}.time-display{font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap;color:#e2e8f0}.control-spacer{flex:1}.controls select{background:#162033;color:white;border-color:#ffffff30;padding:6px;font-size:12px;max-width:68px}.controls button:focus-visible,.controls select:focus-visible,.controls input:focus-visible{outline:2px solid #93c5fd;outline-offset:2px}.stage:fullscreen,.stage.frame-fullscreen{width:100%;height:100%;background:#000}.stage:fullscreen video,.stage.frame-fullscreen video{width:100%;height:100%;max-height:none;aspect-ratio:auto}.stage.frame-fullscreen{position:fixed;inset:0;z-index:1000}.frame-fullscreen-active{overflow:hidden}.stage:fullscreen .controls,.stage.frame-fullscreen .controls{padding-bottom:max(16px,env(safe-area-inset-bottom))}
 @media(prefers-reduced-motion:reduce){.chapter,.controls{transition:none}}
 .caption-overlay{position:absolute;left:4%;right:4%;bottom:104px;text-align:center;pointer-events:none;font-size:clamp(16px,2vw,34px);line-height:1.4;z-index:1}.caption-overlay[data-position=top]{top:6%;bottom:auto}.caption-overlay[data-position=middle]{top:50%;bottom:auto;transform:translateY(-50%)}.stage.controls-hidden .caption-overlay[data-position=bottom]{bottom:7%}.caption-text{display:inline-block;max-width:100%;padding:4px 10px;border-radius:5px;white-space:pre-line;overflow-wrap:anywhere;text-shadow:0 1px 3px #000,1px 0 2px #000,-1px 0 2px #000}.caption-menu{position:absolute;right:12px;bottom:calc(100% + 6px);width:280px;max-width:calc(100vw - 36px);max-height:min(440px,65vh);overflow:auto;overscroll-behavior:contain;padding:16px;border:1px solid #ffffff30;border-radius:12px;background:#111c2bf5;box-shadow:0 8px 30px #0007;z-index:3}.caption-menu h3{font-size:14px;margin:0 0 12px}.caption-menu label{display:block;color:#e2e8f0;margin:12px 0 4px}.controls .caption-menu select{width:100%;max-width:none;padding:8px}.caption-menu input{width:100%}.caption-menu button{color:white;border:1px solid #ffffff30;border-radius:8px;padding:8px 12px;background:#ffffff12;cursor:pointer;width:100%;margin-top:14px}.caption-menu output{font-variant-numeric:tabular-nums;color:#93c5fd;font-size:12px}
+.index-tabs{display:flex;gap:4px;padding:10px;border-bottom:1px solid #e2e8f0;flex-shrink:0}.index-tabs button{flex:1;font:inherit;font-size:13px;font-weight:600;border:0;border-radius:8px;padding:10px 6px;background:transparent;color:#64748b;cursor:pointer}.index-tabs button[aria-selected=true]{color:#1d4ed8;background:#eff6ff}.index-panel{display:flex;flex-direction:column;flex:1;min-height:0}.transcript-tools{padding:12px 14px;display:grid;gap:8px;border-bottom:1px solid #e2e8f0}.transcript-tools select,.transcript-tools input[type=search]{width:100%;min-width:0;font:inherit;font-size:12px;padding:9px 10px;border:1px solid #cbd5e1;border-radius:8px;background:white}.transcript-tools .follow{font-size:11px}.transcript-tools input[type=checkbox]{accent-color:#2563eb}#transcript-status{font-size:11px;color:#64748b;font-variant-numeric:tabular-nums}.transcript-row{display:flex;gap:10px;width:100%;border:0;border-radius:8px;padding:11px 8px;background:transparent;text-align:left;font:inherit;cursor:pointer;color:#334155}.transcript-row:hover{background:#f1f5f9}.transcript-row[aria-current=true]{background:#eff6ff;color:#1d4ed8}.transcript-time{flex-shrink:0;font-size:11px;font-variant-numeric:tabular-nums;color:#64748b;padding-top:2px}.transcript-copy{font-size:13px;overflow-wrap:anywhere;white-space:pre-line;min-width:0}.transcript-copy mark{background:#fef08a;color:#713f12;border-radius:2px}.transcript-more{flex-shrink:0;padding:10px;font:inherit;font-size:12px;color:#2563eb;border:0;border-top:1px solid #e2e8f0;background:#f8fafc;cursor:pointer}
 @media(max-width:960px){.layout{grid-template-columns:1fr}.list{height:auto;flex:none;max-height:min(360px,55vh)}main{padding:24px 16px}header{padding:16px;gap:12px}}
 @media(max-width:480px){main{padding:16px 10px}header{padding:16px 14px}.details{padding:12px 14px}.player,.chapters{border-radius:10px}.subtitle{font-size:11px}footer{margin-top:20px}.controls{padding:28px 8px 8px}.control-row{gap:3px;flex-wrap:wrap}.volume{width:42px}.time-display{font-size:10px}.control-button{width:30px;height:30px}.controls select{max-width:58px;font-size:11px}}
 </style>
@@ -61,7 +62,13 @@ footer{margin-top:24px;padding:18px;border-top:1px solid #e2e8f0;text-align:cent
 <div class="details"><div class="current"><span class="caption">目前章節 / NOW PLAYING</span><span class="now" id="now">準備播放 / Ready</span></div></div>
 <div class="error" id="error" role="status" hidden></div>
 </section>
-<aside class="chapters"><h2><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M3 4h1m4 0h9M3 10h1m4 0h9M3 16h1m4 0h9"/></svg>章節索引 <small>CHAPTERS</small></h2><nav class="list" id="chapters" aria-label="影片章節 / Video chapters"></nav></aside>
+<aside class="chapters">
+<div class="index-tabs" role="tablist" aria-label="教材索引 / Lesson index"><button id="chapter-tab" role="tab" aria-selected="true" aria-controls="chapter-panel">章節 / Chapters</button><button id="transcript-tab" role="tab" aria-selected="false" aria-controls="transcript-panel">逐字稿 / Transcript</button></div>
+<div class="index-panel" id="chapter-panel" role="tabpanel" aria-labelledby="chapter-tab"><nav class="list" id="chapters" aria-label="影片章節 / Video chapters"></nav></div>
+<div class="index-panel" id="transcript-panel" role="tabpanel" aria-labelledby="transcript-tab" hidden>
+<div class="transcript-tools"><label for="transcript-language">逐字稿語言 / Language</label><select id="transcript-language"></select><input id="transcript-search" type="search" maxlength="200" placeholder="搜尋字幕文字… / Search" aria-label="搜尋逐字稿 / Search transcript"><label class="follow"><input id="transcript-follow" type="checkbox" checked>跟隨播放 / Follow playback</label><div id="transcript-status" role="status" aria-live="polite"></div></div>
+<div class="list" id="transcript-list" aria-label="逐字稿內容 / Transcript entries"></div><button id="transcript-more" class="transcript-more" hidden>載入更多 / Load more</button>
+</div></aside>
 </div>
 <footer>以 <a href="https://github.com/kaoshou/OpenCam" target="_blank" rel="noopener noreferrer">OpenCam</a> 製作 · Created with OpenCam</footer>
 <noscript>請啟用 JavaScript 以使用章節跳播。影片仍可使用上方控制列播放。</noscript>
@@ -73,7 +80,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(!data||data.format!=='opencam.web-player'||data.schemaVersion!==1||!Array.isArray(data.chapters)){showError('播放器資料無法載入，請確認 opencam-player.js 與 index.html 放在同一個資料夾。 Player data is missing.');return;}
   const time=seconds=>{seconds=Math.max(0,Math.floor(seconds));const h=Math.floor(seconds/3600),m=Math.floor(seconds%3600/60),s=String(seconds%60).padStart(2,'0');return h?h+':'+String(m).padStart(2,'0')+':'+s:m+':'+s};
   document.getElementById('title').textContent=data.title;
-  document.getElementById('summary').textContent='影片總長度 '+time(data.chapters.at(-1)?.end||0)+' · '+data.chapters.length+' 章節 / chapters · OpenCam';
+  document.getElementById('summary').textContent='影片總長度 '+time(data.chapters.at(-1)?.end||0)+' · '+data.chapters.length+' 章節';
   let pending=null;const buttons=[];
   data.chapters.forEach((chapter,index)=>{
     const button=document.createElement('button');button.type='button';button.className='chapter';
@@ -117,6 +124,74 @@ window.addEventListener('DOMContentLoaded',()=>{
   const writePref=(key,value)=>{try{window.localStorage?.setItem(key,value)}catch{}};
   const choiceKey='opencam.subtitle.'+data.title+'.'+(data.chapters[0]?.id||'lesson');
   const defaultTrack=subtitleTracks.find(t=>t.id===data.subtitles?.defaultTrackId)||subtitleTracks.find(t=>t.language==='zh-TW')||subtitleTracks[0];
+  const chapterTab=document.getElementById('chapter-tab'),transcriptTab=document.getElementById('transcript-tab'),
+    transcriptLanguage=document.getElementById('transcript-language'),transcriptSearch=document.getElementById('transcript-search'),
+    transcriptList=document.getElementById('transcript-list'),transcriptStatus=document.getElementById('transcript-status'),
+    transcriptMore=document.getElementById('transcript-more'),transcriptFollow=document.getElementById('transcript-follow');
+  let transcriptCues=[],transcriptMatches=[],transcriptRows=[],transcriptStart=0,transcriptLimit=100,searchTimer,lastFollow=-1;
+  transcriptFollow.checked=true;
+  const highlightText=(element,text,query)=>{
+    if(!query){element.textContent=text;return;}
+    const lower=text.toLowerCase();let offset=0,index;
+    while((index=lower.indexOf(query,offset))>=0){
+      const before=document.createElement('span'),match=document.createElement('mark');
+      before.textContent=text.slice(offset,index);match.textContent=text.slice(index,index+query.length);element.append(before,match);offset=index+query.length;
+    }
+    const tail=document.createElement('span');tail.textContent=text.slice(offset);element.append(tail);
+  };
+  const drawTranscript=()=>{
+    transcriptList.replaceChildren();transcriptRows=[];
+    const query=transcriptSearch.value.trim().toLowerCase();
+    const end=Math.min(transcriptMatches.length,transcriptStart+transcriptLimit);
+    for(let i=transcriptStart;i<end;i++){
+      const cue=transcriptMatches[i],row=document.createElement('button'),stamp=document.createElement('span'),copy=document.createElement('span');
+      row.type='button';row.className='transcript-row';stamp.className='transcript-time';stamp.textContent=time(cue.start);
+      copy.className='transcript-copy';highlightText(copy,cue.text,query);row.append(stamp,copy);
+      row.addEventListener('click',()=>{if(video.readyState<1)pending=cue.start;else video.currentTime=cue.start;update(cue.start);renderCaptions();syncTime();syncTranscript();});
+      transcriptList.append(row);transcriptRows.push({row,cue});
+    }
+    transcriptMore.hidden=end>=transcriptMatches.length;
+    transcriptStatus.textContent=!subtitleTracks.length?'請先附加字幕 / No subtitles attached':
+      (query?'搜尋結果 ':'字幕 ')+transcriptMatches.length+' · '+(end?transcriptStart+1:0)+'–'+end;
+  };
+  const searchTranscript=()=>{
+    const query=transcriptSearch.value.trim().toLowerCase();
+    transcriptMatches=query?transcriptCues.filter(c=>c.text.toLowerCase().includes(query)):transcriptCues;
+    transcriptStart=0;transcriptLimit=100;lastFollow=-1;drawTranscript();syncTranscript();
+  };
+  const syncTranscript=()=>{
+    const position=video.currentTime;
+    // Latest-started cue, using an ordered index rather than walking every DOM row/cue.
+    let low=0,high=transcriptCues.length;
+    while(low<high){const middle=(low+high)>>1;if(transcriptCues[middle].start<=position)low=middle+1;else high=middle;}
+    const active=low-1;
+    if(transcriptFollow.checked&&!transcriptSearch.value.trim()&&!document.getElementById('transcript-panel').hidden&&active>=0&&active!==lastFollow){
+      if(active<transcriptStart||active>=transcriptStart+transcriptLimit){transcriptStart=Math.floor(active/100)*100;transcriptLimit=100;drawTranscript();}
+      transcriptRows.find(r=>r.cue===transcriptCues[active])?.row.scrollIntoView?.({block:'nearest',behavior:'auto'});lastFollow=active;
+    }
+    transcriptRows.forEach(({row,cue})=>row.setAttribute('aria-current',String(!video.ended&&position>=cue.start&&position<cue.end)));
+  };
+  const setTranscriptLanguage=()=>{
+    window.clearTimeout(searchTimer);
+    transcriptCues=[...(subtitleTracks.find(t=>t.id===transcriptLanguage.value)?.cues||[])].sort((a,b)=>a.start-b.start);
+    searchTranscript();
+  };
+  subtitleTracks.forEach(t=>{const option=document.createElement('option');option.value=t.id;option.textContent=t.label;transcriptLanguage.append(option)});
+  transcriptLanguage.value=defaultTrack?.id||'';transcriptLanguage.disabled=transcriptSearch.disabled=transcriptFollow.disabled=!subtitleTracks.length;
+  const showIndex=transcript=>{
+    document.getElementById('chapter-panel').hidden=transcript;document.getElementById('transcript-panel').hidden=!transcript;
+    chapterTab.setAttribute('aria-selected',String(!transcript));transcriptTab.setAttribute('aria-selected',String(transcript));
+    chapterTab.tabIndex=transcript?-1:0;transcriptTab.tabIndex=transcript?0:-1;lastFollow=-1;syncTranscript();
+  };
+  chapterTab.addEventListener('click',()=>showIndex(false));transcriptTab.addEventListener('click',()=>showIndex(true));
+  [chapterTab,transcriptTab].forEach(tab=>tab.addEventListener('keydown',e=>{
+    if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();const next=tab===chapterTab;showIndex(next);(next?transcriptTab:chapterTab).focus?.();}
+  }));
+  transcriptLanguage.addEventListener('change',setTranscriptLanguage);
+  transcriptSearch.addEventListener('input',()=>{window.clearTimeout(searchTimer);searchTimer=window.setTimeout(searchTranscript,120)});
+  transcriptMore.addEventListener('click',()=>{transcriptLimit+=100;drawTranscript();syncTranscript()});
+  transcriptFollow.addEventListener('change',()=>{lastFollow=-1;syncTranscript()});
+  ['timeupdate','seeked','loadedmetadata','ended'].forEach(event=>video.addEventListener(event,syncTranscript));
   const preference=readPref(choiceKey);
   let subtitleId=preference==='off'||subtitleTracks.some(t=>t.id===preference)?preference:defaultTrack?.id||'off';
   let appearance={size:100,theme:0,opacity:.78,position:'bottom'},captionFrame=null,captionFrameNative=false;
@@ -214,7 +289,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   ['play','pause','ended'].forEach(event=>video.addEventListener(event,syncPlay));
   ['timeupdate','seeked','loadedmetadata','durationchange'].forEach(event=>video.addEventListener(event,syncTime));
   video.addEventListener('volumechange',syncVolume);
-  syncTime();syncPlay();syncVolume();update();stage.classList.add('enhanced');video.controls=false;
+  setTranscriptLanguage();showIndex(false);syncTime();syncPlay();syncVolume();update();stage.classList.add('enhanced');video.controls=false;
 });
 </script>
 </body>
