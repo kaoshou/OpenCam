@@ -23,6 +23,26 @@ public sealed class ProjectLayoutApp : Application
 
 public sealed class ProjectWorkspaceLayoutTests
 {
+    [AvaloniaTheory]
+    [InlineData(AppLanguage.ZhTw, "繁體中文（台灣） (zh-TW)", "簡體中文（中國大陸） (zh-CN)", "韓文 (ko)")]
+    [InlineData(AppLanguage.EnUs, "Traditional Chinese (Taiwan) (zh-TW)", "Simplified Chinese (Mainland China) (zh-CN)", "Korean (ko)")]
+    public void SubtitleLanguageMenuUsesApplicationLanguageAndCodes(AppLanguage language, string tw, string cn, string ko)
+    {
+        var previous = LanguageManager.Instance.CurrentLanguage;
+        LanguageManager.Instance.CurrentLanguage = language;
+        var a = new ScreenRecorder.Core.Projects.ProjectSubtitleTrack(Guid.NewGuid(), "a.srt", "zh-TW", "", 1, new string('A',64), new string('A',64));
+        var vm = new ProjectWorkspaceViewModel(new ClosedProjectClient()) { State = ProjectSnapshot.Closed with { Subtitles = new([a],a.Id) } };
+        var dialog = new ProjectSubtitlesDialog(vm);
+        try
+        {
+            dialog.Show();dialog.UpdateLayout();
+            var picker = dialog.FindControl<StackPanel>("SubtitleRows")!.GetVisualDescendants().OfType<ComboBox>().Single();
+            var labels = picker.ItemsSource!.Cast<object>().Select(x => x.ToString()).ToArray();
+            Assert.Equal(tw, labels[0]);Assert.Equal(cn, labels[1]);Assert.Equal(ko, labels[3]);
+        }
+        finally { dialog.Close();LanguageManager.Instance.CurrentLanguage = previous; }
+    }
+
     [AvaloniaFact]
     public void RemovingDefaultSubtitleSelectsRemainingTrackAtMinimumWidth()
     {

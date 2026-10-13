@@ -35,12 +35,7 @@ public partial class ProjectSubtitlesDialog : Window
     { public override string ToString() => Label; }
     private LanguageChoice[] Languages => new[] { "zh-TW", "zh-CN", "en", "ko", "ja", "vi", "th", "id", "ms", "fr", "de", "es", "pt", "ar", "ru" }
         .Select(code => new LanguageChoice(code, Label(code))).Append(new(null, Strings["SubtitleCustomLanguage"])).ToArray();
-    private static string Label(string code)
-    {
-        if (code == "zh-TW") return "繁體中文（台灣）";
-        try { return System.Globalization.CultureInfo.GetCultureInfo(code).NativeName; }
-        catch (System.Globalization.CultureNotFoundException) { return code; }
-    }
+    private string Label(string code) => $"{Strings["SubtitleLanguage_" + code]} ({code})";
 
     public ProjectSubtitlesDialog(ProjectWorkspaceViewModel model)
     {
@@ -75,17 +70,15 @@ public partial class ProjectSubtitlesDialog : Window
             name.Children.Add(new TextBlock { Text = Path.GetExtension(row.Track.RelativePath).TrimStart('.').ToUpperInvariant(), FontSize = 11, Foreground = Brushes.SlateGray });
             var warning = new TextBlock { Text = Strings["SubtitleUnknown"], FontSize = 11, Foreground = Brush.Parse("#B45309"), TextWrapping = TextWrapping.Wrap, IsVisible = row.Unknown };
             var languages = Languages;
-            var picker = new ComboBox { ItemsSource = languages, SelectedItem = languages.FirstOrDefault(l => l.Code == row.Language) ?? languages[^1], MinWidth = 230, HorizontalAlignment = HorizontalAlignment.Stretch };
-            var code = new TextBlock { Text = row.Language, FontSize = 11, Foreground = Brushes.SlateGray, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10,0,0,0) };
+            var picker = new ComboBox { ItemsSource = languages, SelectedItem = languages.FirstOrDefault(l => l.Code == row.Language) ?? languages[^1], MinWidth = 300, HorizontalAlignment = HorizontalAlignment.Stretch };
             var custom = new TextBox { Text = row.Language, IsVisible = (picker.SelectedItem as LanguageChoice)?.Code is null, MaxLength = 64 };
-            var languageLine = new Grid { ColumnDefinitions = new("*,Auto"), Children = { picker, code } }; Grid.SetColumn(code,1);
-            var languagePanel = new StackPanel { Spacing = 5, Children = { languageLine, custom }, Margin = new Thickness(0, 0, 14, 0) };
-            custom.TextChanged += (_, _) => { row.Language = custom.Text ?? ""; code.Text = row.Language; RefreshDefault(); };
+            var languagePanel = new StackPanel { Spacing = 5, Children = { picker, custom }, Margin = new Thickness(0, 0, 14, 0) };
+            custom.TextChanged += (_, _) => { row.Language = custom.Text ?? ""; RefreshDefault(); };
             picker.SelectionChanged += (_, _) => {
                 var selected = picker.SelectedItem as LanguageChoice;
                 custom.IsVisible = selected?.Code is null;
                 row.Language = selected?.Code ?? custom.Text ?? "";
-                row.Unknown = false; warning.IsVisible = false; code.Text = row.Language; RefreshDefault();
+                row.Unknown = false; warning.IsVisible = false; RefreshDefault();
             };
             var remove = new Button { Content = Strings["SubtitleRemove"], HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center };
             remove.Click += (_, _) => {

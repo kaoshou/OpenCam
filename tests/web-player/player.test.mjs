@@ -25,7 +25,8 @@ function setup(data = {format:'opencam.web-player',schemaVersion:1,title:'教材
     'seek','play','mute','volume','current-time','total-time','wide','fullscreen',
     'caption-button','caption-menu','caption-language','caption-overlay','caption-text','caption-size','caption-size-value',
     'caption-theme','caption-opacity','caption-position','caption-reset','chapter-tab','transcript-tab','chapter-panel',
-    'transcript-panel','transcript-language','transcript-search','transcript-list','transcript-status','transcript-more','transcript-follow'].map(id=>[id,new Element()]));
+    'transcript-panel','transcript-language','transcript-search','transcript-list','transcript-status','transcript-more','transcript-follow','sidebar','player'].map(id=>[id,new Element()]));
+  ids.player.getBoundingClientRect=()=>({height:480});
   Object.assign(ids.video,{controls:true,readyState:1,currentTime:0,duration:12,playbackRate:1,paused:true,ended:false,volume:1,muted:false,
     play(){this.playCalled=true;this.paused=false;this.dispatch('play');return Promise.resolve()},
     pause(){this.paused=true;this.dispatch('pause')}});
@@ -39,7 +40,7 @@ function setup(data = {format:'opencam.web-player',schemaVersion:1,title:'教材
   const timers=new Map();let timerId=0;
   ids.runTimers=()=>{const pending=[...timers.values()];timers.clear();pending.forEach(fn=>fn())};ids.document=document;
   let ready;
-  const context={window:{OpenCamPlayerData:data,addEventListener(name,handler){if(name==='DOMContentLoaded')ready=handler},
+  const context={window:{innerHeight:800,OpenCamPlayerData:data,addEventListener(name,handler){if(name==='DOMContentLoaded')ready=handler},
     setTimeout(fn){timers.set(++timerId,fn);return timerId},clearTimeout(id){timers.delete(id)}},document};
   vm.runInNewContext(runtime,context);ready();return ids;
 }
@@ -89,6 +90,22 @@ test('transcript seeks before metadata and preserves pause when metadata arrives
   const ids=setup(subtitleLesson());ids.video.readyState=0;
   ids['transcript-list'].children[1].dispatch('click');assert.equal(ids.video.currentTime,0);assert.equal(ids.video.paused,true);
   ids.video.readyState=1;ids.video.dispatch('loadedmetadata');assert.equal(ids.video.currentTime,1);assert.equal(ids.video.paused,true);
+});
+test('transcript sidebar keeps the same bounded height when switching tabs and loading rows',()=>{
+  const lesson=subtitleLesson();lesson.subtitles.tracks[0].cues=Array.from({length:1000},(_,i)=>({start:i,end:i+1,text:'Cue '+i}));
+  const ids=setup(lesson);assert.equal(ids.sidebar.style.height,'480px');
+  ids['transcript-tab'].dispatch('click');ids['transcript-more'].dispatch('click');
+  assert.equal(ids.sidebar.style.height,'480px');
+  ids['chapter-tab'].dispatch('click');assert.equal(ids.sidebar.style.height,'480px');
+});
+test('web subtitle menus show language and code without imported filenames',()=>{
+  const data=subtitleLesson();data.subtitles.tracks[0].label='1. my-teaching-video.srt · zh-TW';
+  data.subtitles.tracks[1]={...data.subtitles.tracks[1],language:'zh-CN',label:'2. my-teaching-video.srt · zh-CN'};
+  const ids=setup(data);
+  assert.deepEqual(ids['caption-language'].children.slice(1).map(o=>o.textContent),[
+    '繁體中文（台灣） (zh-TW)','簡體中文（中國大陸） (zh-CN)']);
+  assert.deepEqual(ids['transcript-language'].children.map(o=>o.textContent),[
+    '繁體中文（台灣） (zh-TW)','簡體中文（中國大陸） (zh-CN)']);
 });
 test('subtitles default on, remain plain text, support overlaps and clear exactly at the end',()=>{
   const ids=setup(subtitleLesson());

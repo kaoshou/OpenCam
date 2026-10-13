@@ -24,7 +24,8 @@ footer{margin-top:24px;padding:18px;border-top:1px solid #e2e8f0;text-align:cent
 @media(prefers-reduced-motion:reduce){.chapter,.controls{transition:none}}
 .caption-overlay{position:absolute;left:4%;right:4%;bottom:104px;text-align:center;pointer-events:none;font-size:clamp(16px,2vw,34px);line-height:1.4;z-index:1}.caption-overlay[data-position=top]{top:6%;bottom:auto}.caption-overlay[data-position=middle]{top:50%;bottom:auto;transform:translateY(-50%)}.stage.controls-hidden .caption-overlay[data-position=bottom]{bottom:7%}.caption-text{display:inline-block;max-width:100%;padding:4px 10px;border-radius:5px;white-space:pre-line;overflow-wrap:anywhere;text-shadow:0 1px 3px #000,1px 0 2px #000,-1px 0 2px #000}.caption-menu{position:absolute;right:12px;bottom:calc(100% + 6px);width:280px;max-width:calc(100vw - 36px);max-height:min(440px,65vh);overflow:auto;overscroll-behavior:contain;padding:16px;border:1px solid #ffffff30;border-radius:12px;background:#111c2bf5;box-shadow:0 8px 30px #0007;z-index:3}.caption-menu h3{font-size:14px;margin:0 0 12px}.caption-menu label{display:block;color:#e2e8f0;margin:12px 0 4px}.controls .caption-menu select{width:100%;max-width:none;padding:8px}.caption-menu input{width:100%}.caption-menu button{color:white;border:1px solid #ffffff30;border-radius:8px;padding:8px 12px;background:#ffffff12;cursor:pointer;width:100%;margin-top:14px}.caption-menu output{font-variant-numeric:tabular-nums;color:#93c5fd;font-size:12px}
 .index-tabs{display:flex;gap:4px;padding:10px;border-bottom:1px solid #e2e8f0;flex-shrink:0}.index-tabs button{flex:1;font:inherit;font-size:13px;font-weight:600;border:0;border-radius:8px;padding:10px 6px;background:transparent;color:#64748b;cursor:pointer}.index-tabs button[aria-selected=true]{color:#1d4ed8;background:#eff6ff}.index-panel{display:flex;flex-direction:column;flex:1;min-height:0}.transcript-tools{padding:12px 14px;display:grid;gap:8px;border-bottom:1px solid #e2e8f0}.transcript-tools select,.transcript-tools input[type=search]{width:100%;min-width:0;font:inherit;font-size:12px;padding:9px 10px;border:1px solid #cbd5e1;border-radius:8px;background:white}.transcript-tools .follow{font-size:11px}.transcript-tools input[type=checkbox]{accent-color:#2563eb}#transcript-status{font-size:11px;color:#64748b;font-variant-numeric:tabular-nums}.transcript-row{display:flex;gap:10px;width:100%;border:0;border-radius:8px;padding:11px 8px;background:transparent;text-align:left;font:inherit;cursor:pointer;color:#334155}.transcript-row:hover{background:#f1f5f9}.transcript-row[aria-current=true]{background:#eff6ff;color:#1d4ed8}.transcript-time{flex-shrink:0;font-size:11px;font-variant-numeric:tabular-nums;color:#64748b;padding-top:2px}.transcript-copy{font-size:13px;overflow-wrap:anywhere;white-space:pre-line;min-width:0}.transcript-copy mark{background:#fef08a;color:#713f12;border-radius:2px}.transcript-more{flex-shrink:0;padding:10px;font:inherit;font-size:12px;color:#2563eb;border:0;border-top:1px solid #e2e8f0;background:#f8fafc;cursor:pointer}
-@media(max-width:960px){.layout{grid-template-columns:1fr}.list{height:auto;flex:none;max-height:min(360px,55vh)}main{padding:24px 16px}header{padding:16px;gap:12px}}
+.layout{align-items:start}.chapters{height:clamp(320px,70vh,720px);overflow:hidden}.index-panel{overflow:hidden}.transcript-tools{flex-shrink:0}.list{overflow-y:auto;flex:1;min-height:0;height:0}
+@media(max-width:960px){.layout{grid-template-columns:1fr}main{padding:24px 16px}header{padding:16px;gap:12px}}
 @media(max-width:480px){main{padding:16px 10px}header{padding:16px 14px}.details{padding:12px 14px}.player,.chapters{border-radius:10px}.subtitle{font-size:11px}footer{margin-top:20px}.controls{padding:28px 8px 8px}.control-row{gap:3px;flex-wrap:wrap}.volume{width:42px}.time-display{font-size:10px}.control-button{width:30px;height:30px}.controls select{max-width:58px;font-size:11px}}
 </style>
 <script src="opencam-player.js" defer></script>
@@ -33,7 +34,7 @@ footer{margin-top:24px;padding:18px;border-top:1px solid #e2e8f0;text-align:cent
 <main>
 <header><span class="mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="26" height="20" rx="4"/><path d="M13 10l8 4-8 4z" fill="currentColor" stroke="none"/><path d="M11 29h10"/></svg></span><div class="heading"><h1 id="title">%%TITLE%%</h1><div class="subtitle" id="summary">OpenCam · 網頁播放器 / Web player</div></div></header>
 <div class="layout" id="layout">
-<section class="player" aria-label="影片播放器 / Video player">
+<section class="player" id="player" aria-label="影片播放器 / Video player">
 <div class="stage" id="stage" tabindex="0" aria-label="影片；空白鍵播放、方向鍵快轉 / Video keyboard controls">
 <video id="video" controls playsinline preload="metadata" src="media.mp4">您的瀏覽器不支援影片播放。 Your browser does not support video playback.</video>
 <div class="caption-overlay" id="caption-overlay" data-position="bottom" hidden><span class="caption-text" id="caption-text"></span></div>
@@ -62,7 +63,7 @@ footer{margin-top:24px;padding:18px;border-top:1px solid #e2e8f0;text-align:cent
 <div class="details"><div class="current"><span class="caption">目前章節 / NOW PLAYING</span><span class="now" id="now">準備播放 / Ready</span></div></div>
 <div class="error" id="error" role="status" hidden></div>
 </section>
-<aside class="chapters">
+<aside class="chapters" id="sidebar">
 <div class="index-tabs" role="tablist" aria-label="教材索引 / Lesson index"><button id="chapter-tab" role="tab" aria-selected="true" aria-controls="chapter-panel">章節 / Chapters</button><button id="transcript-tab" role="tab" aria-selected="false" aria-controls="transcript-panel">逐字稿 / Transcript</button></div>
 <div class="index-panel" id="chapter-panel" role="tabpanel" aria-labelledby="chapter-tab"><nav class="list" id="chapters" aria-label="影片章節 / Video chapters"></nav></div>
 <div class="index-panel" id="transcript-panel" role="tabpanel" aria-labelledby="transcript-tab" hidden>
@@ -124,6 +125,21 @@ window.addEventListener('DOMContentLoaded',()=>{
   const writePref=(key,value)=>{try{window.localStorage?.setItem(key,value)}catch{}};
   const choiceKey='opencam.subtitle.'+data.title+'.'+(data.chapters[0]?.id||'lesson');
   const defaultTrack=subtitleTracks.find(t=>t.id===data.subtitles?.defaultTrackId)||subtitleTracks.find(t=>t.language==='zh-TW')||subtitleTracks[0];
+  const subtitleLanguageLabel=track=>{
+    const code=track.language.replace(/_/g,'-');
+    const names={'zh-tw':'繁體中文（台灣）','zh-cn':'簡體中文（中國大陸）','en':'英文','ko':'韓文','ja':'日文',
+      'vi':'越南文','th':'泰文','id':'印尼文','ms':'馬來文','fr':'法文','de':'德文','es':'西班牙文','pt':'葡萄牙文','ar':'阿拉伯文','ru':'俄文'};
+    let name=names[code.toLowerCase()];
+    if(!name){try{name=new Intl.DisplayNames(['zh-Hant'],{type:'language'}).of(code)}catch{}}
+    return (name||'其他語言')+' ('+code+')';
+  };
+  const sidebar=document.getElementById('sidebar'),playerPane=document.getElementById('player');
+  const syncSidebarHeight=()=>{
+    const height=playerPane.getBoundingClientRect().height;
+    if(height>0)sidebar.style.height=Math.round(Math.max(320,Math.min(height,window.innerHeight*.8)))+'px';
+  };
+  syncSidebarHeight();window.addEventListener('resize',syncSidebarHeight);
+  if(window.ResizeObserver)new window.ResizeObserver(syncSidebarHeight).observe(playerPane);
   const chapterTab=document.getElementById('chapter-tab'),transcriptTab=document.getElementById('transcript-tab'),
     transcriptLanguage=document.getElementById('transcript-language'),transcriptSearch=document.getElementById('transcript-search'),
     transcriptList=document.getElementById('transcript-list'),transcriptStatus=document.getElementById('transcript-status'),
@@ -176,9 +192,10 @@ window.addEventListener('DOMContentLoaded',()=>{
     transcriptCues=[...(subtitleTracks.find(t=>t.id===transcriptLanguage.value)?.cues||[])].sort((a,b)=>a.start-b.start);
     searchTranscript();
   };
-  subtitleTracks.forEach(t=>{const option=document.createElement('option');option.value=t.id;option.textContent=t.label;transcriptLanguage.append(option)});
+  subtitleTracks.forEach(t=>{const option=document.createElement('option');option.value=t.id;option.textContent=subtitleLanguageLabel(t);transcriptLanguage.append(option)});
   transcriptLanguage.value=defaultTrack?.id||'';transcriptLanguage.disabled=transcriptSearch.disabled=transcriptFollow.disabled=!subtitleTracks.length;
   const showIndex=transcript=>{
+    syncSidebarHeight();
     document.getElementById('chapter-panel').hidden=transcript;document.getElementById('transcript-panel').hidden=!transcript;
     chapterTab.setAttribute('aria-selected',String(!transcript));transcriptTab.setAttribute('aria-selected',String(transcript));
     chapterTab.tabIndex=transcript?-1:0;transcriptTab.tabIndex=transcript?0:-1;lastFollow=-1;syncTranscript();
@@ -231,7 +248,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(subtitleTracks.length){
     captionButton.hidden=false;
     const off=document.createElement('option');off.value='off';off.textContent='關閉字幕 / Off';captionLanguage.append(off);
-    subtitleTracks.forEach(track=>{const option=document.createElement('option');option.value=track.id;option.textContent=track.label;captionLanguage.append(option)});
+    subtitleTracks.forEach(track=>{const option=document.createElement('option');option.value=track.id;option.textContent=subtitleLanguageLabel(track);captionLanguage.append(option)});
     setSubtitle(subtitleId);applyCaptionAppearance();
   }
   captionButton.addEventListener('click',()=>{captionMenu.hidden=!captionMenu.hidden;captionButton.setAttribute('aria-expanded',String(!captionMenu.hidden));if(!captionMenu.hidden)captionLanguage.focus?.();showControls()});

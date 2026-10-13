@@ -64,6 +64,8 @@ window.OpenCamPlayerData = {
 
 預設「跟隨播放」會顯示當前字幕，搜尋期間暫停跟隨，也可關閉開關自行閱讀。每次顯示100列，可載入更多；播放跳至較遠時間時跟隨切換到對應批次，不一次建立全部字幕元素。固定區域內捲動，手機版也限制清單高度。沒有字幕時顯示說明。依然維持三檔案結構，標題摘要只顯示長度與章節數；頁尾及原始碼來源註記保留。
 
+側欄整體高度跟隨播放器並受視窗高度限制，切換逐字稿或載入更多列不撐高页面，超出內容在清單內捲動。應用程式的字幕語言選單依目前中英文介面顯示名稱與括號代碼；繁體中文介面使用「繁體中文（台灣） (zh-TW)」與「簡體中文（中國大陸） (zh-CN)」。網頁字幕及逐字稿選單只顯示語言名稱與代碼，不顯示匯入檔名；軌道識別及專案內原始檔名資訊不變。
+
 ## English
 
 Both export menus offer **MP4 video** and **Web player**. MP4 retains the file picker. Web player asks for a parent location and creates a unique folder with the three fixed filenames above. Automatic export on recording stop continues to produce MP4.
