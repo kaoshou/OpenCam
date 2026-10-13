@@ -75,3 +75,11 @@ Actions 38336516066 的 Windows 再次失敗兩例，完整日誌 `/tmp/opencam-
 - 新增 Windows 真實繼承 handle 的慢速二進位讀取測試：2MiB 內容重複讀取四次，逐次比對輸出並核對原檔未變。此項在 macOS 明確略過，須新 Windows CI 執行後才可標示通過。
 - 六檔修補聚焦唯讀審查無阻擋；版本仍為0.3.3，未提前建立 tag 或 Release。
 - 修補完整本機 Release 回歸 Core207、Media710 通過，20略過、0失敗（共917通過），日誌 `/tmp/opencam-v033-paced-query-full.log`，SDK8.0.425／FFmpeg7.1.2。新增 Windows 原生查詢測試在略過項目內，不冒稱已於 Windows 通過；版本一致性及 diff check 通過。
+
+### Windows 延遲堆疊觀察（尚非根因修復）
+
+Actions38339297953 的 macOS／portable 驗證、macOS 建置與同SHA網站部署成功；Windows唯一失敗仍為 SessionHeartbeat_ContinuesWhileRecordingAndPaused 的固定2500ms後斷言。完整日誌 `/tmp/opencam-v033-paced-windows-ci.log`：watchdog入口0.0891ms，但首個2秒等待21105.4431ms才續接，當時workers8／available32759／pending1；23.2秒成品已與實際錄製相符，故未限速合成來源不是延遲的唯一原因。兩個 transient retry 案例未失敗，不能把此輪說成20秒持久化重試驗證失敗。Windows Media654通過、69略過、1失敗；新位置查詢測試及concat案例未失敗，但一輪通過不證明歷史問題根治。
+
+只在Windows CI安裝固定版本Microsoft dotnet-stack8.0.547301（不加入應用程式依賴或安裝包）。該測試新增獨立專用執行緒觀察器：5秒仍未前進則讀取當前testhost的managed stacks；另一專用執行緒最多10秒等待診斷工具並終止超時工具，最後join。報告有界約60k字元、每行最多2000字元、分10k區塊；不收集dump、像素、參數或環境。原2500ms等待、心跳2秒及驗證斷言均不放寬。新CI若失敗須讀取 Independent heartbeat observer 與 managed stacks，先定位真正佔用worker的呼叫，再決定修補。
+
+本機SDK8.0.425／FFmpeg7.1.2編譯及4個心跳案例通過，日誌 `/tmp/opencam-v033-stack-observer-targeted.log`；macOS不啟用Windows診斷工具，不能聲稱已驗證其Windows執行路徑。診斷補丁唯讀審查無阻擋，diff check通過；未重跑無關全套，也未宣稱全套本輪重新通過。尚未建立tag／Release。

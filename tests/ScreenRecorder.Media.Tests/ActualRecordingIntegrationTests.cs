@@ -335,6 +335,8 @@ public class ActualRecordingIntegrationTests : IDisposable
         var started = await sessionStore.LoadSessionAsync(sessionDirectory);
         Assert.NotNull(started);
 
+        using var stackObserver = new DelayedHeartbeatStackObserver(() =>
+            orchestrator.CurrentSession?.LastHeartbeatTime <= started.LastHeartbeatTime);
         await Task.Delay(2500);
         var whileRecording = await sessionStore.LoadSessionAsync(sessionDirectory);
         Assert.NotNull(whileRecording);

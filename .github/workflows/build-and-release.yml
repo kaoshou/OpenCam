@@ -65,6 +65,9 @@ jobs:
         $ffmpegBin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
     - name: Test Windows-compatible solution
       run: |
+        dotnet tool install dotnet-stack --version 8.0.547301 --tool-path "$env:RUNNER_TEMP\opencam-diagnostics"
+        if ($LASTEXITCODE -ne 0) { throw "Diagnostic tool installation failed" }
+        $env:OPENCAM_TEST_STACK_TOOL = "$env:RUNNER_TEMP\opencam-diagnostics\dotnet-stack.exe"
         dotnet restore ScreenRecorder.sln
         dotnet test ScreenRecorder.sln -c Release --no-restore -m:1 /nodeReuse:false
 
