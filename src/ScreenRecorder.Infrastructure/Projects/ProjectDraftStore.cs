@@ -59,7 +59,7 @@ internal static class ProjectDraftStore
                     old.Draft.BaseRevision == h.Current.Revision)
                     throw new InvalidOperationException("Resolve the existing edit draft first.");
             }
-            var json = Serialize(new(draft.Clips.Any(c => !c.Parts.IsEmpty) ? 3 : 1, draft));
+            var json = Serialize(new(!draft.Subtitles.Tracks.IsEmpty ? 4 : draft.Clips.Any(c => !c.Parts.IsEmpty) ? 3 : 1, draft));
             if (old is not null) await h.Root.WriteTextAsync(Name + ".bak", Serialize(old), ct);
             await h.Root.WriteTextAsync(Name, json, ct);
         }
@@ -91,7 +91,7 @@ internal static class ProjectDraftStore
             throw new InvalidDataException("Edit draft exceeds metadata limit.");
         using var document = JsonDocument.Parse(json);
         if (!document.RootElement.TryGetProperty("SchemaVersion", out var schema) ||
-            !schema.TryGetInt32(out var version) || version is not (1 or 3))
+            !schema.TryGetInt32(out var version) || version is not (1 or 3 or 4))
             throw new NotSupportedException("Unsupported draft schema; original files are unchanged.");
         return JsonSerializer.Deserialize<Envelope>(json, JsonProjectStore.JsonOptions)
             ?? throw new InvalidDataException("Missing edit draft.");
@@ -99,19 +99,21 @@ internal static class ProjectDraftStore
 
     private static void ValidateIdentity(JsonProjectStore.ProjectHandle h, Envelope e)
     {
-        if (e.SchemaVersion is not (1 or 3) || e.Draft is null || e.Draft.Id == Guid.Empty ||
+        if (e.SchemaVersion is not (1 or 3 or 4) || e.Draft is null || e.Draft.Id == Guid.Empty ||
             e.Draft.ProjectId != h.Current.ProjectId || e.Draft.Sequence < 1 || e.Draft.BaseRevision < 0)
             throw new InvalidDataException("Invalid edit draft identity.");
+        if (e.Draft.Subtitles is null || (!e.Draft.Subtitles.Tracks.IsEmpty && e.SchemaVersion != 4))
+            throw new InvalidDataException("Subtitle recovery draft requires schema 4.");
     }
 
     private static void ValidateDraft(JsonProjectStore.ProjectHandle h, ProjectEditDraft d, bool allowPreviousBase = false)
     {
-        ValidateIdentity(h, new(1, d));
+        ValidateIdentity(h, new(d.Subtitles?.Tracks.IsEmpty == false ? 4 : 1, d));
         if (h.NeedsRecoveryConfirmation || (d.BaseRevision != h.Current.Revision &&
             !(allowPreviousBase && d.BaseRevision == h.Current.RecoveryDraftBaseRevision)))
             throw new InvalidDataException("Edit draft does not match the saved project revision.");
-        ProjectValidation.Validate(h.Current with { Name = d.Name, Clips = d.Clips,
-            SchemaVersion = d.Clips.Any(c => !c.Parts.IsEmpty) ? 3 : h.Current.SchemaVersion });
+        ProjectValidation.Validate(h.Current with { Name = d.Name, Clips = d.Clips, Subtitles = d.Subtitles,
+            SchemaVersion = !d.Subtitles.Tracks.IsEmpty ? 4 : Math.Max(h.Current.SchemaVersion, d.Clips.Any(c => !c.Parts.IsEmpty) ? 3 : 1) });
     }
 
     private static string Serialize(Envelope e)

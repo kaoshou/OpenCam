@@ -73,4 +73,17 @@ public class ProjectSubtitleTests
     [Fact]
     public void CustomLanguageRequiresAlphabeticPrimaryCode() =>
         Assert.Throws<InvalidDataException>(() => ProjectSubtitleLanguage.Normalize("12-TW"));
+
+    [Fact]
+    public void TimelineSignatureIgnoresNamesAndAudioButDetectsTrimming()
+    {
+        var source = new ProjectSource { Id = Guid.NewGuid(), SessionId = "s1", RelativePath = "sources/a.mkv",
+            FileSize = 1, Sha256 = new string('A', 64), Timing = new(new(1, 30), 0, 90), Width = 320, Height = 240, VideoCodec = "h264" };
+        var clip = new ProjectClip { Id = Guid.NewGuid(), SourceId = source.Id, InPts = 0, OutPts = 90, Name = "片段" };
+        var project = new RecordingProject { ProjectId = Guid.NewGuid(), Name = "教材", Sources = [source], Clips = [clip], Sessions = ["s1"] };
+        var signature = ProjectSubtitleTimeline.Signature(project);
+        Assert.Matches("^[A-F0-9]{64}$", signature);
+        Assert.Equal(signature, ProjectSubtitleTimeline.Signature(project with { Name = "改名", Clips = [clip with { Name = "改片段名", Volume = .5 }] }));
+        Assert.NotEqual(signature, ProjectSubtitleTimeline.Signature(project with { Clips = [clip with { OutPts = 60 }] }));
+    }
 }

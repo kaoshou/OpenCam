@@ -9,11 +9,13 @@ public static class ProjectValidation
     public static void Validate(RecordingProject p)
     {
         Require(p is not null, "Missing project.");
-        Require(p.SchemaVersion is 1 or 3, "Unsupported project schema.");
+        Require(p.SchemaVersion is 1 or 3 or 4, "Unsupported project schema.");
         Require(p.ProjectId != Guid.Empty && p.Revision >= 0, "Invalid project identity.");
         Require(p.RecoveryDraftBaseRevision is null ||
             p.RecoveryDraftBaseRevision >= 0 && p.RecoveryDraftBaseRevision < p.Revision, "Invalid recovery draft base.");
         ValidateName(p.Name);
+        ValidateSubtitles(p.Subtitles);
+        Require(p.Subtitles.Tracks.IsEmpty || p.SchemaVersion == 4, "Subtitles require project schema 4.");
         Require(p.Canvas is not null && Dimension(p.Canvas.Width) && Dimension(p.Canvas.Height), "Invalid canvas.");
         Rational(p.Canvas.Fps);
         Require(!p.Sources.IsDefault && p.Sources.Length <= 10000 &&
@@ -56,7 +58,7 @@ public static class ProjectValidation
             }
             if (!c.Parts.IsEmpty)
             {
-                Require(p.SchemaVersion == 3 && c.SourceId == Guid.Empty && c.InPts == 0, "Invalid compound identity.");
+                Require(p.SchemaVersion >= 3 && c.SourceId == Guid.Empty && c.InPts == 0, "Invalid compound identity.");
                 Require(c.Parts.Length <= 10000 && c.Parts.All(x => x is not null && x.Parts.IsEmpty && x.GroupId is null), "Nested compound intervals are not supported.");
                 Validate(p with { Clips = c.Parts });
                 Require(ProjectTimeline.Build(p with { Clips = c.Parts }).DurationTicks == c.OutPts, "Invalid compound duration.");
@@ -87,6 +89,24 @@ public static class ProjectValidation
     public static void ValidateName(string name) =>
         Require(!string.IsNullOrWhiteSpace(name) && name.Length <= 200 &&
             name.IndexOfAny(['\0', '\r', '\n']) < 0, "Invalid project or clip name.");
+
+    public static void ValidateSubtitles(ProjectSubtitleSettings settings)
+    {
+        Require(settings is not null && !settings.Tracks.IsDefault && settings.Tracks.Length <= 32, "Invalid subtitle tracks.");
+        var ids = new HashSet<Guid>();
+        foreach (var track in settings.Tracks)
+        {
+            Require(track is not null && track.Id != Guid.Empty && ids.Add(track.Id), "Invalid or duplicate subtitle identity.");
+            ValidateName(track.OriginalName);
+            Require(ProjectSubtitleLanguage.Normalize(track.Language) == track.Language, "Invalid subtitle language.");
+            var extension = Path.GetExtension(track.RelativePath);
+            Require(extension is ".srt" or ".vtt" && track.RelativePath == $"subtitles/{track.Id:N}{extension}", "Invalid subtitle path.");
+            Require(track.FileSize is > 0 and <= 10 * 1024 * 1024 && track.Sha256 is { Length: 64 } &&
+                track.Sha256.All(Uri.IsHexDigit), "Invalid subtitle fingerprint.");
+            Require(track.TimelineSignature is { Length: 64 } && track.TimelineSignature.All(Uri.IsHexDigit), "Invalid subtitle timeline signature.");
+        }
+        Require(settings.DefaultTrackId is null || ids.Contains(settings.DefaultTrackId.Value), "Default subtitle track is missing.");
+    }
 
     private static bool Dimension(int value) => value is > 0 and <= 16384;
     private static bool FiniteRange(double value, double min, double max) =>

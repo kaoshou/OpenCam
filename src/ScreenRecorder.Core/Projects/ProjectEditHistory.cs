@@ -6,18 +6,29 @@ namespace ScreenRecorder.Core.Projects;
 /// <summary>In-memory edit history, separate from durable save acknowledgements.</summary>
 public sealed class ProjectEditHistory
 {
-    private sealed record Snapshot(string Name, ImmutableArray<ProjectClip> Clips);
+    private sealed record Snapshot(string Name, ImmutableArray<ProjectClip> Clips, ProjectSubtitleSettings Subtitles, int Schema);
     private readonly Stack<Snapshot> _undo = new();
     private readonly Stack<Snapshot> _redo = new();
-    private Snapshot Capture() => new(Current.Name, Current.Clips);
+    private Snapshot Capture() => new(Current.Name, Current.Clips, Current.Subtitles, Current.SchemaVersion);
+    private int _savedSchema;
     public RecordingProject Current { get; private set; }
     public bool CanUndo => _undo.Count > 0;
     public bool CanRedo => _redo.Count > 0;
+    public void SetSubtitles(ProjectSubtitleSettings subtitles)
+    {
+        ProjectValidation.ValidateSubtitles(subtitles);
+        if (Current.Subtitles.DefaultTrackId == subtitles.DefaultTrackId && Current.Subtitles.Tracks.SequenceEqual(subtitles.Tracks)) return;
+        var next = Current with { Subtitles = subtitles, Revision = checked(Current.Revision + 1),
+            SchemaVersion = subtitles.Tracks.IsEmpty ? Current.SchemaVersion : 4 };
+        ProjectValidation.Validate(next);
+        _undo.Push(Capture()); _redo.Clear(); Current = next;
+    }
 
     public ProjectEditHistory(RecordingProject project)
     {
         ProjectValidation.Validate(project);
         Current = project;
+        _savedSchema = project.SchemaVersion;
     }
 
     public void RenameProject(string name)
@@ -54,7 +65,7 @@ public sealed class ProjectEditHistory
         var clips = ProjectClipEditor.Apply(Current, edit);
         if (clips.SequenceEqual(Current.Clips)) return;
         var next = Current with { Revision = checked(Current.Revision + 1), Clips = clips,
-            SchemaVersion = clips.Any(c => !c.Parts.IsEmpty) ? 3 : Current.SchemaVersion };
+            SchemaVersion = Math.Max(Current.SchemaVersion, clips.Any(c => !c.Parts.IsEmpty) ? 3 : 1) };
         ProjectValidation.Validate(next);
         _ = ProjectTimeline.Build(next);
         _undo.Push(Capture());
@@ -67,10 +78,12 @@ public sealed class ProjectEditHistory
 
     public void AcceptSavedMetadata(RecordingProject project)
     {
-        if (project.ProjectId != Current.ProjectId || !project.Clips.SequenceEqual(Current.Clips) || project.Name != Current.Name)
+        if (project.ProjectId != Current.ProjectId || !project.Clips.SequenceEqual(Current.Clips) || project.Name != Current.Name ||
+            project.Subtitles.DefaultTrackId != Current.Subtitles.DefaultTrackId || !project.Subtitles.Tracks.SequenceEqual(Current.Subtitles.Tracks))
             throw new InvalidDataException("Saved metadata must preserve working edits.");
         ProjectValidation.Validate(project);
         Current = project;
+        _savedSchema = Math.Max(_savedSchema, project.SchemaVersion);
     }
 
     public void ReplaceEdits(RecordingProject project, bool retainUndo)
@@ -95,6 +108,7 @@ public sealed class ProjectEditHistory
         AppendToHistory(_undo, additions);
         AppendToHistory(_redo, additions);
         Current = committed;
+        _savedSchema = Math.Max(_savedSchema, committed.SchemaVersion);
     }
 
     /// <summary>One insertion is one Undo; sources remain owned even when its clips are undone.</summary>
@@ -108,6 +122,7 @@ public sealed class ProjectEditHistory
         _undo.Push(Capture());
         _redo.Clear();
         Current = committed;
+        _savedSchema = Math.Max(_savedSchema, committed.SchemaVersion);
     }
 
     private static void AppendToHistory(Stack<Snapshot> stack, ImmutableArray<ProjectClip> additions)
@@ -120,7 +135,8 @@ public sealed class ProjectEditHistory
     private void Restore(Stack<Snapshot> from, Stack<Snapshot> to)
     {
         if (from.Count == 0) return;
-        var next = Current with { Revision = checked(Current.Revision + 1), Name = from.Peek().Name, Clips = from.Peek().Clips };
+        var next = Current with { Revision = checked(Current.Revision + 1), Name = from.Peek().Name,
+            Clips = from.Peek().Clips, Subtitles = from.Peek().Subtitles, SchemaVersion = Math.Max(_savedSchema, from.Peek().Schema) };
         ProjectValidation.Validate(next);
         to.Push(Capture());
         from.Pop();

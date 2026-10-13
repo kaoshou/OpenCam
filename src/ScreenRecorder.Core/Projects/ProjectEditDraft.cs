@@ -4,4 +4,7 @@ using System.Collections.Immutable;
 namespace ScreenRecorder.Core.Projects;
 
 public sealed record ProjectEditDraft(Guid Id, Guid ProjectId, long BaseRevision, long Sequence,
-    string Name, ImmutableArray<ProjectClip> Clips);
+    string Name, ImmutableArray<ProjectClip> Clips)
+{
+    public ProjectSubtitleSettings Subtitles { get; init; } = ProjectSubtitleSettings.Empty;
+}

@@ -14,7 +14,8 @@ public sealed class ProjectEditSaveState
     public bool IsDirty(RecordingProject working)
     {
         EnsureSameProject(working);
-        return working.Name != _saved.Name || !working.Clips.SequenceEqual(_saved.Clips);
+        return working.Name != _saved.Name || !working.Clips.SequenceEqual(_saved.Clips) ||
+            working.Subtitles.DefaultTrackId != _saved.Subtitles.DefaultTrackId || !working.Subtitles.Tracks.SequenceEqual(_saved.Subtitles.Tracks);
     }
 
     public void AcceptSaved(RecordingProject saved)
@@ -27,7 +28,8 @@ public sealed class ProjectEditSaveState
     public RecordingProject DiscardEdits(RecordingProject working)
     {
         EnsureSameProject(working);
-        var next = working with { Name = _saved.Name, Clips = _saved.Clips,
+        var next = working with { Name = _saved.Name, Clips = _saved.Clips, Subtitles = _saved.Subtitles,
+            SchemaVersion = _saved.SchemaVersion,
             Revision = checked(working.Revision + 1) };
         ProjectValidation.Validate(next);
         return next;

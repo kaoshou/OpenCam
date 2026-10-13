@@ -78,7 +78,7 @@ public sealed class JsonProjectStore : IProjectStore
             !doc.RootElement.TryGetProperty("SchemaVersion", out var schema) ||
             schema.ValueKind != JsonValueKind.Number || !schema.TryGetInt32(out var version))
             throw new InvalidDataException("Missing project schema.");
-        if (version is not (1 or 3)) throw new NotSupportedException("Project schema is not supported; no files have been changed.");
+        if (version is not (1 or 3 or 4)) throw new NotSupportedException("Project schema is not supported; no files have been changed.");
         var project = JsonSerializer.Deserialize<RecordingProject>(json, JsonOptions)
             ?? throw new InvalidDataException("Missing project.");
         ProjectValidation.Validate(project);

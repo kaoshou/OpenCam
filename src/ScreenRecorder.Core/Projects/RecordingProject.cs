@@ -20,6 +20,7 @@ public sealed record RecordingProject
     public ImmutableArray<ProjectSource> Sources { get; init; } = [];
     public ImmutableArray<ProjectClip> Clips { get; init; } = [];
     public ImmutableArray<string> Sessions { get; init; } = [];
+    public ProjectSubtitleSettings Subtitles { get; init; } = ProjectSubtitleSettings.Empty;
     public ProjectViewState ViewState { get; init; } = new();
     public bool AutoExportOnStop { get; init; } = true;
     public Guid? ResolvedDraftId { get; init; }

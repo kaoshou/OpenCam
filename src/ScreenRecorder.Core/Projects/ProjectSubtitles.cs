@@ -12,6 +12,15 @@ public sealed record ProjectSubtitleSettings(ImmutableArray<ProjectSubtitleTrack
 
 public static class ProjectSubtitleTimeline
 {
+    public static string Signature(RecordingProject project)
+    {
+        var expanded = ProjectClipProjection.Expand(project);
+        var intervals = expanded.Clips.Select(c => new { c.SourceId, c.InPts, c.OutPts,
+            Source = expanded.Sources.Single(s => s.Id == c.SourceId).Sha256,
+            Timing = expanded.Sources.Single(s => s.Id == c.SourceId).Timing.TimeBase });
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(intervals)));
+    }
     public static string ActiveText(IReadOnlyList<ProjectSubtitleCue> cues, long ticks) =>
         string.Join("\n", cues.Where(c => ticks >= c.StartTicks && ticks < c.EndTicks).Select(c => c.Text));
 }
