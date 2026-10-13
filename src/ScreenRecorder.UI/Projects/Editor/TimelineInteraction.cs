@@ -3,7 +3,7 @@ using ScreenRecorder.Core.Projects;
 
 namespace ScreenRecorder.UI.Projects.Editor;
 
-public enum TimelineHit { LeftTrim, Move, RightTrim }
+public enum TimelineHit { Move }
 public sealed class TimelineInteraction
 {
     private ProjectClipEdit? _proposal;
@@ -24,7 +24,6 @@ public sealed class TimelineInteraction
     {
         if (!double.IsFinite(x) || !double.IsFinite(width) || width <= 0 || x < 0 || x > width)
             throw new ArgumentOutOfRangeException(nameof(x));
-        if (x <= Math.Min(10, width / 2)) return TimelineHit.LeftTrim;
-        return x >= Math.Max(width - 10, width / 2) ? TimelineHit.RightTrim : TimelineHit.Move;
+        return TimelineHit.Move;
     }
 }

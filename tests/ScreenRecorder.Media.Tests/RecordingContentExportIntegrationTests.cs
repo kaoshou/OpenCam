@@ -12,6 +12,38 @@ namespace ScreenRecorder.Media.Tests;
 
 public sealed class RecordingContentExportIntegrationTests
 {
+    [MacOsOnlyFact]
+    public async Task WebPackageContainsVerifiedVideoAudioAndMatchingChapters()
+    {
+        var root = Directory.CreateTempSubdirectory("OpenCam-web-media-");
+        try
+        {
+            await using var owner = await SingleClip(root.FullName, audio: true);
+            var ffmpeg = FFmpegDiscovery.FindFFmpegExecutable()!;
+            var exporter = new ProjectWebPlayerExporter(new ProjectFfmpegExporter(new MacProjectMediaProcess(ffmpeg)));
+            var output = Directory.CreateDirectory(Path.Combine(root.FullName, "out")).FullName;
+            var result = await exporter.ExportAsync(owner, owner.Current, output, Guid.NewGuid(), new Progress<double>(), default);
+            Assert.True(result.Success, result.Error);
+            var folder = Path.GetDirectoryName(result.FinalPath)!;
+            var media = Path.Combine(folder, "media.mp4");
+            var pixels = await Run(ffmpeg, ["-i", media, "-map", "0:v:0", "-an", "-pix_fmt", "rgb24",
+                "-c:v", "rawvideo", "-threads", "1", "-f", "rawvideo", "pipe:1"]);
+            Assert.Equal(9 * 64 * 36 * 3, pixels.Length);
+            var audio = await Run(ffmpeg, ["-i", media, "-vn", "-ac", "1", "-ar", "48000", "-f", "f32le", "pipe:1"]);
+            Assert.InRange(audio.Length / 4, 14400, 15424);
+            Assert.Contains(Enumerable.Range(2000, 4000), i => Math.Abs(BitConverter.ToSingle(audio, i * 4)) > .01);
+            var data = ProjectWebPlayerDocument.CreateData(owner.Current);
+            Assert.Single(data.Chapters);
+            Assert.Equal(.3, data.Chapters[0].End);
+            Assert.Equal(ProjectWebPlayerDocument.CreateScript(data), await File.ReadAllTextAsync(Path.Combine(folder, "opencam-player.js")));
+            Assert.Equal(3, Directory.GetFiles(folder).Length);
+            var source = owner.Current.Sources[0];
+            Assert.Equal(source.Sha256, Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(
+                Path.Combine(owner.ProjectDirectory, source.RelativePath)))));
+        }
+        finally { root.Delete(true); }
+    }
+
     [MacOsOnlyTheory]
     [InlineData("", false)]
     [InlineData("N/A", false)]

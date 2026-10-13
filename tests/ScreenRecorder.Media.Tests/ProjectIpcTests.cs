@@ -13,6 +13,38 @@ namespace ScreenRecorder.Media.Tests;
 public partial class RecordingEncoderLifecycleTests
 {
     [Avalonia.Headless.XUnit.AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ProjectIpc_DraggingClipEdgesPreservesAllSourceRanges(bool rightEdge)
+    {
+        await using var scope = new RecordingScope();
+        await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
+        var dispatcher = new ProjectIpcDispatcher(coordinator);
+        var vm = new ProjectWorkspaceViewModel(new ProjectClient((command, request, ct) => dispatcher.DispatchAsync(new()
+            { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) })));
+        await vm.CreateAsync(scope.Configuration.OutputDirectory, "Safe edge drag");
+        for (var i = 0; i < 2; i++) { await vm.StartAsync(scope.Configuration); await vm.PauseAsync(); }
+        var timeline = new ScreenRecorder.UI.Projects.Editor.ProjectTimelineControl { DataContext = vm };
+        var window = new Window { Content = timeline, Width = 800, Height = 240 };
+        window.Show(); window.UpdateLayout();
+        try
+        {
+            var ranges = vm.Clips.ToDictionary(c => c.Id, c => (c.InPts, c.OutPts));
+            var duration = vm.DurationTicks;
+            var firstEnd = 16 + (timeline.Bounds.Width - 32) * vm.TimelineClips[0].EndTicks / duration;
+            var start = new Point(rightEdge ? firstEnd - 2 : 18, 82);
+            var end = new Point(16 + (firstEnd - 16) / 2, 82);
+            Avalonia.Headless.HeadlessWindowExtensions.MouseDown(window, start, Avalonia.Input.MouseButton.Left);
+            Avalonia.Headless.HeadlessWindowExtensions.MouseMove(window, end);
+            Avalonia.Headless.HeadlessWindowExtensions.MouseUp(window, end, Avalonia.Input.MouseButton.Left);
+            await UntilAsync(() => !vm.IsBusy);
+            Assert.Equal(duration, vm.DurationTicks);
+            Assert.All(vm.Clips, c => Assert.Equal(ranges[c.Id], (c.InPts, c.OutPts)));
+        }
+        finally { window.Close(); await vm.FinishAsync(); }
+    }
+
+    [Avalonia.Headless.XUnit.AvaloniaTheory]
     [InlineData("return", true)]
     [InlineData("outside", true)]
     [InlineData("outside", false)]
@@ -172,9 +204,9 @@ public partial class RecordingEncoderLifecycleTests
             Avalonia.Headless.HeadlessWindowExtensions.MouseMove(window, new(18 + (width-32)/4,82));
             Avalonia.Headless.HeadlessWindowExtensions.MouseUp(window, new(18 + (width-32)/4,82), Avalonia.Input.MouseButton.Left);
             await UntilAsync(() => !vm.IsBusy);
-            Assert.Equal(500, coordinator.Current.Clips[0].InPts);
-            await vm.UndoAsync();
             Assert.Equal(0, coordinator.Current.Clips[0].InPts);
+            Assert.Equal(1000, coordinator.Current.Clips[0].OutPts);
+            Assert.Equal(revision + 1, coordinator.Current.Revision); // Edge drag cannot trim or create an edit.
             revision = coordinator.Current.Revision;
             Avalonia.Headless.HeadlessWindowExtensions.MouseDown(window, new(18,82), Avalonia.Input.MouseButton.Left);
             Avalonia.Headless.HeadlessWindowExtensions.MouseMove(window, new(18 + (width-32)/4,82));

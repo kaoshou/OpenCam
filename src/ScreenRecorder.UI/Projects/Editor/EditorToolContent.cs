@@ -59,6 +59,14 @@ public sealed class EditorToolContent : UserControl
             "thumbnail" => "M2,2 H14 V14 H2 Z M3,11 L6,7 L9,10 L11,8 L14,12 M10,5 H11",
             "export" => "M8,11 V2 M4,6 L8,2 L12,6 M2,10 V14 H14 V10",
             "insert" => "M2,2 V14 M14,2 V14 M8,4 V12 M4,8 H12",
+            "check" => "M2,8 L6,12 L14,3",
+            "move-up" => "M8,14 V2 M3,7 L8,2 L13,7",
+            "move-down" => "M8,2 V14 M3,9 L8,14 L13,9",
+            "merge-up" => "M2,14 V11 Q2,8 8,8 M14,14 V11 Q14,8 8,8 M8,8 V2 M5,5 L8,2 L11,5",
+            "merge-down" => "M2,2 V5 Q2,8 8,8 M14,2 V5 Q14,8 8,8 M8,8 V14 M5,11 L8,14 L11,11",
+            "group" => "M6,2 H2 V14 H6 M10,2 H14 V14 H10 M5,6 H11 V10 H5 Z",
+            "ungroup" => "M5,2 H2 V6 M11,2 H14 V6 M2,10 V14 H5 M14,10 V14 H11 M6,8 H10",
+            "refresh" => "M13,6 A5.5,5.5 0 1 0 13,11 M13,2 V6 H9",
             _ => "M2,3 H3 M6,3 H14 M2,8 H3 M6,8 H14 M2,13 H3 M6,13 H14"
         });
     }

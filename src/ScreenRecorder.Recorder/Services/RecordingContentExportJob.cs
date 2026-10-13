@@ -15,7 +15,7 @@ internal sealed class RecordingContentExportJob : IRecordingExportProgress, IDis
     public RecordingContentExportJob(IRecordingContentExporter exporter, IProjectHandle owner,
         RecordingProject snapshot, string outputDirectory,
         Func<IProjectHandle, RecordingProject, string, CancellationToken, Task>? writeReceipt = null,
-        string? fileName = null)
+        string? fileName = null, bool webPlayer = false)
     {
         _status = new(Guid.NewGuid(), snapshot.Revision, RecordingExportState.Running, 0);
         Completion = Task.Run(async () =>
@@ -23,7 +23,8 @@ internal sealed class RecordingContentExportJob : IRecordingExportProgress, IDis
             try
             {
                 using var destination = fileName is null ? null : ScreenRecorder.Infrastructure.Session.BoundDirectory.Open(outputDirectory);
-                var result = await exporter.ExportAsync(owner, snapshot, outputDirectory, _status.ExportId, this, _cancellation.Token);
+                IRecordingContentExporter outputExporter = webPlayer ? new ProjectWebPlayerExporter(exporter) : exporter;
+                var result = await outputExporter.ExportAsync(owner, snapshot, outputDirectory, _status.ExportId, this, _cancellation.Token);
                 if (destination is not null && result.Success && result.FinalPath is { } generated)
                 {
                     using var generatedDirectory = ScreenRecorder.Infrastructure.Session.BoundDirectory.Open(Path.GetDirectoryName(generated)!);
@@ -33,7 +34,7 @@ internal sealed class RecordingContentExportJob : IRecordingExportProgress, IDis
                     // Atomic no-replace publication: a newly appeared file is never overwritten.
                     result = result with { FinalPath = destination.PublishVerified(Path.GetFileName(generated), fileName!) };
                 }
-                if (result.Success && !string.IsNullOrWhiteSpace(result.FinalPath))
+                if (!webPlayer && result.Success && !string.IsNullOrWhiteSpace(result.FinalPath))
                 {
                     using var receiptDeadline = CancellationTokenSource.CreateLinkedTokenSource(_cancellation.Token);
                     receiptDeadline.CancelAfter(TimeSpan.FromSeconds(3));

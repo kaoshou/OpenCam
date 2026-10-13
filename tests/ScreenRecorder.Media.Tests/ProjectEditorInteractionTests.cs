@@ -44,9 +44,11 @@ public sealed class ProjectEditorInteractionTests
     }
 
     [Theory]
-    [InlineData(5,100,TimelineHit.LeftTrim)]
-    [InlineData(95,100,TimelineHit.RightTrim)]
+    [InlineData(0,100,TimelineHit.Move)]
+    [InlineData(5,100,TimelineHit.Move)]
+    [InlineData(95,100,TimelineHit.Move)]
+    [InlineData(100,100,TimelineHit.Move)]
     [InlineData(50,100,TimelineHit.Move)]
-    public void EdgesHaveTenLogicalPixelTargets(double x, double width, TimelineHit expected)
+    public void EdgesOnlyReorderAndNeverOfferTrimming(double x, double width, TimelineHit expected)
         => Assert.Equal(expected, TimelineInteraction.HitTest(x, width));
 }

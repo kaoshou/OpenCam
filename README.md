@@ -8,13 +8,17 @@
 
 OpenCam 讓你錄影、剪輯，再繼續錄影。這款以可靠性為優先的跨平台桌面工具使用 MKV 保存原始錄影片段，透過可重開的專案保存剪輯，並在需要時輸出 MP4。
 
+v0.3.3 新增「輸出… → 網頁播放器」：選擇存放位置後，建立獨立資料夾，內含 `index.html`、`media.mp4` 與 `opencam-player.js`。章節依剪輯後的片段名稱、順序與時間產生，合併片段保留為一個章節。整個資料夾可離線開啟或上傳網站；無需 EverCam 原有檔案或轉換步驟。影片底部提供進度、音量、倍速、寬螢幕及全螢幕控制；章節顯示起始時間與片段長度，超出時可捲動。`opencam-player.js` 使用固定識別格式，方便 Video-to-Subtitle 等工具辨識及讀取章節。詳見[網頁輸出格式](docs/WEB_PLAYER_EXPORT.md)。
+
 本軟體以 .NET 8 與 Avalonia UI 打造，並使用 FFmpeg 作為核心多媒體引擎，支援 Windows 與 macOS。
 
 📖 [完整使用說明（繁體中文）](docs/USER_GUIDE.zh-TW.md) ｜ [English User Guide](docs/USER_GUIDE.en-US.md)
 
 🌐 [OpenCam 官方網站](https://kaoshou.github.io/OpenCam/)（可切換繁體中文／English）
 
-目前原始碼版本為 **0.3.2**，採用 **AGPL-3.0-or-later**。Windows 原生錄影、編輯影音預覽、輸出與長時間音畫同步實機驗收仍待完成；Windows FFmpeg 完整對應原始碼核對亦尚未完成。套件未簽章，發布不代表全部驗收通過。請保留重要素材備份，已發布安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。詳見 [v0.3.2 更新與限制](docs/releases/v0.3.2.md)。
+目前原始碼版本為 **0.3.3**，採用 **AGPL-3.0-or-later**。Windows 原生錄影、編輯影音預覽、輸出與長時間音畫同步實機驗收仍待完成；Windows FFmpeg 完整對應原始碼核對亦尚未完成。套件未簽章，發布不代表全部驗收通過。請保留重要素材備份，已發布安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。詳見 [v0.3.3 更新與限制](docs/releases/v0.3.3.md)。
+
+**v0.3.3** 新增可辨識的離線網頁播放器輸出；時間軸拖曳只調整排序，不再以邊緣拖曳裁剪。明確的分割／刪除範圍與復原操作保留，右側片段操作按鈕統一排列與圖示。先前已誤裁的片段不會自動改寫。
 
 **v0.3.2** 改善全螢幕預覽進度控制、片段合併及右鍵群組操作、離開編輯器的儲存提醒與 MP4 檔名選擇；新增專案總錄影時間，允許暫停時切換自動輸出，並修正缺少封包長度的 MKV 導致停止失敗。合併片段使用 schema 3，舊版無法開啟；舊專案已保存的少算時間不會自動更正。
 
@@ -179,13 +183,17 @@ v0.2.0 的完整安裝檔請至 [OpenCam v0.2.0 Release](https://github.com/kaos
 
 OpenCam lets you record, edit, and resume recording. This reliability-first cross-platform desktop tool retains original MKV segments, saves edits in a project you can reopen, and exports MP4 when needed.
 
+v0.3.3 adds **Export… → Web player**. Choose a parent location to create a new folder containing `index.html`, `media.mp4`, and `opencam-player.js`. Chapters follow the edited clip names, order and timing; merged clips remain one chapter. Open the folder offline or upload it to a website, with no EverCam conversion required. An overlay provides seeking, volume, playback speed, wide-screen mode and fullscreen; scrollable chapters show start times and durations. The fixed data format supports identification and chapter extraction by Video-to-Subtitle and similar tools; see [the export format](docs/WEB_PLAYER_EXPORT.md).
+
 OpenCam is built with .NET 8, Avalonia UI, and FFmpeg, and supports Windows and macOS.
 
 📖 [Complete User Guide](docs/USER_GUIDE.en-US.md) | [繁體中文使用說明](docs/USER_GUIDE.zh-TW.md)
 
 🌐 [OpenCam official website](https://kaoshou.github.io/OpenCam/) (English / 繁體中文)
 
-The current source version is **0.3.2**, under **AGPL-3.0-or-later**. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending, as does verification of complete corresponding sources for the Windows FFmpeg build. Packages are unsigned; publication does not establish complete acceptance. Keep backups of important media. Published packages are available from [Releases](https://github.com/kaoshou/OpenCam/releases); see [v0.3.2 changes and limitations](docs/releases/v0.3.2.md).
+The current source version is **0.3.3**, under **AGPL-3.0-or-later**. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending, as does verification of complete corresponding sources for the Windows FFmpeg build. Packages are unsigned; publication does not establish complete acceptance. Keep backups of important media. Published packages are available from [Releases](https://github.com/kaoshou/OpenCam/releases); see [v0.3.3 changes and limitations](docs/releases/v0.3.3.md).
+
+**v0.3.3** adds identifiable offline web-player exports. Timeline dragging only reorders clips and no longer trims their edges; explicit split/range deletion and undo remain available. Inspector actions have consistent icon buttons. Existing accidentally trimmed ranges are not rewritten automatically.
 
 **v0.3.2** improves fullscreen seeking, clip merging and context-menu grouping, exit/save prompts and MP4 filename selection. It adds project recording duration, allows toggling automatic export while paused, and fixes stopping failures with MKVs missing packet duration. Merged clips require schema 3 and cannot be opened by older versions; previously saved underestimated timings are not corrected automatically.
 

@@ -16,10 +16,10 @@ export const content = {
   'zh-TW': {
     eyebrow: 'Windows 與 macOS 的簡單錄影與剪輯工具',
     heroTitle: '<span class="hero-line">把重要的畫面，</span><em class="hero-line">好好錄下來。</em>',
-    heroText: '錄影、剪輯、續錄，一次完成。選擇螢幕或範圍即可錄製；需要整理時，再裁剪、重排片段並輸出 MP4。原始 MKV 素材保留在專案中。',
+    heroText: '錄影、剪輯、續錄，一次完成。選擇螢幕或範圍即可錄製；整理片段後，輸出 MP4 或有章節索引的網頁播放器。原始 MKV 素材保留在專案中。',
     downloadLabel: '下載 OpenCam', guideLabel: '閱讀使用說明',
     openSource: '開放原始碼 · 免費使用',
-    licenseReleaseNote: `此頁介紹準備中的 ${displayVersion}，尚未發布；Windows 實機驗收與 FFmpeg 來源核對仍待完成。已發布版本請至 Releases 下載。AGPL-3.0-or-later。`,
+    licenseReleaseNote: `此頁介紹 ${displayVersion} 原始碼功能；Windows 實機驗收、瀏覽器視覺驗收與 FFmpeg 來源核對仍待完成。已發布版本請至 Releases 下載，發布不代表全部驗收通過。AGPL-3.0-or-later。`,
     screenshotTitle: '每一步，都清楚直覺。',
     screenshotText: '從開始錄影到整理片段，保留熟悉而簡單的操作。錄影中分別查看兩種收音波形；需要剪輯時，再開啟時間軸。點開圖片可閱讀原尺寸文字。',
     mainAlt: `OpenCam ${mainScreenshotVersion} macOS 繁體中文錄影中主畫面，右側顯示系統聲音與麥克風收音波形`,
@@ -29,7 +29,7 @@ export const content = {
     editorText: '上方預覽、下方時間軸，搭配縮圖與波形定位。分割、裁剪或刪除不需要的部分，也能拖曳左側片段清單調整順序。儲存專案不必立即輸出 MP4，下次可從首頁開啟並追加錄製。',
     editorAlt: `OpenCam ${mainScreenshotVersion} 繁體中文剪輯器，顯示教學簡報影片、片段縮圖、音訊波形與時間軸`,
     editorCaption: `編輯錄製內容 · ${mainScreenshotVersion} · 自製教學影片`,
-    editorPoints: ['原始素材保留，支援復原與重做', '預覽畫質、大小、全螢幕與聲音開關', '儲存專案與輸出 MP4 分開操作'],
+    editorPoints: ['原始素材保留，拖曳只排序，裁剪使用明確操作', '預覽畫質、大小、全螢幕與聲音開關', '儲存專案與 MP4／網頁播放器輸出分開操作'],
     fullSizeLabel: '開啟原尺寸圖片',
     featuresTitle: '簡單上手，細節也到位。',
     features: [
@@ -38,7 +38,8 @@ export const content = {
       ['03', '時間軸剪輯', '用縮圖與波形定位，分割、裁剪、刪除範圍並重排片段。'],
       ['04', '保存專案，下次續錄', '可只儲存專案、不輸出 MP4；日後重新開啟，再追加錄影與編輯。'],
       ['05', '防誤關與自動回退', '錄影中關閉視窗會先提醒；硬體編碼不可用時可回退 CPU。'],
-      ['06', '修復救援', '意外中斷後，可嘗試救回已寫入的 MKV 錄影片段。']
+      ['06', '修復救援', '意外中斷後，可嘗試救回已寫入的 MKV 錄影片段。'],
+      ['07', '網頁播放器輸出', '包含影片、章節起始與長度，以及音量、速度、寬螢幕和全螢幕控制；可離線開啟或整包上傳網站。']
     ],
     processEyebrow: '錄影機制', processTitle: '先保留錄影，再交付 MP4。',
     processText: '錄影先寫入 MKV，專案保留原始素材與剪輯決策。停止後可自動輸出，也可留到編輯完成再輸出。相容的完整素材可快速封裝；裁剪、效果或不相容素材會重新編碼，輸出時間依內容而定。',
@@ -51,10 +52,10 @@ export const content = {
   'en-US': {
     eyebrow: 'Simple recording and editing for Windows and macOS',
     heroTitle: '<span class="hero-line">Capture what matters.</span><em class="hero-line">Keep it safe.</em>',
-    heroText: 'Record, edit and continue in one place. Capture a display or region, then trim and reorder clips when needed. Export MP4 while keeping the original MKV media in your project.',
+    heroText: 'Record, edit and continue in one place. Capture a display or region, then organize clips and export MP4 or a web player with chapters. Keep the original MKV media in your project.',
     downloadLabel: 'Download OpenCam', guideLabel: 'Read the user guide',
     openSource: 'Open source · Free to use',
-    licenseReleaseNote: `This page previews ${displayVersion}, not yet released. Windows device acceptance and FFmpeg source verification remain pending. Download published versions from Releases. AGPL-3.0-or-later.`,
+    licenseReleaseNote: `This page describes ${displayVersion} source features. Windows device acceptance, browser visual acceptance and FFmpeg source verification remain pending. Download published versions from Releases; publication does not establish complete acceptance. AGPL-3.0-or-later.`,
     screenshotTitle: 'Clear from the first click.',
     screenshotText: 'Keep recording simple, then open the timeline when you need to edit. Separate audio waveforms help monitor capture. Open each image at full size to read its labels.',
     mainAlt: `OpenCam ${mainScreenshotVersion} macOS English Recording screen with live system-audio and microphone audio waveforms`,
@@ -64,7 +65,7 @@ export const content = {
     editorText: 'Preview above, timeline below. Use thumbnails and waveforms to find the right moment, split and trim clips, remove a range, or drag the clip list to reorder. Save the project without exporting, then reopen it from home to append another recording.',
     editorAlt: `OpenCam ${mainScreenshotVersion} English editor with an authored tutorial video, clip thumbnails, audio waveforms and timeline`,
     editorCaption: `Edit recording · ${mainScreenshotVersion} · Authored tutorial video`,
-    editorPoints: ['Keep source media, with undo and redo', 'Choose preview quality, size, full screen and sound on/off', 'Save projects independently of MP4 export'],
+    editorPoints: ['Keep sources; drag only reorders, trimming is explicit', 'Choose preview quality, size, full screen and sound on/off', 'Save independently of MP4 or web-player export'],
     fullSizeLabel: 'Open full-size image',
     featuresTitle: 'Easy to start. Ready for the details.',
     features: [
@@ -73,7 +74,8 @@ export const content = {
       ['03', 'Timeline editing', 'Locate content with thumbnails and waveforms, then split, trim, delete ranges and reorder clips.'],
       ['04', 'Save now, record again later', 'Save a project without exporting MP4, reopen it later and append more recordings.'],
       ['05', 'Close protection and fallback', 'Closing during recording prompts a warning; unavailable hardware encoding can fall back to CPU.'],
-      ['06', 'Crash Recovery', 'After an interruption, attempt to salvage MKV segments already written.']
+      ['06', 'Crash Recovery', 'After an interruption, attempt to salvage MKV segments already written.'],
+      ['07', 'Web player export', 'Package video with chapter starts and durations, volume, speed, wide-screen and fullscreen controls. Open offline or upload the entire folder.']
     ],
     processEyebrow: 'How recording works', processTitle: 'Preserve first. Deliver MP4 afterward.',
     processText: 'Recordings are written to MKV; projects retain source media and editing decisions. Export automatically on stop or wait until editing is finished. Compatible whole recordings can be remuxed quickly; trims, effects or incompatible media require encoding. Export time depends on the content.',

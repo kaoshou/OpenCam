@@ -10,7 +10,9 @@ Change capture mode only while idle, not while paused. Existing audio/cursor con
 
 OpenCam lets you record, edit, and resume recording. It writes MKV sources, retains them alongside a reopenable editing project, and exports MP4 when needed. Crash Recovery can attempt to preserve successfully written recordings; project recovery drafts protect interrupted unsaved edits.
 
-> This guide covers OpenCam v0.3.2, not a claim of completed acceptance. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending. Complete corresponding-source verification for Windows FFmpeg also remains pending, and packages are unsigned. Use disposable media; see the [release notes and limitations](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.3.2.md).
+> This guide covers OpenCam v0.3.3, not a claim of completed acceptance. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending. Complete corresponding-source verification for Windows FFmpeg also remains pending, and packages are unsigned. Use disposable media; see the [release notes and limitations](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.3.3.md).
+
+v0.3.3 replaces manual export with an **Export…** menu offering MP4 video or Web player. MP4 accepts a filename; Web player creates a unique folder containing index.html, media.mp4 and opencam-player.js. Chapters follow saved clips and show start times and durations in a scrollable index. Overlay controls provide seeking, volume, speed, wide-screen and fullscreen. Move the complete folder together and use an H.264/AAC-capable browser. See [the web export format](https://github.com/kaoshou/OpenCam/blob/master/docs/WEB_PLAYER_EXPORT.md).
 
 v0.3.2 adds fullscreen seeking, clip context menus, adjacent merging and connected group borders. Selecting a clip seeks its beginning; MP4 export accepts a destination and filename. The home screen shows total project recording time and allows changing automatic export while paused. Merging clips upgrades the project to schema 3, which older versions cannot open; back up the entire project before upgrading.
 
@@ -29,7 +31,7 @@ See the [README](../README.md) for Windows portable testing instructions. Start 
 
 ### Editing, preview and saving
 
-- Select clips in the left list or timeline; drag in either area to reorder. Seek in the timeline to trim, split at the playhead, or delete a selected range/whole clip. Undo/redo lets you revise editing operations.
+- Select clips in the left list or timeline; dragging only reorders and never trims clip edges. Seek and explicitly split at the playhead or delete a selected range/whole clip. Undo/redo lets you revise edits; previously saved accidental trims are not restored automatically.
 - Clip properties include name, volume (0–200%), mute, fades, crop, scale and position. Apply property changes to commit them to the edit recipe. The pencil beside the title renames the project without moving its folder or original MKVs.
 - Preview supports play/pause, seeking, quality selection, a resizable area and fullscreen. Preview sound is on/off, with no separate volume slider; it does not change exported audio. Original-resolution preview is subject to a frame-memory limit. Preview quality does not change export settings.
 - Explicit Save commits the editing version. A recovery draft protects interrupted edits; it is not a saved version or an updated MP4. Switching/closing with unsaved changes offers Save, Discard or Cancel. Reopening a recoverable draft offers a restore decision.

@@ -13,6 +13,7 @@ public sealed record ProjectRequest
     public long ExpectedRevision { get; init; }
     public string? Path { get; init; }
     public bool PathIsExportFile { get; init; }
+    public bool ExportWebPlayer { get; init; }
     public string? Name { get; init; }
     public Guid ClipId { get; init; }
     public long TimelineTicks { get; init; }

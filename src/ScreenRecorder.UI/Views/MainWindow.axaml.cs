@@ -32,6 +32,7 @@ public partial class MainWindow : Window
                 _identificationViewModel.RequestUnsavedProjectDecision = null;
                 _identificationViewModel.RequestProjectDraftRecovery = null;
                 _identificationViewModel.RequestMp4Destination = null;
+                _identificationViewModel.RequestWebPlayerDestination = null;
             }
             _displayIdentification.Close();
             _identificationViewModel = DataContext as MainViewModel;
@@ -44,6 +45,7 @@ public partial class MainWindow : Window
             {
                 vm.RequestRecordingProjectName = AskRecordingProjectNameAsync;
                 vm.RequestMp4Destination = name => ScreenRecorder.UI.Projects.ProjectExportFileDialog.ChooseAsync(this, name);
+                vm.RequestWebPlayerDestination = () => ScreenRecorder.UI.Projects.ProjectExportFileDialog.ChooseWebParentAsync(this);
                 vm.RequestUnsavedProjectDecision = () => ScreenRecorder.UI.Projects.ProjectSaveDialogs.AskUnsavedAsync(
                     _projectWindow?.IsVisible == true ? _projectWindow : this);
                 vm.RequestProjectDraftRecovery = () => ScreenRecorder.UI.Projects.ProjectSaveDialogs.AskRecoveryAsync(

@@ -132,10 +132,14 @@
                             <TextBlock Text="{Binding Strings[Recovery]}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
-                    <Button Command="{Binding ExportRecordingContentCommand}" IsEnabled="{Binding CanExportRecordingContent}" Height="36"
+                    <Button IsEnabled="{Binding CanExportRecordingContent}" Height="36"
                             IsVisible="{Binding UsesRecordingContent}" Padding="11,7.5" CornerRadius="8"
                             Background="#EFF6FF" Foreground="#1D4ED8" BorderBrush="#BFDBFE" BorderThickness="1">
-                        <editor:EditorToolContent Icon="export" Text="{Binding Strings[ProjectExportMp4]}"/>
+                        <Button.Flyout><MenuFlyout>
+                            <MenuItem Header="{Binding Strings[ProjectExportVideo]}" Command="{Binding ExportRecordingContentCommand}"/>
+                            <MenuItem Header="{Binding Strings[ProjectExportWeb]}" Command="{Binding ExportWebPlayerCommand}"/>
+                        </MenuFlyout></Button.Flyout>
+                        <StackPanel Orientation="Horizontal" Spacing="7"><editor:EditorToolContent Icon="export" Text="{Binding Strings[ProjectExportMenu]}"/><TextBlock Text="⌄" VerticalAlignment="Center"/></StackPanel>
                     </Button>
                 </StackPanel>
             </Grid>

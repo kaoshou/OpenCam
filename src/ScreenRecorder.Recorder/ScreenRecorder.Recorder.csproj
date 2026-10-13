@@ -18,7 +18,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="ScreenRecorder.Media.Tests" />
+    <EmbeddedResource Include="WebPlayer/player.html" LogicalName="OpenCam.WebPlayer.html" />
   </ItemGroup>
 
 </Project>
-

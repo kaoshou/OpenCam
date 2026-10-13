@@ -118,6 +118,12 @@ public partial class ProjectWorkspaceView : Window
         if (await ProjectExportFileDialog.ChooseAsync(this, Model.State.Name) is { } path)
             await Model.ExportFileAsync(path);
     }
+    private async void OnExportWebPlayer(object? sender, RoutedEventArgs e)
+    {
+        if (!Model.CanExport) return;
+        if (await ProjectExportFileDialog.ChooseWebParentAsync(this) is { } path)
+            await Model.ExportWebPlayerAsync(path);
+    }
 
     private async void OnCaptureSettings(object? sender, RoutedEventArgs e)
     {

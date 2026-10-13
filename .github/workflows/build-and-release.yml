@@ -47,6 +47,7 @@ jobs:
       run: |
         npm ci --prefix website
         npm test --prefix website
+        node --test tests/web-player/player.test.mjs
 
   verify-windows:
     runs-on: windows-latest
@@ -92,6 +93,7 @@ jobs:
       run: |
         npm ci --prefix website
         npm test --prefix website
+        node --test tests/web-player/player.test.mjs
     - name: Test native system-audio helper
       run: bash tests/native/OpenCamSystemAudioTests.sh
 

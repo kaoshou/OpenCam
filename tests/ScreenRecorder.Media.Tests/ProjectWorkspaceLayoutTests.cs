@@ -143,7 +143,8 @@ public sealed class ProjectWorkspaceLayoutTests
             window.UpdateLayout();
             var card = window.FindControl<Border>("InspectorPane")!;
             var action = card.GetVisualDescendants().OfType<Button>()
-                .Single(button => Equals(button.Content, vm.Strings["ProjectRefresh"]));
+                .Single(button => button.GetVisualDescendants().OfType<TextBlock>()
+                    .Any(text => text.Text == vm.Strings["ProjectRefresh"]));
             var scroll = card.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
             if (scroll is not null)
             {

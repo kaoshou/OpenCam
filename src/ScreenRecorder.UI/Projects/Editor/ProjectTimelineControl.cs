@@ -19,8 +19,6 @@ public sealed class ProjectTimelineControl : Control
     private long _gestureRevision;
     private double _downX, _zoom = 1, _offset;
     private bool _seeking, _dragging;
-    private TimelineHit _hit;
-    private double _dragX;
     private double TrackWidth => Math.Max(1, Bounds.Width - 32);
     internal Rect VideoTrackBounds => new(16, 52, TrackWidth, Math.Clamp(Bounds.Height - 102, 36, 76));
     internal Rect AudioTrackBounds => new(16, VideoTrackBounds.Bottom + 6, TrackWidth,
@@ -86,8 +84,6 @@ public sealed class ProjectTimelineControl : Control
             context.DrawRectangle(fill, outline, rectangle, 6, 6);
             using (context.PushClip(rectangle))
             {
-                context.DrawLine(stroke, new(left+5, rectangle.Top + 10), new(left+5, rectangle.Bottom - 10));
-                context.DrawLine(stroke, new(right-5, rectangle.Top + 10), new(right-5, rectangle.Bottom - 10));
                 Text(context, clip.Name, left + 12, 65, ink, Math.Max(1, right-left-24), 14);
                 var duration = TimeSpan.FromTicks(span.EndTicks - span.StartTicks);
                 Text(context, $"{duration.TotalSeconds:0.###} s" + (clip.GroupId is null ? "" : "  ⛓"), left+12, 99, ink, Math.Max(1,right-left-24), 12);
@@ -133,7 +129,7 @@ public sealed class ProjectTimelineControl : Control
         if (_dragging)
         {
             var target = _beforeClip is Guid before ? vm.TimelineClips.First(c => c.ClipId == before).StartTicks : vm.DurationTicks;
-            var x = _hit == TimelineHit.Move ? X(target) : _dragX;
+            var x = X(target);
             context.DrawLine(new Pen(Brushes.Orange, 3), new(x, 48), new(x, 134));
         }
     }
@@ -158,8 +154,6 @@ public sealed class ProjectTimelineControl : Control
             if (span is null) return;
             vm.SelectedClip = vm.Clips.First(c => c.Id == span.ClipId);
             _movingClip = span.ClipId;
-            var width = X(span.EndTicks) - X(span.StartTicks);
-            _hit = TimelineInteraction.HitTest(Math.Clamp(point.X - X(span.StartTicks), 0, width), width);
         }
         else return;
         _pointer = e.Pointer;
@@ -180,9 +174,7 @@ public sealed class ProjectTimelineControl : Control
         if (_movingClip is not null)
         {
             _dragging = Math.Abs(x - _downX) > 5;
-            _dragX = x;
             if (!_dragging) { _beforeClip = null; InvalidateVisual(); return; }
-            if (_hit != TimelineHit.Move) { InvalidateVisual(); return; }
             var target = vm.TimelineClips.FirstOrDefault(c => x < (X(c.StartTicks) + X(c.EndTicks)) / 2);
             _beforeClip = target?.ClipId;
             if (_beforeClip is Guid id)
@@ -206,15 +198,12 @@ public sealed class ProjectTimelineControl : Control
         UpdateGesture(point);
         var moving = _movingClip; var before = _beforeClip;
         var commit = _dragging && _model?.CanEditTimeline == true && _model.State.Revision == _gestureRevision;
-        var hit = _hit;
-        var clicked = !_dragging && !_seeking && _hit == TimelineHit.Move ? _movingClip : null;
-        var delta = (long)Math.Clamp((_dragX - _downX) / TrackWidth * VisibleTicks, long.MinValue + 1024d, long.MaxValue - 1024d);
+        var clicked = !_dragging && !_seeking ? _movingClip : null;
         CancelGesture();
         if (clicked is Guid clickedId) _ = _model!.SelectClipForPlaybackAsync(clickedId);
         if (commit && moving is Guid id)
         {
-            if (hit == TimelineHit.Move) _ = _model!.MoveClipAsync(id, before);
-            else _ = _model!.TrimEdgeAsync(id, hit == TimelineHit.LeftTrim, delta);
+            _ = _model!.MoveClipAsync(id, before);
         }
     }
     protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e) { base.OnPointerCaptureLost(e); CancelGesture(); }

@@ -6,6 +6,15 @@ namespace ScreenRecorder.UI.Projects;
 
 internal static class ProjectExportFileDialog
 {
+    public static async Task<string?> ChooseWebParentAsync(Window owner)
+    {
+        var folders = await owner.StorageProvider.OpenFolderPickerAsync(new()
+        {
+            Title = Localization.LanguageManager.Instance["ProjectWebOutputLocation"],
+            AllowMultiple = false
+        });
+        return folders.Count == 1 ? folders[0].TryGetLocalPath() : null;
+    }
     public static async Task<string?> ChooseAsync(Window owner, string name)
     {
         var file = await owner.StorageProvider.SaveFilePickerAsync(new()

@@ -24,6 +24,13 @@ public partial class MainViewModel
     public bool CanExportRecordingContent => !IsProjectWorkspaceOpen && _content?.Workspace.CanExport == true;
     public Task SetProjectAutoExportAsync(bool value) => _content?.Workspace.SetAutoExportOnStopAsync(value) ?? Task.CompletedTask;
     public Func<string, Task<string?>>? RequestMp4Destination { get; set; }
+    public Func<Task<string?>>? RequestWebPlayerDestination { get; set; }
+    [RelayCommand] public async Task ExportWebPlayerAsync()
+    {
+        if (!CanExportRecordingContent || RequestWebPlayerDestination is null) return;
+        var path = await RequestWebPlayerDestination();
+        if (path is not null && CanExportRecordingContent) await _content!.Workspace.ExportWebPlayerAsync(path);
+    }
     [RelayCommand] public async Task ExportRecordingContentAsync()
     {
         if (!CanExportRecordingContent || RequestMp4Destination is null) return;

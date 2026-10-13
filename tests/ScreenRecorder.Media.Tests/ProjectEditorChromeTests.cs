@@ -17,6 +17,38 @@ namespace ScreenRecorder.Media.Tests;
 public sealed class ProjectEditorChromeTests
 {
     [AvaloniaTheory]
+    [InlineData(AppLanguage.ZhTw)]
+    [InlineData(AppLanguage.EnUs)]
+    public async Task InspectorActionsUseConsistentIconButtons(AppLanguage language)
+    {
+        var previous = LanguageManager.Instance.CurrentLanguage;
+        LanguageManager.Instance.CurrentLanguage = language;
+        var vm = new ProjectWorkspaceViewModel(new TimedClipClient());
+        await vm.RefreshAsync();
+        var window = new ProjectWorkspaceView { DataContext = vm, Width = 1440, Height = 900 };
+        try
+        {
+            window.Show(); window.UpdateLayout();
+            var pane = window.FindControl<Border>("InspectorPane")!;
+            var buttons = pane.GetVisualDescendants().OfType<Button>()
+                .Where(b => b.Classes.Contains("inspectorAction")).ToArray();
+            Assert.Equal(10, buttons.Length);
+            foreach (var button in buttons)
+            {
+                var content = Assert.IsType<EditorToolContent>(button.Content);
+                Assert.False(string.IsNullOrWhiteSpace(content.Text));
+                Assert.NotNull(content.GetVisualDescendants().OfType<Path>().Single().Data);
+                Assert.Equal(38, button.MinHeight);
+                Assert.Equal(12, content.GetVisualDescendants().OfType<TextBlock>().Single().FontSize);
+            }
+            var apply = window.FindControl<Button>("ApplyPropertiesButton")!;
+            var label = apply.GetVisualDescendants().OfType<TextBlock>().Single();
+            Assert.Equal(Avalonia.Media.Colors.White, Assert.IsAssignableFrom<Avalonia.Media.ISolidColorBrush>(label.Foreground).Color);
+        }
+        finally { await window.RequestCloseAsync(); LanguageManager.Instance.CurrentLanguage = previous; }
+    }
+
+    [AvaloniaTheory]
     [InlineData(AppLanguage.ZhTw, "編輯錄製內容", false)]
     [InlineData(AppLanguage.EnUs, "Edit Recording", false)]
     [InlineData(AppLanguage.ZhTw, "編輯錄製內容", true)]
@@ -58,7 +90,7 @@ public sealed class ProjectEditorChromeTests
         {
             window.Show(); window.UpdateLayout();
             var button = window.FindControl<Button>("ExportButton")!;
-            var label = button.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Text == vm.Strings["ProjectExportMp4"]);
+            var label = button.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Text == vm.Strings["ProjectExportMenu"]);
             Assert.Equal(Avalonia.Media.Colors.White, Assert.IsAssignableFrom<Avalonia.Media.ISolidColorBrush>(label.Foreground).Color);
             var icon = button.GetVisualDescendants().OfType<Path>().Single();
             Assert.Equal(Avalonia.Media.Colors.White, Assert.IsAssignableFrom<Avalonia.Media.ISolidColorBrush>(icon.Stroke).Color);

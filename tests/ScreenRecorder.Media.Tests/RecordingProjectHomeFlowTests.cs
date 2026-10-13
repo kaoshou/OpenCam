@@ -48,7 +48,7 @@ public partial class RecordingEncoderLifecycleTests
             var settings = ButtonFor("Settings");
             var startY = start.TranslatePoint(default, home)!.Value.Y;
             var recovery = ButtonFor("Recovery");
-            var export = ButtonFor("ProjectExportMp4");
+            var export = ButtonFor("ProjectExportMenu");
             Assert.Equal(recovery.TranslatePoint(default, home)!.Value.Y, export.TranslatePoint(default, home)!.Value.Y, 1);
             Assert.True(export.TranslatePoint(default, home)!.Value.X >= recovery.TranslatePoint(default, home)!.Value.X + recovery.Bounds.Width);
             Assert.True(export.TranslatePoint(default, home)!.Value.X + export.Bounds.Width <= home.ClientSize.Width - 16);

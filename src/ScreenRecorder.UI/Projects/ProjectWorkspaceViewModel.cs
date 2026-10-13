@@ -123,6 +123,12 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
         if (!CanExport || HasPropertyDraft || State.IsDirty || Error is not null) return;
         await ExecuteAsync("ExportRecordingContent", new() { Path = path, PathIsExportFile = true });
     }
+    public async Task ExportWebPlayerAsync(string parentDirectory)
+    {
+        if (!CanExport || !await ResolveUnsavedAsync()) return;
+        if (!CanExport || HasPropertyDraft || State.IsDirty || Error is not null) return;
+        await ExecuteAsync("ExportRecordingContent", new() { Path = parentDirectory, ExportWebPlayer = true });
+    }
     [RelayCommand] public Task CancelExportAsync()
     {
         if (_exportLookup is not null) { _exportLookup.Cancel(); return Task.CompletedTask; }
