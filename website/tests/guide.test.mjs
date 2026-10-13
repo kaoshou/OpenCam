@@ -10,7 +10,7 @@ import { buildSite } from '../build.mjs';
 const repositoryRoot = resolve(import.meta.dirname, '../..');
 
 test('guide screenshot links resolve to the same published assets as home', () => {
-  for (const kind of ['main', 'settings', 'editor']) {
+  for (const kind of ['main', 'settings', 'editor', 'subtitles']) {
     for (const language of ['zhtw', 'enus']) {
       assert.equal(rewriteGuideHref(`images/preview_${kind}_${language}.png`, 'zh-TW'),
         `/OpenCam/assets/preview_${kind}_${language}.png`);
@@ -19,6 +19,9 @@ test('guide screenshot links resolve to the same published assets as home', () =
   assert.throws(() => rewriteGuideHref('images/../../private.png', 'zh-TW'), /Unresolved/);
   const { html } = renderGuide('![Editor](images/preview_editor_enus.png)', 'en-US');
   assert.match(html, /src="\/OpenCam\/assets\/preview_editor_enus.png"/);
+  const subtitles = renderGuide('[![Subtitles](images/preview_subtitles_zhtw.png)](images/preview_subtitles_zhtw.png)', 'zh-TW').html;
+  assert.match(subtitles, /src="\/OpenCam\/assets\/preview_subtitles_zhtw.png"/);
+  assert.match(subtitles, /href="\/OpenCam\/assets\/preview_subtitles_zhtw.png"/);
   assert.throws(() => renderGuide('![Unexpected](private.png)', 'en-US'), /Unexpected/);
 });
 
