@@ -65,3 +65,13 @@
 - 診斷 logger 與測試輸出仍有32項、每項12000字元上限。不記錄影片像素或認證金鑰；排程診斷預設 Debug 層級。
 - 新增診斷的相關18案例本機通過。這只是釐清下次 Windows CI 的證據，不宣稱原問題根治；發布前仍須新 CI 全部通過。
 - 診斷補丁完整 Release 回歸 Core207、Media709 通過，19略過、0失敗，日誌 `/tmp/opencam-v033-ci-diagnostics-full.log`；聚焦唯讀審查無阻擋。測試逾時訊息在清理之前保存排程診斷，避免之後停止的日誌擠掉首輪事件。
+
+### 合成錄影速率與 Windows 共享位置查詢修補
+
+Actions 38336516066 的 Windows 再次失敗兩例，完整日誌 `/tmp/opencam-v033-windows-scheduling-ci.log`。watchdog queued 到 entered 僅約 0.3ms，但第一個兩秒 delay 到約 22.07 秒才完成；這次 transient save 兩例均通過，另一个持續心跳案例失敗。合成錄影約 23 秒卻產生 960.3 秒影片，顯示測試來源未按即時速率輸入。另一個十片段案例在封包、時序及音訊檢查之後的解碼檢查發生 Invalid NAL unit size，不能把它說成原始影片已確認損壞。
+
+- 新增真實合成錄影速率回歸；舊碼約一秒產生 230.987 秒影片而失敗（`/tmp/opencam-v033-realtime-red.log`）。Windows／macOS 僅 synthetic lavfi inputs 各自加入 `-re`；真實擷取參數不變。修補後錄影速率、心跳及 provider 相關21項通過（`/tmp/opencam-v033-realtime-green.log`）。原 watchdog 間隔與測試期限沒有放寬；仍不能宣稱 Windows 計時續接延遲根因完全確定。
+- Windows 媒體進度監測不再對與子程序共用的位置呼叫 SetFilePointerEx，改用 NtQueryInformationFile 的唯讀 FilePositionInformation 查詢。錯誤、未完成結果及無效資訊拒絕使用；原來源唯讀、活動期限、取消、驗證條件均保留。這移除 seek/set API 干擾並行讀取的風險，尚不能把歷史 NAL／AAC 偶發問題歸因為已證明的共享位置競態。
+- 新增 Windows 真實繼承 handle 的慢速二進位讀取測試：2MiB 內容重複讀取四次，逐次比對輸出並核對原檔未變。此項在 macOS 明確略過，須新 Windows CI 執行後才可標示通過。
+- 六檔修補聚焦唯讀審查無阻擋；版本仍為0.3.3，未提前建立 tag 或 Release。
+- 修補完整本機 Release 回歸 Core207、Media710 通過，20略過、0失敗（共917通過），日誌 `/tmp/opencam-v033-paced-query-full.log`，SDK8.0.425／FFmpeg7.1.2。新增 Windows 原生查詢測試在略過項目內，不冒稱已於 Windows 通過；版本一致性及 diff check 通過。

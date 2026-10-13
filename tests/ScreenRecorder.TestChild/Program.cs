@@ -1,4 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+if (args.FirstOrDefault() == "fd-copy")
+{
+    // Exercise inherited shared native positions without a text/PID banner.
+    using var input = Console.OpenStandardInput();
+    using var output = Console.OpenStandardOutput();
+    var buffer = new byte[4096];
+    int count;
+    while ((count = input.Read(buffer)) != 0)
+    {
+        output.Write(buffer, 0, count);
+        Thread.Sleep(1);
+    }
+    output.Flush();
+    return 0;
+}
 Console.WriteLine($"PID:{Environment.ProcessId}");
 Console.Out.Flush();
 switch (args.FirstOrDefault())

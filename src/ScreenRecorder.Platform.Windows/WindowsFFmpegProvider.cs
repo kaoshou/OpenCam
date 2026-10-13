@@ -32,23 +32,23 @@ public class WindowsFFmpegProvider : IFFmpegPlatformProvider
             return config.AudioSource switch
             {
                 AudioSourceType.None when !includeAudioTrack =>
-                    $"-f lavfi -i testsrc=size={width}x{height}:rate={config.Fps} ",
+                    $"-re -f lavfi -i testsrc=size={width}x{height}:rate={config.Fps} ",
 
                 AudioSourceType.None =>
-                    $"-f lavfi -i testsrc=size={width}x{height}:rate={config.Fps} " +
-                    "-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000 ",
+                    $"-re -f lavfi -i testsrc=size={width}x{height}:rate={config.Fps} " +
+                    "-re -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000 ",
 
                 AudioSourceType.SystemOnly or AudioSourceType.MicrophoneOnly =>
-                    $"-f lavfi -i testsrc=size={width}x{height}:rate={config.Fps} " +
-                    $"-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000 ",
+                    $"-re -f lavfi -i testsrc=size={width}x{height}:rate={config.Fps} " +
+                    $"-re -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000 ",
 
                 AudioSourceType.SystemAndMicrophone =>
-                    $"-f lavfi -i testsrc=size={width}x{height}:rate={config.Fps} " +
-                    $"-f lavfi -i sine=frequency=440:sample_rate=48000 " +
-                    $"-f lavfi -i sine=frequency=880:sample_rate=48000 " +
+                    $"-re -f lavfi -i testsrc=size={width}x{height}:rate={config.Fps} " +
+                    $"-re -f lavfi -i sine=frequency=440:sample_rate=48000 " +
+                    $"-re -f lavfi -i sine=frequency=880:sample_rate=48000 " +
                     $"-filter_complex \"[1:a][2:a]amix=inputs=2:duration=longest[aout]\" -map 0:v -map \"[aout]\" ",
 
-                _ => $"-f lavfi -i testsrc=size={width}x{height}:rate={config.Fps} "
+                _ => $"-re -f lavfi -i testsrc=size={width}x{height}:rate={config.Fps} "
             };
         }
 

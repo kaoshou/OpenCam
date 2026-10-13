@@ -41,6 +41,22 @@ public class ActualRecordingIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task SyntheticCaptureDoesNotGenerateMediaFasterThanWallClock()
+    {
+        await using var orchestrator = CreateSyntheticOrchestrator();
+        var elapsed = System.Diagnostics.Stopwatch.StartNew();
+        var (started, startError, _) = await orchestrator.StartRecordingAsync(
+            CreateSyntheticConfiguration(deleteWorkingFiles: false));
+        Assert.True(started, startError);
+        await Task.Delay(700);
+        var (stopped, stopError, path) = await orchestrator.StopRecordingAsync();
+        Assert.True(stopped, stopError);
+        var media = await new MediaFileProbe().ProbeAsync(Assert.IsType<string>(path));
+        Assert.True(media.IsValid);
+        Assert.InRange(media.Duration.TotalSeconds, .1, elapsed.Elapsed.TotalSeconds + 2);
+    }
+
+    [Fact]
     public async Task StartRecording_AppliesConfiguredDiskGuardThresholds()
     {
         var storageService = new StorageService();

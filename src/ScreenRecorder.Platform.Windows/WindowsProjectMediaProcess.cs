@@ -144,7 +144,20 @@ public sealed class WindowsProjectMediaProcess : IProjectMediaProcess, IProjectS
         public bool Exited => WaitForSingleObject(process, 0) switch {
             0 => true, 258 => false, _ => throw new Win32Exception(Marshal.GetLastPInvokeError()) };
         public uint ExitCode { get { Check(GetExitCodeProcess(process, out var code)); return code; } }
-        public long InputPosition => sources.Sum(s => { Check(SetFilePointerEx(s, 0, out var pos, 1)); return pos; });
+        public long InputPosition => sources.Sum(QueryPosition);
+
+        private static long QueryPosition(SafeFileHandle source)
+        {
+            // The child shares this file object's offset. Query it without a seek/set
+            // operation that could interfere with concurrent native reads or seeks.
+            var status = NtQueryInformationFile(source, out var io, out var position, 8, 14);
+            if (status < 0)
+                throw new Win32Exception(unchecked((int)RtlNtStatusToDosError(status)),
+                    $"Cannot query media input position (NTSTATUS 0x{status:X8}).");
+            if (status != 0 || io.Information.ToUInt64() != 8 || position < 0)
+                throw new IOException("Media input position query did not complete with valid evidence.");
+            return position;
+        }
 
         public static BoundChild Start(string exe, string[] args, IReadOnlyList<FileStream> sources, FileStream? output)
         {
@@ -259,6 +272,12 @@ public sealed class WindowsProjectMediaProcess : IProjectMediaProcess, IProjectS
     [DllImport("kernel32.dll", SetLastError = true)] private static extern uint WaitForSingleObject(SafeProcessHandle process, uint milliseconds);
     [DllImport("kernel32.dll", SetLastError = true)] private static extern bool GetExitCodeProcess(SafeProcessHandle process, out uint code);
     [DllImport("kernel32.dll", SetLastError = true)] private static extern bool TerminateProcess(SafeProcessHandle process, uint code);
-    [DllImport("kernel32.dll", SetLastError = true)] private static extern bool SetFilePointerEx(SafeFileHandle file, long distance, out long position, uint origin);
+    [StructLayout(LayoutKind.Sequential)]
+    private struct IoStatusBlock { public IntPtr StatusOrPointer; public UIntPtr Information; }
+    [DllImport("ntdll.dll", ExactSpelling = true)]
+    private static extern int NtQueryInformationFile(SafeFileHandle file, out IoStatusBlock ioStatus,
+        out long position, uint length, int informationClass);
+    [DllImport("ntdll.dll", ExactSpelling = true)]
+    private static extern uint RtlNtStatusToDosError(int status);
     [DllImport("kernel32.dll")] private static extern bool CloseHandle(IntPtr handle);
 }

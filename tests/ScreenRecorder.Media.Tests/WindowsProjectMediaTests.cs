@@ -9,6 +9,33 @@ namespace ScreenRecorder.Media.Tests;
 
 public sealed class WindowsProjectMediaTests
 {
+    [WindowsOnlyFact]
+    public async Task ProgressQueriesPreserveInheritedInputBytesAndCanReadAgain()
+    {
+        var root = Directory.CreateTempSubdirectory("OpenCam-win-progress-");
+        try
+        {
+            var expected = Enumerable.Range(0, 512 * 1024 * 4).Select(i => (byte)(i % 251)).ToArray();
+            var path = Path.Combine(root.FullName, "source.bin");
+            await File.WriteAllBytesAsync(path, expected);
+            var helper = Path.Combine(AppContext.BaseDirectory, "probe-child", "ScreenRecorder.TestChild.exe");
+            Assert.True(File.Exists(helper));
+            var job = ProjectMediaJob.ExtractFrame(0, new(1, 1000), 512, 1024);
+            // Test-only child mode; production retains the closed, validated operation set.
+            typeof(ProjectMediaJob).GetField("_exportArguments", System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance)!.SetValue(job, new[] { "fd-copy" });
+            await using var input = File.OpenRead(path);
+            var process = new WindowsProjectMediaProcess(helper);
+            for (var pass = 0; pass < 4; pass++)
+            {
+                var result = await process.RunAsync(job, [input], null, default);
+                Assert.Equal(expected, result.Output);
+            }
+            Assert.Equal(expected, await File.ReadAllBytesAsync(path));
+        }
+        finally { root.Delete(true); }
+    }
+
     [NativeMediaTheory]
     [InlineData(1)]
     [InlineData(100)]

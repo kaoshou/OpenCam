@@ -45,10 +45,10 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider
         if (useSynthetic)
         {
             var syntheticVideo =
-                $"-f lavfi -i testsrc=size={width}x{height}:rate={config.Fps}";
+                $"-re -f lavfi -i testsrc=size={width}x{height}:rate={config.Fps}";
             return includeAudioTrack
                 ? syntheticVideo +
-                  " -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000" +
+                  " -re -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000" +
                   " -map 0:v -map 1:a"
                 : syntheticVideo;
         }
