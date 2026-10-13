@@ -104,18 +104,18 @@ public partial class ProjectWorkspaceView : Window
     private void OnPreviewChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName != nameof(ProjectWorkspaceViewModel.PreviewFrame)) return;
-        PreviewImage.Source = null;
-        _previewBitmap?.Dispose();
-        _previewBitmap = null;
-        if (Model.PreviewFrame is not { HasValidPixels: true } frame) return;
+        if (Model.PreviewFrame is not { HasValidPixels: true } frame)
+        { PreviewImage.Source = null; _previewBitmap?.Dispose(); _previewBitmap = null; return; }
         var bytes = frame.Rgba!;
         var bitmap = new Avalonia.Media.Imaging.WriteableBitmap(new(frame.PixelWidth, frame.PixelHeight), new(96, 96),
             Avalonia.Platform.PixelFormat.Rgba8888, Avalonia.Platform.AlphaFormat.Opaque);
         using (var locked = bitmap.Lock())
             for (var y = 0; y < frame.PixelHeight; y++)
                 System.Runtime.InteropServices.Marshal.Copy(bytes, y * frame.PixelWidth * 4, locked.Address + y * locked.RowBytes, frame.PixelWidth * 4);
+        var previous = _previewBitmap;
         _previewBitmap = bitmap;
         PreviewImage.Source = bitmap;
+        previous?.Dispose();
         UpdatePreviewViewport();
     }
     private ProjectWorkspaceViewModel Model => (ProjectWorkspaceViewModel)DataContext!;

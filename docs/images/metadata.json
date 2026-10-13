@@ -1,5 +1,5 @@
 {
-  "version": "0.3.4",
+  "version": "0.3.5",
   "capture": "Avalonia headless UI rendering, macOS, illustrative recording state",
   "editorMedia": "Original authored Field Notes tutorial video, synthetic audio and bilingual subtitles",
   "acceptanceEvidence": false

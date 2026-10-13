@@ -109,6 +109,7 @@ public partial class ProjectWorkspaceView
             IsPreviewFullscreen = false; _previewControlsTimer!.Stop();
             FullscreenSeek.IsVisible = false;
             _seekDragging = false;
+            if (DataContext is ProjectWorkspaceViewModel vm) _ = vm.EndPreviewScrubAsync();
             WindowState = _previousWindowState;
             if (_previousWindowState == WindowState.Normal) { Position = _previousPosition; Width = _previousSize.Width; Height = _previousSize.Height; }
             EditorHeader.IsVisible = EditorFooter.IsVisible = TimelinePane.IsVisible = PreviewSplitter.IsVisible = true;

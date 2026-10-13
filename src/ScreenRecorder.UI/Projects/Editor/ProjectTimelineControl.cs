@@ -70,8 +70,6 @@ public sealed class ProjectTimelineControl : Control
             var time = TimeSpan.FromTicks(ticks);
             Text(context, $"{(long)time.TotalMinutes:00}:{time.Seconds:00}.{time.Milliseconds / 100}", x + 3, 8, ink, 80, 12);
         }
-        if (vm.RangeStartTicks is long start && vm.RangeEndTicks is long end && end > start)
-            context.FillRectangle(new SolidColorBrush(Color.FromArgb(36, 37, 99, 235)), new Rect(X(start), 32, Math.Max(0, X(end)-X(start)), Math.Max(0, Bounds.Height-32)));
         var byId = vm.Clips.ToDictionary(c => c.Id);
         foreach (var span in vm.TimelineClips)
         {
@@ -123,15 +121,33 @@ public sealed class ProjectTimelineControl : Control
                 Text(context, vm.WaveformStatus(clip.Id), left + 8, AudioTrackBounds.Top + 5,
                     ink, Math.Max(1, right - left - 16), 11);
         }
+        // Draw the range above opaque clip cards so the selection covers video and audio visibly.
+        if (vm.RangeStartTicks is long start && vm.RangeEndTicks is long end && end > start)
+            context.FillRectangle(new SolidColorBrush(Color.FromArgb(36, 37, 99, 235)),
+                new Rect(X(start), 32, Math.Max(0, X(end) - X(start)), Math.Max(0, Bounds.Height - 32)));
         var accent = new Pen(new SolidColorBrush(Color.Parse("#3B82F6")), 2);
         context.DrawLine(accent, new(X(vm.PlayheadTicks), 28), new(X(vm.PlayheadTicks), Bounds.Height));
         context.DrawEllipse(accent.Brush, null, new(X(vm.PlayheadTicks), 30), 4, 4);
+        if (vm.RangeStartTicks is long markIn)
+            DrawRangeMarker(context, X(markIn), vm.Strings["ProjectRangeStartShort"], true, dark);
+        if (vm.RangeEndTicks is long markOut)
+            DrawRangeMarker(context, X(markOut), vm.Strings["ProjectRangeEndShort"], false, dark);
         if (_dragging)
         {
             var target = _beforeClip is Guid before ? vm.TimelineClips.First(c => c.ClipId == before).StartTicks : vm.DurationTicks;
             var x = X(target);
             context.DrawLine(new Pen(Brushes.Orange, 3), new(x, 48), new(x, 134));
         }
+    }
+    private void DrawRangeMarker(DrawingContext context, double x, string label, bool start, bool dark)
+    {
+        if (x < 16 || x > Bounds.Width - 16) return;
+        var brush = new SolidColorBrush(Color.Parse(start ? (dark ? "#5EEAD4" : "#0F766E") : (dark ? "#FDBA74" : "#C2410C")));
+        context.DrawLine(new Pen(brush, 2), new(x, 32), new(x, Bounds.Height));
+        var left = start ? x : x - 30;
+        left = Math.Clamp(left, 16, Math.Max(16, Bounds.Width - 46));
+        context.DrawRectangle(brush, null, new Rect(left, 32, 30, 18), 3, 3);
+        Text(context, label, left + 5, 34, dark ? Brushes.Black : Brushes.White, 25, 10);
     }
     private static void Text(DrawingContext context, string value, double x, double y, IBrush brush, double width, double size)
     {
@@ -147,7 +163,7 @@ public sealed class ProjectTimelineControl : Control
         var point = e.GetPosition(this);
         _gestureRevision = vm.State.Revision;
         _downX = point.X;
-        if (point.Y < 44) { _seeking = true; vm.Seek(Ticks(point.X)); }
+        if (point.Y < 44) { _seeking = true; vm.BeginPreviewScrub(); vm.Seek(Ticks(point.X)); }
         else if (point.Y >= VideoTrackBounds.Top && point.Y <= VideoTrackBounds.Bottom)
         {
             var span = vm.TimelineClips.FirstOrDefault(c => Ticks(point.X) >= c.StartTicks && Ticks(point.X) < c.EndTicks);
@@ -192,6 +208,7 @@ public sealed class ProjectTimelineControl : Control
         base.OnPointerReleased(e);
         if (_pointer != e.Pointer) return;
         var point = e.GetPosition(this);
+        if (_seeking) { UpdateGesture(point); CancelGesture(); return; }
         if (point.X < 16 || point.X > Bounds.Width - 16 || point.Y < VideoTrackBounds.Top ||
             point.Y > Math.Min(VideoTrackBounds.Bottom, Bounds.Height))
         { CancelGesture(); return; }
@@ -227,8 +244,10 @@ public sealed class ProjectTimelineControl : Control
     }
     private void CancelGesture()
     {
+        var seeking = _seeking;
         var pointer = _pointer; _pointer = null;
         _movingClip = null; _beforeClip = null; _dragging = false; _seeking = false;
+        if (seeking && _model is { } vm) _ = vm.EndPreviewScrubAsync();
         pointer?.Capture(null); InvalidateVisual();
     }
 }

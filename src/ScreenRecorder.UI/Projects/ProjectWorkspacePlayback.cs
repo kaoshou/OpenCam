@@ -76,7 +76,7 @@ public sealed partial class ProjectWorkspaceViewModel
                 ExpectedRevision = State.Revision, PlaybackGeneration = _playbackGeneration, OperationId = Guid.NewGuid() });
             if (!reply.Success || reply.Unconfirmed)
             { Error = reply.Error; StatusUnconfirmed = true; return false; }
-            if (reply.Playback is { } playback)
+            if (!_scrubbing && reply.Playback is { } playback)
             {
                 _clockUpdate = true;
                 try { PlayheadTicks = Math.Clamp(playback.TimelineTicks, 0, DurationTicks); }

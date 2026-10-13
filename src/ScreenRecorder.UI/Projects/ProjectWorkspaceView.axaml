@@ -52,6 +52,16 @@
       <Setter Property="BorderBrush" Value="{DynamicResource ProjectStrokeBrush}"/>
     </Style>
     <Style Selector="Button.tool"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
+    <Style Selector="Button.previewControl">
+      <Setter Property="MinHeight" Value="32"/><Setter Property="Height" Value="32"/>
+      <Setter Property="FontSize" Value="12"/><Setter Property="Padding" Value="9,4"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="CornerRadius" Value="8"/>
+    </Style>
+    <Style Selector="ComboBox.previewControl">
+      <Setter Property="MinHeight" Value="32"/><Setter Property="Height" Value="32"/>
+      <Setter Property="FontSize" Value="12"/><Setter Property="Padding" Value="8,3"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="CornerRadius" Value="8"/>
+    </Style>
     <Style Selector="Button.inspectorAction">
       <Setter Property="HorizontalAlignment" Value="Stretch"/><Setter Property="HorizontalContentAlignment" Value="Center"/>
       <Setter Property="MinHeight" Value="38"/><Setter Property="CornerRadius" Value="8"/><Setter Property="Padding" Value="10,8"/>
@@ -201,7 +211,7 @@
             <TextBlock Text="{Binding Strings[ProjectPreview]}" FontSize="12" Foreground="{DynamicResource ProjectMutedBrush}"/>
             <TextBlock Grid.Column="1" Text="{Binding PreviewResolutionText}" FontSize="11" Foreground="{DynamicResource ProjectMutedBrush}"/>
           </Grid>
-          <Border Grid.Row="1" Margin="0,12" Background="#11161F" CornerRadius="8" ClipToBounds="True">
+          <Border Grid.Row="1" Margin="0,8" Background="#11161F" CornerRadius="8" ClipToBounds="True">
             <Grid>
             <ScrollViewer x:Name="PreviewScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                           HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
@@ -217,38 +227,45 @@
             </Border>
             </Grid>
           </Border>
-          <StackPanel x:Name="PreviewControls" Grid.Row="2" Spacing="5" Margin="0,4">
+          <StackPanel x:Name="PreviewControls" Grid.Row="2" Spacing="3" Margin="0,0">
             <Slider x:Name="FullscreenSeek" IsVisible="False" Minimum="0" Maximum="{Binding DurationTicks}"
                     IsEnabled="{Binding CanPreview}" ValueChanged="OnFullscreenSeekChanged"
                     AutomationProperties.Name="{Binding Strings[ProjectPreviewPlay]}"/>
-            <Grid ColumnDefinitions="*,Auto">
-              <TextBlock Text="{Binding TimelineTimeText}" FontSize="11" FontFamily="monospace" VerticalAlignment="Center"/>
-              <Button Grid.Column="1" Content="{Binding PlaybackButtonText}" Command="{Binding TogglePlaybackCommand}" IsEnabled="{Binding CanPreview}" CornerRadius="20" Padding="12,5"/>
-            </Grid>
+            <Border Background="{DynamicResource ProjectCardBrush}" BorderBrush="{DynamicResource ProjectStrokeBrush}"
+                    BorderThickness="1" CornerRadius="10" Padding="6,4">
             <WrapPanel Orientation="Horizontal">
-              <ComboBox x:Name="PreviewQualityPicker" SelectedIndex="1" SelectionChanged="OnPreviewQualityChanged" MinWidth="100" Margin="0,0,6,4"
+              <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,10,2">
+                <Button Classes="previewControl" Content="{Binding PlaybackButtonText}" Command="{Binding TogglePlaybackCommand}" IsEnabled="{Binding CanPreview}"/>
+                <TextBlock Text="{Binding TimelineTimeText}" FontSize="11" FontFamily="monospace" VerticalAlignment="Center"/>
+              </StackPanel>
+              <ComboBox Classes="previewControl" x:Name="PreviewQualityPicker" SelectedIndex="1" SelectionChanged="OnPreviewQualityChanged" MinWidth="82" Margin="0,2,5,2"
                         IsEnabled="{Binding CanChangePreviewOptions}" ToolTip.Tip="{Binding Strings[PreviewQuality]}" AutomationProperties.Name="{Binding Strings[PreviewQuality]}">
                 <ComboBoxItem Content="360p"/><ComboBoxItem Content="720p"/><ComboBoxItem Content="1080p"/>
                 <ComboBoxItem Content="{Binding Strings[PreviewOriginal]}" IsEnabled="{Binding CanUseOriginalPreview}" ToolTip.Tip="{Binding Strings[PreviewOriginalHint]}"/>
               </ComboBox>
-              <ComboBox x:Name="PreviewZoomPicker" SelectedIndex="0" SelectionChanged="OnPreviewZoomChanged" MinWidth="100" Margin="0,0,6,4"
+              <ComboBox Classes="previewControl" x:Name="PreviewZoomPicker" SelectedIndex="0" SelectionChanged="OnPreviewZoomChanged" MinWidth="100" Margin="0,2,5,2"
                         ToolTip.Tip="{Binding Strings[PreviewZoom]}" AutomationProperties.Name="{Binding Strings[PreviewZoom]}">
                 <ComboBoxItem Content="{Binding Strings[PreviewFit]}"/><ComboBoxItem Content="100%"/><ComboBoxItem Content="200%"/>
               </ComboBox>
-              <Button x:Name="PreviewSoundButton" Command="{Binding TogglePreviewSoundCommand}" IsEnabled="{Binding CanChangePreviewOptions}"
-                      Margin="0,0,6,4" ToolTip.Tip="{Binding PreviewSoundText}" AutomationProperties.Name="{Binding PreviewSoundText}">
+              <Button Classes="previewControl" x:Name="PreviewSoundButton" Command="{Binding TogglePreviewSoundCommand}" IsEnabled="{Binding CanChangePreviewOptions}"
+                      Margin="0,2,5,2" ToolTip.Tip="{Binding PreviewSoundText}" AutomationProperties.Name="{Binding PreviewSoundText}">
                 <editor:EditorToolContent Icon="{Binding PreviewSoundIcon}"/>
               </Button>
-              <Button x:Name="PreviewFullscreenButton" Click="OnPreviewFullscreen" Margin="0,0,0,4"
+              <Button Classes="previewControl" x:Name="PreviewFullscreenButton" Click="OnPreviewFullscreen" Margin="0,2,5,2"
                       ToolTip.Tip="{Binding Strings[PreviewFullscreen]}" AutomationProperties.Name="{Binding Strings[PreviewFullscreen]}">
                 <editor:EditorToolContent Icon="fullscreen"/>
               </Button>
-              <ComboBox x:Name="PreviewSubtitlesPicker" ItemsSource="{Binding PreviewSubtitleOptions}"
-                        SelectedItem="{Binding SelectedPreviewSubtitleChoice, Mode=TwoWay}" IsEnabled="{Binding HasSubtitleTracks}"
-                        MinWidth="100" MaxWidth="230" Margin="6,0,6,4" AutomationProperties.Name="{Binding Strings[SubtitleAttach]}"/>
-              <Button Content="{Binding Strings[SubtitleAppearance]}" IsEnabled="{Binding HasSubtitleTracks}" Margin="0,0,0,4">
+              <Button Classes="previewControl" IsEnabled="{Binding HasSubtitleTracks}" Margin="0,2,0,2"
+                      ToolTip.Tip="{Binding Strings[SubtitleAttach]}" AutomationProperties.Name="{Binding Strings[SubtitleAttach]}">
+                <editor:EditorToolContent Icon="subtitles"/>
                 <Button.Flyout><Flyout>
-                  <StackPanel Width="240" Spacing="10">
+                  <StackPanel Width="280" Spacing="10">
+                    <TextBlock Text="{Binding Strings[SubtitleAttach]}" FontWeight="SemiBold"/>
+                    <ComboBox x:Name="PreviewSubtitlesPicker" ItemsSource="{Binding PreviewSubtitleOptions}"
+                              SelectedItem="{Binding SelectedPreviewSubtitleChoice, Mode=TwoWay}"
+                              HorizontalAlignment="Stretch" AutomationProperties.Name="{Binding Strings[SubtitleAttach]}"/>
+                    <Separator/>
+                    <TextBlock Text="{Binding Strings[SubtitleAppearance]}" FontWeight="SemiBold"/>
                     <TextBlock Text="{Binding Strings[SubtitleSize]}"/>
                     <Slider Minimum="75" Maximum="200" TickFrequency="25" IsSnapToTickEnabled="True" Value="{Binding PreviewSubtitleScale}"/>
                     <ComboBox SelectedIndex="{Binding PreviewSubtitleTheme, Mode=TwoWay}">
@@ -266,8 +283,10 @@
                 </Flyout></Button.Flyout>
               </Button>
             </WrapPanel>
+            </Border>
             <TextBlock Text="{Binding PreviewStatus}" FontSize="11" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource ProjectMutedBrush}"/>
-            <TextBlock Text="{Binding SubtitleSyncWarning}" FontSize="11" Foreground="#B45309" TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding SubtitleSyncWarning}" IsVisible="{Binding State.SubtitlesNeedSyncConfirmation}"
+                       FontSize="11" Foreground="#B45309" TextWrapping="Wrap"/>
           </StackPanel>
         </Grid>
       </Border>

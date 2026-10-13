@@ -53,6 +53,13 @@ public sealed partial class ProjectWorkspaceViewModel
         UpdateSubtitleText();
         if (!_clockUpdate)
         {
+            if (_scrubbing)
+            {
+                _failedPreviewTicks = null;
+                OnPropertyChanged(nameof(PreviewStatus));
+                NotifyTimeline();
+                return;
+            }
             ClearPreview();
             if (IsPlayingPreview)
             {
@@ -90,11 +97,23 @@ public sealed partial class ProjectWorkspaceViewModel
     }
     public void SetRangeStart(long ticks)
     {
-        if (CanEditTimeline) RangeStartTicks = Math.Clamp(ticks, 0, DurationTicks);
+        if (!CanEditTimeline) return;
+        RangeEndTicks = null;
+        RangeStartTicks = Math.Clamp(ticks, 0, DurationTicks);
+        Error = null;
     }
     public void SetRangeEnd(long ticks)
     {
-        if (CanEditTimeline) RangeEndTicks = Math.Clamp(ticks, 0, DurationTicks);
+        if (!CanEditTimeline) return;
+        var end = Math.Clamp(ticks, 0, DurationTicks);
+        if (RangeStartTicks is not long start || end <= start)
+        {
+            RangeEndTicks = null;
+            Error = Strings[RangeStartTicks is null ? "ProjectRangeStartRequired" : "ProjectRangeEndAfterStart"];
+            return;
+        }
+        RangeEndTicks = end;
+        Error = null;
     }
     [RelayCommand] public void MarkRangeStart() => SetRangeStart(PlayheadTicks);
     [RelayCommand] public void MarkRangeEnd() => SetRangeEnd(PlayheadTicks);

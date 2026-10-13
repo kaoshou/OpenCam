@@ -17,6 +17,26 @@ namespace ScreenRecorder.Media.Tests;
 public sealed class ProjectEditorChromeTests
 {
     [AvaloniaTheory]
+    [InlineData(1440, 88)]
+    [InlineData(1024, 112)]
+    public async Task PreviewControlsStayCompactAndKeepTimeAndPlaybackTogether(double width, double maxHeight)
+    {
+        var vm = new ProjectWorkspaceViewModel(new TimedClipClient());
+        await vm.RefreshAsync();
+        var window = new ProjectWorkspaceView { DataContext = vm, Width = width, Height = 900 };
+        try
+        {
+            window.Show(); window.UpdateLayout();
+            var controls = window.FindControl<StackPanel>("PreviewControls")!;
+            Assert.InRange(controls.Bounds.Height, 30, maxHeight);
+            var time = controls.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Text == vm.TimelineTimeText);
+            var play = controls.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, vm.PlaybackButtonText));
+            Assert.InRange(Math.Abs(time.TranslatePoint(default, controls)!.Value.Y - play.TranslatePoint(default, controls)!.Value.Y), 0, 15);
+        }
+        finally { await window.RequestCloseAsync(); }
+    }
+
+    [AvaloniaTheory]
     [InlineData(AppLanguage.ZhTw)]
     [InlineData(AppLanguage.EnUs)]
     public async Task InspectorActionsUseConsistentIconButtons(AppLanguage language)
