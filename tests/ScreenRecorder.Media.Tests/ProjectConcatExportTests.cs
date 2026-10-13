@@ -202,6 +202,15 @@ public class ProjectConcatExportTests
                     process, streaming, result, changedPackets, true, default, normalizedAudioSamples: count * 48000));
                 if (fault == 0)
                 {
+                    if (count == 3 && bFrames == 0 && audioDelay == 0 && audioDuration == 1)
+                    {
+                        var mismatch = await Assert.ThrowsAsync<ProjectRemuxIncompatibleException>(() =>
+                            ProjectRemuxVerifier.VerifyAsync(process, streaming, result, evidence, true, default,
+                                normalizedAudioSamples: 148800));
+                        Assert.Contains("expectedSamples=148800", mismatch.Message);
+                        Assert.Contains("expectedEnd=3.1", mismatch.Message);
+                        Assert.Contains("endDifference=", mismatch.Message);
+                    }
                     var changedTiming = evidence.Select(e => e with { Video = e.Video with { PresentationTimingHash = new string('0', 64) } }).ToArray();
                     await Assert.ThrowsAsync<ProjectRemuxIncompatibleException>(() => ProjectRemuxVerifier.VerifyAsync(
                         process, streaming, result, changedTiming, true, default, normalizedAudioSamples: count * 48000));

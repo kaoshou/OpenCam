@@ -33,7 +33,7 @@ public class ActualRecordingIntegrationTests : IDisposable
         // logger so failed real-FFmpeg tests expose the bounded stderr tail
         // already recorded by the engine, not only the friendly UI error.
         _previousLogger = Serilog.Log.Logger;
-        _diagnosticLogger = new Serilog.LoggerConfiguration().MinimumLevel.Warning()
+        _diagnosticLogger = new Serilog.LoggerConfiguration().MinimumLevel.Debug()
             .WriteTo.Sink(_diagnostics).CreateLogger();
         Serilog.Log.Logger = _diagnosticLogger;
         _tempDir = Path.Combine(Path.GetTempPath(), "RealRecordingTest_" + Guid.NewGuid().ToString("N"));
@@ -514,10 +514,12 @@ public class ActualRecordingIntegrationTests : IDisposable
             var watchdog = typeof(RecordingOrchestrator).GetField("_watchdogTask",
                 System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.GetValue(orchestrator) as Task;
             throw new TimeoutException($"Heartbeat retry timed out; state={orchestrator.CurrentState}, watchdog={watchdog?.Status}, " +
-                $"lastHeartbeat={orchestrator.CurrentSession?.LastHeartbeatTime:O}\n{string.Join("\n", sessionStore.Events)}", ex);
+                $"lastHeartbeat={orchestrator.CurrentSession?.LastHeartbeatTime:O}\n{string.Join("\n", sessionStore.Events)}\n" +
+                $"Scheduling diagnostics before cleanup:\n{string.Join("\n", _diagnostics.Entries)}", ex);
         }
         Assert.Equal(RecordingState.Recording, orchestrator.CurrentState);
 
+        Assert.Contains(_diagnostics.Entries, entry => entry.Contains("Watchdog schedule") && entry.Contains("delay-finished"));
         var afterRetry = await sessionStore.LoadSessionAsync(sessionDirectory);
         Assert.NotNull(afterRetry);
         var heartbeatAdvanced = afterRetry.LastHeartbeatTime > started.LastHeartbeatTime;

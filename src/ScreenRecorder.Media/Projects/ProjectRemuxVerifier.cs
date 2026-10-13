@@ -85,14 +85,17 @@ public static class ProjectRemuxVerifier
             var audioTolerance = 2 * (audio.TickSeconds + resultAudio.TickSeconds) +
                 1024d / resultAudio.SampleRate;
             var normalized = normalizedAudioSamples is not null;
+            var expectedAudioStart = normalized ? 0 : audio.StartSeconds - video.StartSeconds;
+            var expectedAudioEnd = normalized ? normalizedAudioSamples!.Value / 48000d :
+                expected.Take(expected.Count - 1).Sum(s => s.Video.EndSeconds - s.Video.StartSeconds) +
+                expected[^1].Audio!.EndSeconds - expected[^1].Video.StartSeconds;
             if (resultAudio.Codec != "aac" || resultAudio.SampleRate != (normalized ? 48000 : audio.SampleRate) ||
                 resultAudio.ChannelLayout != (normalized ? "stereo" : audio.ChannelLayout) || !resultAudio.MonotonicDts ||
                 (!audioConverted && resultAudio.PacketCount != expected.Sum(s => s.Audio?.PacketCount ?? 0)) ||
-                Math.Abs(resultAudio.StartSeconds - (normalized ? 0 : audio.StartSeconds - video.StartSeconds)) > audioTolerance ||
-                Math.Abs(resultAudio.EndSeconds - (normalized ? normalizedAudioSamples!.Value / 48000d :
-                    expected.Take(expected.Count - 1).Sum(s => s.Video.EndSeconds - s.Video.StartSeconds) +
-                    expected[^1].Audio!.EndSeconds - expected[^1].Video.StartSeconds)) > audioTolerance)
-                throw new ProjectRemuxIncompatibleException($"Remux audio mismatch: source {audio}; output {resultAudio}; origin {video.StartSeconds}.");
+                Math.Abs(resultAudio.StartSeconds - expectedAudioStart) > audioTolerance ||
+                Math.Abs(resultAudio.EndSeconds - expectedAudioEnd) > audioTolerance)
+                throw new ProjectRemuxIncompatibleException(FormattableString.Invariant(
+                    $"Remux audio mismatch: expectedSamples={normalizedAudioSamples}; expectedStart={expectedAudioStart:R}; expectedEnd={expectedAudioEnd:R}; startDifference={resultAudio.StartSeconds - expectedAudioStart:R}; endDifference={resultAudio.EndSeconds - expectedAudioEnd:R}; tolerance={audioTolerance:R}; source {audio}; output {resultAudio}; origin {video.StartSeconds}."));
         }
         double offset = 0;
         var checkpoints = new List<long>();

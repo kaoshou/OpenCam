@@ -236,7 +236,7 @@ public class RecordingOrchestrator : IAsyncDisposable
             _watchdogCts?.Cancel();
             _watchdogCts?.Dispose();
             _watchdogCts = new CancellationTokenSource();
-            _watchdogTask = Task.Run(() => WatchdogLoopAsync(session, _watchdogCts.Token));
+            _watchdogTask = ScheduleWatchdog(session, _watchdogCts.Token);
 
             _cursorHighlightService?.Start(config.CursorEffect);
 
@@ -678,7 +678,7 @@ public class RecordingOrchestrator : IAsyncDisposable
                 _watchdogCts?.Cancel();
                 _watchdogCts?.Dispose();
                 _watchdogCts = new CancellationTokenSource();
-                _watchdogTask = Task.Run(() => WatchdogLoopAsync(session, _watchdogCts.Token));
+                _watchdogTask = ScheduleWatchdog(session, _watchdogCts.Token);
             }
 
             _cursorHighlightService?.Start(session.Configuration.CursorEffect);
@@ -1087,13 +1087,36 @@ public class RecordingOrchestrator : IAsyncDisposable
         }
     }
 
-    private async Task WatchdogLoopAsync(RecordingSession session, CancellationToken ct)
+    private static void TraceWatchdogSchedule(string phase, long queuedAt)
     {
+        if (!Log.IsEnabled(Serilog.Events.LogEventLevel.Debug)) return;
+        ThreadPool.GetAvailableThreads(out var available, out _);
+        ThreadPool.GetMinThreads(out var minimum, out _);
+        ThreadPool.GetMaxThreads(out var maximum, out _);
+        Log.Debug("Watchdog schedule {Phase}: elapsedMs={ElapsedMs}, thread={Thread}, workers={Workers}, available={Available}, min={Minimum}, max={Maximum}, pending={Pending}, completed={Completed}",
+            phase, System.Diagnostics.Stopwatch.GetElapsedTime(queuedAt).TotalMilliseconds,
+            Environment.CurrentManagedThreadId, ThreadPool.ThreadCount, available, minimum, maximum,
+            ThreadPool.PendingWorkItemCount, ThreadPool.CompletedWorkItemCount);
+    }
+
+    private Task ScheduleWatchdog(RecordingSession session, CancellationToken ct)
+    {
+        var queuedAt = System.Diagnostics.Stopwatch.GetTimestamp();
+        TraceWatchdogSchedule("queued", queuedAt);
+        return Task.Run(() => WatchdogLoopAsync(session, ct, queuedAt));
+    }
+
+    private async Task WatchdogLoopAsync(RecordingSession session, CancellationToken ct, long queuedAt)
+    {
+        TraceWatchdogSchedule("entered", queuedAt);
+        var iterations = 0;
         try
         {
             while (!ct.IsCancellationRequested)
             {
+                if (iterations < 2) TraceWatchdogSchedule("delay-start", queuedAt);
                 await Task.Delay(2000, ct);
+                if (iterations++ < 2) TraceWatchdogSchedule("delay-finished", queuedAt);
 
                 var currentState = _stateMachine.CurrentState;
                 if (currentState is not RecordingState.Recording and

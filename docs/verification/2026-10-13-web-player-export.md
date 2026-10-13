@@ -55,3 +55,13 @@
 - 聚焦唯讀整合審查無阻擋。瀏覽器實際排版及實機驗收限制維持上方狀態；完整實體 Release Gate 未宣稱通過。
 
 正式發布仍須核對成功 GitHub Actions 的提交來源、Windows Setup／Portable ZIP、macOS DMG 及網站部署，不能用本機安裝包替代。發布狀態以 GitHub Release 為準。
+
+### Windows CI 排程與快速輸出診斷
+
+首個 0.3.3 Actions 38334013947 的 Windows 驗證失敗，未發布。其他 portable／macOS 驗證、macOS 建置及同提交網站部署成功。完整 Windows 日誌 `/tmp/opencam-v033-windows-ci.log`。
+
+- 百片段含音訊快速輸出雖最後成功，但 normalized audio 末端為 100.085333 秒、4693 個 AAC 封包，原本快速路徑驗證拒絕並退回渲染；嚴格 phase 斷言失敗。PCM 合併有樣本總長檢查，尚不能判定 AAC 額外封包的來源。新增預期樣本數、預期起訖、實際差值與 tolerance，沒有放寬比較。故意傳入不一致樣本數的真實 MP4 驗證案例先失敗缺少診斷，再通過。
+- 心跳注入失敗測試 0／3000ms 兩例首個 watchdog save 都約在 Recording 後 22.2 秒才到；20 秒等待逾時時，失敗後尚不足下一輪正常 2 秒重試。這不證明重試 catch 失效。新增 Debug 排程 queued／entered／前兩次 delay start/end、單調 elapsed 及 ThreadPool 計數；仍使用 Task.Run、2 秒間隔與 20 秒測試期限，不增加等待碰運氣。
+- 診斷 logger 與測試輸出仍有32項、每項12000字元上限。不記錄影片像素或認證金鑰；排程診斷預設 Debug 層級。
+- 新增診斷的相關18案例本機通過。這只是釐清下次 Windows CI 的證據，不宣稱原問題根治；發布前仍須新 CI 全部通過。
+- 診斷補丁完整 Release 回歸 Core207、Media709 通過，19略過、0失敗，日誌 `/tmp/opencam-v033-ci-diagnostics-full.log`；聚焦唯讀審查無阻擋。測試逾時訊息在清理之前保存排程診斷，避免之後停止的日誌擠掉首輪事件。
