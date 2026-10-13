@@ -5,8 +5,13 @@ using ScreenRecorder.UI.Localization;
 
 namespace ScreenRecorder.UI.Projects;
 
+public enum SubtitleExportDecision { Cancel, Attach, Without }
+
 internal static class ProjectSaveDialogs
 {
+    public static Task<SubtitleExportDecision> AskSubtitleExportAsync(Window owner) => AskAsync(owner, "SubtitleExportPrompt",
+        ("SubtitleExportAttach", SubtitleExportDecision.Attach), ("SubtitleExportWithout", SubtitleExportDecision.Without),
+        ("Cancel", SubtitleExportDecision.Cancel));
     public static Task<UnsavedDecision> AskUnsavedAsync(Window owner) => AskAsync(owner, "ProjectUnsavedPrompt",
         ("ProjectSave", UnsavedDecision.Save), ("ProjectDontSave", UnsavedDecision.Discard), ("Cancel", UnsavedDecision.Cancel));
     public static Task<bool?> AskRecoveryAsync(Window owner) => AskAsync<bool?>(owner, "ProjectDraftRecoveryPrompt",

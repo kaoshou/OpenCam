@@ -5,6 +5,21 @@ namespace ScreenRecorder.Infrastructure.Projects;
 
 public static class ProjectSubtitleStore
 {
+    public static async Task<byte[]> ReadBytesAsync(IProjectHandle handle, ProjectSubtitleTrack track, CancellationToken ct = default)
+    {
+        await using var file = OpenRead(handle, track);
+        var bytes = new byte[checked((int)track.FileSize)];
+        await file.ReadExactlyAsync(bytes, ct);
+        if (file.Length != track.FileSize || !Convert.ToHexString(SHA256.HashData(bytes)).Equals(track.Sha256, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Subtitle asset changed while reading.");
+        return bytes;
+    }
+    public static async Task<ProjectSubtitleTrack> ImportPathAsync(IProjectHandle handle, string path, string language,
+        CancellationToken ct = default)
+    {
+        await using var input = ScreenRecorder.Infrastructure.Recovery.RecoverySourceFile.Open(Path.GetFullPath(path));
+        return await ImportAsync(handle, input, Path.GetFileName(path), language, ct);
+    }
     public static async Task<ProjectSubtitleTrack> ImportAsync(IProjectHandle handle, FileStream source,
         string originalName, string language, CancellationToken ct = default)
     {

@@ -15,6 +15,7 @@ public partial class MainViewModel
     public bool UsesRecordingContent => _content is not null;
     public Func<string, Task<string?>>? RequestRecordingProjectName { get; set; }
     public Func<Task<UnsavedDecision>>? RequestUnsavedProjectDecision { get; set; }
+    public Func<Task<SubtitleExportDecision>>? RequestSubtitleExportDecision { get; set; }
     public Func<Task<bool?>>? RequestProjectDraftRecovery { get; set; }
     public Func<string, Task<ExistingExportDecision>>? RequestExistingProjectExport { get; set; }
     public Action<string>? OpenExistingProjectExport { get; set; }
@@ -111,6 +112,7 @@ public partial class MainViewModel
                 throw new IOException(_content.Workspace.Error ?? "Preview shutdown is unconfirmed.");
         });
         _content.Workspace.RequestUnsavedDecision = () => RequestUnsavedProjectDecision?.Invoke() ?? Task.FromResult(UnsavedDecision.Cancel);
+        _content.Workspace.RequestSubtitleExportDecision = () => RequestSubtitleExportDecision?.Invoke() ?? Task.FromResult(SubtitleExportDecision.Cancel);
         _content.Workspace.RequestDraftRecovery = () => RequestProjectDraftRecovery?.Invoke() ?? Task.FromResult<bool?>(null);
         _content.Workspace.RequestExistingExport = path => RequestExistingProjectExport?.Invoke(path) ?? Task.FromResult(ExistingExportDecision.Cancel);
         _content.Workspace.OpenExistingExport = path => OpenExistingProjectExport?.Invoke(path);

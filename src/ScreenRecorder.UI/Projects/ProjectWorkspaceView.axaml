@@ -135,6 +135,9 @@
       </StackPanel>
       <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
         <Button Content="{Binding Strings[ProjectSave]}" Command="{Binding SaveCommand}" IsEnabled="{Binding !IsBusy}"/>
+        <Button x:Name="SubtitlesButton" Click="OnManageSubtitles" IsEnabled="{Binding CanEditTimeline}">
+          <editor:EditorToolContent Icon="subtitles" Text="{Binding Strings[SubtitleAttach]}"/>
+        </Button>
         <Button x:Name="ExportButton" IsEnabled="{Binding CanExport}" Background="#2563EB" Foreground="White" AutomationProperties.Name="{Binding Strings[ProjectExportMenu]}">
           <Button.Flyout><MenuFlyout>
             <MenuItem Header="{Binding Strings[ProjectExportVideo]}" Click="OnExport"/>
@@ -199,10 +202,20 @@
             <TextBlock Grid.Column="1" Text="{Binding PreviewResolutionText}" FontSize="11" Foreground="{DynamicResource ProjectMutedBrush}"/>
           </Grid>
           <Border Grid.Row="1" Margin="0,12" Background="#11161F" CornerRadius="8" ClipToBounds="True">
+            <Grid>
             <ScrollViewer x:Name="PreviewScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                           HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
               <Image x:Name="PreviewImage" Stretch="Uniform"/>
             </ScrollViewer>
+            <Border IsVisible="{Binding HasPreviewSubtitle}" Background="{Binding PreviewSubtitleBackground}"
+                    VerticalAlignment="{Binding PreviewSubtitleAlignment}" HorizontalAlignment="Center"
+                    Margin="18,20" Padding="10,5" CornerRadius="5" IsHitTestVisible="False" MaxWidth="1000">
+              <TextBlock x:Name="PreviewSubtitleText" Text="{Binding PreviewSubtitleText}" FontSize="{Binding PreviewSubtitleFontSize}"
+                         Foreground="{Binding PreviewSubtitleForeground}" TextAlignment="Center" TextWrapping="Wrap">
+                <TextBlock.Effect><DropShadowEffect Color="Black" BlurRadius="3" OffsetX="1" OffsetY="1"/></TextBlock.Effect>
+              </TextBlock>
+            </Border>
+            </Grid>
           </Border>
           <StackPanel x:Name="PreviewControls" Grid.Row="2" Spacing="5" Margin="0,4">
             <Slider x:Name="FullscreenSeek" IsVisible="False" Minimum="0" Maximum="{Binding DurationTicks}"
@@ -230,8 +243,31 @@
                       ToolTip.Tip="{Binding Strings[PreviewFullscreen]}" AutomationProperties.Name="{Binding Strings[PreviewFullscreen]}">
                 <editor:EditorToolContent Icon="fullscreen"/>
               </Button>
+              <ComboBox x:Name="PreviewSubtitlesPicker" ItemsSource="{Binding PreviewSubtitleOptions}"
+                        SelectedItem="{Binding SelectedPreviewSubtitleChoice, Mode=TwoWay}" IsEnabled="{Binding HasSubtitleTracks}"
+                        MinWidth="100" MaxWidth="230" Margin="6,0,6,4" AutomationProperties.Name="{Binding Strings[SubtitleAttach]}"/>
+              <Button Content="{Binding Strings[SubtitleAppearance]}" IsEnabled="{Binding HasSubtitleTracks}" Margin="0,0,0,4">
+                <Button.Flyout><Flyout>
+                  <StackPanel Width="240" Spacing="10">
+                    <TextBlock Text="{Binding Strings[SubtitleSize]}"/>
+                    <Slider Minimum="75" Maximum="200" TickFrequency="25" IsSnapToTickEnabled="True" Value="{Binding PreviewSubtitleScale}"/>
+                    <ComboBox SelectedIndex="{Binding PreviewSubtitleTheme, Mode=TwoWay}">
+                      <ComboBoxItem Content="{Binding Strings[SubtitleWhiteBlack]}"/><ComboBoxItem Content="{Binding Strings[SubtitleYellowBlack]}"/>
+                      <ComboBoxItem Content="{Binding Strings[SubtitleBlackWhite]}"/><ComboBoxItem Content="{Binding Strings[SubtitleWhiteShadow]}"/>
+                    </ComboBox>
+                    <TextBlock Text="{Binding Strings[SubtitleOpacity]}"/>
+                    <Slider Minimum="0" Maximum="1" Value="{Binding PreviewSubtitleOpacity}"/>
+                    <ComboBox SelectedIndex="{Binding PreviewSubtitlePosition, Mode=TwoWay}">
+                      <ComboBoxItem Content="{Binding Strings[SubtitleTop]}"/><ComboBoxItem Content="{Binding Strings[SubtitleMiddle]}"/>
+                      <ComboBoxItem Content="{Binding Strings[SubtitleBottom]}"/>
+                    </ComboBox>
+                    <Button Content="{Binding Strings[SubtitleReset]}" Click="OnResetSubtitleAppearance"/>
+                  </StackPanel>
+                </Flyout></Button.Flyout>
+              </Button>
             </WrapPanel>
             <TextBlock Text="{Binding PreviewStatus}" FontSize="11" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource ProjectMutedBrush}"/>
+            <TextBlock Text="{Binding SubtitleSyncWarning}" FontSize="11" Foreground="#B45309" TextWrapping="Wrap"/>
           </StackPanel>
         </Grid>
       </Border>

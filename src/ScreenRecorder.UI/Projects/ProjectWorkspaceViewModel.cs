@@ -85,6 +85,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
             PublishTimeline([]);
         }
         State = reply.State;
+        NotifySubtitles();
         StatusUnconfirmed = false;
         Error = reply.Success ? reply.State.LastError : reply.Error;
         NotifyState();
@@ -127,7 +128,13 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     {
         if (!CanExport || !await ResolveUnsavedAsync()) return;
         if (!CanExport || HasPropertyDraft || State.IsDirty || Error is not null) return;
-        await ExecuteAsync("ExportRecordingContent", new() { Path = parentDirectory, ExportWebPlayer = true });
+        var decision = State.SubtitlesNeedSyncConfirmation
+            ? await (RequestSubtitleExportDecision?.Invoke() ?? Task.FromResult(SubtitleExportDecision.Cancel))
+            : SubtitleExportDecision.Attach;
+        if (decision == SubtitleExportDecision.Cancel) return;
+        await ExecuteAsync("ExportRecordingContent", new() { Path = parentDirectory, ExportWebPlayer = true,
+            SubtitleExportConfirmed = decision == SubtitleExportDecision.Attach,
+            ExportWithoutSubtitles = decision == SubtitleExportDecision.Without });
     }
     [RelayCommand] public Task CancelExportAsync()
     {

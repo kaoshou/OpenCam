@@ -6,6 +6,7 @@ import vm from 'node:vm';
 const html = readFileSync(new URL('../../src/ScreenRecorder.Recorder/WebPlayer/player.html', import.meta.url), 'utf8');
 const runtime = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].at(-1)[1];
 class Element {
+  style={};dataset={};
   children=[]; listeners={}; attributes={}; textContent=''; hidden=true;
   value=''; classList={values:new Set(),add(name){this.values.add(name)},remove(name){this.values.delete(name)},
     contains(name){return this.values.has(name)},toggle(name,force){const next=force??!this.values.has(name);if(next)this.values.add(name);else this.values.delete(name);return next}};
@@ -19,13 +20,17 @@ class Element {
 function setup(data = {format:'opencam.web-player',schemaVersion:1,title:'教材 <img onerror=alert(1)>',
   chapters:[{title:'介紹',start:0,end:4},{title:'示範 </script>',start:4,end:8},{title:'整理',start:8,end:12}]}){
   const ids = Object.fromEntries(['video','error','title','summary','chapters','now','speed','stage','layout','controls',
-    'seek','play','mute','volume','current-time','total-time','wide','fullscreen'].map(id=>[id,new Element()]));
+    'seek','play','mute','volume','current-time','total-time','wide','fullscreen',
+    'caption-button','caption-menu','caption-language','caption-overlay','caption-text','caption-size','caption-size-value',
+    'caption-theme','caption-opacity','caption-position','caption-reset'].map(id=>[id,new Element()]));
   Object.assign(ids.video,{controls:true,readyState:1,currentTime:0,duration:12,playbackRate:1,paused:true,ended:false,volume:1,muted:false,
     play(){this.playCalled=true;this.paused=false;this.dispatch('play');return Promise.resolve()},
     pause(){this.paused=true;this.dispatch('pause')}});
   ids.controls.append(ids.seek,ids.play,ids.mute,ids.volume,ids.speed,ids.wide,ids.fullscreen);
+  ids.controls.append(ids['caption-button'],ids['caption-menu']);
+  ids['caption-menu'].append(ids['caption-language'],ids['caption-size'],ids['caption-theme'],ids['caption-opacity'],ids['caption-position'],ids['caption-reset']);
   const document={getElementById:id=>ids[id],createElement:()=>new Element(),body:new Element(),listeners:{},activeElement:null,fullscreenElement:null,
-    addEventListener(name,handler){this.listeners[name]=handler},dispatch(name,event={}){this.listeners[name]?.(event)},
+    addEventListener(name,handler){(this.listeners[name]??=[]).push(handler)},dispatch(name,event={}){this.listeners[name]?.forEach(handler=>handler(event))},
     exitFullscreen(){this.fullscreenElement=null;this.dispatch('fullscreenchange');return Promise.resolve()}};
   ids.stage.requestFullscreen=()=>{document.fullscreenElement=ids.stage;document.dispatch('fullscreenchange');return Promise.resolve()};
   const timers=new Map();let timerId=0;
@@ -35,6 +40,44 @@ function setup(data = {format:'opencam.web-player',schemaVersion:1,title:'教材
     setTimeout(fn){timers.set(++timerId,fn);return timerId},clearTimeout(id){timers.delete(id)}},document};
   vm.runInNewContext(runtime,context);ready();return ids;
 }
+const subtitleLesson=()=>({format:'opencam.web-player',schemaVersion:1,title:'Subtitles',chapters:[{title:'Lesson',start:0,end:12}],
+  subtitles:{defaultTrackId:'tw',tracks:[
+    {id:'tw',language:'zh-TW',label:'繁體中文',cues:[{start:0,end:2,text:'教材 <img onerror=alert(1)>'},{start:1,end:3,text:'重疊'}]},
+    {id:'en',language:'en',label:'English',cues:[{start:0,end:3,text:'Lesson'}]}
+  ]}});
+test('subtitles default on, remain plain text, support overlaps and clear exactly at the end',()=>{
+  const ids=setup(subtitleLesson());
+  assert.equal(ids['caption-button'].hidden,false);
+  assert.equal(ids['caption-text'].textContent,'教材 <img onerror=alert(1)>');
+  ids.video.currentTime=1.5;ids.video.dispatch('timeupdate');
+  assert.equal(ids['caption-text'].textContent,'教材 <img onerror=alert(1)>\n重疊');
+  ids.video.currentTime=3;ids.video.dispatch('seeked');assert.equal(ids['caption-overlay'].hidden,true);
+  ids.video.currentTime=0;ids.video.dispatch('seeked');assert.equal(ids['caption-overlay'].hidden,false);
+});
+test('subtitle language and off selections update the displayed text without changing author defaults',()=>{
+  const data=subtitleLesson(),ids=setup(data);
+  ids['caption-language'].value='en';ids['caption-language'].dispatch('change');
+  assert.equal(ids['caption-text'].textContent,'Lesson');
+  ids['caption-language'].value='off';ids['caption-language'].dispatch('change');
+  assert.equal(ids['caption-overlay'].hidden,true);assert.equal(data.subtitles.defaultTrackId,'tw');
+});
+test('subtitle appearance works without local storage and can reset',()=>{
+  const ids=setup(subtitleLesson());
+  ids['caption-size'].value='150';ids['caption-size'].dispatch('input');
+  assert.equal(ids['caption-text'].style.fontSize,'150%');
+  ids['caption-position'].value='top';ids['caption-position'].dispatch('change');
+  assert.equal(ids['caption-overlay'].dataset.position,'top');
+  ids['caption-reset'].dispatch('click');assert.equal(ids['caption-text'].style.fontSize,'100%');
+  assert.equal(ids['caption-overlay'].dataset.position,'bottom');
+});
+test('subtitle settings keep controls visible and still work on the full screen stage',async()=>{
+  const ids=setup(subtitleLesson());
+  ids.play.dispatch('click');ids['caption-button'].dispatch('click');ids.runTimers();
+  assert.equal(ids.stage.classList.contains('controls-hidden'),false);
+  ids.fullscreen.dispatch('click');await new Promise(resolve=>setImmediate(resolve));
+  ids['caption-language'].value='en';ids['caption-language'].dispatch('change');
+  assert.equal(ids.document.fullscreenElement,ids.stage);assert.equal(ids['caption-text'].textContent,'Lesson');
+});
 test('chapter click seeks and highlights exactly one chapter without interpreting titles as HTML',()=>{
   const ids=setup();const buttons=ids.chapters.children;
   assert.equal(ids.title.textContent,'教材 <img onerror=alert(1)>');

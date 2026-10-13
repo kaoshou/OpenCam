@@ -12,10 +12,12 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Guid _instanceId = Guid.NewGuid();
     private readonly Dictionary<Guid, (string Fingerprint, bool Success, string? Error)> _operations = new();
+    private readonly Dictionary<Guid, ProjectSubtitleTrack> _subtitleImports = new();
     public static bool IsProjectCommand(string command) => command is "CreateProject" or "OpenProject" or "GetProjectStatus"
         or "GetProjectClips" or "GetProjectWaveform" or "PlayProjectPreview" or "StopProjectPreview" or "SetProjectPreviewMuted" or "StartProjectRecording" or "PauseProjectRecording" or "FinishProjectRecording"
         or "SaveProject" or "FindProjectExport" or "DiscardProjectEdits" or "ResolveProjectDraft" or "SetProjectAutoExport" or "RenameProject" or "RenameProjectClip" or "ApplyProjectEdit" or "UndoProject" or "RedoProject" or "CloseProject" or "RestoreProjectBackup"
-        or "StartNewRecordingContent" or "StartProjectInsertion" or "FinishRecordingContent" or "RetryRecordingContentExport" or "CancelRecordingContentExport" or "ExportRecordingContent";
+        or "StartNewRecordingContent" or "StartProjectInsertion" or "FinishRecordingContent" or "RetryRecordingContentExport" or "CancelRecordingContentExport" or "ExportRecordingContent"
+        or "ImportProjectSubtitle" or "EditProjectSubtitles";
 
     private ProjectSnapshot Snapshot()
     {
@@ -27,7 +29,9 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
             Canvas = coordinator.Current?.Canvas, HasUnsavedEdits = coordinator.IsDirty,
             TotalRecordingTicks = times.Total, SessionRecordingTicks = times.Session,
             HasRecoverableDraft = coordinator.HasRecoverableDraft, DraftError = coordinator.DraftError,
-            AutoExportOnStop = coordinator.Current?.AutoExportOnStop ?? true };
+            AutoExportOnStop = coordinator.Current?.AutoExportOnStop ?? true,
+            Subtitles = coordinator.Current?.Subtitles ?? ProjectSubtitleSettings.Empty,
+            SubtitlesNeedSyncConfirmation = coordinator.SubtitlesNeedSyncConfirmation };
     }
 
     public async Task<IpcResponse> DispatchAsync(IpcMessage message)
@@ -46,13 +50,13 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
             {
                 await coordinator.ReconcileRecorderStatusAsync();
                 if (request.OperationId != Guid.Empty && _operations.TryGetValue(request.OperationId, out var known))
-                    return Reply(new(known.Success, known.Error, Snapshot()));
+                    return Reply(new(known.Success, known.Error, Snapshot()) { ImportedSubtitle = _subtitleImports.GetValueOrDefault(request.OperationId) });
                 return Reply(new(true, null, Snapshot(), OperationKnown: request.OperationId == Guid.Empty));
             }
             if (request.OperationId != Guid.Empty && _operations.TryGetValue(request.OperationId, out var old))
             {
                 if (old.Fingerprint != fingerprint) throw new InvalidDataException("Operation ID reused with different content.");
-                return Reply(new(old.Success, old.Error, Snapshot()));
+                return Reply(new(old.Success, old.Error, Snapshot()) { ImportedSubtitle = _subtitleImports.GetValueOrDefault(request.OperationId) });
             }
             if (message.MessageType is not ("CreateProject" or "OpenProject" or "StartNewRecordingContent") &&
                 (request.ProjectId is null || request.ProjectId != coordinator.Current?.ProjectId))
@@ -77,6 +81,15 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
                 return Reply(new(true, null, Snapshot()) { Waveform = waveform });
             }
             if (request.OperationId == Guid.Empty) throw new InvalidDataException("An operation ID is required.");
+            if (message.MessageType == "ImportProjectSubtitle")
+            {
+                if (request.ServerInstanceId != _instanceId || _operations.Count >= 20000)
+                    throw new InvalidOperationException("Subtitle import status is obsolete or the operation limit was reached.");
+                var track = await coordinator.ImportSubtitleAsync(request.Path ?? "", request.SubtitleLanguage ?? "zh-TW", request.ExpectedRevision);
+                _subtitleImports.Add(request.OperationId, track);
+                _operations.Add(request.OperationId, (fingerprint, true, null));
+                return Reply(new(true, null, Snapshot()) { ImportedSubtitle = track });
+            }
             if (message.MessageType is "PlayProjectPreview" or "StopProjectPreview" or "SetProjectPreviewMuted")
             {
                 // No playback backend means no audio can be running. A Stop acknowledgement
@@ -114,7 +127,8 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
                 "FinishRecordingContent" => await coordinator.FinishAndExportAsync(request.OperationId),
                 "RetryRecordingContentExport" => await coordinator.RetryExportAsync(request.OperationId),
                 "ExportRecordingContent" => await coordinator.ExportAsync(request.Path ?? "", request.ExpectedRevision, request.OperationId,
-                    pathIsFile: request.PathIsExportFile, webPlayer: request.ExportWebPlayer),
+                    pathIsFile: request.PathIsExportFile, webPlayer: request.ExportWebPlayer,
+                    subtitleConfirmed: request.SubtitleExportConfirmed, omitSubtitles: request.ExportWithoutSubtitles),
                 "CancelRecordingContentExport" => await coordinator.RequestExportCancellationAsync(request.ExportId ?? throw new InvalidDataException("Missing export identity.")),
                 "StartProjectRecording" => await coordinator.StartAsync(request.Configuration ?? throw new InvalidDataException("Missing capture configuration."), request.OperationId),
                 "StartProjectInsertion" => await coordinator.StartInsertionAsync(request.Configuration ?? throw new InvalidDataException("Missing capture configuration."),
@@ -127,6 +141,8 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
                 "SetProjectAutoExport" => await coordinator.SetAutoExportOnStopAsync(request.AutoExportOnStop, request.ExpectedRevision),
                 "RenameProjectClip" => await coordinator.RenameClipAsync(request.ClipId, request.Name ?? "", request.ExpectedRevision),
                 "RenameProject" => await coordinator.RenameProjectAsync(request.Name ?? "", request.ExpectedRevision),
+                "EditProjectSubtitles" => await coordinator.SetSubtitlesAsync(request.SubtitleSettings
+                    ?? throw new InvalidDataException("Missing subtitle settings."), request.ExpectedRevision, confirmSync: request.ConfirmSubtitleSync),
                 "ApplyProjectEdit" => await coordinator.ApplyEditAsync(request.Edit ?? throw new InvalidDataException("Missing clip edit."),
                     request.ExpectedRevision, request.OperationId),
                 "UndoProject" => await coordinator.UndoAsync(request.ExpectedRevision),
@@ -155,6 +171,12 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
             if (request.ServerInstanceId != _instanceId || request.ProjectId is null ||
                 request.ProjectId != coordinator.Current?.ProjectId || request.ExpectedRevision != coordinator.Current.Revision)
                 throw new InvalidOperationException("Preview request belongs to an obsolete snapshot.");
+            if (request.SubtitleTrackId is { } subtitleId)
+            {
+                if (request.PlaybackGeneration is not null) throw new InvalidDataException("Mixed preview request.");
+                return new(true, null, Snapshot()) { SubtitleTrackId = subtitleId,
+                    SubtitleData = await coordinator.ReadSubtitleDataAsync(subtitleId, request.ExpectedRevision) };
+            }
             if (frames is null) throw new PlatformNotSupportedException("Preview decoder is unavailable.");
             if (request.PlaybackGeneration is { } generation)
             {

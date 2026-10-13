@@ -50,6 +50,7 @@ public sealed partial class ProjectWorkspaceViewModel
     private static string FormatTime(long ticks) => TimeSpan.FromTicks(ticks).ToString(@"hh\:mm\:ss\.fff");
     partial void OnPlayheadTicksChanged(long value)
     {
+        UpdateSubtitleText();
         if (!_clockUpdate)
         {
             ClearPreview();

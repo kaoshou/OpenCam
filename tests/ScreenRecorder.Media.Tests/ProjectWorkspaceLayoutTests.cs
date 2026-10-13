@@ -23,6 +23,39 @@ public sealed class ProjectLayoutApp : Application
 
 public sealed class ProjectWorkspaceLayoutTests
 {
+    [AvaloniaFact]
+    public void ChangingSubtitleLanguagePreservesChosenDefaultTrack()
+    {
+        var a = new ScreenRecorder.Core.Projects.ProjectSubtitleTrack(Guid.NewGuid(), "a.srt", "zh-TW", "", 1, new string('A', 64), new string('A', 64));
+        var b = a with { Id = Guid.NewGuid(), OriginalName = "b.srt", Language = "en" };
+        var vm = new ProjectWorkspaceViewModel(new ClosedProjectClient()) { State = ProjectSnapshot.Closed with { Subtitles = new([a, b], a.Id) } };
+        var dialog = new ProjectSubtitlesDialog(vm);
+        try
+        {
+            dialog.Show(); dialog.UpdateLayout();
+            var defaults = dialog.FindControl<ComboBox>("DefaultSubtitlePicker")!;
+            defaults.SelectedIndex = 1;
+            var firstLanguage = dialog.FindControl<StackPanel>("SubtitleRows")!.GetVisualDescendants().OfType<ComboBox>().First();
+            firstLanguage.SelectedIndex = 3;
+            Assert.Equal(1, defaults.SelectedIndex);
+        }
+        finally { dialog.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task WorkspaceOffersSubtitleManagementAndPreviewControls()
+    {
+        var window = new SizedProjectWorkspace { DataContext = new ProjectWorkspaceViewModel(new ClosedProjectClient()) };
+        try
+        {
+            window.Show(); window.UpdateLayout();
+            Assert.NotNull(window.FindControl<Button>("SubtitlesButton"));
+            Assert.NotNull(window.FindControl<ComboBox>("PreviewSubtitlesPicker"));
+            Assert.NotNull(window.FindControl<TextBlock>("PreviewSubtitleText"));
+        }
+        finally { await window.RequestCloseAsync(); }
+    }
+
     [AvaloniaTheory]
     [InlineData(false, false)]
     [InlineData(true, false)]

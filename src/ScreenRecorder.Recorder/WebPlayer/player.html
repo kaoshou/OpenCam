@@ -22,6 +22,7 @@ label{display:flex;align-items:center;gap:8px;flex-shrink:0;color:#64748b;font-s
 footer{margin-top:24px;padding:18px;border-top:1px solid #e2e8f0;text-align:center;color:#64748b;font-size:11px}a{color:#2563eb;text-decoration:none;font-weight:600}a:hover{text-decoration:underline}button:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #60a5fa;outline-offset:3px}.error{padding:12px 20px;color:#a12a35;background:#fff3f3;font-size:13px}[hidden]{display:none!important}
 .stage{position:relative;background:#0c1422;outline-offset:-3px}.controls{display:none;position:absolute;bottom:0;left:0;right:0;padding:36px 16px 12px;background:linear-gradient(transparent,#000b);color:white;transition:opacity .18s}.stage.enhanced .controls{display:block}.stage.controls-hidden .controls{opacity:0;pointer-events:none}.stage.controls-hidden{cursor:none}.control-row{display:flex;align-items:center;gap:8px;margin-top:6px}.control-button{display:grid;place-items:center;flex-shrink:0;width:34px;height:34px;padding:6px;border:0;border-radius:7px;color:white;background:transparent;cursor:pointer;font:inherit}.control-button:hover{background:#ffffff24}.control-button svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.pause-icon{display:none}.control-button.playing .play-icon{display:none}.control-button.playing .pause-icon{display:block}.control-button[aria-pressed=true]{background:#ffffff24}.volume{width:70px;min-width:0}.seek{display:block;width:100%;margin:0;cursor:pointer}.controls input{accent-color:#60a5fa}.time-display{font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap;color:#e2e8f0}.control-spacer{flex:1}.controls select{background:#162033;color:white;border-color:#ffffff30;padding:6px;font-size:12px;max-width:68px}.controls button:focus-visible,.controls select:focus-visible,.controls input:focus-visible{outline:2px solid #93c5fd;outline-offset:2px}.stage:fullscreen,.stage.frame-fullscreen{width:100%;height:100%;background:#000}.stage:fullscreen video,.stage.frame-fullscreen video{width:100%;height:100%;max-height:none;aspect-ratio:auto}.stage.frame-fullscreen{position:fixed;inset:0;z-index:1000}.frame-fullscreen-active{overflow:hidden}.stage:fullscreen .controls,.stage.frame-fullscreen .controls{padding-bottom:max(16px,env(safe-area-inset-bottom))}
 @media(prefers-reduced-motion:reduce){.chapter,.controls{transition:none}}
+.caption-overlay{position:absolute;left:4%;right:4%;bottom:104px;text-align:center;pointer-events:none;font-size:clamp(16px,2vw,34px);line-height:1.4;z-index:1}.caption-overlay[data-position=top]{top:6%;bottom:auto}.caption-overlay[data-position=middle]{top:50%;bottom:auto;transform:translateY(-50%)}.stage.controls-hidden .caption-overlay[data-position=bottom]{bottom:7%}.caption-text{display:inline-block;max-width:100%;padding:4px 10px;border-radius:5px;white-space:pre-line;overflow-wrap:anywhere;text-shadow:0 1px 3px #000,1px 0 2px #000,-1px 0 2px #000}.caption-menu{position:absolute;right:12px;bottom:calc(100% + 6px);width:280px;max-width:calc(100vw - 36px);max-height:min(440px,65vh);overflow:auto;overscroll-behavior:contain;padding:16px;border:1px solid #ffffff30;border-radius:12px;background:#111c2bf5;box-shadow:0 8px 30px #0007;z-index:3}.caption-menu h3{font-size:14px;margin:0 0 12px}.caption-menu label{display:block;color:#e2e8f0;margin:12px 0 4px}.controls .caption-menu select{width:100%;max-width:none;padding:8px}.caption-menu input{width:100%}.caption-menu button{color:white;border:1px solid #ffffff30;border-radius:8px;padding:8px 12px;background:#ffffff12;cursor:pointer;width:100%;margin-top:14px}.caption-menu output{font-variant-numeric:tabular-nums;color:#93c5fd;font-size:12px}
 @media(max-width:960px){.layout{grid-template-columns:1fr}.list{height:auto;flex:none;max-height:min(360px,55vh)}main{padding:24px 16px}header{padding:16px;gap:12px}}
 @media(max-width:480px){main{padding:16px 10px}header{padding:16px 14px}.details{padding:12px 14px}.player,.chapters{border-radius:10px}.subtitle{font-size:11px}footer{margin-top:20px}.controls{padding:28px 8px 8px}.control-row{gap:3px;flex-wrap:wrap}.volume{width:42px}.time-display{font-size:10px}.control-button{width:30px;height:30px}.controls select{max-width:58px;font-size:11px}}
 </style>
@@ -34,6 +35,7 @@ footer{margin-top:24px;padding:18px;border-top:1px solid #e2e8f0;text-align:cent
 <section class="player" aria-label="影片播放器 / Video player">
 <div class="stage" id="stage" tabindex="0" aria-label="影片；空白鍵播放、方向鍵快轉 / Video keyboard controls">
 <video id="video" controls playsinline preload="metadata" src="media.mp4">您的瀏覽器不支援影片播放。 Your browser does not support video playback.</video>
+<div class="caption-overlay" id="caption-overlay" data-position="bottom" hidden><span class="caption-text" id="caption-text"></span></div>
 <div class="controls" id="controls" role="group" aria-label="播放控制 / Playback controls">
 <input class="seek" id="seek" type="range" min="0" max="100" step="0.1" value="0" aria-label="播放進度 / Seek">
 <div class="control-row">
@@ -43,8 +45,18 @@ footer{margin-top:24px;padding:18px;border-top:1px solid #e2e8f0;text-align:cent
 <span class="time-display"><span id="current-time">0:00</span> / <span id="total-time">0:00</span></span>
 <span class="control-spacer"></span>
 <select id="speed" aria-label="播放速度 / Playback speed" title="播放速度 / Speed"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option selected value="1">1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option></select>
+<button class="control-button" id="caption-button" type="button" aria-label="字幕 / Subtitles" aria-controls="caption-menu" aria-expanded="false" aria-pressed="false" title="字幕 / Subtitles" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 10h4m-4 4h3m5-4h4m-4 4h3"/></svg></button>
 <button class="control-button" id="wide" type="button" aria-label="寬螢幕 / Wide screen" aria-pressed="false" title="寬螢幕 / Wide screen"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/></svg></button>
 <button class="control-button" id="fullscreen" type="button" aria-label="全螢幕 / Full screen" aria-pressed="false" title="全螢幕 / Full screen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></button>
+</div>
+<div class="caption-menu" id="caption-menu" role="dialog" aria-label="字幕設定 / Subtitle settings" hidden>
+<h3>字幕 / Subtitles</h3>
+<label for="caption-language">語言 / Language</label><select id="caption-language"></select>
+<label for="caption-size">字級 / Text size <output id="caption-size-value">100%</output></label><input id="caption-size" type="range" min="75" max="200" step="25" value="100">
+<label for="caption-theme">樣式 / Appearance</label><select id="caption-theme"><option value="0">白字黑底 / White on black</option><option value="1">黃字黑底 / Yellow on black</option><option value="2">黑字白底 / Black on white</option><option value="3">白字陰影 / White with shadow</option></select>
+<label for="caption-opacity">背景不透明度 / Background opacity</label><input id="caption-opacity" type="range" min="0" max="1" step="0.05" value="0.78">
+<label for="caption-position">位置 / Position</label><select id="caption-position"><option value="bottom">下方 / Bottom</option><option value="middle">中間 / Middle</option><option value="top">上方 / Top</option></select>
+<button id="caption-reset" type="button">重設外觀 / Reset appearance</button>
 </div></div></div>
 <div class="details"><div class="current"><span class="caption">目前章節 / NOW PLAYING</span><span class="now" id="now">準備播放 / Ready</span></div></div>
 <div class="error" id="error" role="status" hidden></div>
@@ -84,13 +96,81 @@ window.addEventListener('DOMContentLoaded',()=>{
     play=document.getElementById('play'),mute=document.getElementById('mute'),volume=document.getElementById('volume'),
     speed=document.getElementById('speed'),wide=document.getElementById('wide'),fullscreen=document.getElementById('fullscreen');
   let hideTimer,fullscreenPending=false;
+  const captionButton=document.getElementById('caption-button'),captionMenu=document.getElementById('caption-menu'),
+    captionLanguage=document.getElementById('caption-language'),captionOverlay=document.getElementById('caption-overlay'),
+    captionText=document.getElementById('caption-text'),captionSize=document.getElementById('caption-size'),
+    captionTheme=document.getElementById('caption-theme'),captionOpacity=document.getElementById('caption-opacity'),captionPosition=document.getElementById('caption-position');
   const showControls=()=>{
     window.clearTimeout(hideTimer);stage.classList.remove('controls-hidden');
     if(!video.paused&&!video.ended)hideTimer=window.setTimeout(()=>{
-      if(!video.paused&&!video.ended&&!controls.contains(document.activeElement))stage.classList.add('controls-hidden');
+      if(!video.paused&&!video.ended&&captionMenu.hidden&&!controls.contains(document.activeElement))stage.classList.add('controls-hidden');
     },3000);
   };
   const validDuration=()=>Number.isFinite(video.duration)&&video.duration>0;
+  const sourceTracks=data.subtitles?.tracks;
+  const subtitleTracks=Array.isArray(sourceTracks)&&sourceTracks.length<=32?sourceTracks.filter(track=>
+    track&&typeof track.id==='string'&&track.id.length>0&&track.id.length<=128&&track.id!=='off'&&typeof track.label==='string'&&
+    typeof track.language==='string'&&Array.isArray(track.cues)&&track.cues.length>0&&track.cues.length<=100000&&
+    track.cues.every(c=>c&&Number.isFinite(c.start)&&Number.isFinite(c.end)&&c.start>=0&&c.end>c.start&&typeof c.text==='string'&&c.text.length<=10000)):[];
+  if(sourceTracks&&(!Array.isArray(sourceTracks)||subtitleTracks.length!==sourceTracks.length))showError('字幕資料不完整，影片仍可播放。 Invalid subtitle data.');
+  const readPref=key=>{try{return window.localStorage?.getItem(key)??null}catch{return null}};
+  const writePref=(key,value)=>{try{window.localStorage?.setItem(key,value)}catch{}};
+  const choiceKey='opencam.subtitle.'+data.title+'.'+(data.chapters[0]?.id||'lesson');
+  const defaultTrack=subtitleTracks.find(t=>t.id===data.subtitles?.defaultTrackId)||subtitleTracks.find(t=>t.language==='zh-TW')||subtitleTracks[0];
+  const preference=readPref(choiceKey);
+  let subtitleId=preference==='off'||subtitleTracks.some(t=>t.id===preference)?preference:defaultTrack?.id||'off';
+  let appearance={size:100,theme:0,opacity:.78,position:'bottom'},captionFrame=null,captionFrameNative=false;
+  try{const saved=JSON.parse(readPref('opencam.captionAppearance')||'null');if(saved){
+    if(Number.isFinite(saved.size)&&saved.size>=75&&saved.size<=200)appearance.size=saved.size;
+    if([0,1,2,3].includes(saved.theme))appearance.theme=saved.theme;
+    if(Number.isFinite(saved.opacity)&&saved.opacity>=0&&saved.opacity<=1)appearance.opacity=saved.opacity;
+    if(['top','middle','bottom'].includes(saved.position))appearance.position=saved.position;
+  }}catch{}
+  const renderCaptions=()=>{
+    const track=subtitleTracks.find(t=>t.id===subtitleId),position=video.currentTime;
+    const text=track&&!video.ended?track.cues.filter(c=>position>=c.start&&position<c.end).map(c=>c.text).join('\n'):'';
+    captionText.textContent=text;captionOverlay.hidden=text.length===0;
+  };
+  const cancelCaptionFrame=()=>{
+    if(captionFrame!==null){if(captionFrameNative)video.cancelVideoFrameCallback?.(captionFrame);else window.cancelAnimationFrame?.(captionFrame);captionFrame=null;}
+  };
+  const scheduleCaptions=()=>{
+    if(video.paused||video.ended||subtitleId==='off')return;
+    if(video.requestVideoFrameCallback){captionFrameNative=true;captionFrame=video.requestVideoFrameCallback(()=>{renderCaptions();scheduleCaptions()});}
+    else if(window.requestAnimationFrame){captionFrameNative=false;captionFrame=window.requestAnimationFrame(()=>{renderCaptions();scheduleCaptions()});}
+  };
+  const setSubtitle=id=>{
+    subtitleId=subtitleTracks.some(t=>t.id===id)?id:'off';captionLanguage.value=subtitleId;
+    captionButton.setAttribute('aria-pressed',String(subtitleId!=='off'));writePref(choiceKey,subtitleId);
+    cancelCaptionFrame();renderCaptions();scheduleCaptions();showControls();
+  };
+  const applyCaptionAppearance=()=>{
+    captionSize.value=String(appearance.size);document.getElementById('caption-size-value').textContent=appearance.size+'%';
+    captionTheme.value=String(appearance.theme);captionOpacity.value=String(appearance.opacity);captionPosition.value=appearance.position;
+    captionText.style.fontSize=appearance.size+'%';captionText.style.color=appearance.theme===1?'#ffe45c':appearance.theme===2?'#111':'#fff';
+    captionText.style.backgroundColor=appearance.theme===3?'transparent':appearance.theme===2?'rgba(255,255,255,'+appearance.opacity+')':'rgba(0,0,0,'+appearance.opacity+')';
+    captionText.style.textShadow=appearance.theme===2?'none':'0 1px 3px #000,1px 0 2px #000,-1px 0 2px #000';
+    captionOverlay.dataset.position=appearance.position;writePref('opencam.captionAppearance',JSON.stringify(appearance));showControls();
+  };
+  const closeCaptionMenu=()=>{captionMenu.hidden=true;captionButton.setAttribute('aria-expanded','false');showControls()};
+  if(subtitleTracks.length){
+    captionButton.hidden=false;
+    const off=document.createElement('option');off.value='off';off.textContent='關閉字幕 / Off';captionLanguage.append(off);
+    subtitleTracks.forEach(track=>{const option=document.createElement('option');option.value=track.id;option.textContent=track.label;captionLanguage.append(option)});
+    setSubtitle(subtitleId);applyCaptionAppearance();
+  }
+  captionButton.addEventListener('click',()=>{captionMenu.hidden=!captionMenu.hidden;captionButton.setAttribute('aria-expanded',String(!captionMenu.hidden));if(!captionMenu.hidden)captionLanguage.focus?.();showControls()});
+  captionLanguage.addEventListener('change',()=>setSubtitle(captionLanguage.value));
+  captionSize.addEventListener('input',()=>{const value=Number(captionSize.value);appearance.size=Number.isFinite(value)?Math.max(75,Math.min(200,value)):100;applyCaptionAppearance()});
+  captionTheme.addEventListener('change',()=>{const value=Number(captionTheme.value);appearance.theme=[0,1,2,3].includes(value)?value:0;applyCaptionAppearance()});
+  captionOpacity.addEventListener('input',()=>{const value=Number(captionOpacity.value);appearance.opacity=Number.isFinite(value)?Math.max(0,Math.min(1,value)):.78;applyCaptionAppearance()});
+  captionPosition.addEventListener('change',()=>{appearance.position=['top','middle','bottom'].includes(captionPosition.value)?captionPosition.value:'bottom';applyCaptionAppearance()});
+  document.getElementById('caption-reset').addEventListener('click',()=>{appearance={size:100,theme:0,opacity:.78,position:'bottom'};applyCaptionAppearance()});
+  ['timeupdate','seeked','loadedmetadata','pause','ended'].forEach(event=>video.addEventListener(event,renderCaptions));
+  video.addEventListener('play',()=>{cancelCaptionFrame();renderCaptions();scheduleCaptions()});
+  ['pause','ended'].forEach(event=>video.addEventListener(event,cancelCaptionFrame));
+  stage.addEventListener('pointerdown',e=>{if(!captionMenu.hidden&&e.target!==captionButton&&!captionMenu.contains(e.target)&&!captionButton.contains(e.target))closeCaptionMenu()});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!captionMenu.hidden){e.preventDefault();closeCaptionMenu();captionButton.focus?.()}});
   const syncTime=()=>{
     document.getElementById('current-time').textContent=time(video.currentTime);
     document.getElementById('total-time').textContent=validDuration()?time(video.duration):'0:00';
@@ -123,7 +203,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   video.addEventListener('ratechange',()=>{speed.value=String(video.playbackRate)});
   wide.addEventListener('click',()=>{const active=document.getElementById('layout').classList.toggle('wide');wide.setAttribute('aria-pressed',String(active));wide.title=active?'還原版面 / Restore layout':'寬螢幕 / Wide screen';showControls()});
   fullscreen.addEventListener('click',toggleFullscreen);document.addEventListener('fullscreenchange',syncFullscreen);
-  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&stage.classList.contains('frame-fullscreen'))exitFrame()});
+  document.addEventListener('keydown',e=>{if(!e.defaultPrevented&&e.key==='Escape'&&stage.classList.contains('frame-fullscreen'))exitFrame()});
   stage.addEventListener('keydown',e=>{
     if(e.target!==stage&&e.target!==video)return;
     if(e.key===' '){e.preventDefault();togglePlay();}

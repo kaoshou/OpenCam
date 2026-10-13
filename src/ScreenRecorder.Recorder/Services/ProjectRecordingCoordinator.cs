@@ -325,22 +325,26 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
         BeginExport();
     }, operationId, "retry-export", ct);
 
-    private void BeginExport(string? fileName = null, bool webPlayer = false)
+    private void BeginExport(string? fileName = null, bool webPlayer = false, bool omitSubtitles = false)
     {
         if (exporter is null) throw new InvalidOperationException("Verified content export is not available yet. Sources remain saved.");
         if (_handle is null || Current!.Clips.IsEmpty) throw new InvalidOperationException("There is no content to export.");
         if (string.IsNullOrWhiteSpace(OutputDirectory)) throw new InvalidOperationException("Select an output directory before exporting.");
         _export?.Dispose();
-        _export = new(exporter, _handle, Current!, OutputDirectory, fileName: fileName, webPlayer: webPlayer);
+        var snapshot = omitSubtitles ? Current! with { Subtitles = ProjectSubtitleSettings.Empty } : Current!;
+        _export = new(exporter, _handle, snapshot, OutputDirectory, fileName: fileName, webPlayer: webPlayer);
     }
 
     public Task<ProjectCommandResult> ExportAsync(string outputDirectory, long expectedRevision, Guid operationId,
-        CancellationToken ct = default, bool pathIsFile = false, bool webPlayer = false) => Run(async () =>
+        CancellationToken ct = default, bool pathIsFile = false, bool webPlayer = false,
+        bool subtitleConfirmed = false, bool omitSubtitles = false) => Run(async () =>
     {
         RequireNoExport();
         if (_handle is null || Mode is not (ProjectMode.Ready or ProjectMode.Paused))
             throw new InvalidOperationException("Pause or finish recording before exporting.");
         CheckRevision(expectedRevision);
+        if (webPlayer && SubtitlesNeedSyncConfirmation && !subtitleConfirmed && !omitSubtitles)
+            throw new InvalidOperationException("Confirm subtitle timing after timeline changes before web export.");
         if (webPlayer && pathIsFile) throw new InvalidDataException("Web player export requires a parent directory.");
         if (string.IsNullOrWhiteSpace(outputDirectory) || !Path.IsPathFullyQualified(outputDirectory))
             throw new InvalidDataException("Select an absolute output directory.");
@@ -350,8 +354,8 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
             throw new InvalidDataException("Choose a new MP4 filename / 請指定尚未存在的 MP4 檔名，既有檔案不會被覆寫。");
         await EnsureSavedForOperationAsync(ct);
         OutputDirectory = pathIsFile ? Path.GetDirectoryName(outputDirectory)! : outputDirectory;
-        BeginExport(fileName, webPlayer);
-    }, operationId, "export:" + expectedRevision + ":" + pathIsFile + ":" + webPlayer + ":" + outputDirectory, ct);
+        BeginExport(fileName, webPlayer, omitSubtitles);
+    }, operationId, "export:" + expectedRevision + ":" + pathIsFile + ":" + webPlayer + ":" + subtitleConfirmed + ":" + omitSubtitles + ":" + outputDirectory, ct);
 
     public async Task<ProjectCommandResult> CancelExportAsync(Guid exportId, CancellationToken ct = default)
     {

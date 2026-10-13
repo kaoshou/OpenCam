@@ -1,5 +1,7 @@
 # OpenCam Complete User Guide (English)
 
+Unreleased multilingual captions: attach SRT/VTT files by selection or drag-and-drop in the editor. Unique project-owned copies avoid filename collisions. Choose languages and the default track, apply, then save explicitly. Preview and Web CC controls offer language, size and appearance settings; MP4 captions are not burned in. Timeline edits require a synchronization decision. **Subtitle projects use format4; released0.3.3 cannot open them. Back up first.** See [subtitle limits](WEB_PLAYER_EXPORT.md).
+
 ## New in v0.2.5: experimental Windows capture
 
 Starting with v0.2.5, Settings → Video Quality & Actions → Windows screen capture offers Compatible capture (GDI), the unchanged default, and Modern capture (experimental).

@@ -48,6 +48,8 @@ public partial class MainWindow : Window
                 vm.RequestWebPlayerDestination = () => ScreenRecorder.UI.Projects.ProjectExportFileDialog.ChooseWebParentAsync(this);
                 vm.RequestUnsavedProjectDecision = () => ScreenRecorder.UI.Projects.ProjectSaveDialogs.AskUnsavedAsync(
                     _projectWindow?.IsVisible == true ? _projectWindow : this);
+                vm.RequestSubtitleExportDecision = () => ScreenRecorder.UI.Projects.ProjectSaveDialogs.AskSubtitleExportAsync(
+                    _projectWindow?.IsVisible == true ? _projectWindow : this);
                 vm.RequestProjectDraftRecovery = () => ScreenRecorder.UI.Projects.ProjectSaveDialogs.AskRecoveryAsync(
                     _projectWindow?.IsVisible == true ? _projectWindow : this);
                 vm.RequestExistingProjectExport = _ => ScreenRecorder.UI.Projects.ProjectSaveDialogs.AskExistingExportAsync(

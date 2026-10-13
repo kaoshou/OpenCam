@@ -8,6 +8,41 @@ namespace ScreenRecorder.Media.Tests;
 
 public sealed class WebPlayerExportTests
 {
+    [Fact]
+    public async Task WebExportEmbedsProjectSubtitlesAndRejectsChangedAssets()
+    {
+        var root = Directory.CreateTempSubdirectory("opencam-web-subtitles-");
+        try
+        {
+            await using var owner = await new JsonProjectStore().CreateAsync(root.FullName, "字幕");
+            var path = Path.Combine(root.FullName, "zh-TW.srt");
+            await File.WriteAllTextAsync(path, "1\n00:00:01,000 --> 00:00:02,000\n教材 </script>");
+            ProjectSubtitleTrack track;
+            await using (var input = File.OpenRead(path)) track = await ProjectSubtitleStore.ImportAsync(owner, input, "zh-TW.srt", "zh-TW");
+            var p = Fixture() with { ProjectId = owner.Current.ProjectId, SchemaVersion = 4,
+                Subtitles = new([track], track.Id) };
+            var exporter = new ProjectWebPlayerExporter(new VideoFixtureExporter(false));
+            var result = await exporter.ExportAsync(owner, p, root.FullName, Guid.NewGuid(), new Progress<double>(), default);
+            Assert.True(result.Success, result.Error);
+            var folder = Path.GetDirectoryName(result.FinalPath)!;
+            Assert.Equal(3, Directory.GetFiles(folder).Length);
+            var script = await File.ReadAllTextAsync(Path.Combine(folder, "opencam-player.js"));
+            Assert.DoesNotContain("</script>", script);
+            using var doc = JsonDocument.Parse(script[(script.IndexOf(" = ", StringComparison.Ordinal) + 3)..].Trim().TrimEnd(';'));
+            Assert.True(doc.RootElement.TryGetProperty("subtitles", out var data) && data.ValueKind == JsonValueKind.Object);
+            Assert.Equal(track.Id.ToString(), data.GetProperty("defaultTrackId").GetString());
+            var cue = data.GetProperty("tracks")[0].GetProperty("cues")[0];
+            Assert.Equal(1, cue.GetProperty("start").GetDouble());
+            Assert.Equal(2, cue.GetProperty("end").GetDouble());
+            Assert.Equal("教材 </script>", cue.GetProperty("text").GetString());
+            await File.AppendAllTextAsync(Path.Combine(owner.ProjectDirectory, track.RelativePath), "changed");
+            await Assert.ThrowsAsync<InvalidDataException>(() => exporter.ExportAsync(owner, p, root.FullName,
+                Guid.NewGuid(), new Progress<double>(), default));
+            Assert.Single(Directory.GetFiles(root.FullName, "index.html", SearchOption.AllDirectories));
+        }
+        finally { root.Delete(true); }
+    }
+
     internal static RecordingProject Fixture()
     {
         var id = Guid.NewGuid();

@@ -21,13 +21,19 @@ public static class AuthenticatedMediaIpc
 
     public static async Task WriteAsync(Stream stream, byte[] key, byte[] nonce, ProjectReply reply, CancellationToken ct)
     {
-        var pixels = reply.Frame?.Rgba ?? [];
+        var subtitle = reply.SubtitleData is not null;
+        if (subtitle && (reply.SubtitleTrackId is null || reply.SubtitleTrackId == Guid.Empty || reply.Frame is not null ||
+            reply.SubtitleData!.Length is <= 0 or > MaximumPixelBytes))
+            throw new InvalidDataException("Invalid subtitle media payload.");
+        if (!subtitle && reply.SubtitleTrackId is not null) throw new InvalidDataException("Missing subtitle media payload.");
+        var pixels = subtitle ? reply.SubtitleData! : reply.Frame?.Rgba ?? [];
         if (reply.Frame?.Rgba is not null && !reply.Frame.HasValidPixels) throw new InvalidDataException("Invalid media geometry.");
-        var metadata = JsonSerializer.SerializeToUtf8Bytes(reply with { Frame = reply.Frame is { } frame ? frame with { Rgba = null } : null });
+        var metadata = JsonSerializer.SerializeToUtf8Bytes(reply with { SubtitleData = null,
+            Frame = reply.Frame is { } frame ? frame with { Rgba = null } : null });
         if (metadata.Length > MaximumMetadataBytes) throw new InvalidDataException("Media metadata too large.");
         var header = new byte[16];
         BinaryPrimitives.WriteInt32LittleEndian(header, Magic);
-        BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(4), 1);
+        BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(4), subtitle ? 2 : 1);
         BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(8), metadata.Length);
         BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(12), pixels.Length);
         await stream.WriteAsync(header, ct);
@@ -42,7 +48,8 @@ public static class AuthenticatedMediaIpc
     {
         var header = new byte[16];
         await stream.ReadExactlyAsync(header, ct);
-        if (BinaryPrimitives.ReadInt32LittleEndian(header) != Magic || BinaryPrimitives.ReadInt32LittleEndian(header.AsSpan(4)) != 1)
+        var version = BinaryPrimitives.ReadInt32LittleEndian(header.AsSpan(4));
+        if (BinaryPrimitives.ReadInt32LittleEndian(header) != Magic || version is not (1 or 2))
             throw new InvalidDataException("Preview protocol mismatch. Restart both processes using the same OpenCam version.");
         var metadataSize = BinaryPrimitives.ReadInt32LittleEndian(header.AsSpan(8));
         var pixelSize = BinaryPrimitives.ReadInt32LittleEndian(header.AsSpan(12));
@@ -55,13 +62,17 @@ public static class AuthenticatedMediaIpc
         Verify(tag, Tag(key, nonce, header, metadata, [], 0));
         var reply = JsonSerializer.Deserialize<ProjectReply>(metadata, new JsonSerializerOptions { MaxDepth = 32 })
             ?? throw new InvalidDataException("Missing media reply.");
-        if (reply.Frame?.Rgba is not null || (pixelSize != 0 && (reply.Frame is null ||
-            !ProjectFrameReply.ValidGeometry(reply.Frame.PixelWidth, reply.Frame.PixelHeight, pixelSize))))
+        if (reply.SubtitleData is not null || (version == 2 && (reply.SubtitleTrackId is null ||
+            reply.SubtitleTrackId == Guid.Empty || reply.Frame is not null || pixelSize == 0)))
+            throw new InvalidDataException("Invalid subtitle media metadata.");
+        if (version == 1 && (reply.SubtitleTrackId is not null || reply.Frame?.Rgba is not null || (pixelSize != 0 && (reply.Frame is null ||
+            !ProjectFrameReply.ValidGeometry(reply.Frame.PixelWidth, reply.Frame.PixelHeight, pixelSize)))))
             throw new InvalidDataException("Invalid media geometry.");
         var pixels = new byte[pixelSize];
         await stream.ReadExactlyAsync(pixels, ct);
         await stream.ReadExactlyAsync(tag, ct);
         Verify(tag, Tag(key, nonce, header, metadata, pixels, 1));
+        if (version == 2) return reply with { SubtitleData = pixels };
         return pixelSize == 0 ? reply : reply with { Frame = reply.Frame! with { Rgba = pixels } };
     }
 

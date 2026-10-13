@@ -1,0 +1,41 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ScreenRecorder.UI.Projects.ProjectSubtitlesDialog" Width="740" Height="580" MinWidth="640" MinHeight="450"
+        WindowStartupLocation="CenterOwner" RequestedThemeVariant="Light" Background="White" Icon="/Assets/app_icon.png">
+  <Window.Styles>
+    <Style Selector="Button"><Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="CornerRadius" Value="8"/><Setter Property="Padding" Value="14,8"/></Style>
+    <Style Selector="Button /template/ ContentPresenter"><Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/></Style>
+    <Style Selector="Button#ApplySubtitleButton /template/ ContentPresenter"><Setter Property="Background" Value="#2563EB"/><Setter Property="Foreground" Value="White"/></Style>
+    <Style Selector="Button#ApplySubtitleButton:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#1D4ED8"/></Style>
+  </Window.Styles>
+  <Grid RowDefinitions="Auto,*,Auto">
+    <StackPanel Margin="24,22,24,14" Spacing="10">
+      <TextBlock x:Name="Heading" FontSize="21" FontWeight="SemiBold" Foreground="#0F172A"/>
+      <TextBlock x:Name="Description" FontSize="13" Foreground="#64748B" TextWrapping="Wrap"/>
+      <Grid ColumnDefinitions="Auto,16,*,Auto">
+        <Button x:Name="SelectFilesButton" Click="OnSelectFiles"/>
+        <TextBlock x:Name="DefaultLabel" Grid.Column="2" VerticalAlignment="Center" FontSize="13"/>
+        <ComboBox x:Name="DefaultSubtitlePicker" Grid.Column="3" MinWidth="200" MaxWidth="310"/>
+      </Grid>
+      <TextBlock x:Name="Notice" FontSize="12" Foreground="#B45309" TextWrapping="Wrap"/>
+      <CheckBox x:Name="ConfirmSubtitleSync" IsVisible="False"/>
+    </StackPanel>
+    <Border x:Name="DropSurface" Grid.Row="1" Margin="24,0,24,14" BorderThickness="1" BorderBrush="#CBD5E1" CornerRadius="10" Background="#F8FAFC" Padding="14">
+      <Grid RowDefinitions="Auto,*">
+        <TextBlock x:Name="DropHint" Foreground="#64748B" Margin="0,0,0,10" TextWrapping="Wrap"/>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel x:Name="SubtitleRows" Spacing="10"/>
+        </ScrollViewer>
+      </Grid>
+    </Border>
+    <Border Grid.Row="2" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Background="#F8FAFC" Padding="24,14">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock x:Name="ErrorText" Foreground="#B91C1C" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,16,0"/>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+          <Button x:Name="CancelSubtitleButton" IsCancel="True" Click="OnCancel" MinWidth="84"/>
+          <Button x:Name="ApplySubtitleButton" IsDefault="True" Click="OnApply" Background="#2563EB" Foreground="White"/>
+        </StackPanel>
+      </Grid>
+    </Border>
+  </Grid>
+</Window>

@@ -10,6 +10,13 @@ namespace ScreenRecorder.UI.Projects;
 
 public partial class ProjectWorkspaceView : Window
 {
+    private async void OnManageSubtitles(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not ProjectWorkspaceViewModel vm || !vm.CanEditTimeline) return;
+        if ((vm.IsPlayingPreview || vm.IsChangingPreviewQuality) && !await vm.StopPreviewAsync()) return;
+        await new ProjectSubtitlesDialog(vm).ShowDialog<bool>(this);
+    }
+    private void OnResetSubtitleAppearance(object? sender, RoutedEventArgs e) => Model?.ResetSubtitleAppearance();
     private MainViewModel? _main;
     private Window? _recordingWindow;
     private bool _homeWasEnabled;
@@ -29,6 +36,7 @@ public partial class ProjectWorkspaceView : Window
         InitializeComponent();
         InitializePreviewViewport();
         InitializeClipListDrag();
+        LayoutUpdated += (_, _) => { if (DataContext is ProjectWorkspaceViewModel vm) vm.SetSubtitleViewportWidth(PreviewPane.Bounds.Width); };
         Closed += (_, _) => { if (_recordingWindow is not null) _recordingWindow.IsEnabled = _homeWasEnabled; };
         Opened += (_, _) => UpdateEditorLayout();
         SizeChanged += (_, _) => UpdateEditorLayout();
@@ -121,6 +129,7 @@ public partial class ProjectWorkspaceView : Window
     private async void OnExportWebPlayer(object? sender, RoutedEventArgs e)
     {
         if (!Model.CanExport) return;
+        Model.RequestSubtitleExportDecision ??= () => ProjectSaveDialogs.AskSubtitleExportAsync(this);
         if (await ProjectExportFileDialog.ChooseWebParentAsync(this) is { } path)
             await Model.ExportWebPlayerAsync(path);
     }

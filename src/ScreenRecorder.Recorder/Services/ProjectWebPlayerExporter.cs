@@ -11,7 +11,7 @@ public sealed class ProjectWebPlayerExporter(IRecordingContentExporter exporter)
         string directory, Guid id, IProgress<double> progress, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var data = ProjectWebPlayerDocument.CreateData(snapshot);
+        var data = await ProjectWebPlayerDocument.CreateDataAsync(owner, snapshot, ct);
         if (data.Chapters.Length == 0) throw new InvalidOperationException("There is no content to export.");
         var html = ProjectWebPlayerDocument.CreateHtml(data);
         var script = ProjectWebPlayerDocument.CreateScript(data);

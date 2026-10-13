@@ -14,8 +14,14 @@ public sealed record ProjectRequest
     public string? Path { get; init; }
     public bool PathIsExportFile { get; init; }
     public bool ExportWebPlayer { get; init; }
+    public bool SubtitleExportConfirmed { get; init; }
+    public bool ExportWithoutSubtitles { get; init; }
+    public bool ConfirmSubtitleSync { get; init; }
     public string? Name { get; init; }
     public Guid ClipId { get; init; }
+    public Guid? SubtitleTrackId { get; init; }
+    public ProjectSubtitleSettings? SubtitleSettings { get; init; }
+    public string? SubtitleLanguage { get; init; }
     public long TimelineTicks { get; init; }
     public Guid? PlaybackGeneration { get; init; }
     public ProjectPreviewQuality PreviewQuality { get; init; } = ProjectPreviewQuality.P720;
@@ -44,6 +50,8 @@ public sealed record ProjectSnapshot(Guid? ProjectId, string Name, string? Direc
     public bool IsDirty => HasUnsavedEdits ?? Revision != SavedRevision;
     public long TotalRecordingTicks { get; init; }
     public long SessionRecordingTicks { get; init; }
+    public ProjectSubtitleSettings Subtitles { get; init; } = ProjectSubtitleSettings.Empty;
+    public bool SubtitlesNeedSyncConfirmation { get; init; }
 }
 
 public sealed record ProjectReply(bool Success, string? Error, ProjectSnapshot State,
@@ -54,6 +62,9 @@ public sealed record ProjectReply(bool Success, string? Error, ProjectSnapshot S
     public ProjectFrameReply? Frame { get; init; }
     public ProjectPlaybackState? Playback { get; init; }
     public string? ExistingOutputPath { get; init; }
+    public Guid? SubtitleTrackId { get; init; }
+    public byte[]? SubtitleData { get; init; }
+    public ProjectSubtitleTrack? ImportedSubtitle { get; init; }
 }
 
 public sealed record ProjectPlaybackState(Guid Generation, long TimelineTicks, bool Playing, string? Error)

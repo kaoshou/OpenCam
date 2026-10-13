@@ -2,16 +2,44 @@ using ScreenRecorder.Core.Projects;
 using System.Net;
 using System.Reflection;
 using System.Text.Json;
+using ScreenRecorder.Infrastructure.Projects;
 
 namespace ScreenRecorder.Recorder.Services;
 
 public sealed record WebPlayerGenerator(string Name, string Version, string ProjectUrl);
 public sealed record WebPlayerChapter(Guid Id, string Title, double Start, double End);
+public sealed record WebPlayerSubtitleCue(double Start, double End, string Text);
+public sealed record WebPlayerSubtitleTrack(Guid Id, string Language, string Label, WebPlayerSubtitleCue[] Cues);
+public sealed record WebPlayerSubtitles(Guid? DefaultTrackId, WebPlayerSubtitleTrack[] Tracks);
 public sealed record WebPlayerData(string Format, int SchemaVersion, WebPlayerGenerator Generator,
-    string Entry, string Media, string Title, WebPlayerChapter[] Chapters);
+    string Entry, string Media, string Title, WebPlayerChapter[] Chapters)
+{
+    public WebPlayerSubtitles? Subtitles { get; init; }
+}
 
 public static class ProjectWebPlayerDocument
 {
+    public static async Task<WebPlayerData> CreateDataAsync(IProjectHandle owner, RecordingProject project, CancellationToken ct)
+    {
+        var data = CreateData(project);
+        if (project.Subtitles.Tracks.IsEmpty) return data;
+        var tracks = new List<WebPlayerSubtitleTrack>();
+        long total = 0;
+        for (var i = 0; i < project.Subtitles.Tracks.Length; i++)
+        {
+            ct.ThrowIfCancellationRequested();
+            var track = project.Subtitles.Tracks[i];
+            var bytes = await ProjectSubtitleStore.ReadBytesAsync(owner, track, ct);
+            var cues = ProjectSubtitleParser.Parse(bytes, Path.GetExtension(track.RelativePath))
+                .Select(c => new WebPlayerSubtitleCue(c.StartTicks / (double)TimeSpan.TicksPerSecond,
+                    c.EndTicks / (double)TimeSpan.TicksPerSecond, c.Text)).ToArray();
+            total += JsonSerializer.SerializeToUtf8Bytes(cues).Length;
+            if (total > 64 * 1024 * 1024) throw new InvalidDataException("Combined subtitle data exceeds 64 MiB. Use smaller subtitle files.");
+            tracks.Add(new(track.Id, track.Language, $"{i + 1}. {track.OriginalName} · {track.Language}", cues));
+        }
+        return data with { Subtitles = new(project.Subtitles.DefaultTrackId, tracks.ToArray()) };
+    }
+
     public static WebPlayerData CreateData(RecordingProject project)
     {
         var timeline = ProjectTimeline.Build(project);
