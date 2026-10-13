@@ -140,7 +140,7 @@
             <MenuItem Header="{Binding Strings[ProjectExportVideo]}" Click="OnExport"/>
             <MenuItem Header="{Binding Strings[ProjectExportWeb]}" Click="OnExportWebPlayer"/>
           </MenuFlyout></Button.Flyout>
-          <StackPanel Orientation="Horizontal" Spacing="7"><editor:EditorToolContent Icon="export" Text="{Binding Strings[ProjectExportMenu]}" Foreground="White"/><TextBlock Text="⌄" Foreground="White"/></StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="7"><editor:EditorToolContent Icon="export" Text="{Binding Strings[ProjectExportMenu]}" Foreground="White"/><editor:EditorToolContent Icon="chevron-down" Foreground="White"/></StackPanel>
         </Button>
         <Button Content="{Binding Strings[ProjectCaptureSettings]}" Click="OnCaptureSettings" IsEnabled="{Binding CanReturnToRecording}"/>
       </StackPanel>

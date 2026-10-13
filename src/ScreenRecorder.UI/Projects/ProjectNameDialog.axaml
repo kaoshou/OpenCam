@@ -7,6 +7,14 @@
         WindowStartupLocation="CenterOwner" Background="#FFFFFF" RequestedThemeVariant="Light"
         Icon="/Assets/app_icon.png">
     <Window.Styles>
+        <Style Selector="Button">
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button /template/ ContentPresenter">
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
         <Style Selector="Button.primary /template/ ContentPresenter">
             <Setter Property="Background" Value="#2563EB"/>
             <Setter Property="Foreground" Value="White"/>

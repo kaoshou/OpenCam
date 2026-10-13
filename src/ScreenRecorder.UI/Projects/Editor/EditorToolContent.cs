@@ -39,6 +39,7 @@ public sealed class EditorToolContent : UserControl
     private void UpdateIcon()
     {
         _icon.Data = Geometry.Parse(Icon switch {
+            "chevron-down" => "M2,5 L8,11 L14,5",
             "fullscreen" => "M6,1 H1 V6 M10,1 H15 V6 M1,10 V15 H6 M10,15 H15 V10",
             "sound-on" => "M1,6 H4 L8,2 V14 L4,10 H1 Z M11,5 Q15,8 11,11",
             "sound-off" => "M1,6 H4 L8,2 V14 L4,10 H1 Z M11,6 L15,10 M15,6 L11,10",

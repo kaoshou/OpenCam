@@ -24,6 +24,41 @@ public sealed class ProjectLayoutApp : Application
 public sealed class ProjectWorkspaceLayoutTests
 {
     [AvaloniaTheory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void NameDialogButtonsCenterTheirContent(bool rename, bool clip)
+    {
+        var dialog = new ProjectNameDialog("教材", rename, clip);
+        try
+        {
+            dialog.Show(); dialog.UpdateLayout();
+            foreach (var name in new[] { "CancelButton", "ConfirmButton" })
+            {
+                var button = dialog.FindControl<Button>(name)!;
+                var presenter = button.GetVisualDescendants().OfType<Avalonia.Controls.Presenters.ContentPresenter>().First();
+                Assert.Equal(Avalonia.Layout.HorizontalAlignment.Center, presenter.HorizontalContentAlignment);
+                Assert.Equal(Avalonia.Layout.VerticalAlignment.Center, presenter.VerticalContentAlignment);
+            }
+        }
+        finally { dialog.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task ExportArrowUsesConsistentVectorIcon()
+    {
+        var window = new SizedProjectWorkspace { DataContext = new ProjectWorkspaceViewModel(new ClosedProjectClient()) };
+        try
+        {
+            window.Show(); window.UpdateLayout();
+            var export = window.FindControl<Button>("ExportButton")!;
+            Assert.Contains(export.GetVisualDescendants().OfType<ScreenRecorder.UI.Projects.Editor.EditorToolContent>(),
+                icon => icon.Icon == "chevron-down");
+        }
+        finally { await window.RequestCloseAsync(); }
+    }
+
+    [AvaloniaTheory]
     [InlineData(1440, 900)]
     [InlineData(1280, 720)]
     [InlineData(1024, 640)]
