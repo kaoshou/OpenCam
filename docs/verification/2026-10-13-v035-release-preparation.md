@@ -11,3 +11,11 @@ README/Pages/guides and eight offline genuine UI renders updated using original 
 Original main-repository dirty spec and five untracked plans remain untouched/uncommitted. Development worktree is preserved for local artifacts. Release only from matching successful Actions artifacts: all verify/build jobs success, publish-release skipped, matching website deployment; ZIP/app/SOURCE notices, PE and DMG integrity checks; draft upload three assets, verify digests then publish and recheck tag target/public state. Never overwrite a different commit's tag/Release.
 
 Remaining: native high-resolution scrubbing responsiveness/fullscreen, complete physical Release Gate, Windows native/long A/V, macOS visuals, physical disk exhaustion, browser offline/touch/fullscreen, trusted signing/notarization and Windows FFmpeg complete corresponding-source verification. Publication does not establish these gates or resolve all earlier intermittent Windows heartbeat/fast-export causes.
+
+## Windows CI scheduling evidence
+
+Run38420954792 Windows failed only `SessionHeartbeat_TransientStoreFailure_RetriesOnNextTick(failureDelayMs:3000)`, full failed log `/tmp/opencam-v035-windows-failed.log`. The watchdog entered in0.0841 ms but its first2-second delay resumed after15433.8736 ms. Injected3-second save failure completed at18444 ms; the20-second deadline had less than the normal next2-second interval remaining. State remained Recording. This does not prove the retry catch failed; the delay cause is not yet established. macOS/portable verify, macOS build and website passed; Windows build was skipped, no release.
+
+Diagnostic-only follow-up wires the existing Windows-only dedicated-thread stack observer into this retry test. After5 seconds without heartbeat advancement, the existing fixed dotnet-stack tool captures bounded managed stacks independently of the worker pool. No timeout, fault delay, durable-save/Recording/heartbeat assertion, watchdog interval or product behavior changed. Read the resulting worker stacks before choosing a production repair; do not infer a pipe/disk/ThreadPool root cause solely from elapsed delay.
+
+Local targeted Release regression: both retry cases passed (2/0fail), `/tmp/opencam-v035-retry-stacks-targeted.log`, SDK8.0.425/FFmpeg7.1.2. This macOS result does not exercise the Windows-only observer or establish a scheduling repair.

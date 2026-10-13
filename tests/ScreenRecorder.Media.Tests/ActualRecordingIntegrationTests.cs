@@ -524,6 +524,10 @@ public class ActualRecordingIntegrationTests : IDisposable
         Assert.NotNull(started);
 
         sessionStore.FailNextSave();
+        // Capture the Windows worker stacks when the first watchdog delay is late.
+        // Keep the same fault, retry deadline and durable-save assertions.
+        using var stackObserver = new DelayedHeartbeatStackObserver(() =>
+            orchestrator.CurrentSession?.LastHeartbeatTime <= started.LastHeartbeatTime);
         // Wait for a completed durable retry, not two nominal timer intervals.
         // Stop must not supply the successful save that satisfies this test.
         try { await sessionStore.SavedAfterFailure.Task.WaitAsync(TimeSpan.FromSeconds(20)); }
