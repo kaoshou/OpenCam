@@ -1,6 +1,6 @@
 # OpenCam Complete User Guide (English)
 
-Unreleased multilingual captions: attach SRT/VTT files by selection or drag-and-drop in the editor. Unique project-owned copies avoid filename collisions. Choose languages and the default track, apply, then save explicitly. Preview and Web CC controls offer language, size and appearance settings; MP4 captions are not burned in. Timeline edits require a synchronization decision. **Subtitle projects use format4; released0.3.3 cannot open them. Back up first.** See [subtitle limits](WEB_PLAYER_EXPORT.md).
+v0.3.4 multilingual captions: attach SRT/VTT by selection or drop; unique project-owned copies avoid collisions. Language names follow the application language and include codes. Select the default on a subtitle card, apply, then save explicitly. Preview/fullscreen and Web CC controls offer language, size, theme, opacity and position; no MP4 burn-in. The Web sidebar offers searchable transcripts, highlighting, seek preserving play/pause, optional follow mode and bounded scrolling. Timeline edits require synchronization confirmation. **Subtitle projects use format4; released0.3.3 cannot open them. Back up first.** See [subtitle limits](https://github.com/kaoshou/OpenCam/blob/master/docs/WEB_PLAYER_EXPORT.md).
 
 ## New in v0.2.5: experimental Windows capture
 
@@ -12,7 +12,7 @@ Change capture mode only while idle, not while paused. Existing audio/cursor con
 
 OpenCam lets you record, edit, and resume recording. It writes MKV sources, retains them alongside a reopenable editing project, and exports MP4 when needed. Crash Recovery can attempt to preserve successfully written recordings; project recovery drafts protect interrupted unsaved edits.
 
-> This guide covers OpenCam v0.3.3, not a claim of completed acceptance. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending. Complete corresponding-source verification for Windows FFmpeg also remains pending, and packages are unsigned. Use disposable media; see the [release notes and limitations](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.3.3.md).
+> This guide covers OpenCam v0.3.4, not a claim of completed acceptance. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending. Complete corresponding-source verification for Windows FFmpeg also remains pending, and packages are unsigned. Use disposable media; see the [release notes and limitations](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.3.4.md).
 
 v0.3.3 replaces manual export with an **Export…** menu offering MP4 video or Web player. MP4 accepts a filename; Web player creates a unique folder containing index.html, media.mp4 and opencam-player.js. Chapters follow saved clips and show start times and durations in a scrollable index. Overlay controls provide seeking, volume, speed, wide-screen and fullscreen. Move the complete folder together and use an H.264/AAC-capable browser. See [the web export format](https://github.com/kaoshou/OpenCam/blob/master/docs/WEB_PLAYER_EXPORT.md).
 
@@ -39,11 +39,12 @@ See the [README](../README.md) for Windows portable testing instructions. Start 
 - Explicit Save commits the editing version. A recovery draft protects interrupted edits; it is not a saved version or an updated MP4. Switching/closing with unsaved changes offers Save, Discard or Cancel. Reopening a recoverable draft offers a restore decision.
 - Resolve unsaved changes when prompted before manual export. If the same content has a verified existing output, choose Open Existing, Export Again or Cancel. Export has progress and cancellation controls; cancellation/failure preserves source media.
 
-These are offline renders of the current v0.3.0 UI with illustrative state and an authored demonstration video in the editor, not device-recording acceptance evidence. Select an image for full size.
+These are offline renders of the current v0.3.4 UI with illustrative state and an authored demonstration video/subtitles in the editor, not device-recording acceptance evidence. Select an image for full size.
 
 [![Recording home](images/preview_main_enus.png)](images/preview_main_enus.png)
 [![Preferences](images/preview_settings_enus.png)](images/preview_settings_enus.png)
 [![Recording editor](images/preview_editor_enus.png)](images/preview_editor_enus.png)
+[![Multilingual subtitle manager](images/preview_subtitles_enus.png)](images/preview_subtitles_enus.png)
 
 ## 1. System Requirements and First Launch
 

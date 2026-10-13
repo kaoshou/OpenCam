@@ -16,7 +16,7 @@ export const content = {
   'zh-TW': {
     eyebrow: 'Windows 與 macOS 的簡單錄影與剪輯工具',
     heroTitle: '<span class="hero-line">把重要的畫面，</span><em class="hero-line">好好錄下來。</em>',
-    heroText: '錄影、剪輯、續錄，一次完成。選擇螢幕或範圍即可錄製；整理片段後，輸出 MP4 或有章節索引的網頁播放器。原始 MKV 素材保留在專案中。',
+    heroText: '錄影、剪輯、續錄，一次完成。整理片段、附加多語字幕，再輸出 MP4 或具章節與逐字稿搜尋的網頁播放器。原始 MKV 素材保留在專案中。',
     downloadLabel: '下載 OpenCam', guideLabel: '閱讀使用說明',
     openSource: '開放原始碼 · 免費使用',
     licenseReleaseNote: `此頁介紹 ${displayVersion} 原始碼功能；Windows 實機驗收、瀏覽器視覺驗收與 FFmpeg 來源核對仍待完成。已發布版本請至 Releases 下載，發布不代表全部驗收通過。AGPL-3.0-or-later。`,
@@ -30,6 +30,10 @@ export const content = {
     editorAlt: `OpenCam ${mainScreenshotVersion} 繁體中文剪輯器，顯示教學簡報影片、片段縮圖、音訊波形與時間軸`,
     editorCaption: `編輯錄製內容 · ${mainScreenshotVersion} · 自製教學影片`,
     editorPoints: ['原始素材保留，拖曳只排序，裁剪使用明確操作', '預覽畫質、大小、全螢幕與聲音開關', '儲存專案與 MP4／網頁播放器輸出分開操作'],
+    subtitlesTitle: '讓教材看得懂，也找得到。',
+    subtitlesText: '選取或拖放 SRT／VTT，多種語言保存在專案內，同名檔不覆蓋。在清單勾選預設字幕，預覽即可切換語言與外觀；網頁播放器另有逐字稿全文搜尋、點擊跳轉與跟隨播放。字幕不燒入 MP4。保存字幕使用專案格式4，舊版不能開啟，請先備份。',
+    subtitlesAlt: `OpenCam ${mainScreenshotVersion} 繁體中文字幕管理，顯示多語卡片、語系代碼及預設單選`,
+    subtitlesCaption: `附加多語字幕 · ${mainScreenshotVersion}`,
     fullSizeLabel: '開啟原尺寸圖片',
     featuresTitle: '簡單上手，細節也到位。',
     features: [
@@ -39,7 +43,8 @@ export const content = {
       ['04', '保存專案，下次續錄', '可只儲存專案、不輸出 MP4；日後重新開啟，再追加錄影與編輯。'],
       ['05', '防誤關與自動回退', '錄影中關閉視窗會先提醒；硬體編碼不可用時可回退 CPU。'],
       ['06', '修復救援', '意外中斷後，可嘗試救回已寫入的 MKV 錄影片段。'],
-      ['07', '網頁播放器輸出', '包含影片、章節起始與長度，以及音量、速度、寬螢幕和全螢幕控制；可離線開啟或整包上傳網站。']
+      ['07', '網頁播放器輸出', '包含多語字幕、章節起始與長度、音量、速度、寬螢幕和全螢幕；可離線開啟或整包上傳網站。'],
+      ['08', '逐字稿搜尋', '搜尋已附加字幕，標示關鍵字並跳到該時間；可跟隨播放或自由閱讀，清單限高捲動。']
     ],
     processEyebrow: '錄影機制', processTitle: '先保留錄影，再交付 MP4。',
     processText: '錄影先寫入 MKV，專案保留原始素材與剪輯決策。停止後可自動輸出，也可留到編輯完成再輸出。相容的完整素材可快速封裝；裁剪、效果或不相容素材會重新編碼，輸出時間依內容而定。',
@@ -52,7 +57,7 @@ export const content = {
   'en-US': {
     eyebrow: 'Simple recording and editing for Windows and macOS',
     heroTitle: '<span class="hero-line">Capture what matters.</span><em class="hero-line">Keep it safe.</em>',
-    heroText: 'Record, edit and continue in one place. Capture a display or region, then organize clips and export MP4 or a web player with chapters. Keep the original MKV media in your project.',
+    heroText: 'Record, edit and continue in one place. Organize clips, attach multilingual subtitles and export MP4 or a web player with chapters and transcript search. Keep original MKV media in your project.',
     downloadLabel: 'Download OpenCam', guideLabel: 'Read the user guide',
     openSource: 'Open source · Free to use',
     licenseReleaseNote: `This page describes ${displayVersion} source features. Windows device acceptance, browser visual acceptance and FFmpeg source verification remain pending. Download published versions from Releases; publication does not establish complete acceptance. AGPL-3.0-or-later.`,
@@ -66,6 +71,10 @@ export const content = {
     editorAlt: `OpenCam ${mainScreenshotVersion} English editor with an authored tutorial video, clip thumbnails, audio waveforms and timeline`,
     editorCaption: `Edit recording · ${mainScreenshotVersion} · Authored tutorial video`,
     editorPoints: ['Keep sources; drag only reorders, trimming is explicit', 'Choose preview quality, size, full screen and sound on/off', 'Save independently of MP4 or web-player export'],
+    subtitlesTitle: 'Make lessons easier to follow and find.',
+    subtitlesText: 'Select or drop SRT/VTT files. Unique project-owned copies preserve different languages without filename collisions. Choose the default on a card and preview languages/styles. Web exports include Transcript search, click-to-seek and optional follow mode. No MP4 burn-in. Saving subtitles uses project format4, incompatible with older versions; back up first.',
+    subtitlesAlt: `OpenCam ${mainScreenshotVersion} English subtitle manager with multilingual cards, language codes and a default radio choice`,
+    subtitlesCaption: `Attach multilingual subtitles · ${mainScreenshotVersion}`,
     fullSizeLabel: 'Open full-size image',
     featuresTitle: 'Easy to start. Ready for the details.',
     features: [
@@ -75,7 +84,8 @@ export const content = {
       ['04', 'Save now, record again later', 'Save a project without exporting MP4, reopen it later and append more recordings.'],
       ['05', 'Close protection and fallback', 'Closing during recording prompts a warning; unavailable hardware encoding can fall back to CPU.'],
       ['06', 'Crash Recovery', 'After an interruption, attempt to salvage MKV segments already written.'],
-      ['07', 'Web player export', 'Package video with chapter starts and durations, volume, speed, wide-screen and fullscreen controls. Open offline or upload the entire folder.']
+      ['07', 'Web player export', 'Package multilingual captions, chapters, volume, speed, wide-screen and fullscreen controls. Open offline or upload the entire folder.'],
+      ['08', 'Transcript search', 'Search attached captions, highlight matches and jump to their timestamps. Follow playback or read freely in a bounded scrolling list.']
     ],
     processEyebrow: 'How recording works', processTitle: 'Preserve first. Deliver MP4 afterward.',
     processText: 'Recordings are written to MKV; projects retain source media and editing decisions. Export automatically on stop or wait until editing is finished. Compatible whole recordings can be remuxed quickly; trims, effects or incompatible media require encoding. Export time depends on the content.',
@@ -97,9 +107,11 @@ export function renderHome(language) {
   const mainImage = assetPath(`preview_main_${suffix}.png`);
   const settingsImage = assetPath(`preview_settings_${suffix}.png`);
   const editorImage = assetPath(`preview_editor_${suffix}.png`);
-  return `<section class="hero"><div class="container hero-grid"><div class="hero-copy"><p class="eyebrow"><span class="eyebrow-dot"></span>${escapeHtml(c.eyebrow)}</p><h1>${c.heroTitle}</h1><p class="hero-text">${escapeHtml(c.heroText)}</p><div class="hero-actions"><a class="button button-primary" href="${latest}">${escapeHtml(c.downloadLabel)} <span aria-hidden="true">↗</span></a><a class="button button-secondary" href="${guide}">${escapeHtml(c.guideLabel)} <span aria-hidden="true">→</span></a></div><p class="hero-meta">${escapeHtml(c.openSource)}</p><p class="release-license-note">${escapeHtml(c.licenseReleaseNote)}</p></div><div class="hero-visual"><div class="window-halo"></div><a class="screenshot-link" href="${mainImage}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(c.fullSizeLabel)}"><img src="${mainImage}" alt="${escapeHtml(c.mainAlt)}" width="840" height="780"></a><span class="visual-caption">${escapeHtml(c.mainCaption)} · ${escapeHtml(c.fullSizeLabel)}</span></div></div></section>
-<section class="section screenshot-section" id="preview"><div class="container"><div class="section-intro"><p class="section-kicker">01 / OpenCam</p><h2>${escapeHtml(c.screenshotTitle)}</h2><p>${escapeHtml(c.screenshotText)}</p></div><div class="screenshot-grid"><figure class="screenshot-card"><a class="screenshot-link" href="${mainImage}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(c.fullSizeLabel)}"><img src="${mainImage}" alt="${escapeHtml(c.mainAlt)}" loading="lazy" width="840" height="780"></a><figcaption>${escapeHtml(c.mainCaption)} · <a href="${mainImage}" target="_blank" rel="noopener noreferrer">${escapeHtml(c.fullSizeLabel)}</a></figcaption></figure><figure class="screenshot-card settings-card"><a class="screenshot-link" href="${settingsImage}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(c.fullSizeLabel)}"><img src="${settingsImage}" alt="${escapeHtml(c.settingsAlt)}" loading="lazy" width="650" height="820"></a><figcaption>${escapeHtml(c.settingsCaption)} · <a href="${settingsImage}" target="_blank" rel="noopener noreferrer">${escapeHtml(c.fullSizeLabel)}</a></figcaption></figure></div><p class="preview-note">${escapeHtml(c.previewNote)}</p></div></section>
+  const subtitlesImage = assetPath(`preview_subtitles_${suffix}.png`);
+return `<section class="hero"><div class="container hero-grid"><div class="hero-copy"><p class="eyebrow"><span class="eyebrow-dot"></span>${escapeHtml(c.eyebrow)}</p><h1>${c.heroTitle}</h1><p class="hero-text">${escapeHtml(c.heroText)}</p><div class="hero-actions"><a class="button button-primary" href="${latest}">${escapeHtml(c.downloadLabel)} <span aria-hidden="true">↗</span></a><a class="button button-secondary" href="${guide}">${escapeHtml(c.guideLabel)} <span aria-hidden="true">→</span></a></div><p class="hero-meta">${escapeHtml(c.openSource)}</p><p class="release-license-note">${escapeHtml(c.licenseReleaseNote)}</p></div><div class="hero-visual"><div class="window-halo"></div><a class="screenshot-link" href="${mainImage}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(c.fullSizeLabel)}"><img src="${mainImage}" alt="${escapeHtml(c.mainAlt)}" width="840" height="820"></a><span class="visual-caption">${escapeHtml(c.mainCaption)} · ${escapeHtml(c.fullSizeLabel)}</span></div></div></section>
+<section class="section screenshot-section" id="preview"><div class="container"><div class="section-intro"><p class="section-kicker">01 / OpenCam</p><h2>${escapeHtml(c.screenshotTitle)}</h2><p>${escapeHtml(c.screenshotText)}</p></div><div class="screenshot-grid"><figure class="screenshot-card"><a class="screenshot-link" href="${mainImage}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(c.fullSizeLabel)}"><img src="${mainImage}" alt="${escapeHtml(c.mainAlt)}" loading="lazy" width="840" height="820"></a><figcaption>${escapeHtml(c.mainCaption)} · <a href="${mainImage}" target="_blank" rel="noopener noreferrer">${escapeHtml(c.fullSizeLabel)}</a></figcaption></figure><figure class="screenshot-card settings-card"><a class="screenshot-link" href="${settingsImage}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(c.fullSizeLabel)}"><img src="${settingsImage}" alt="${escapeHtml(c.settingsAlt)}" loading="lazy" width="650" height="820"></a><figcaption>${escapeHtml(c.settingsCaption)} · <a href="${settingsImage}" target="_blank" rel="noopener noreferrer">${escapeHtml(c.fullSizeLabel)}</a></figcaption></figure></div><p class="preview-note">${escapeHtml(c.previewNote)}</p></div></section>
 <section class="section editor-section" id="editing"><div class="container"><div class="section-intro"><p class="section-kicker">NEW / ${escapeHtml(mainScreenshotVersion)}</p><h2>${escapeHtml(c.editorTitle)}</h2><p>${escapeHtml(c.editorText)}</p></div><figure class="screenshot-card editor-card"><a class="screenshot-link" href="${editorImage}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(c.fullSizeLabel)}"><img src="${editorImage}" alt="${escapeHtml(c.editorAlt)}" loading="lazy" width="1440" height="900"></a><figcaption>${escapeHtml(c.editorCaption)} · <a href="${editorImage}" target="_blank" rel="noopener noreferrer">${escapeHtml(c.fullSizeLabel)}</a></figcaption></figure><ul class="editor-highlights">${c.editorPoints.map(point => `<li>${escapeHtml(point)}</li>`).join('')}</ul></div></section>
+<section class="section editor-section" id="subtitles"><div class="container"><div class="section-intro"><p class="section-kicker">NEW / ${escapeHtml(productVersion)}</p><h2>${escapeHtml(c.subtitlesTitle)}</h2><p>${escapeHtml(c.subtitlesText)}</p></div><figure class="screenshot-card editor-card"><a class="screenshot-link" href="${subtitlesImage}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(c.fullSizeLabel)}"><img src="${subtitlesImage}" alt="${escapeHtml(c.subtitlesAlt)}" loading="lazy" width="780" height="620"></a><figcaption>${escapeHtml(c.subtitlesCaption)} · <a href="${subtitlesImage}" target="_blank" rel="noopener noreferrer">${escapeHtml(c.fullSizeLabel)}</a></figcaption></figure></div></section>
 <section class="section features-section" id="features"><div class="container"><div class="section-intro"><p class="section-kicker">02 / Features</p><h2>${escapeHtml(c.featuresTitle)}</h2></div><ul class="feature-grid">${featureCards}</ul></div></section>
 <section class="section process-section"><div class="container process-grid"><div><p class="section-kicker">03 / ${escapeHtml(c.processEyebrow)}</p><h2>${escapeHtml(c.processTitle)}</h2><p class="process-text">${escapeHtml(c.processText)}</p><a class="text-link" href="${guide}">${escapeHtml(c.guideLabel)} →</a></div><ol class="process-steps">${c.processSteps.map((step, index) => `<li><span>0${index + 1}</span><strong>${escapeHtml(step)}</strong></li>`).join('')}</ol></div></section>
 <section class="section platform-section"><div class="container"><div class="section-intro"><p class="section-kicker">04 / Platforms</p><h2>${escapeHtml(c.platformsTitle)}</h2></div><div class="platform-grid"><div class="platform-card"><span class="platform-symbol" aria-hidden="true">▦</span><h3>${escapeHtml(c.windowsTitle)}</h3><p>${escapeHtml(c.windowsText)}</p></div><div class="platform-card"><span class="platform-symbol" aria-hidden="true">⌘</span><h3>${escapeHtml(c.macTitle)}</h3><p>${escapeHtml(c.macText)}</p></div></div></div></section>

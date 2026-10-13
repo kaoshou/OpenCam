@@ -8,6 +8,16 @@
 
 OpenCam 讓你錄影、剪輯，再繼續錄影。這款以可靠性為優先的跨平台桌面工具使用 MKV 保存原始錄影片段，透過可重開的專案保存剪輯，並在需要時輸出 MP4。
 
+## v0.3.4：多語字幕與逐字稿搜尋
+
+- 編輯器選取或拖放 SRT／VTT，以唯一名稱複製至專案，避免同名覆蓋。語言名稱依介面語言顯示，清單單選預設字幕。
+- 一般／全螢幕預覽可切換語言、關閉字幕、調整大小、配色、透明度及位置；預覽選擇不改專案預設，字幕不燒入 MP4。
+- 網頁 CC 選單與「章節／逐字稿」分頁提供全文搜尋、關鍵字標示、點擊跳轉及跟隨播放，清單固定高度捲動；語言選單不顯示檔名。
+- 剪輯時序變更後，網頁輸出可確認字幕同步、此次不附加或取消，不自動改寫字幕時間。
+- 改善命名按鈕置中、輸出箭頭及字幕卡片；章節列緊湊，編號框置中並填滿內容高度。
+
+**保存字幕使用格式4，v0.3.3及更舊版本不能開啟；請先備份整個專案。** 無字幕專案不因此自動升級。網頁維持三個固定檔案，不因字幕再次編碼影片。詳見 [v0.3.4 更新與限制](docs/releases/v0.3.4.md)。
+
 v0.3.3 新增「輸出… → 網頁播放器」：選擇存放位置後，建立獨立資料夾，內含 `index.html`、`media.mp4` 與 `opencam-player.js`。章節依剪輯後的片段名稱、順序與時間產生，合併片段保留為一個章節。整個資料夾可離線開啟或上傳網站；無需 EverCam 原有檔案或轉換步驟。影片底部提供進度、音量、倍速、寬螢幕及全螢幕控制；章節顯示起始時間與片段長度，超出時可捲動。`opencam-player.js` 使用固定識別格式，方便 Video-to-Subtitle 等工具辨識及讀取章節。詳見[網頁輸出格式](docs/WEB_PLAYER_EXPORT.md)。
 
 本軟體以 .NET 8 與 Avalonia UI 打造，並使用 FFmpeg 作為核心多媒體引擎，支援 Windows 與 macOS。
@@ -16,7 +26,7 @@ v0.3.3 新增「輸出… → 網頁播放器」：選擇存放位置後，建�
 
 🌐 [OpenCam 官方網站](https://kaoshou.github.io/OpenCam/)（可切換繁體中文／English）
 
-目前原始碼版本為 **0.3.3**，採用 **AGPL-3.0-or-later**。Windows 原生錄影、編輯影音預覽、輸出與長時間音畫同步實機驗收仍待完成；Windows FFmpeg 完整對應原始碼核對亦尚未完成。套件未簽章，發布不代表全部驗收通過。請保留重要素材備份，已發布安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。詳見 [v0.3.3 更新與限制](docs/releases/v0.3.3.md)。
+目前原始碼版本為 **0.3.4**，採用 **AGPL-3.0-or-later**。Windows 原生錄影、編輯影音預覽、輸出與長時間音畫同步實機驗收仍待完成；Windows FFmpeg 完整對應原始碼核對亦尚未完成。套件未簽章，發布不代表全部驗收通過。請保留重要素材備份，已發布安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。詳見 [v0.3.4 更新與限制](docs/releases/v0.3.4.md)。
 
 **v0.3.3** 新增可辨識的離線網頁播放器輸出；時間軸拖曳只調整排序，不再以邊緣拖曳裁剪。明確的分割／刪除範圍與復原操作保留，右側片段操作按鈕統一排列與圖示。先前已誤裁的片段不會自動改寫。
 
@@ -34,13 +44,14 @@ Windows 測試建議使用 portable：登入 GitHub，在指定成功的 Actions
 
 完整未修改片段且串流相容時可使用快速輸出並保留原編碼影片；部分音訊仍需轉碼。修剪、效果、不相容串流或無法確認封包時序時會重新渲染，不能保證每次輸出都是即時或無損。
 
-## v0.3.0 介面預覽
+## v0.3.4 介面預覽
 
-以下是目前 v0.3.0 UI 的離線渲染展示；編輯器使用自行製作的示範影片。展示狀態不是 Windows／macOS 真實裝置錄影或實機驗收證據。點選圖片可看原尺寸。
+以下是目前 v0.3.4 UI 的離線渲染展示；編輯器使用自行製作的示範影片。展示狀態不是 Windows／macOS 真實裝置錄影或實機驗收證據。點選圖片可看原尺寸。
 
-[![OpenCam v0.3.0 錄影主畫面展示](docs/images/preview_main_zhtw.png)](docs/images/preview_main_zhtw.png)
-[![OpenCam v0.3.0 偏好設定展示](docs/images/preview_settings_zhtw.png)](docs/images/preview_settings_zhtw.png)
-[![OpenCam v0.3.0 錄製內容編輯器展示](docs/images/preview_editor_zhtw.png)](docs/images/preview_editor_zhtw.png)
+[![OpenCam v0.3.4 錄影主畫面展示](docs/images/preview_main_zhtw.png)](docs/images/preview_main_zhtw.png)
+[![OpenCam v0.3.4 偏好設定展示](docs/images/preview_settings_zhtw.png)](docs/images/preview_settings_zhtw.png)
+[![OpenCam v0.3.4 錄製內容編輯器展示](docs/images/preview_editor_zhtw.png)](docs/images/preview_editor_zhtw.png)
+[![OpenCam v0.3.4 多語字幕與預設軌管理](docs/images/preview_subtitles_zhtw.png)](docs/images/preview_subtitles_zhtw.png)
 
 ## 歷史版本與安全驗證紀錄
 
@@ -181,6 +192,12 @@ v0.2.0 的完整安裝檔請至 [OpenCam v0.2.0 Release](https://github.com/kaos
 
 # OpenCam (Screen Recorder) 🎥
 
+## v0.3.4: multilingual captions and transcript search
+
+Attach SRT/VTT by selection or drop, preserving unique project-owned copies. Choose the default on a subtitle card; language names follow the application locale and include codes. Preview/fullscreen captions offer language/off, size, theme, opacity and position without changing the authored default or burning captions into MP4. Web exports add searchable transcripts, safe highlighting, click-to-seek, optional follow mode and bounded scrolling. CC/transcript language menus omit filenames; chapter badges align with compact rows.
+
+Timeline changes require a synchronization decision before Web export. **Saving subtitles uses project format4, incompatible with v0.3.3 and earlier: back up entire projects first.** Packages still contain three files and do not encode video again for subtitles. See [v0.3.4 changes and limitations](docs/releases/v0.3.4.md).
+
 OpenCam lets you record, edit, and resume recording. This reliability-first cross-platform desktop tool retains original MKV segments, saves edits in a project you can reopen, and exports MP4 when needed.
 
 v0.3.3 adds **Export… → Web player**. Choose a parent location to create a new folder containing `index.html`, `media.mp4`, and `opencam-player.js`. Chapters follow the edited clip names, order and timing; merged clips remain one chapter. Open the folder offline or upload it to a website, with no EverCam conversion required. An overlay provides seeking, volume, playback speed, wide-screen mode and fullscreen; scrollable chapters show start times and durations. The fixed data format supports identification and chapter extraction by Video-to-Subtitle and similar tools; see [the export format](docs/WEB_PLAYER_EXPORT.md).
@@ -191,7 +208,7 @@ OpenCam is built with .NET 8, Avalonia UI, and FFmpeg, and supports Windows and 
 
 🌐 [OpenCam official website](https://kaoshou.github.io/OpenCam/) (English / 繁體中文)
 
-The current source version is **0.3.3**, under **AGPL-3.0-or-later**. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending, as does verification of complete corresponding sources for the Windows FFmpeg build. Packages are unsigned; publication does not establish complete acceptance. Keep backups of important media. Published packages are available from [Releases](https://github.com/kaoshou/OpenCam/releases); see [v0.3.3 changes and limitations](docs/releases/v0.3.3.md).
+The current source version is **0.3.4**, under **AGPL-3.0-or-later**. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending, as does verification of complete corresponding sources for the Windows FFmpeg build. Packages are unsigned; publication does not establish complete acceptance. Keep backups of important media. Published packages are available from [Releases](https://github.com/kaoshou/OpenCam/releases); see [v0.3.4 changes and limitations](docs/releases/v0.3.4.md).
 
 **v0.3.3** adds identifiable offline web-player exports. Timeline dragging only reorders clips and no longer trims their edges; explicit split/range deletion and undo remain available. Inspector actions have consistent icon buttons. Existing accidentally trimmed ranges are not rewritten automatically.
 
@@ -209,13 +226,14 @@ Explicit Save differs from a recovery draft: switching or closing with unsaved e
 
 Compatible complete clips may use fast export while preserving encoded video; some audio still requires conversion. Trims, effects, incompatible streams or unavailable packet timing require rendering. Export is not always instant or lossless.
 
-## v0.3.0 Interface Preview
+## v0.3.4 Interface Preview
 
-These images are offline renders of the current v0.3.0 UI with illustrative state. The editor uses an authored demonstration video. They are not evidence of Windows/macOS device capture or acceptance. Select an image for full size.
+These images are offline renders of the current v0.3.4 UI with illustrative state. The editor uses an authored demonstration video. They are not evidence of Windows/macOS device capture or acceptance. Select an image for full size.
 
-[![OpenCam v0.3.0 recording home illustration](docs/images/preview_main_enus.png)](docs/images/preview_main_enus.png)
-[![OpenCam v0.3.0 preferences illustration](docs/images/preview_settings_enus.png)](docs/images/preview_settings_enus.png)
-[![OpenCam v0.3.0 recording editor illustration](docs/images/preview_editor_enus.png)](docs/images/preview_editor_enus.png)
+[![OpenCam v0.3.4 recording home illustration](docs/images/preview_main_enus.png)](docs/images/preview_main_enus.png)
+[![OpenCam v0.3.4 preferences illustration](docs/images/preview_settings_enus.png)](docs/images/preview_settings_enus.png)
+[![OpenCam v0.3.4 recording editor illustration](docs/images/preview_editor_enus.png)](docs/images/preview_editor_enus.png)
+[![OpenCam v0.3.4 multilingual subtitle manager](docs/images/preview_subtitles_enus.png)](docs/images/preview_subtitles_enus.png)
 
 ## Historical Versions and Security Validation
 

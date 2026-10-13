@@ -92,8 +92,10 @@ public sealed class ProjectEditorChromeTests
             var button = window.FindControl<Button>("ExportButton")!;
             var label = button.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Text == vm.Strings["ProjectExportMenu"]);
             Assert.Equal(Avalonia.Media.Colors.White, Assert.IsAssignableFrom<Avalonia.Media.ISolidColorBrush>(label.Foreground).Color);
-            var icon = button.GetVisualDescendants().OfType<Path>().Single();
-            Assert.Equal(Avalonia.Media.Colors.White, Assert.IsAssignableFrom<Avalonia.Media.ISolidColorBrush>(icon.Stroke).Color);
+            var icons = button.GetVisualDescendants().OfType<Path>().ToArray();
+            Assert.NotEmpty(icons);
+            Assert.All(icons, icon => Assert.Equal(Avalonia.Media.Colors.White,
+                Assert.IsAssignableFrom<Avalonia.Media.ISolidColorBrush>(icon.Stroke).Color));
         }
         finally { await window.RequestCloseAsync(); }
     }

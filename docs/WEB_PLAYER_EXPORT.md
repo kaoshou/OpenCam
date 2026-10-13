@@ -30,7 +30,7 @@ window.OpenCamPlayerData = {
   "schemaVersion": 1,
   "generator": {
     "name": "OpenCam",
-    "version": "0.3.3",
+    "version": "0.3.4",
     "projectUrl": "https://github.com/kaoshou/OpenCam"
   },
   "entry": "index.html",
@@ -42,13 +42,13 @@ window.OpenCamPlayerData = {
 };
 ```
 
-外部工具應檢查固定檔名、`format` 及支援的 `schemaVersion`，並確認 index.html／media.mp4 存在。`generator.version` 是產出程式版本，不是檔案格式版本；範例的 0.3.3 僅表示目前來源版本。
+外部工具應檢查固定檔名、`format` 及支援的 `schemaVersion`，並確認 index.html／media.mp4 存在。`generator.version` 是產出程式版本，不是檔案格式版本；範例的 0.3.4 僅表示目前來源版本。
 
 讀取時只擷取 `window.OpenCamPlayerData =` 後的 JSON 資料、移除最後的分號，以 JSON parser 解析。不要以 eval 執行來路不明的 JS；實際產生器只輸出嚴格 JSON 指派，不含額外程式。名稱含 HTML／JS 特殊字元時以安全 JSON 編碼保存。
 
 輸出沿用原 MP4 的驗證與快速／精剪選擇，不因網頁格式額外編碼第二次。完成影片與 JS 後才發布入口頁面；取消／失敗清理本次已知檔案，可能留下空的獨立資料夾，既有輸出與原始素材保留。
 
-## 多語字幕（尚未發布的開發功能）
+## 多語字幕（v0.3.4）
 
 編輯器「附加影片字幕」可選取或拖放 SRT／VTT。依檔名判斷 zh-TW、en、ko 等語言，無法判斷時先使用繁體中文（台灣），可手動更改。預設字幕優先繁體中文；沒有該軌時使用第一軌並提示，也可在字幕卡片勾選「設為預設」（單選），不使用上方下拉選單。相同語言可替換或保留多軌。
 
@@ -74,6 +74,6 @@ Move the entire folder or upload it to a static site. Playback uses local files 
 
 External tools should verify `opencam-player.js`, `format: "opencam.web-player"`, supported `schemaVersion`, and the entry/media files. Parse the strict JSON assignment without evaluating JavaScript. Generator version and schema version are independent. Original MKV media and existing packages are never overwritten.
 
-Unreleased subtitle support: select or drop SRT/VTT files in the editor, choose inferred/manual languages and the default track. Unique project-owned paths prevent identical filenames from overwriting each other. Apply edits the draft; save is explicit. Saving subtitles upgrades project format to4, which released0.3.3 cannot open: back up first. Preview/fullscreen language and appearance choices do not change the authored default. Timeline changes require a subtitle-sync decision before web export; no automatic retiming or MP4 burn-in occurs. Optional subtitle data is embedded in `opencam-player.js`; the package still has three files. Native picture-in-picture captions are not supported. Offline browser, touch and Windows-native visual validation remain manual.
+v0.3.4 subtitle support: select or drop SRT/VTT files in the editor, choose inferred/manual languages and the default track. Unique project-owned paths prevent identical filenames from overwriting each other. Apply edits the draft; save is explicit. Saving subtitles upgrades project format to4, which released0.3.3 cannot open: back up first. Preview/fullscreen language and appearance choices do not change the authored default. Timeline changes require a subtitle-sync decision before web export; no automatic retiming or MP4 burn-in occurs. Optional subtitle data is embedded in `opencam-player.js`; the package still has three files. Native picture-in-picture captions are not supported. Offline browser, touch and Windows-native visual validation remain manual.
 
 Choose the default using the radio control on each subtitle card. The Web sidebar now switches between chapters and transcript, with independent transcript language, case-insensitive plain-text search, keyword highlighting and click-to-seek preserving play/pause state. Follow-playback is optional and suspended during search. Rows render in batches of100 inside a scrolling panel; no transcription service or additional package files are required.

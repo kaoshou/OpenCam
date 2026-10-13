@@ -1,10 +1,10 @@
 # OpenCam 完整使用說明（繁體中文）
 
-開發版多語字幕：編輯器的「附加影片字幕」可選取或拖放 SRT／VTT，檔案會以唯一名稱複製至專案內；選擇語言、預設軌後套用，再儲存專案。預覽及網頁 CC 選單可調整語言、大小與外觀，MP4 不燒入字幕。剪輯變更後需確認字幕同步。**保存字幕使用格式4，舊版0.3.3無法開啟，請先備份。** 詳見 [字幕規格與限制](WEB_PLAYER_EXPORT.md#多語字幕尚未發布的開發功能)。
+v0.3.4 多語字幕：編輯器的「附加影片字幕」可選取或拖放 SRT／VTT，檔案會以唯一名稱複製至專案內；語系名稱依應用程式語言顯示並附代碼，在清單單選預設軌後套用，再儲存專案。一般／全螢幕預覽及網頁 CC 選單可調整語言、大小、配色、透明度與位置，MP4 不燒入字幕。網頁右側可切換章節與逐字稿，全文搜尋、關鍵字標示及點擊跳轉；清單限高捲動，可關閉跟隨播放。剪輯變更後需確認字幕同步。**保存字幕使用格式4，舊版0.3.3無法開啟，請先備份。** 詳見 [字幕規格與限制](https://github.com/kaoshou/OpenCam/blob/master/docs/WEB_PLAYER_EXPORT.md)。
 
 OpenCam 讓你錄影、剪輯，再繼續錄影。錄影期間先寫入 MKV，剪輯以專案保存並保留原始素材，可稍後重新開啟、追加錄影及輸出 MP4。若遇到中斷，「修復救援」可嘗試保留已成功寫入的錄影；未儲存剪輯則使用專案復原草稿。
 
-> 本說明適用於 OpenCam v0.3.3，不表示全部驗收通過。Windows 原生錄影、編輯影音預覽、輸出及長時間音畫同步仍待實機驗收；Windows FFmpeg 完整對應原始碼核對尚未完成，套件未簽章。請用可拋棄素材測試。詳見 [更新與限制](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.3.3.md)。
+> 本說明適用於 OpenCam v0.3.4，不表示全部驗收通過。Windows 原生錄影、編輯影音預覽、輸出及長時間音畫同步仍待實機驗收；Windows FFmpeg 完整對應原始碼核對尚未完成，套件未簽章。請用可拋棄素材測試。詳見 [更新與限制](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.3.4.md)。
 
 v0.3.3 將手動輸出改為「輸出…」選單，可選 MP4 影片或網頁播放器。MP4 可指定檔名；網頁選擇存放位置後建立含 index.html、media.mp4、opencam-player.js 的獨立資料夾，章節依保存的片段生成。影片內提供進度、音量、速度、寬螢幕及全螢幕，章節顯示起始時間及長度並可捲動。請整個資料夾一起搬移，使用支援 H.264／AAC 的瀏覽器。詳見 [網頁輸出格式](https://github.com/kaoshou/OpenCam/blob/master/docs/WEB_PLAYER_EXPORT.md)。
 
@@ -31,11 +31,12 @@ Windows 下載與免安裝測試步驟請見 [README](../README.md)。建議先�
 - 按「儲存專案」才把剪輯當作已儲存版本。復原草稿是中斷保護，不等於已儲存，也不等於最新 MP4。切換／關閉流程遇到未儲存修改時可選儲存、捨棄或取消；重開遇到復原草稿時可選是否復原。
 - 手動輸出前依提示處理未儲存修改。若相同內容已有可驗證的輸出，可開啟既有結果、重新輸出或取消。輸出有進度及取消控制；取消／失敗不應刪除原始素材。
 
-以下圖片是 v0.3.0 真實 UI 離線渲染展示；編輯器使用自行製作的示範影片，不代表實機錄影驗收。點選可看原尺寸。
+以下圖片是 v0.3.4 真實 UI 離線渲染展示；編輯器使用自行製作的示範影片與字幕，不代表實機錄影驗收。點選可看原尺寸。
 
 [![錄影主畫面](images/preview_main_zhtw.png)](images/preview_main_zhtw.png)
 [![偏好設定](images/preview_settings_zhtw.png)](images/preview_settings_zhtw.png)
 [![錄製內容編輯器](images/preview_editor_zhtw.png)](images/preview_editor_zhtw.png)
+[![多語字幕與預設軌管理](images/preview_subtitles_zhtw.png)](images/preview_subtitles_zhtw.png)
 
 ## 1. 系統需求與首次啟動
 

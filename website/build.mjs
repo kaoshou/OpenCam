@@ -14,7 +14,9 @@ const requiredAssets = [
   ['docs/images/preview_settings_zhtw.png', 'preview_settings_zhtw.png'],
   ['docs/images/preview_settings_enus.png', 'preview_settings_enus.png'],
   ['docs/images/preview_editor_zhtw.png', 'preview_editor_zhtw.png'],
-  ['docs/images/preview_editor_enus.png', 'preview_editor_enus.png']
+  ['docs/images/preview_editor_enus.png', 'preview_editor_enus.png'],
+  ['docs/images/preview_subtitles_zhtw.png', 'preview_subtitles_zhtw.png'],
+  ['docs/images/preview_subtitles_enus.png', 'preview_subtitles_enus.png']
 ];
 const routeFiles = ['index.html', 'zh-TW/index.html', 'en-US/index.html', 'zh-TW/guide/index.html', 'en-US/guide/index.html'];
 

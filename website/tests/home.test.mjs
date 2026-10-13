@@ -20,6 +20,9 @@ test('localized homepages include genuine previews, guide, and current download'
       assert.match(html, new RegExp(`preview_main_${suffix}\\.png`));
       assert.match(html, new RegExp(`preview_settings_${suffix}\\.png`));
       assert.match(html, new RegExp(`preview_editor_${suffix}\\.png`));
+      assert.match(html, new RegExp(`preview_subtitles_${suffix}\\.png`));
+      assert.match(html, /逐字稿搜尋|Transcript search/);
+      assert.match(html, /格式4|format4/);
       assert.match(html, /id="editing"/);
       assert.match(html, /<img[^>]+alt="[^"]+"/);
       assert.match(html, new RegExp(`/OpenCam/${lang}/guide/`));
@@ -63,7 +66,7 @@ test('localized main screenshots show the current recording audio waveforms', as
     for (const [lang, stateText, waveformText] of expectations) {
       const html = await readFile(join(out, lang, 'index.html'), 'utf8');
       assert.match(html, new RegExp(`alt="[^"]*OpenCam ${escapedScreenshotVersion}[^"]*${stateText}[^"]*${waveformText}[^"]*"`));
-      assert.match(html, /<img[^>]+preview_main_(?:zhtw|enus)\.png[^>]+width="840" height="780"/);
+      assert.match(html, /<img[^>]+preview_main_(?:zhtw|enus)\.png[^>]+width="840" height="820"/);
     }
   } finally { await rm(out, { recursive: true, force: true }); }
 });
