@@ -92,7 +92,8 @@ public class ProjectExportStrategyTests
     public async Task UnavailablePacketDurationRequiresRendering(string duration)
     {
         await Assert.ThrowsAsync<ProjectRemuxIncompatibleException>(() =>
-            Parse($"packet|stream_index=0|pts=0|dts=0{duration}|flags=K_\n"));
+            Parse($"packet|stream_index=0|pts=0|dts=0{duration}|flags=K_\n" +
+                "stream|index=0|codec_type=video|codec_name=h264|time_base=1/1000|r_frame_rate=30/1\n"));
     }
 
     [Fact]

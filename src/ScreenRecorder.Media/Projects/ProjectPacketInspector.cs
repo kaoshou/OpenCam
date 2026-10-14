@@ -72,15 +72,37 @@ public static class ProjectPacketInspector
             if (parts[0] == "stream") { streams.Add(index, values); return; }
             if (!packets.TryGetValue(index, out var summary)) packets.Add(index, summary = new());
             var pts = Integer(values, "pts");
+            if (summary.ArrivalPts is { } previousPts)
+            {
+                if (pts <= previousPts) summary.IncreasingPts = false;
+                else summary.LastInterval = checked(pts - previousPts);
+            }
+            summary.ArrivalPts = pts;
+            if (summary.Pending is { } pending)
+            {
+                if (!summary.IncreasingPts) throw MissingDuration();
+                Record(index, summary, pending, checked(pts - Integer(pending, "pts")));
+                summary.Pending = null;
+            }
+            if (!values.TryGetValue("duration", out var durationText) || durationText == "N/A")
+            {
+                summary.InferredDuration = true;
+                if (!summary.IncreasingPts) throw MissingDuration();
+                summary.Pending = values;
+                return;
+            }
+            if (!long.TryParse(durationText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var duration) || duration <= 0)
+                throw MissingDuration();
+            Record(index, summary, values, duration);
+        }
+
+        void Record(int index, PacketSummary summary, Dictionary<string, string> values, long duration)
+        {
+            var pts = Integer(values, "pts");
             summary.Origin ??= pts;
             Span<byte> timestamp = stackalloc byte[8];
             System.Buffers.Binary.BinaryPrimitives.WriteInt64LittleEndian(timestamp, checked(pts - summary.Origin.Value));
             summary.TimingHash.AppendData(timestamp);
-            // Packet duration is optional probe evidence, not proof that the source
-            // is corrupt. Without it we cannot certify stream-copy boundaries.
-            if (!values.TryGetValue("duration", out var durationText) ||
-                !long.TryParse(durationText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var duration) || duration <= 0)
-                throw new ProjectRemuxIncompatibleException("Packet duration is unavailable; verified rendering is required.");
             if (summary.Count == 0) summary.Key = values.GetValueOrDefault("flags", "").Contains('K');
             summary.First = Math.Min(summary.First, pts);
             summary.End = Math.Max(summary.End, checked(pts + duration));
@@ -102,10 +124,26 @@ public static class ProjectPacketInspector
         ProjectStreamEvidence Build(KeyValuePair<int, Dictionary<string, string>> entry)
         {
             var fields = entry.Value;
-            if (!packets.TryGetValue(entry.Key, out var p) || p.Count == 0) throw new InvalidDataException("Empty media stream.");
+            if (!packets.TryGetValue(entry.Key, out var p)) throw new InvalidDataException("Empty media stream.");
             var time = fields.GetValueOrDefault("time_base", "").Split('/');
             if (time.Length != 2 || !long.TryParse(time[0], out var n) || !long.TryParse(time[1], out var d) ||
                 n <= 0 || d <= 0 || n > int.MaxValue || d > int.MaxValue) throw new InvalidDataException("Invalid time base.");
+            // Some MKV recordings omit DefaultDuration. Infer only ordered H.264
+            // presentation intervals; audio and reordered/ambiguous video still render.
+            if (p.InferredDuration && (fields.GetValueOrDefault("codec_type") != "video" ||
+                fields.GetValueOrDefault("codec_name") != "h264" || !p.IncreasingPts)) throw MissingDuration();
+            if (p.Pending is { } tail)
+            {
+                var rate = fields.GetValueOrDefault("r_frame_rate", "").Split('/');
+                if (p.LastInterval <= 0 || rate.Length != 2 ||
+                    !int.TryParse(rate[0], out var rateN) || !int.TryParse(rate[1], out var rateD) || rateN <= 0 || rateD <= 0)
+                    throw MissingDuration();
+                var nominal = (decimal)rateD * d / ((decimal)rateN * n);
+                if (Math.Abs(p.LastInterval - nominal) > 1) throw MissingDuration();
+                Record(entry.Key, p, tail, p.LastInterval);
+                p.Pending = null;
+            }
+            if (p.Count == 0) throw new InvalidDataException("Empty media stream.");
             return new(fields.GetValueOrDefault("codec_name", ""), fields.GetValueOrDefault("extradata_hash", ""),
                 OptionalInt("width"), OptionalInt("height"), fields.GetValueOrDefault("pix_fmt", ""), new(n, d),
                 fields.GetValueOrDefault("r_frame_rate", ""), OptionalInt("sample_rate"), Layout(),
@@ -119,6 +157,9 @@ public static class ProjectPacketInspector
         }
     }
 
+    private static ProjectRemuxIncompatibleException MissingDuration()
+        => new("Packet duration is unavailable or ambiguous; verified rendering is required.");
+
     private static long Integer(Dictionary<string, string> fields, string name)
         => fields.TryGetValue(name, out var text) && long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var result)
             ? result : throw new InvalidDataException($"Missing packet {name}.");
@@ -127,6 +168,10 @@ public static class ProjectPacketInspector
         public readonly IncrementalHash Hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         public readonly IncrementalHash TimingHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         public long? Origin;
+        public Dictionary<string, string>? Pending;
+        public long? ArrivalPts;
+        public long LastInterval;
+        public bool InferredDuration, IncreasingPts = true;
         public bool HashComplete = true;
         public long Count, Duration;
         public long First = long.MaxValue, End = long.MinValue;

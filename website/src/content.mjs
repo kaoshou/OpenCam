@@ -47,7 +47,7 @@ export const content = {
       ['08', '逐字稿搜尋', '搜尋已附加字幕，標示關鍵字並跳到該時間；可跟隨播放或自由閱讀，清單限高捲動。']
     ],
     processEyebrow: '錄影機制', processTitle: '先保留錄影，再交付 MP4。',
-    processText: '錄影先寫入 MKV，專案保留原始素材與剪輯決策。停止後可自動輸出，也可留到編輯完成再輸出。相容的完整素材可快速封裝；裁剪、效果或不相容素材會重新編碼，輸出時間依內容而定。',
+    processText: '錄影先寫入 MKV，專案保留原始素材與剪輯決策。相容的完整片段可保留影片直接封裝或串接，必要時僅處理音訊；缺少影格長度資訊時，會先核對時間戳與尾端間隔。裁剪、效果或無法確認的素材會重新編碼。介面顯示實際處理階段，封裝後仍需校驗，輸出時間依內容而定。',
     processSteps: ['錄製並保留 MKV', '儲存或繼續編輯', '下次開啟並續錄', '驗證並輸出 MP4'],
     platformsTitle: '選擇你的平台', windowsTitle: 'Windows', windowsText: 'Windows 10／11 · x64',
     macTitle: 'macOS', macText: 'macOS 13 以上 · Apple Silicon（arm64）',
@@ -88,7 +88,7 @@ export const content = {
       ['08', 'Transcript search', 'Search attached captions, highlight matches and jump to their timestamps. Follow playback or read freely in a bounded scrolling list.']
     ],
     processEyebrow: 'How recording works', processTitle: 'Preserve first. Deliver MP4 afterward.',
-    processText: 'Recordings are written to MKV; projects retain source media and editing decisions. Export automatically on stop or wait until editing is finished. Compatible whole recordings can be remuxed quickly; trims, effects or incompatible media require encoding. Export time depends on the content.',
+    processText: 'Recordings are written to MKV; projects retain source media and editing decisions. Compatible whole segments preserve video through packaging or joining, processing only audio when needed. Missing video durations require ordered timestamps and a checked final interval. Trims, effects or uncertain sources retain re-encoding. The interface shows the actual stage; packaging still needs verification, and export time depends on the content.',
     processSteps: ['Record and retain MKV', 'Save or edit', 'Reopen and append', 'Verify and export MP4'],
     platformsTitle: 'Choose your platform', windowsTitle: 'Windows', windowsText: 'Windows 10/11 · x64',
     macTitle: 'macOS', macText: 'macOS 13 or later · Apple Silicon (arm64)',

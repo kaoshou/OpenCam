@@ -8,6 +8,12 @@
 
 OpenCam 讓你錄影、剪輯，再繼續錄影。這款以可靠性為優先的跨平台桌面工具使用 MKV 保存原始錄影片段，透過可重開的專案保存剪輯，並在需要時輸出 MP4。
 
+## v0.3.6：改善未剪輯錄影的快速輸出
+
+- H.264 錄影片段缺少影格長度資訊時，若時間戳有序且尾端間隔可由幀率核對，仍可保留原影片直接封裝或串接；必要時只處理音訊。
+- 時間資訊不明確、片段不相容、裁剪或效果仍使用安全重新編碼，輸出後保留原有校驗；原始素材不變。
+- 輸出狀態明確標示直接封裝、處理音訊、重新編碼與校驗 MP4。不保證所有未剪輯素材皆能快速輸出或立即完成。詳見 [v0.3.6 更新與限制](docs/releases/v0.3.6.md)。
+
 ## v0.3.5：拖曳預覽與範圍標記
 
 - 拖曳時間尺時保留畫面並持續更新，放開後精確定位；播放中拖曳先暫停，放開再續播。
@@ -33,7 +39,7 @@ v0.3.3 新增「輸出… → 網頁播放器」：選擇存放位置後，建�
 
 🌐 [OpenCam 官方網站](https://kaoshou.github.io/OpenCam/)（可切換繁體中文／English）
 
-目前原始碼版本為 **0.3.5**，採用 **AGPL-3.0-or-later**。Windows 原生錄影、編輯影音預覽、輸出與長時間音畫同步實機驗收仍待完成；Windows FFmpeg 完整對應原始碼核對亦尚未完成。套件未簽章，發布不代表全部驗收通過。請保留重要素材備份，已發布安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。詳見 [v0.3.5 更新與限制](docs/releases/v0.3.5.md)。
+目前原始碼版本為 **0.3.6**，採用 **AGPL-3.0-or-later**。Windows 原生錄影、編輯影音預覽、輸出與長時間音畫同步實機驗收仍待完成；Windows FFmpeg 完整對應原始碼核對亦尚未完成。套件未簽章，發布不代表全部驗收通過。請保留重要素材備份，已發布安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。詳見 [v0.3.6 更新與限制](docs/releases/v0.3.6.md)。
 
 **v0.3.3** 新增可辨識的離線網頁播放器輸出；時間軸拖曳只調整排序，不再以邊緣拖曳裁剪。明確的分割／刪除範圍與復原操作保留，右側片段操作按鈕統一排列與圖示。先前已誤裁的片段不會自動改寫。
 
@@ -199,6 +205,12 @@ v0.2.0 的完整安裝檔請至 [OpenCam v0.2.0 Release](https://github.com/kaos
 
 # OpenCam (Screen Recorder) 🎥
 
+## v0.3.6: faster export for unedited recordings
+
+- Preserve H.264 video when packet durations are missing but ordered timestamps and a frame-rate-checked final interval provide sufficient evidence. Compatible whole segments can be remuxed or joined, processing only audio when necessary.
+- Ambiguous timing, incompatible segments, trims or effects retain verified rendering. Output verification remains in place and original media stays unchanged.
+- Clear export labels distinguish MP4 packaging, audio processing, video re-encoding and MP4 verification. Not every unedited source qualifies, and inspection/verification still take time. See [v0.3.6 changes and limitations](docs/releases/v0.3.6.md).
+
 ## v0.3.5: progressive scrubbing and range markers
 
 - Keep the picture visible and update decoded frames while dragging; settle at release. Playing preview pauses once and resumes afterwards.
@@ -222,7 +234,7 @@ OpenCam is built with .NET 8, Avalonia UI, and FFmpeg, and supports Windows and 
 
 🌐 [OpenCam official website](https://kaoshou.github.io/OpenCam/) (English / 繁體中文)
 
-The current source version is **0.3.5**, under **AGPL-3.0-or-later**. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending, as does verification of complete corresponding sources for the Windows FFmpeg build. Packages are unsigned; publication does not establish complete acceptance. Keep backups of important media. Published packages are available from [Releases](https://github.com/kaoshou/OpenCam/releases); see [v0.3.5 changes and limitations](docs/releases/v0.3.5.md).
+The current source version is **0.3.6**, under **AGPL-3.0-or-later**. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending, as does verification of complete corresponding sources for the Windows FFmpeg build. Packages are unsigned; publication does not establish complete acceptance. Keep backups of important media. Published packages are available from [Releases](https://github.com/kaoshou/OpenCam/releases); see [v0.3.6 changes and limitations](docs/releases/v0.3.6.md).
 
 **v0.3.3** adds identifiable offline web-player exports. Timeline dragging only reorders clips and no longer trims their edges; explicit split/range deletion and undo remain available. Inspector actions have consistent icon buttons. Existing accidentally trimmed ranges are not rewritten automatically.
 
