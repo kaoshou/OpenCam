@@ -20,9 +20,11 @@ public partial class MainWindow : Window
     private bool _initialSizeApplied;
     private ScreenRecorder.Infrastructure.IPC.PreflightRequest? _lastPreflight;
     private RecordingConfiguration? _countdownConfiguration;
+    private readonly ScreenRecorder.UI.Recording.MicrophoneWarningPresenter _microphoneWarning;
 
     public MainWindow()
     {
+        _microphoneWarning = new(CreateMicrophoneWarning);
         InitializeComponent();
 
         DataContextChanged += (s, e) =>
@@ -30,6 +32,7 @@ public partial class MainWindow : Window
             if (_identificationViewModel is not null)
             {
                 _identificationViewModel.PropertyChanged -= OnIdentificationViewModelPropertyChanged;
+                _identificationViewModel.MicrophoneWarningOverlayVisible = false;
                 _identificationViewModel.RequestRecordingProjectName = null;
                 _identificationViewModel.RequestRecordingPreflight = null;
                 _identificationViewModel.CancelRecordingCountdown?.Invoke();
@@ -40,6 +43,7 @@ public partial class MainWindow : Window
                 _identificationViewModel.RequestWebPlayerDestination = null;
             }
             _displayIdentification.Close();
+            _microphoneWarning.Update(false);
             _identificationViewModel = DataContext as MainViewModel;
             if (_identificationViewModel is not null)
             {
@@ -123,10 +127,32 @@ public partial class MainWindow : Window
         Screens.Changed += OnScreensChanged;
     }
 
-    private void OnScreensChanged(object? sender, EventArgs e) => _displayIdentification.Close();
+    private void OnScreensChanged(object? sender, EventArgs e)
+    {
+        _displayIdentification.Close();
+        _microphoneWarning.Update(false);
+        if (DataContext is MainViewModel vm) vm.MicrophoneWarningOverlayVisible = false;
+    }
+
+    private ScreenRecorder.UI.Recording.ICaptureExcludedWarning? CreateMicrophoneWarning()
+    {
+        // AVFoundation does not provide a verified window-exclusion mechanism.
+        // Do not create any floating pixels on unsupported platforms.
+        if (!OperatingSystem.IsWindows() || DataContext is not MainViewModel vm) return null;
+        var bounds = vm.IsCustomRegion
+            ? new CaptureRegion(vm.RegionX, vm.RegionY, vm.RegionWidth, vm.RegionHeight)
+            : vm.GetCurrentMonitors().FirstOrDefault(m => m.Index == vm.SelectedMonitor?.Index)?.Bounds;
+        if (bounds is null) return null;
+        var screen = Screens.ScreenFromPoint(new Avalonia.PixelPoint(bounds.X + bounds.Width / 2, bounds.Y + bounds.Height / 2));
+        return screen is null ? null : new ScreenRecorder.UI.Recording.MicrophoneWarningWindow(vm, screen);
+    }
 
     private void OnIdentificationViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (sender is MainViewModel reminderVm && e.PropertyName is nameof(MainViewModel.IsMicrophoneSilenceWarningActive)
+                or nameof(MainViewModel.IsRecording) or nameof(MainViewModel.IsPaused))
+            reminderVm.MicrophoneWarningOverlayVisible = _microphoneWarning.Update(
+                reminderVm.IsMicrophoneSilenceWarningActive && reminderVm.IsRecording && !reminderVm.IsPaused);
         if (e.PropertyName == nameof(MainViewModel.IsRecording) &&
             sender is MainViewModel { IsRecording: true } && _projectWindow?.IsVisible == true)
         {
@@ -147,6 +173,8 @@ public partial class MainWindow : Window
     {
         Screens.Changed -= OnScreensChanged;
         _displayIdentification.Dispose();
+        _microphoneWarning.Dispose();
+        if (DataContext is MainViewModel reminderVm) reminderVm.MicrophoneWarningOverlayVisible = false;
         if (_identificationViewModel is not null)
         {
             _identificationViewModel.PropertyChanged -= OnIdentificationViewModelPropertyChanged;

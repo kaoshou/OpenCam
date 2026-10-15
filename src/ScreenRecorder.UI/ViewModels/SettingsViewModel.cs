@@ -80,6 +80,7 @@ public partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _minimizeOnRecord;
+    [ObservableProperty] private bool _microphoneSilenceReminderEnabled = true;
 
     [ObservableProperty]
     private string? _errorMessage;
@@ -251,6 +252,7 @@ public partial class SettingsViewModel : ObservableObject
         OpenFolderOnFinished = _currentSettings.OpenFolderOnFinished;
         DeleteWorkingFileAfterRemux = _currentSettings.DeleteWorkingFileAfterSuccessfulRemux;
         MinimizeOnRecord = _currentSettings.MinimizeOnRecord;
+        MicrophoneSilenceReminderEnabled = _currentSettings.MicrophoneSilenceReminderEnabled;
 
         ErrorMessage = null;
         SuccessMessage = null;
@@ -299,6 +301,7 @@ public partial class SettingsViewModel : ObservableObject
         _currentSettings.OpenFolderOnFinished = OpenFolderOnFinished;
         _currentSettings.DeleteWorkingFileAfterSuccessfulRemux = DeleteWorkingFileAfterRemux;
         _currentSettings.MinimizeOnRecord = MinimizeOnRecord;
+        _currentSettings.MicrophoneSilenceReminderEnabled = MicrophoneSilenceReminderEnabled;
 
         // 3. 即時套用語言
         if (Strings.CurrentLanguage != _currentSettings.Language)
@@ -347,6 +350,7 @@ public partial class SettingsViewModel : ObservableObject
         OpenFolderOnFinished = false;
         DeleteWorkingFileAfterRemux = false;
         MinimizeOnRecord = false;
+        MicrophoneSilenceReminderEnabled = true;
 
         ErrorMessage = null;
         SuccessMessage = null;

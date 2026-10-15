@@ -422,6 +422,13 @@
                             </Border>
                         </StackPanel>
 
+                        <Border IsVisible="{Binding IsMicrophoneSilenceInAppWarningVisible}" Background="#422006"
+                                BorderBrush="#A16207" BorderThickness="1" CornerRadius="7" Padding="8,6">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="{Binding Strings[MicrophoneSilenceReminderTitle]}" FontSize="11" FontWeight="SemiBold" Foreground="#FDE68A" TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding Strings[MicrophoneSilenceReminderText]}" FontSize="10.5" Foreground="#FEF3C7" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
                         <TextBlock Text="{Binding ActualEncoderText}" Foreground="#CBD5E1"
                                    FontSize="11" TextWrapping="Wrap" />
                         <TextBlock Text="{Binding ActualCaptureText}" IsVisible="{Binding ShowCaptureStatus}"

@@ -469,6 +469,7 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnIsRecordingChanged(bool value)
     {
+        ResetMicrophoneSilenceReminder();
         OnPropertyChanged(nameof(CanOpenContentEditor));
         OnPropertyChanged(nameof(CanStartRecording));
         OnPropertyChanged(nameof(CanStopRecording));
@@ -492,6 +493,7 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnIsPausedChanged(bool value)
     {
+        ResetMicrophoneSilenceReminder();
         OnPropertyChanged(nameof(CanOpenContentEditor));
         OnPropertyChanged(nameof(CanStartRecording));
         OnPropertyChanged(nameof(CanStopRecording));
@@ -603,6 +605,7 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnRecordMicrophoneChanged(bool value)
     {
+        ResetMicrophoneSilenceReminder();
         OnPropertyChanged(nameof(CanSelectMicrophone));
         PersistUserSettings();
         if (IsPaused) SetMeterStatesForPausedSelection();
@@ -610,6 +613,7 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnSelectedMicrophoneChanged(AudioDeviceOption? value)
     {
+        ResetMicrophoneSilenceReminder();
         PersistUserSettings();
     }
 
@@ -950,6 +954,7 @@ public partial class MainViewModel : ObservableObject
             RecordSystemAudio = SupportsSystemAudio && s.RecordSystemAudio;
             RecordMicrophone = s.RecordMicrophone;
             MinimizeOnRecord = s.MinimizeOnRecord;
+            MicrophoneSilenceReminderEnabled = s.MicrophoneSilenceReminderEnabled;
             Strings.CurrentLanguage = s.Language;
 
             _startStopHotkeyModifiers = s.StartStopHotkeyModifiers;
@@ -1141,6 +1146,7 @@ public partial class MainViewModel : ObservableObject
                 RegionHeight = RegionHeight,
                 CustomOutputDirectory = OutputDirectory,
                 MinimizeOnRecord = MinimizeOnRecord,
+                MicrophoneSilenceReminderEnabled = MicrophoneSilenceReminderEnabled,
                 StartStopHotkeyModifiers = _startStopHotkeyModifiers,
                 StartStopHotkeyKey = _startStopHotkeyKey,
                 PauseResumeHotkeyModifiers = _pauseResumeHotkeyModifiers,
@@ -1178,6 +1184,7 @@ public partial class MainViewModel : ObservableObject
         _deleteWorkingFileAfterRemux = newSettings.DeleteWorkingFileAfterSuccessfulRemux;
         _diskWarningThresholdGb = newSettings.DiskWarningThresholdGb;
         _diskCriticalThresholdMb = newSettings.DiskCriticalThresholdMb;
+        MicrophoneSilenceReminderEnabled = newSettings.MicrophoneSilenceReminderEnabled;
         MinimizeOnRecord = newSettings.MinimizeOnRecord;
 
         Strings.CurrentLanguage = newSettings.Language;
@@ -1748,6 +1755,7 @@ public partial class MainViewModel : ObservableObject
 
     private void StartAudioMeterPolling()
     {
+        ResetMicrophoneSilenceReminder();
         Interlocked.Increment(ref _audioMeterGeneration);
         _systemWaveform.Clear();
         _microphoneWaveform.Clear();
@@ -1757,6 +1765,7 @@ public partial class MainViewModel : ObservableObject
 
     private void StopAudioMeterPolling()
     {
+        ResetMicrophoneSilenceReminder();
         Interlocked.Increment(ref _audioMeterGeneration);
         _audioMeterTimer.Stop();
         _systemMeterState = AudioMeterState.Off;
@@ -1815,11 +1824,7 @@ public partial class MainViewModel : ObservableObject
 
     private void ApplyAudioLevels(AudioLevelsSnapshot snapshot)
     {
-        _systemMeterState = snapshot.SystemAudio.State;
-        _microphoneMeterState = snapshot.Microphone.State;
-        _systemWaveform.Push(snapshot.SystemAudio);
-        _microphoneWaveform.Push(snapshot.Microphone);
-        NotifyAudioMeterChanged();
+        ApplyAudioLevels(snapshot, System.Diagnostics.Stopwatch.GetElapsedTime(0));
     }
 
     private async void OnAudioMeterTimerTick(object? sender, EventArgs e) =>

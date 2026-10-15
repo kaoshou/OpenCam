@@ -1,5 +1,11 @@
 # OpenCam Complete User Guide (English)
 
+## Development microphone silence reminder
+
+“Warn when the microphone stays silent” is enabled by default in Settings. While recording the microphone, 30 seconds of continuously observed silence triggers an advisory, independently of system audio. Sound returning, pause, stop, disabling the microphone or disabling reminders clears it and resets the interval. Missing level telemetry is not silence; the existing unavailable indicator still applies.
+
+This advisory never pauses, stops or restarts recording, plays a sound or activates a window. On Windows 10 version 2004 or later, a translucent floating warning is revealed only after capture-exclusion affinity is successfully set and read back. Actual exclusion still requires physical recording checks for each capture backend. The current macOS AVFoundation path cannot confirm floating-window exclusion, so it uses only an in-app advisory. An in-app advisory can still be captured if OpenCam itself is inside the recording region.
+
 ## Development countdown and bookmarks
 
 Settings offers a recording countdown of 0 (off), 3 or 5 seconds; the default is 3. It runs after preflight for new, appended or inserted recordings, not for a simple paused resume. Cancel, Escape or the start/stop shortcut cancels before capture. Countdown time is not part of the video; source confirmation is rechecked afterwards.

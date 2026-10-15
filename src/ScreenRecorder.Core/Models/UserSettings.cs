@@ -29,6 +29,7 @@ public class UserSettings
     public int RegionHeight { get; set; } = 720;
     public string? CustomOutputDirectory { get; set; }
     public bool MinimizeOnRecord { get; set; } = false;
+    public bool MicrophoneSilenceReminderEnabled { get; set; } = true;
 
     // 自訂快捷鍵 (0=None, 1=Alt, 2=Ctrl, 4=Shift, 8=Win)
     public uint StartStopHotkeyModifiers { get; set; } = 0;

@@ -231,6 +231,11 @@
                             <CheckBox IsChecked="{Binding MinimizeOnRecord}" Margin="0,2">
                                 <TextBlock Text="{Binding Strings[MinimizeOnRecord]}" FontSize="12" Foreground="#334155" TextWrapping="Wrap" />
                             </CheckBox>
+                            <CheckBox IsChecked="{Binding MicrophoneSilenceReminderEnabled}" Margin="0,2">
+                                <TextBlock Text="{Binding Strings[MicrophoneSilenceReminderSetting]}" FontSize="12" Foreground="#334155" TextWrapping="Wrap" />
+                            </CheckBox>
+                            <TextBlock Text="{Binding Strings[MicrophoneSilenceReminderHelp]}" Margin="24,0,0,0"
+                                       FontSize="11" Foreground="#64748B" TextWrapping="Wrap" />
                         </StackPanel>
                     </Border>
 

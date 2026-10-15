@@ -461,6 +461,10 @@ public class LocalizationService : ILocalizationService
 
         // 系統托盤與偏好設定
         ["MinimizeOnRecord"] = "開始錄影時自動最小化視窗",
+        ["MicrophoneSilenceReminderSetting"] = "麥克風持續無聲時提醒（預設開啟）",
+        ["MicrophoneSilenceReminderHelp"] = "已開啟麥克風錄製且連續 30 秒無聲時提示；不會暫停或停止錄影。有聲後自動收起。無法排除擷取時僅在程式內顯示。",
+        ["MicrophoneSilenceReminderTitle"] = "麥克風持續無聲",
+        ["MicrophoneSilenceReminderText"] = "已連續 30 秒未偵測到麥克風聲音，請確認靜音、音量及裝置。錄影仍持續進行。",
         ["TrayShowWindow"] = "顯示主視窗",
         ["TrayStart"] = "開始錄影",
         ["TrayStop"] = "停止錄影",
@@ -950,6 +954,10 @@ public class LocalizationService : ILocalizationService
 
         // 系統托盤與偏好設定
         ["MinimizeOnRecord"] = "Minimize window when recording starts",
+        ["MicrophoneSilenceReminderSetting"] = "Warn when the microphone stays silent (on by default)",
+        ["MicrophoneSilenceReminderHelp"] = "Warn after 30 seconds of silence while recording the microphone. Recording continues; the warning clears when sound returns. If capture exclusion is unavailable, show only in the app.",
+        ["MicrophoneSilenceReminderTitle"] = "Microphone has been silent",
+        ["MicrophoneSilenceReminderText"] = "No microphone sound detected for 30 seconds. Check mute, input volume and the selected device. Recording is still running.",
         ["TrayShowWindow"] = "Show Window",
         ["TrayStart"] = "Start Recording",
         ["TrayStop"] = "Stop Recording",
