@@ -1,12 +1,12 @@
 # OpenCam Complete User Guide (English)
 
-## Development microphone silence reminder
+## v0.3.7 microphone silence reminder
 
 “Warn when the microphone stays silent” is enabled by default in Settings. While recording the microphone, 30 seconds of continuously observed silence triggers an advisory, independently of system audio. Sound returning, pause, stop, disabling the microphone or disabling reminders clears it and resets the interval. Missing level telemetry is not silence; the existing unavailable indicator still applies.
 
 This advisory never pauses, stops or restarts recording, plays a sound or activates a window. On Windows 10 version 2004 or later, a translucent floating warning is revealed only after capture-exclusion affinity is successfully set and read back. Actual exclusion still requires physical recording checks for each capture backend. The current macOS AVFoundation path cannot confirm floating-window exclusion, so it uses only an in-app advisory. An in-app advisory can still be captured if OpenCam itself is inside the recording region.
 
-## Development countdown and bookmarks
+## v0.3.7 countdown and bookmarks
 
 Settings offers a recording countdown of 0 (off), 3 or 5 seconds; the default is 3. It runs after preflight for new, appended or inserted recordings, not for a simple paused resume. Cancel, Escape or the start/stop shortcut cancels before capture. Countdown time is not part of the video; source confirmation is rechecked afterwards.
 
@@ -14,7 +14,7 @@ While recording, choose **Add bookmark** or use Ctrl+Shift+M, configurable in Se
 
 The editor's **Bookmarks** menu provides a scrollable list with seek, rename and delete; purple timeline flags follow retained source content. Bookmarks save automatically to `opencam-bookmarks.json` inside the project, without rewriting video, upgrading the manifest or adding Web chapters. Rename/delete are outside clip Undo/Redo. Trimmed locations hide their flags and reappear when clips are restored; — means unresolved or trimmed. Keep the entire project folder. Older versions do not offer bookmark operations.
 
-## Development build recording preflight
+## v0.3.7 recording preflight
 
 New recordings, appended recordings and editor insertions first resolve the project name and unsaved changes, then show **Before you record**. Confirm the actual recording area and the separate microphone/system-audio meters. Speak and play some system sound. Silence requires a separate acknowledgement; waiting/unreadable input is not a silent pass. Fix the device/permission or explicitly disable that input and recheck. Recording with both audio inputs disabled also requires acknowledgement.
 
@@ -40,7 +40,7 @@ Change capture mode only while idle, not while paused. Existing audio/cursor con
 
 OpenCam lets you record, edit, and resume recording. It writes MKV sources, retains them alongside a reopenable editing project, and exports MP4 when needed. Crash Recovery can attempt to preserve successfully written recordings; project recovery drafts protect interrupted unsaved edits.
 
-> This guide covers OpenCam v0.3.6, not a claim of completed acceptance. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending. Complete corresponding-source verification for Windows FFmpeg also remains pending, and packages are unsigned. Use disposable media; see the [release notes and limitations](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.3.6.md).
+> This guide covers OpenCam v0.3.7, not a claim of completed acceptance. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending. Complete corresponding-source verification for Windows FFmpeg also remains pending, and packages are unsigned. Use disposable media; see the [release notes and limitations](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.3.7.md).
 
 v0.3.3 replaces manual export with an **Export…** menu offering MP4 video or Web player. MP4 accepts a filename; Web player creates a unique folder containing index.html, media.mp4 and opencam-player.js. Chapters follow saved clips and show start times and durations in a scrollable index. Overlay controls provide seeking, volume, speed, wide-screen and fullscreen. Move the complete folder together and use an H.264/AAC-capable browser. See [the web export format](https://github.com/kaoshou/OpenCam/blob/master/docs/WEB_PLAYER_EXPORT.md).
 

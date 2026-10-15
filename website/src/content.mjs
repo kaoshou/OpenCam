@@ -38,13 +38,15 @@ export const content = {
     featuresTitle: '簡單上手，細節也到位。',
     features: [
       ['01', '指定螢幕或自訂區域', '辨識每台顯示器，或用透明、可調整的選取框圈出錄影範圍。'],
-      ['02', '分開監看兩種聲音', '系統聲音與麥克風可獨立開關；錄影中分別顯示即時音量波形。'],
+      ['02', '分開監看兩種聲音', '系統聲音與麥克風可獨立開關；分別顯示即時音量波形。可開啟麥克風連續無聲 30 秒提醒，提示不會中斷錄影。'],
       ['03', '時間軸剪輯', '用縮圖與波形定位，分割、裁剪、刪除範圍並重排片段。'],
       ['04', '保存專案，下次續錄', '可只儲存專案、不輸出 MP4；日後重新開啟，再追加錄影與編輯。'],
       ['05', '防誤關與自動回退', '錄影中關閉視窗會先提醒；硬體編碼不可用時可回退 CPU。'],
       ['06', '修復救援', '意外中斷後，可嘗試救回已寫入的 MKV 錄影片段。'],
       ['07', '網頁播放器輸出', '包含多語字幕、章節起始與長度、音量、速度、寬螢幕和全螢幕；可離線開啟或整包上傳網站。'],
-      ['08', '逐字稿搜尋', '搜尋已附加字幕，標示關鍵字並跳到該時間；可跟隨播放或自由閱讀，清單限高捲動。']
+      ['08', '逐字稿搜尋', '搜尋已附加字幕，標示關鍵字並跳到該時間；可跟隨播放或自由閱讀，清單限高捲動。'],
+      ['09', '錄前確認與倒數', '先確認範圍與收音，可隔離試錄回放；設定 0／3／5 秒倒數，取消不開始錄製。'],
+      ['10', '快捷鍵標記重點', '錄影時按按鈕或自訂快捷鍵，編輯器可定位、改名與刪除重點；不改寫原始影片。']
     ],
     processEyebrow: '錄影機制', processTitle: '先保留錄影，再交付 MP4。',
     processText: '錄影先寫入 MKV，專案保留原始素材與剪輯決策。相容的完整片段可保留影片直接封裝或串接，必要時僅處理音訊；缺少影格長度資訊時，會先核對時間戳與尾端間隔。裁剪、效果或無法確認的素材會重新編碼。介面顯示實際處理階段，封裝後仍需校驗，輸出時間依內容而定。',
@@ -79,13 +81,15 @@ export const content = {
     featuresTitle: 'Easy to start. Ready for the details.',
     features: [
       ['01', 'Display or custom region', 'Identify every connected display, or frame a region with the transparent, resizable selector.'],
-      ['02', 'Monitor audio separately', 'Switch system audio and microphone independently, and see separate live level waveforms.'],
+      ['02', 'Monitor audio separately', 'Switch audio sources independently and see separate live levels. Optional warnings after 30 seconds of microphone silence never interrupt recording.'],
       ['03', 'Timeline editing', 'Locate content with thumbnails and waveforms, then split, trim, delete ranges and reorder clips.'],
       ['04', 'Save now, record again later', 'Save a project without exporting MP4, reopen it later and append more recordings.'],
       ['05', 'Close protection and fallback', 'Closing during recording prompts a warning; unavailable hardware encoding can fall back to CPU.'],
       ['06', 'Crash Recovery', 'After an interruption, attempt to salvage MKV segments already written.'],
       ['07', 'Web player export', 'Package multilingual captions, chapters, volume, speed, wide-screen and fullscreen controls. Open offline or upload the entire folder.'],
-      ['08', 'Transcript search', 'Search attached captions, highlight matches and jump to their timestamps. Follow playback or read freely in a bounded scrolling list.']
+      ['08', 'Transcript search', 'Search attached captions, highlight matches and jump to their timestamps. Follow playback or read freely in a bounded scrolling list.'],
+      ['09', 'Preflight and countdown', 'Confirm bounds and audio with an isolated trial and replay. Choose a 0/3/5-second countdown; cancellation does not start capture.'],
+      ['10', 'Bookmark with a shortcut', 'Add recording bookmarks using a button or configurable shortcut, then seek, rename or remove them in the editor without rewriting video.']
     ],
     processEyebrow: 'How recording works', processTitle: 'Preserve first. Deliver MP4 afterward.',
     processText: 'Recordings are written to MKV; projects retain source media and editing decisions. Compatible whole segments preserve video through packaging or joining, processing only audio when needed. Missing video durations require ordered timestamps and a checked final interval. Trims, effects or uncertain sources retain re-encoding. The interface shows the actual stage; packaging still needs verification, and export time depends on the content.',

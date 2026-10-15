@@ -8,6 +8,13 @@
 
 OpenCam 讓你錄影、剪輯，再繼續錄影。這款以可靠性為優先的跨平台桌面工具使用 MKV 保存原始錄影片段，透過可重開的專案保存剪輯，並在需要時輸出 MP4。
 
+## v0.3.7：錄前確認、倒數與錄製提醒
+
+- 正式錄製前確認錄影範圍、系統聲音及麥克風，可使用隔離的試錄及回放；試錄不加入正式專案。
+- 設定可選 0／3／5 秒倒數，預設 3 秒。倒數可取消，完成後重新核對錄前確認，暫停後續錄不重複倒數。
+- 錄影中可按「標記重點」或自訂快捷鍵（預設 Ctrl+Shift+M），在編輯器清單定位、改名、刪除；標記另存專案，不改寫影片。
+- 麥克風連續無聲 30 秒可提醒，預設開啟、有聲後收起，提醒本身不暫停或停止錄影。Windows 浮窗須先成功設定擷取排除；macOS 目前僅程式內提示。實際浮窗排除、裝置與背景快捷鍵仍待實機驗收。詳見 [v0.3.7 更新與限制](docs/releases/v0.3.7.md)。
+
 ## v0.3.6：改善未剪輯錄影的快速輸出
 
 - H.264 錄影片段缺少影格長度資訊時，若時間戳有序且尾端間隔可由幀率核對，仍可保留原影片直接封裝或串接；必要時只處理音訊。
@@ -39,7 +46,7 @@ v0.3.3 新增「輸出… → 網頁播放器」：選擇存放位置後，建�
 
 🌐 [OpenCam 官方網站](https://kaoshou.github.io/OpenCam/)（可切換繁體中文／English）
 
-目前原始碼版本為 **0.3.6**，採用 **AGPL-3.0-or-later**。Windows 原生錄影、編輯影音預覽、輸出與長時間音畫同步實機驗收仍待完成；Windows FFmpeg 完整對應原始碼核對亦尚未完成。套件未簽章，發布不代表全部驗收通過。請保留重要素材備份，已發布安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。詳見 [v0.3.6 更新與限制](docs/releases/v0.3.6.md)。
+目前原始碼版本為 **0.3.7**，採用 **AGPL-3.0-or-later**。Windows 原生錄影、編輯影音預覽、輸出與長時間音畫同步實機驗收仍待完成；Windows FFmpeg 完整對應原始碼核對亦尚未完成。套件未簽章，發布不代表全部驗收通過。請保留重要素材備份，已發布安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。詳見 [v0.3.7 更新與限制](docs/releases/v0.3.7.md)。
 
 **v0.3.3** 新增可辨識的離線網頁播放器輸出；時間軸拖曳只調整排序，不再以邊緣拖曳裁剪。明確的分割／刪除範圍與復原操作保留，右側片段操作按鈕統一排列與圖示。先前已誤裁的片段不會自動改寫。
 
@@ -205,6 +212,13 @@ v0.2.0 的完整安裝檔請至 [OpenCam v0.2.0 Release](https://github.com/kaos
 
 # OpenCam (Screen Recorder) 🎥
 
+## v0.3.7: preflight, countdown and recording reminders
+
+- Confirm capture bounds, system audio and microphone before recording, with an isolated trial and replay that never enters the real project.
+- Choose a 0/3/5-second countdown (default 3). Cancel before recording starts; accepted preflight configuration is rechecked after countdown. Simple paused resume does not count down again.
+- Add bookmarks using the button or a configurable shortcut (default Ctrl+Shift+M). Seek, rename or remove them in the editor. Project-owned bookmark data does not rewrite video.
+- A default-on advisory can warn after 30 seconds of microphone silence and clears on sound. The warning never pauses or stops recording. Windows floating warnings require successful capture-exclusion setup; macOS currently uses an in-app advisory only. Physical exclusion, device and background-hotkey acceptance remain pending. See [v0.3.7 changes and limitations](docs/releases/v0.3.7.md).
+
 ## v0.3.6: faster export for unedited recordings
 
 - Preserve H.264 video when packet durations are missing but ordered timestamps and a frame-rate-checked final interval provide sufficient evidence. Compatible whole segments can be remuxed or joined, processing only audio when necessary.
@@ -234,7 +248,7 @@ OpenCam is built with .NET 8, Avalonia UI, and FFmpeg, and supports Windows and 
 
 🌐 [OpenCam official website](https://kaoshou.github.io/OpenCam/) (English / 繁體中文)
 
-The current source version is **0.3.6**, under **AGPL-3.0-or-later**. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending, as does verification of complete corresponding sources for the Windows FFmpeg build. Packages are unsigned; publication does not establish complete acceptance. Keep backups of important media. Published packages are available from [Releases](https://github.com/kaoshou/OpenCam/releases); see [v0.3.6 changes and limitations](docs/releases/v0.3.6.md).
+The current source version is **0.3.7**, under **AGPL-3.0-or-later**. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending, as does verification of complete corresponding sources for the Windows FFmpeg build. Packages are unsigned; publication does not establish complete acceptance. Keep backups of important media. Published packages are available from [Releases](https://github.com/kaoshou/OpenCam/releases); see [v0.3.7 changes and limitations](docs/releases/v0.3.7.md).
 
 **v0.3.3** adds identifiable offline web-player exports. Timeline dragging only reorders clips and no longer trims their edges; explicit split/range deletion and undo remain available. Inspector actions have consistent icon buttons. Existing accidentally trimmed ranges are not rewritten automatically.
 
