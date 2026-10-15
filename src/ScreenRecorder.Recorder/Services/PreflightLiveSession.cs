@@ -21,6 +21,8 @@ public sealed class PreflightLiveSession(Func<PreflightCaptureResources> create,
     private string? _error;
     private DateTimeOffset _started;
     private bool _stopped;
+    public HardwareEncoderType ActiveEncoder => _resources?.Engine.ActiveEncoder ?? throw new InvalidOperationException("Check has not started.");
+    public CaptureSelection? ActiveCapture => _resources?.Engine.ActiveCapture;
 
     public async Task StartAsync(RecordingConfiguration snapshot, CancellationToken ct)
     {

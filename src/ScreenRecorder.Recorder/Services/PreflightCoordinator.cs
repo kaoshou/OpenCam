@@ -86,6 +86,36 @@ public sealed class PreflightCoordinator(RecordingCaptureLease capture, Func<IPr
         var current = Volatile.Read(ref _current);
         return current is null ? PreflightStatus.Empty : ReadStatus(current.Id, current.Revision);
     }
+    public async Task RecordTrialAsync(Guid operation, long revision, CancellationToken ct)
+    {
+        var current = Require(operation, revision);
+        // Do not queue a duplicate click behind a five-second capture.
+        if (!await _gate.WaitAsync(0, ct)) throw new InvalidOperationException("Preflight is busy.");
+        try
+        {
+            Require(operation, revision);
+            if (current.Phase is not (PreflightPhase.Checking or PreflightPhase.Reviewing) ||
+                current.Session is not IPreflightTrialSession trial) throw new InvalidOperationException("Trial unavailable.");
+            using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(ct, current.Cancellation.Token);
+            current.Phase = PreflightPhase.TrialRecording;
+            try { await trial.RecordTrialAsync(lifetime.Token); current.Phase = PreflightPhase.Reviewing; }
+            catch { current.Phase = PreflightPhase.Failed; throw; }
+        }
+        finally { _gate.Release(); }
+    }
+    public async Task SetReplayAsync(Guid operation, long revision, bool playing, CancellationToken ct)
+    {
+        await _gate.WaitAsync(ct);
+        try
+        {
+            var current = Require(operation, revision);
+            if (current.Session is not IPreflightTrialSession trial || current.Phase != PreflightPhase.Reviewing)
+                throw new InvalidOperationException("Trial unavailable.");
+            if (playing) await trial.PlayTrialAsync(current.Cancellation.Token);
+            else await trial.StopReplayAsync(ct);
+        }
+        finally { _gate.Release(); }
+    }
     public async Task EndAsync(Guid operation, CancellationToken ct)
     {
         var current = Volatile.Read(ref _current);

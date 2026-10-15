@@ -12,7 +12,7 @@ namespace ScreenRecorder.Recorder.Services;
 public sealed class PreflightCaptureFactory(IFFmpegPlatformProvider provider, IEncoderSelectionService encoders,
     ICapturePlanProvider? capturePlan = null)
 {
-    public PreflightCaptureResources Create()
+    public PreflightCaptureResources Create(HardwareEncoderType? pinnedEncoder = null, CaptureSelection? pinnedCapture = null)
     {
         ISystemAudioLoopbackCapture? system = null;
         IMicrophoneCapture? microphone = null;
@@ -29,7 +29,8 @@ public sealed class PreflightCaptureFactory(IFFmpegPlatformProvider provider, IE
         }
         else throw new PlatformNotSupportedException("Preflight capture requires Windows or macOS.");
         var engine = new FFmpegScreenRecorderEngine(provider, system, microphoneCapture: microphone,
-            microphoneLevelObserver: observer, encoderSelectionService: encoders, capturePlanProvider: capturePlan);
+            microphoneLevelObserver: observer, encoderSelectionService: encoders, capturePlanProvider: capturePlan,
+            pinnedEncoder: pinnedEncoder, pinnedCapture: pinnedCapture);
         return new(engine, [..new IAsyncDisposable?[] { system, microphone, observer }.OfType<IAsyncDisposable>()]);
     }
 }

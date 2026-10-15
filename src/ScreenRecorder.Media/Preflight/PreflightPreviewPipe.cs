@@ -18,7 +18,7 @@ public sealed class PreflightPreviewPipe : IAsyncDisposable
         foreach (var argument in new[] { "-nostdin", "-hide_banner", "-loglevel", "error", "-protocol_whitelist", "pipe",
             "-f", "matroska", "-i", "pipe:0", "-an", "-vf",
             "fps=4,scale=960:540:force_original_aspect_ratio=decrease,pad=960:540:(ow-iw)/2:(oh-ih)/2",
-            "-pix_fmt", "bgra", "-c:v", "rawvideo", "-threads", "1", "-f", "rawvideo", "pipe:1" }) start.ArgumentList.Add(argument);
+            "-pix_fmt", "rgba", "-c:v", "rawvideo", "-threads", "1", "-f", "rawvideo", "pipe:1" }) start.ArgumentList.Add(argument);
         _process = Process.Start(start) ?? throw new IOException("Cannot start preflight preview decoder.");
         _frames = ReadFramesAsync();
         _errors = DrainErrorsAsync();

@@ -65,7 +65,7 @@ public class PreflightLiveSessionTests
         Assert.InRange(preview.FrameCount, 1, 5);
         var frame = preview.LatestFrame!;
         Assert.Equal(960 * 540 * 4, frame.Length);
-        Assert.True(frame[2] > 200 && frame[0] < 30); // real red video, BGRA
+        Assert.True(frame[0] > 200 && frame[2] < 30); // real red video, RGBA (same as project/trial preview)
     }
 
     [Fact]
