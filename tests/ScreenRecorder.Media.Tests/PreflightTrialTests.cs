@@ -8,6 +8,7 @@ using ScreenRecorder.Media.Capture;
 using ScreenRecorder.Media.FFmpeg;
 using ScreenRecorder.Media.Projects;
 using ScreenRecorder.Platform.macOS;
+using ScreenRecorder.Platform.Windows;
 
 namespace ScreenRecorder.Media.Tests;
 
@@ -44,8 +45,10 @@ public class PreflightTrialTests
         }
         finally { root.Delete(true); }
     }
-    [Fact]
-    public async Task FiveSecondSyntheticTrialStopsCheckingAndReplaysWithoutFormalProjectFiles()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FiveSecondSyntheticTrialStopsCheckingAndReplaysWithoutFormalProjectFiles(bool portablePipe)
     {
         var root = Directory.CreateTempSubdirectory("OpenCam-preflight-trial-test-");
         var engines = new List<FFmpegScreenRecorderEngine>();
@@ -65,7 +68,9 @@ public class PreflightTrialTests
             await using (var session = new PreflightTrialSession(
                 new PreflightLiveSession(() => Create(null, null), displays, executable), Create,
                 () => new PreflightTrialStorage(root.FullName),
-                new ProjectPreviewDecoder(() => new MacProjectMediaProcess(executable), () => output)))
+                new ProjectPreviewDecoder(() => portablePipe || (!OperatingSystem.IsWindows() && !OperatingSystem.IsMacOS())
+                    ? new TrialPipeMediaProcess(executable)
+                    : OperatingSystem.IsWindows() ? new WindowsProjectMediaProcess(executable) : new MacProjectMediaProcess(executable), () => output)))
             {
                 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(35));
                 await session.StartAsync(new() { AudioSource = AudioSourceType.SystemAndMicrophone, Fps = 10 }, timeout.Token);
