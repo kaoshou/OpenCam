@@ -35,6 +35,8 @@ public class RecordingOrchestrator : IAsyncDisposable
     private readonly ICursorHighlightService? _cursorHighlightService;
 
     private IScreenRecorderEngine? _engine;
+    private readonly RecordingCaptureLease _captureLease;
+    private IAsyncDisposable? _captureOwnership;
     private volatile bool _startingSegment;
     private string? _startupEngineError;
     private string? _unconfirmedAttemptPath;
@@ -80,9 +82,11 @@ public class RecordingOrchestrator : IAsyncDisposable
         IMicrophoneLevelObserver? microphoneLevelObserver = null,
         IEncoderSelectionService? encoderSelectionService = null,
         IRecordingEngineFactory? engineFactory = null,
-        ICaptureHealthMonitor? captureHealthMonitor = null)
+        ICaptureHealthMonitor? captureHealthMonitor = null,
+        RecordingCaptureLease? captureLease = null)
     {
         _stateMachine = stateMachine;
+        _captureLease = captureLease ?? new RecordingCaptureLease();
         _storageService = storageService;
         _sessionStore = sessionStore;
         _diskMonitor = diskMonitor;
@@ -168,6 +172,8 @@ public class RecordingOrchestrator : IAsyncDisposable
             }
         }
 
+        try { _captureOwnership ??= await _captureLease.AcquireAsync(Guid.NewGuid(), cancellationToken); }
+        catch (InvalidOperationException ex) { return (false, ex.Message, null); }
         var rootPath = string.IsNullOrWhiteSpace(config.OutputDirectory) 
             ? _storageService.GetDefaultRecordingsPath() 
             : config.OutputDirectory;
@@ -175,6 +181,7 @@ public class RecordingOrchestrator : IAsyncDisposable
         // 磁碟空間檢查 (至少 1 GB)
         if (!_storageService.IsDiskSpaceSufficient(rootPath, 1L * 1024 * 1024 * 1024))
         {
+            await ReleaseCaptureOwnershipAsync();
             return (false, "目標磁碟空間不足 (至少需要 1 GB)", null);
         }
 
@@ -332,6 +339,7 @@ public class RecordingOrchestrator : IAsyncDisposable
         try
         {
             token.ThrowIfCancellationRequested();
+            _captureOwnership ??= await _captureLease.AcquireAsync(Guid.NewGuid(), token);
             session.WorkingFilePath = path;
             // Durable pending path allows crash recovery before the first-frame commit.
             await SaveSessionAsync(session, token);
@@ -425,6 +433,7 @@ public class RecordingOrchestrator : IAsyncDisposable
         {
             if (QuarantineFailedAttempt() && _currentSession != null)
                 await TrySaveAfterFailureAsync(_currentSession);
+            await ReleaseCaptureOwnershipAsync();
             return;
         }
         engine.EngineErrorOccurred -= OnEngineError;
@@ -433,6 +442,7 @@ public class RecordingOrchestrator : IAsyncDisposable
         try
         {
             await engine.DisposeAsync();
+            if (engine.IsRunning) throw new IOException("Capture shutdown is unconfirmed.");
             if (_projectOutput is not null)
             {
                 _projectOutput.Flush(flushToDisk: true);
@@ -440,6 +450,7 @@ public class RecordingOrchestrator : IAsyncDisposable
                 _projectOutput = null;
             }
             if (ReferenceEquals(_engine, engine)) _engine = null;
+            await ReleaseCaptureOwnershipAsync();
             if (QuarantineFailedAttempt() && _currentSession != null)
                 await TrySaveAfterFailureAsync(_currentSession);
         }
@@ -447,6 +458,15 @@ public class RecordingOrchestrator : IAsyncDisposable
         {
             // Do not start a second encoder while cleanup of the first is uncertain.
             throw new InvalidOperationException("Recording engine cleanup failed; no fallback was started.", ex);
+        }
+    }
+
+    private async Task ReleaseCaptureOwnershipAsync()
+    {
+        if (_captureOwnership is { } ownership)
+        {
+            await ownership.DisposeAsync();
+            _captureOwnership = null;
         }
     }
 

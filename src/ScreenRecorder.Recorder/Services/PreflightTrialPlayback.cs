@@ -10,6 +10,7 @@ public sealed class PreflightTrialPlayback(ProjectPreviewDecoder decoder, Record
     private CancellationTokenSource? _cancellation;
     private Task? _work;
     private string? _error;
+    private Exception? _shutdownError;
     public bool Playing => _work is { IsCompleted: false };
     public string? ErrorCode => Volatile.Read(ref _error);
     public void Start(CancellationToken ct)
@@ -27,12 +28,19 @@ public sealed class PreflightTrialPlayback(ProjectPreviewDecoder decoder, Record
                 frame => { ct.ThrowIfCancellationRequested(); publish(frame); return Task.CompletedTask; }, _ => { }, ct);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
-        catch { Volatile.Write(ref _error, "PreflightReplayFailed"); throw; }
+        catch (Exception ex)
+        {
+            Volatile.Write(ref _error, "PreflightReplayFailed");
+            // A decoder failure is reportable but its joined process can be cleaned.
+            // An unconfirmed audio-device shutdown must continue blocking handoff.
+            if (ex is ProjectPreviewShutdownException) _shutdownError = ex;
+        }
     }
     public async Task StopAsync(CancellationToken ct)
     {
         _cancellation?.Cancel();
         if (_work is not null) await _work.WaitAsync(TimeSpan.FromSeconds(10), ct);
+        if (_shutdownError is not null) throw _shutdownError;
         _cancellation?.Dispose();
     }
 }

@@ -41,6 +41,18 @@ public class ActualRecordingIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task PreflightOwnershipRejectsFormalStartBeforeCreatingSession()
+    {
+        var capture = new RecordingCaptureLease();
+        await using var preflight = await capture.AcquireAsync(Guid.NewGuid(), default);
+        await using var orchestrator = CreateSyntheticOrchestrator(capture);
+        var result = await orchestrator.StartRecordingAsync(CreateSyntheticConfiguration(false));
+        Assert.False(result.Success);
+        Assert.Null(orchestrator.CurrentSession);
+        Assert.Empty(Directory.EnumerateFileSystemEntries(_tempDir));
+    }
+
+    [Fact]
     public async Task SyntheticCaptureDoesNotGenerateMediaFasterThanWallClock()
     {
         await using var orchestrator = CreateSyntheticOrchestrator();
@@ -816,7 +828,7 @@ public class ActualRecordingIntegrationTests : IDisposable
             DeleteWorkingFileAfterSuccessfulRemux = deleteWorkingFiles
         };
 
-    private RecordingOrchestrator CreateSyntheticOrchestrator()
+    private RecordingOrchestrator CreateSyntheticOrchestrator(RecordingCaptureLease? captureLease = null)
     {
         var storageService = new StorageService();
         var displayService = new FixedDisplayService();
@@ -828,7 +840,7 @@ public class ActualRecordingIntegrationTests : IDisposable
             new StreamCopyRemuxer(),
             new MediaFileProbe(),
             displayService,
-            new MacOsFFmpegProvider(displayService))
+            new MacOsFFmpegProvider(displayService), captureLease: captureLease)
         {
             UseSyntheticCaptureSource = true
         };

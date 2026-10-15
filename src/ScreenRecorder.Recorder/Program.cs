@@ -70,6 +70,16 @@ public class Program
             await using var projectPreview = previewDecoder is not null
                 ? new ProjectPreviewCoordinator(projects, previewDecoder.PlayConfiguredAsync) : null;
             var projectDispatcher = new ProjectIpcDispatcher(projects, projectWaveforms, projectFrames, projectPreview);
+            var preflightFactory = serviceProvider.GetRequiredService<PreflightCaptureFactory>();
+            await using var preflight = new PreflightCoordinator(serviceProvider.GetRequiredService<RecordingCaptureLease>(), () =>
+            {
+                if (mediaExecutable is null) throw new FileNotFoundException("FFmpeg unavailable.");
+                var live = new PreflightLiveSession(() => preflightFactory.Create(), displayService, mediaExecutable,
+                    PreflightAudioIdentity.Read);
+                return previewDecoder is null ? live : new PreflightTrialSession(live,
+                    (encoder, capture) => preflightFactory.Create(encoder, capture), () => new(), previewDecoder);
+            });
+            await using var preflightDispatcher = new PreflightIpcDispatcher(preflight);
 
             var pipeName = NamedPipeConstants.PipeBaseName;
             var pipeIndex = Array.IndexOf(args, "--pipe");
@@ -93,6 +103,8 @@ public class Program
 
                 try
                 {
+                    if (PreflightIpcDispatcher.IsCommand(message.MessageType))
+                        return await preflightDispatcher.DispatchAsync(message);
                     if (ProjectIpcDispatcher.IsProjectCommand(message.MessageType))
                         return await projectDispatcher.DispatchAsync(message);
                     if (projects.Current is not null && message.MessageType is
@@ -195,7 +207,8 @@ public class Program
                 }
             }, bootstrap.ParentPid);
             await using var mediaServer = new NamedPipeIpcServer(pipeName + "-frames", bootstrap.Key,
-                projectDispatcher.DispatchMediaAsync, bootstrap.ParentPid);
+                message => message.MessageType == "GetPreflightFrame"
+                    ? preflightDispatcher.DispatchMediaAsync(message) : projectDispatcher.DispatchMediaAsync(message), bootstrap.ParentPid);
             System.Security.Cryptography.CryptographicOperations.ZeroMemory(bootstrap.Key);
 
             ipcServer.Start();
@@ -271,6 +284,8 @@ public class Program
         services.AddSingleton<IEncoderSelectionService>(sp => new ScreenRecorder.Media.Encoders.FFmpegEncoderDetector(
             sp.GetRequiredService<IFFmpegPlatformProvider>()));
         services.AddSingleton<IRecordingEngineFactory, RecordingEngineFactory>();
+        services.AddSingleton<RecordingCaptureLease>();
+        services.AddSingleton<PreflightCaptureFactory>();
         services.AddSingleton<RecordingOrchestrator>();
 
         if (OperatingSystem.IsWindows())

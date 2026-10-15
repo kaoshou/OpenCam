@@ -53,7 +53,11 @@ public class NamedPipeIpcClient : IAsyncDisposable
         }
     }
 
-    public async Task<ProjectReply> SendProjectFrameAsync(ProjectRequest request, CancellationToken cancellationToken = default)
+    public Task<ProjectReply> SendProjectFrameAsync(ProjectRequest request, CancellationToken cancellationToken = default)
+        => SendFrameAsync("GetProjectFrame", request, cancellationToken);
+    public Task<ProjectReply> SendPreflightFrameAsync(PreflightRequest request, CancellationToken cancellationToken = default)
+        => SendFrameAsync("GetPreflightFrame", request, cancellationToken);
+    private async Task<ProjectReply> SendFrameAsync<T>(string command, T request, CancellationToken cancellationToken)
     {
         using var pipe = new NamedPipeClientStream(".", _pipeName + "-frames", PipeDirection.InOut, PipeOptions.Asynchronous);
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -64,7 +68,7 @@ public class NamedPipeIpcClient : IAsyncDisposable
             IpcPeerIdentity.Verify(pipe, _serverPid, server: false);
             var nonce = await AuthenticatedIpc.ReadChallengeAsync(pipe, _key, deadline.Token);
             await AuthenticatedIpc.WriteAsync(pipe, _key, nonce, false, new IpcMessage {
-                MessageType = "GetProjectFrame", PayloadJson = JsonSerializer.Serialize(request) }, deadline.Token);
+                MessageType = command, PayloadJson = JsonSerializer.Serialize(request) }, deadline.Token);
             return await AuthenticatedMediaIpc.ReadAsync(pipe, _key, nonce, deadline.Token);
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or OperationCanceledException or JsonException)
