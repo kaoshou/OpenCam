@@ -19,7 +19,13 @@ public class PreflightIpcTests
         var id = Guid.NewGuid();
         var begun = JsonSerializer.Deserialize<PreflightReply>((await dispatcher.DispatchAsync(Message("BeginPreflight", new(id, Configuration: config)))).DataJson!)!;
         var request = new PreflightRequest(id, begun.Status.ConfigurationRevision, begun.ServerInstanceId);
+        using (var ready = new CancellationTokenSource(TimeSpan.FromSeconds(3)))
+            while (System.Text.Json.JsonSerializer.Deserialize<PreflightReply>(
+                (await dispatcher.DispatchAsync(Message("GetPreflightStatus", request))).DataJson!)!.Status.Phase != PreflightPhase.Checking)
+                await Task.Delay(10, ready.Token);
         Assert.True((await dispatcher.DispatchAsync(Message("EndPreflight", request with { Confirm = true }))).Success);
+        using (var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(3)))
+            while (coordinator.CurrentOperation is not null) await Task.Delay(10, deadline.Token);
         async Task<bool> Confirm(RecordingConfiguration configuration) => JsonSerializer.Deserialize<PreflightReply>(
             (await dispatcher.DispatchAsync(Message("CheckPreflightConfirmation", request with { Configuration = configuration }))).DataJson!)!.ConfigurationConfirmed;
         Assert.True(await Confirm(config));
@@ -77,6 +83,7 @@ public class PreflightIpcTests
         Assert.False((await dispatcher.DispatchAsync(Message("EndPreflight", request with { ServerInstanceId = Guid.NewGuid() }))).Success);
         Assert.True(capture.IsOwned);
         Assert.True((await dispatcher.DispatchAsync(Message("EndPreflight", request))).Success);
+        while (capture.IsOwned) await Task.Delay(10, deadline.Token);
         Assert.False(capture.IsOwned);
         Assert.False((await dispatcher.DispatchMediaAsync(Message("GetPreflightFrame", request))).Success);
     }

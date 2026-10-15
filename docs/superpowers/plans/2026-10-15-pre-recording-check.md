@@ -36,10 +36,10 @@
 
 **Interfaces:** Core produces `PreflightPhase`, `PreflightSourceState`, `PreflightStatus` (operation/configuration IDs, separate input states, resolved display/bounds and warning/error codes). `PreflightReadiness.Resolve(bool enabled, AudioLevelSample? sample, DateTimeOffset now)` is independent of the formal recording-state resolver. `RecordingCaptureLease.AcquireAsync(Guid owner, CancellationToken ct)` returns an async-disposable ownership token; concurrent different owners fail without waiting behind active capture.
 
-- [ ] Write tests for disabled, missing, silent, live, stale/future/nonfinite readings and lease acquisition/release/failure. Mutating a missing reading to Silent or allowing a second owner must fail.
-- [ ] Run the two named test classes before implementation. Expected: missing-contract failure; do not accept a setup/socket failure as RED.
-- [ ] Implement only these models/readiness and exclusive ownership; failed cleanup retains ownership until confirmed shutdown.
-- [ ] Run the two classes; expected0 failures. Save evidence and commit task changes locally.
+- [x] Write tests for disabled, missing, silent, live, stale/future/nonfinite readings and lease acquisition/release/failure. Mutating a missing reading to Silent or allowing a second owner must fail.
+- [x] Run the two named test classes before implementation. Expected: missing-contract failure; do not accept a setup/socket failure as RED.
+- [x] Implement only these models/readiness and exclusive ownership; failed cleanup retains ownership until confirmed shutdown.
+- [x] Run the two classes; expected0 failures. Save evidence and commit task changes locally.
 
 ### Task 2: Independent streaming check backend
 
@@ -47,12 +47,12 @@
 
 **Interfaces:** `IPreflightLiveSession` exposes `Task StartAsync(RecordingConfiguration snapshot, CancellationToken ct)`, `PreflightStatus ReadStatus(DateTimeOffset now)`, `ProjectFrameReply? ReadFrame()` and joined `Task StopAsync(CancellationToken ct)`, plus async disposal. `PreflightCoordinator.BeginAsync(Guid operation, RecordingConfiguration configuration, CancellationToken ct)` produces a token-scoped `PreflightStatus`; poll/stop reject stale operation IDs. Task1 owns readiness/lease contracts. Freeze configuration by deep copying the caller's mutable configuration before asynchronous work. New frames carry the operation ID and monotonically increasing configuration revision and are discarded after invalidation.
 
-- [ ] Add failing tests for independent audio reads, stale callbacks, no files created while checking, capture identity mismatch and failed stop retaining the lease. Exercise real coordinator behavior with controlled native boundaries, not assertions that a fake was called.
-- [ ] Confirm RED for each behavior before implementing it.
-- [ ] Factory creates a fresh engine and fresh OS audio adapters, not the singleton formal adapters. Use `IBoundRecordingOutput.OutputStream` to send checking MKV bytes into a bounded streaming preview decoder, never a disk file. Keep only the latest decoded BGRA frame, at most960x540,4 updates/second; drain stderr and all PCM pipes continuously. If this cannot preserve the selected formal capture mode, report unsupported rather than selecting another mode.
-- [ ] Cap start/check initialization at40 seconds and stop at10 seconds, using cancellation plus process/source join; failure to confirm exit blocks handoff. Snapshot the resolved device/display identities as well as requested configuration.
-- [ ] Run coordinator tests and synthetic streaming integration: real FFmpeg output produces bounded frames while no checking file is created; cancellation joins both encoder/decoder. Native capture/permissions remain manual unless explicitly enabled.
-- [ ] Expected0 failures; save evidence and commit locally.
+- [x] Add failing tests for independent audio reads, stale callbacks, no files created while checking, capture identity mismatch and failed stop retaining the lease. Exercise real coordinator behavior with controlled native boundaries, not assertions that a fake was called.
+- [x] Confirm RED for each behavior before implementing it.
+- [x] Factory creates a fresh engine and fresh OS audio adapters, not the singleton formal adapters. Use `IBoundRecordingOutput.OutputStream` to send checking MKV bytes into a bounded streaming preview decoder, never a disk file. Keep only the latest decoded BGRA frame, at most960x540,4 updates/second; drain stderr and all PCM pipes continuously. If this cannot preserve the selected formal capture mode, report unsupported rather than selecting another mode.
+- [x] Cap start/check initialization at40 seconds and stop at10 seconds, using cancellation plus process/source join; failure to confirm exit blocks handoff. Snapshot the resolved device/display identities as well as requested configuration.
+- [x] Run coordinator tests and synthetic streaming integration: real FFmpeg output produces bounded frames while no checking file is created; cancellation joins both encoder/decoder. Native capture/permissions remain manual unless explicitly enabled.
+- [x] Expected0 failures; save evidence and commit locally.
 
 ### Task 3: Isolated trial and replay
 
@@ -60,11 +60,11 @@
 
 **Interfaces:** `PreflightCoordinator.RecordTrialAsync(Guid operation, CancellationToken ct)` stops live checking, records through a fresh session, validates and enters Reviewing. `PlayTrialAsync`, `StopReplayAsync` and `StopAsync` remain operation scoped; no caller-supplied filesystem paths. Playback returns bounded frames to the same frame channel. Trial storage returns only a bound owned file, never a formal ProjectHandle.
 
-- [ ] Write failing tests for5 seconds counted from startup, early cancellation, no formal project/session mutations, audio-track presence not implying audible input, replay suppression, tampered temporary paths and cleanup failures.
-- [ ] Verify RED, then implement private random trial directories under application temporary storage with ownership checks, no symlink traversal and no formal recovery registration. Close checking before trial; close trial writing before probing/replay. Reuse the captured settings, including encoder/capture selection, with a new configuration ID if fallback changes them.
-- [ ] Stream a closed trial through existing file-handle-bound video/audio decoding into the preview and `IProjectAudioOutput`; never launch an external player that outlives cleanup. Stop monitoring before replay. Retrying stops replay and invalidates previous signal results.
-- [ ] Run focused unit tests and real FFmpeg synthetic trial/replay tests: valid frame/audio output, sample/frame bounds, deterministic cancellation, no formal data changes, no leftover owned processes.
-- [ ] Expected0 failures; commit locally. Do not claim native device acceptance from synthetic media.
+- [x] Write failing tests for5 seconds counted from startup, early cancellation, no formal project/session mutations, audio-track presence not implying audible input, replay suppression, tampered temporary paths and cleanup failures.
+- [x] Verify RED, then implement private random trial directories under application temporary storage with ownership checks, no symlink traversal and no formal recovery registration. Close checking before trial; close trial writing before probing/replay. Reuse the captured settings, including encoder/capture selection, with a new configuration ID if fallback changes them.
+- [x] Stream a closed trial through existing file-handle-bound video/audio decoding into the preview and `IProjectAudioOutput`; never launch an external player that outlives cleanup. Stop monitoring before replay. Retrying stops replay and invalidates previous signal results.
+- [x] Run focused unit tests and real FFmpeg synthetic trial/replay tests: valid frame/audio output, sample/frame bounds, deterministic cancellation, no formal data changes, no leftover owned processes.
+- [x] Expected0 failures; commit locally. Do not claim native device acceptance from synthetic media.
 
 ### Task 4: Recorder IPC and formal-start exclusion
 
@@ -72,10 +72,10 @@
 
 **Interfaces:** Commands `BeginPreflight`, `GetPreflightStatus`, `GetPreflightFrame`, `RecordPreflightTrial`, `PlayPreflightTrial`, `StopPreflightReplay`, `EndPreflight`. `PreflightRequest` carries `Guid OperationId`, `long ConfigurationRevision`, `Guid ServerInstanceId` and an optional deep-copied configuration, never an output path. Status responses include only bounded state and IDs. Frame requests return the existing `ProjectReply.Frame` media envelope with `ProjectSnapshot.Closed` carrying the server instance: `Frame.ClipId` is this operation ID and `Frame.Revision` is the configuration revision, validated by the preflight client and never submitted to project-edit commands. This reuses existing authenticated geometry/size checks without changing wire format or trusting a project ID as preflight authorization. Formal recording acquires Task1's same lease before opening any capture source and releases it only after confirmed stop.
 
-- [ ] Write failing authenticated-dispatch tests for stale IDs, duplicate trial commands, untrusted paths, overlarge payloads, unconfirmed stop and direct formal-start attempts while preflight owns capture.
-- [ ] Verify RED; implement dispatcher and lifetime wiring without changing existing control/media deadlines or trusting UI-side readiness as authority.
-- [ ] Tests cover both normal and project/insertion/resume starts so none bypasses the lease. A disconnect cancels preflight and retains blocking state until shutdown is confirmed.
-- [ ] Run existing IPC/auth/media size-limit and recording-start suites plus new tests. Expected0 failures; commit locally.
+- [x] Write failing authenticated-dispatch tests for stale IDs, duplicate trial commands, untrusted paths, overlarge payloads, unconfirmed stop and direct formal-start attempts while preflight owns capture.
+- [x] Verify RED; implement dispatcher and lifetime wiring without changing existing control/media deadlines or trusting UI-side readiness as authority.
+- [x] Tests cover both normal and project/insertion/resume starts so none bypasses the lease. A disconnect cancels preflight and retains blocking state until shutdown is confirmed.
+- [x] Run existing IPC/auth/media size-limit and recording-start suites plus new tests. Expected0 failures; commit locally.
 
 ### Task 5: Preflight window and start integration
 
@@ -83,16 +83,16 @@
 
 **Interfaces:** A main-window dialog callback accepts an immutable configuration snapshot and returns Cancel or an explicitly confirmed snapshot. The dialog uses Task4 commands; formal start waits for `EndPreflight` success and checks that the configuration/display/device identities remain valid. Existing naming/unsaved-confirmation happens first, without creating a formal project until confirmation.
 
-- [ ] Write failing UI/controller tests: cancellation leaves project unchanged; independent source cards and thumbnail; silence acknowledgement; hard errors block; all-audio-disabled clearly says silent recording; double-click cannot create two starts; configuration changes rerun checks; late replies cannot overwrite a new window.
-- [ ] Verify RED; implement compact bilingual cards, visible privacy explanation,5-second trial progress, replay/stop and Cancel/Start actions with centered buttons. Start remains disabled during preparation/trial/replay/stop and until screen confirmation; silence requires a distinct acknowledgement, not automatic continuation.
-- [ ] Integrate home start, append and editor insertion. Pause/resume with unchanged identities does not prompt; changed configuration forces preflight. Preserve existing naming cancellation, unsaved work, editor recording locks and automatic export policies.
-- [ ] Run new UI/controller tests, existing project-start/pause/insertion and localization suites. Expected0 failures; commit locally.
+- [x] Write failing UI/controller tests: cancellation leaves project unchanged; independent source cards and thumbnail; silence acknowledgement; hard errors block; all-audio-disabled clearly says silent recording; double-click cannot create two starts; configuration changes rerun checks; late replies cannot overwrite a new window.
+- [x] Verify RED; implement compact bilingual cards, visible privacy explanation,5-second trial progress, replay/stop and Cancel/Start actions with centered buttons. Start remains disabled during preparation/trial/replay/stop and until screen confirmation; silence requires a distinct acknowledgement, not automatic continuation.
+- [x] Integrate home start, append and editor insertion. Pause/resume with unchanged identities does not prompt; changed configuration forces preflight. Preserve existing naming cancellation, unsaved work, editor recording locks and automatic export policies.
+- [x] Run new UI/controller tests, existing project-start/pause/insertion and localization suites. Expected0 failures; commit locally.
 
 ### Task 6: Verification and documentation
 
 **Files:** Update `docs/USER_GUIDE.zh-TW.md`, `docs/USER_GUIDE.en-US.md`, and add `docs/verification/2026-10-15-pre-recording-check.md` with concrete manual steps and evidence.
 
-- [ ] Run `dotnet test ScreenRecorder.sln -c Release --no-restore -m:1 /nodeReuse:false`, player/website tests and version/diff checks. Expected0 failures; report existing warnings and all skips by scope, not as device PASS.
-- [ ] With explicit device-testing authorization, check Windows/macOS microphone-only, system-only, both, silence, wrong device, denied permission, unplug/change display, repeated cancellation and immediate formal recording after replay. Otherwise mark these REQUIRES MANUAL VALIDATION; do not trigger sensitive device capture merely to obtain green results.
-- [ ] Perform one concise inline safety check of capture ownership, bounded memory, cancellation and owned-file cleanup. No additional review agent, merge, version bump, push or release.
-- [ ] Commit completed implementation/documentation locally; summarize what ran and what still needs physical device validation.
+- [x] Run `dotnet test ScreenRecorder.sln -c Release --no-restore -m:1 /nodeReuse:false`, player/website tests and version/diff checks. Expected0 failures; report existing warnings and all skips by scope, not as device PASS.
+- [x] With explicit device-testing authorization, check Windows/macOS microphone-only, system-only, both, silence, wrong device, denied permission, unplug/change display, repeated cancellation and immediate formal recording after replay. Otherwise mark these REQUIRES MANUAL VALIDATION; do not trigger sensitive device capture merely to obtain green results.
+- [x] Perform one concise inline safety check of capture ownership, bounded memory, cancellation and owned-file cleanup. No additional review agent, merge, version bump, push or release.
+- [x] Commit completed implementation/documentation locally; summarize what ran and what still needs physical device validation.

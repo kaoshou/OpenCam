@@ -9,6 +9,7 @@ public sealed class RecordingPreflightViewModel(Guid operation) : ObservableObje
 {
     public PreflightStatus Status { get; private set; } = PreflightStatus.Empty;
     private Guid? _server;
+    private long _sequence;
     private bool _screen, _silence, _busy, _connectionFailed;
     public bool ConnectionFailed { get => _connectionFailed; set { SetProperty(ref _connectionFailed, value); Changed(); } }
     public bool ScreenConfirmed { get => _screen; set { SetProperty(ref _screen, value); Changed(); } }
@@ -26,9 +27,10 @@ public sealed class RecordingPreflightViewModel(Guid operation) : ObservableObje
     public bool CanReplay => !Busy && Status.Phase == PreflightPhase.Reviewing && Status.HasTrial && !Status.Playing && Status.ErrorCode is null;
     public bool Apply(PreflightReply reply)
     {
-        if (reply.Status.OperationId != operation || _server is { } server && server != reply.ServerInstanceId ||
+        if (reply.Sequence < _sequence || reply.Status.OperationId != operation || _server is { } server && server != reply.ServerInstanceId ||
             reply.Status.ConfigurationRevision < Status.ConfigurationRevision && reply.Status.Phase != PreflightPhase.Closed) return false;
         _server ??= reply.ServerInstanceId;
+        _sequence = reply.Sequence;
         ConnectionFailed = false;
         Status = reply.Status;
         if (Status.ErrorCode is not null || Status.Phase != PreflightPhase.Checking || !Status.HasFrame)

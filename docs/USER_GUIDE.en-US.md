@@ -1,5 +1,15 @@
 # OpenCam Complete User Guide (English)
 
+## Development build recording preflight
+
+New recordings, appended recordings and editor insertions first resolve the project name and unsaved changes, then show **Before you record**. Confirm the actual recording area and the separate microphone/system-audio meters. Speak and play some system sound. Silence requires a separate acknowledgement; waiting/unreadable input is not a silent pass. Fix the device/permission or explicitly disable that input and recheck. Recording with both audio inputs disabled also requires acknowledgement.
+
+Live checking starts actual capture and encoding/decoding without saving video. **Record5s** creates a private temporary MKV for **Play trial**, never a formal clip or project session. Monitoring stops during replay so output cannot validate its own input. The temporary MKV can include encoder-initialization frames; playback selects only its final five seconds recorded after startup acknowledgement. Listening to a mixed track does not replace checking the independent meters. After replay, select **Check again** before starting formal recording.
+
+Cancel/close stops owned capture/playback and cleans the trial. Unconfirmed shutdown blocks formal recording; cleanup never recursively deletes unexpected files. An unchanged paused recording can resume directly; changed configuration or display/audio-device identity requires another check. A preflight reflects current conditions, not a guarantee against later unplugging, permission changes or long-recording faults. Windows/macOS physical-device validation remains required.
+
+## Released features
+
 v0.3.6 improves fast export for unedited whole H.264 segments. Missing video durations require ordered timestamps and a frame-rate-checked final interval before direct packaging or joining; only audio is processed when necessary. Status text distinguishes packaging, audio processing, re-encoding and MP4 verification. Trims, effects, incompatible formats or uncertain timing retain safe rendering without changing originals. Inspection and verification still take time; not every source qualifies for fast export.
 
 v0.3.5: drag the ruler for progressive preview, settling at release. Playing preview pauses during dragging and resumes afterwards. Compact controls put caption language/styles in the caption menu. **Mark in** immediately displays a fixed IN flag; move to the desired position and **Mark out** to highlight the range. A new start clears the old end; invalid endpoints show guidance. Only **Delete range** edits clips. Decode responsiveness depends on media and hardware.

@@ -175,6 +175,7 @@ public partial class RecordingEncoderLifecycleTests
         ProjectWorkspaceView? editor = null;
         home.Show();
         main.RequestRecordingProjectName = _ => Task.FromResult<string?>("Capture guard");
+        main.RequestRecordingPreflight = (configuration, _) => Task.FromResult<ScreenRecorder.Core.Models.RecordingConfiguration?>(configuration);
         try
         {
             await main.StartRecordingAsync();

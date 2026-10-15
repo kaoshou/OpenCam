@@ -72,6 +72,20 @@ public partial class RecordingEncoderLifecycleTests
 
 public class RecordingPreflightUiTests
 {
+    [Fact]
+    public void LateCheckingReplyCannotReenableStartAfterTrialHasBegun()
+    {
+        var id = Guid.NewGuid(); var server = Guid.NewGuid(); var vm = new RecordingPreflightViewModel(id);
+        var checking = PreflightStatus.Empty with { OperationId = id, ConfigurationRevision = 1,
+            Phase = PreflightPhase.Checking, HasFrame = true };
+        Assert.True(vm.Apply(new(server, checking, Sequence: 1)));
+        vm.ScreenConfirmed = true; vm.SilenceAcknowledged = true;
+        Assert.True(vm.CanStart);
+        Assert.True(vm.Apply(new(server, checking with { Phase = PreflightPhase.TrialRecording, HasFrame = false }, Sequence: 3)));
+        Assert.False(vm.Apply(new(server, checking, Sequence: 2)));
+        Assert.False(vm.CanStart);
+        Assert.Equal(PreflightPhase.TrialRecording, vm.Status.Phase);
+    }
     [Avalonia.Headless.XUnit.AvaloniaFact]
     public async Task ActualDialogRequiresConfirmationsAndJoinsCaptureBeforeClosing()
     {

@@ -21,6 +21,10 @@ public sealed class PreflightIpcDispatcher : IAsyncDisposable
     private Guid? _operation;
     private long _lastSeen = Environment.TickCount64;
     private string? _beginFingerprint, _failure;
+    private PreflightPhase _queuedPhase = PreflightPhase.Preparing;
+    private long _generation, _sequence;
+    private IpcResponse Reply(PreflightStatus status, bool confirmed = false) => new() { Success = true,
+        DataJson = JsonSerializer.Serialize(new PreflightReply(_instance, status, confirmed, Interlocked.Increment(ref _sequence))) };
     public static bool IsCommand(string type) => type is "BeginPreflight" or "GetPreflightStatus" or "RecordPreflightTrial"
         or "PlayPreflightTrial" or "StopPreflightReplay" or "EndPreflight" or "CheckPreflightConfirmation";
     private PreflightRequest Parse(IpcMessage message)
@@ -37,7 +41,8 @@ public sealed class PreflightIpcDispatcher : IAsyncDisposable
     {
         var status = coordinator.ReadCurrentStatus();
         return status with { OperationId = _operation ?? Guid.Empty,
-            Phase = _failure is not null ? PreflightPhase.Failed : status.Phase, ErrorCode = _failure ?? status.ErrorCode };
+            Phase = _failure is not null ? PreflightPhase.Failed : !_work.IsCompleted ? _queuedPhase : status.Phase,
+            ErrorCode = _failure ?? status.ErrorCode };
     }
     public async Task<IpcResponse> DispatchAsync(IpcMessage message)
     {
@@ -47,12 +52,11 @@ public sealed class PreflightIpcDispatcher : IAsyncDisposable
             if (!IsCommand(message.MessageType)) throw new InvalidDataException("Unknown preflight command.");
             var request = Parse(message);
             if (message.MessageType == "GetPreflightStatus" && _operation is null)
-                return new() { Success = true, DataJson = JsonSerializer.Serialize(new PreflightReply(_instance,
-                    PreflightStatus.Empty with { OperationId = request.OperationId })) };
+                return Reply(PreflightStatus.Empty with { OperationId = request.OperationId });
             if (message.MessageType == "CheckPreflightConfirmation")
-                return new() { Success = true, DataJson = JsonSerializer.Serialize(new PreflightReply(_instance, Status(),
+                return Reply(Status(),
                     _operation == request.OperationId && request.Configuration is not null && _confirmed is not null &&
-                    _confirmed == _stamp(request.Configuration))) };
+                    _confirmed == _stamp(request.Configuration));
             if (message.MessageType == "BeginPreflight")
             {
                 if (request.Configuration is null || request.Configuration.Fps is < 1 or > 120)
@@ -67,7 +71,8 @@ public sealed class PreflightIpcDispatcher : IAsyncDisposable
                     if (!_work.IsCompleted || coordinator.CurrentOperation is not null) throw new InvalidOperationException("Preflight is busy.");
                     _operation = request.OperationId; _beginFingerprint = fingerprint; _failure = null; _confirmed = null;
                     _checkingConfiguration = request.Configuration;
-                    _work = ObserveAsync(() => coordinator.BeginAsync(request.OperationId, request.Configuration, _lifetime.Token));
+                    _queuedPhase = PreflightPhase.Preparing;
+                    _work = ObserveAsync(() => coordinator.BeginAsync(request.OperationId, request.Configuration, _lifetime.Token), defer: false);
                 }
             }
             else
@@ -80,10 +85,13 @@ public sealed class PreflightIpcDispatcher : IAsyncDisposable
                 switch (message.MessageType)
                 {
                     case "RecordPreflightTrial":
+                        _queuedPhase = PreflightPhase.TrialRecording;
                         _work = ObserveAsync(() => coordinator.RecordTrialAsync(request.OperationId, request.ConfigurationRevision, _lifetime.Token)); break;
                     case "PlayPreflightTrial":
-                        await coordinator.SetReplayAsync(request.OperationId, request.ConfigurationRevision, true, _lifetime.Token); break;
+                        _queuedPhase = PreflightPhase.Preparing;
+                        _work = ObserveAsync(() => coordinator.SetReplayAsync(request.OperationId, request.ConfigurationRevision, true, _lifetime.Token)); break;
                     case "StopPreflightReplay":
+                        _queuedPhase = PreflightPhase.Preparing;
                         _work = ObserveAsync(() => coordinator.SetReplayAsync(request.OperationId, request.ConfigurationRevision, false, _lifetime.Token)); break;
                     case "EndPreflight":
                         string? confirmed = null;
@@ -95,21 +103,28 @@ public sealed class PreflightIpcDispatcher : IAsyncDisposable
                                 !Readable(status.Microphone) || !Readable(status.SystemAudio)) throw new InvalidOperationException("Preflight must be checked again before recording.");
                             confirmed = _stamp(_checkingConfiguration!);
                         }
+                        _queuedPhase = PreflightPhase.Stopping;
                         _work = ObserveAsync(async () => { using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(10));
                             await coordinator.EndAsync(request.OperationId, stop.Token); _confirmed = confirmed; Volatile.Write(ref _failure, null); });
                         break;
                 }
             }
             Interlocked.Exchange(ref _lastSeen, Environment.TickCount64);
-            return new() { Success = true, DataJson = JsonSerializer.Serialize(new PreflightReply(_instance, Status())) };
+            return Reply(Status());
         }
         catch (Exception ex) { return new() { Success = false, ErrorMessage = ex.Message }; }
         finally { _gate.Release(); }
     }
-    private async Task ObserveAsync(Func<Task> action)
+    private async Task ObserveAsync(Func<Task> action, bool defer = true)
     {
-        try { await action(); }
-        catch (Exception) { Volatile.Write(ref _failure, "PreflightOperationFailed"); }
+        var generation = Interlocked.Increment(ref _generation);
+        var operation = _operation;
+        try { if (defer) await Task.Yield(); await action(); }
+        catch (Exception)
+        {
+            if (generation == Volatile.Read(ref _generation) && operation == _operation)
+                Volatile.Write(ref _failure, "PreflightOperationFailed");
+        }
     }
     public Task<ProjectReply> DispatchMediaAsync(IpcMessage message)
     {
@@ -132,7 +147,7 @@ public sealed class PreflightIpcDispatcher : IAsyncDisposable
                 {
                     using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(10));
                     try { await coordinator.EndAsync(id, stop.Token); }
-                    catch { Volatile.Write(ref _failure, "PreflightStopUnconfirmed"); }
+                    catch { if (_operation == id) Volatile.Write(ref _failure, "PreflightStopUnconfirmed"); }
                 }
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }

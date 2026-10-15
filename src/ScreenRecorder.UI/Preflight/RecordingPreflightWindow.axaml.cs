@@ -38,8 +38,8 @@ public partial class RecordingPreflightWindow : Window
         Privacy.Text = Strings["PreflightPrivacy"];
         DisplayLabel.Text = Strings["PreflightDisplay"];
         MicrophoneLabel.Text = Strings["PreflightMicrophone"]; SystemLabel.Text = Strings["PreflightSystem"];
-        ScreenAcknowledgement.Content = Strings["PreflightScreenConfirm"];
-        SilentAcknowledgement.Content = Strings["PreflightSilenceAck"];
+        ScreenAcknowledgementText.Text = Strings["PreflightScreenConfirm"];
+        SilentAcknowledgementText.Text = Strings["PreflightSilenceAck"];
         TrialButton.Content = Strings["PreflightTrial"]; ReplayButton.Content = Strings["PreflightReplay"];
         StopReplayButton.Content = Strings["PreflightStopReplay"]; RecheckButton.Content = Strings["PreflightRecheck"];
         DisableMicrophone.Content = Strings["PreflightDisableMic"]; DisableSystem.Content = Strings["PreflightDisableSystem"];
@@ -57,7 +57,11 @@ public partial class RecordingPreflightWindow : Window
         var response = await _send(command, request, ct);
         if (!response.Success) throw new IOException("Preflight command was not acknowledged.");
         var reply = JsonSerializer.Deserialize<PreflightReply>(response.DataJson!) ?? throw new InvalidDataException();
-        if (!_model.Apply(reply)) throw new InvalidDataException("Preflight identity changed.");
+        if (!_model.Apply(reply))
+        {
+            if (reply.Status.OperationId == Request.OperationId && reply.ServerInstanceId == Request.ServerInstanceId) return reply;
+            throw new InvalidDataException("Preflight identity changed.");
+        }
         Request = Request with { ServerInstanceId = reply.ServerInstanceId, ConfigurationRevision = reply.Status.ConfigurationRevision };
         Render(); return reply;
     }
@@ -71,8 +75,10 @@ public partial class RecordingPreflightWindow : Window
                 await SendAsync("GetPreflightStatus", Request, ct);
                 if (_model.Status.HasFrame && _model.Status.ErrorCode is null)
                 {
+                    var phase = _model.Status.Phase;
                     var reply = await _frame(Request, ct);
-                    if (reply.Success && reply.State.ServerInstanceId == Request.ServerInstanceId && reply.Frame is { } frame &&
+                    if (_model.Status.HasFrame && _model.Status.ErrorCode is null && _model.Status.Phase == phase &&
+                        reply.Success && reply.State.ServerInstanceId == Request.ServerInstanceId && reply.Frame is { } frame &&
                         frame.ClipId == Request.OperationId && frame.Revision == Request.ConfigurationRevision &&
                         frame.PixelWidth is > 0 and <= 960 && frame.PixelHeight is > 0 and <= 540 &&
                         frame.Rgba?.Length == frame.PixelWidth * frame.PixelHeight * 4)
