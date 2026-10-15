@@ -14,6 +14,12 @@ public partial class MainViewModel
     private Guid? _announcedExport;
     public bool UsesRecordingContent => _content is not null;
     public Func<string, Task<string?>>? RequestRecordingProjectName { get; set; }
+    public Func<ScreenRecorder.Core.Models.RecordingConfiguration, bool, Task<ScreenRecorder.Core.Models.RecordingConfiguration?>>? RequestRecordingPreflight { get; set; }
+    internal Task<ScreenRecorder.Infrastructure.IPC.IpcResponse> SendPreflightCommandAsync(string command,
+        ScreenRecorder.Infrastructure.IPC.PreflightRequest request, CancellationToken ct) =>
+        _ipcClient.SendCommandAsync(command, request, cancellationToken: ct);
+    internal Task<ScreenRecorder.Infrastructure.IPC.ProjectReply> ReadPreflightFrameAsync(
+        ScreenRecorder.Infrastructure.IPC.PreflightRequest request, CancellationToken ct) => _ipcClient.SendPreflightFrameAsync(request, ct);
     public Func<Task<UnsavedDecision>>? RequestUnsavedProjectDecision { get; set; }
     public Func<Task<SubtitleExportDecision>>? RequestSubtitleExportDecision { get; set; }
     public Func<Task<bool?>>? RequestProjectDraftRecovery { get; set; }
@@ -206,6 +212,12 @@ public partial class MainViewModel
                 return;
             }
             await _ensureContentRecorder!();
+            if (!await vm.StopPreviewAsync() || !await vm.ResolveUnsavedAsync()) return;
+            var checkedConfiguration = RequestRecordingPreflight is null ? null :
+                await RequestRecordingPreflight(configuration, !newContent && insertionTicks is null && vm.State.Mode == ProjectMode.Paused);
+            if (checkedConfiguration is null) return;
+            configuration = checkedConfiguration;
+            ApplyPreflightAudioSelection(configuration);
             _activeDiskWarningThresholdBytes = configuration.DiskWarningThresholdBytes;
             if (insertionTicks is { } ticks)
                 await vm.StartInsertionAsync(configuration, ticks, revision!.Value);
@@ -220,6 +232,12 @@ public partial class MainViewModel
 
     public Task StartEditorRecordingAsync(long? insertionTicks = null, long? revision = null) =>
         CaptureContentAsync(false, insertionTicks, revision);
+
+    private void ApplyPreflightAudioSelection(ScreenRecorder.Core.Models.RecordingConfiguration configuration)
+    {
+        RecordMicrophone = configuration.AudioSource is ScreenRecorder.Core.Enums.AudioSourceType.MicrophoneOnly or ScreenRecorder.Core.Enums.AudioSourceType.SystemAndMicrophone;
+        RecordSystemAudio = configuration.AudioSource is ScreenRecorder.Core.Enums.AudioSourceType.SystemOnly or ScreenRecorder.Core.Enums.AudioSourceType.SystemAndMicrophone;
+    }
 
     public async Task<bool> LeaveContentEditorAsync()
     {

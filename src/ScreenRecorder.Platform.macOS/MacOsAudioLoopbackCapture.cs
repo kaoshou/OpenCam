@@ -8,6 +8,7 @@ namespace ScreenRecorder.Platform.macOS;
 
 public sealed class MacOsAudioLoopbackCapture : ISystemAudioLoopbackCapture, IAudioLevelSource
 {
+    public bool RequireConfirmedShutdown { get; init; }
     private const string ReadyLine =
         "READY sample-rate=48000 channels=2 format=s16le";
 
@@ -224,7 +225,7 @@ public sealed class MacOsAudioLoopbackCapture : ISystemAudioLoopbackCapture, IAu
                     TimeSpan.FromSeconds(3));
                 await _helperProcess.WaitForExitAsync(timeoutCts.Token);
             }
-            catch
+            catch when (!RequireConfirmedShutdown)
             {
             }
         }

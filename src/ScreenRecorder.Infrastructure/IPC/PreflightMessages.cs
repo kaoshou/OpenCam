@@ -6,4 +6,4 @@ namespace ScreenRecorder.Infrastructure.IPC;
 
 public sealed record PreflightRequest(Guid OperationId, long ConfigurationRevision = 0,
     Guid? ServerInstanceId = null, RecordingConfiguration? Configuration = null, bool Confirm = false);
-public sealed record PreflightReply(Guid ServerInstanceId, PreflightStatus Status);
+public sealed record PreflightReply(Guid ServerInstanceId, PreflightStatus Status, bool ConfigurationConfirmed = false);

@@ -79,7 +79,12 @@ public class Program
                 return previewDecoder is null ? live : new PreflightTrialSession(live,
                     (encoder, capture) => preflightFactory.Create(encoder, capture), () => new(), previewDecoder);
             });
-            await using var preflightDispatcher = new PreflightIpcDispatcher(preflight);
+            await using var preflightDispatcher = new PreflightIpcDispatcher(preflight, configuration =>
+                JsonSerializer.Serialize(displayService.GetMonitors()) + "\n" + PreflightAudioIdentity.Read(configuration) + "\n" +
+                JsonSerializer.Serialize(new { configuration.CaptureSource, configuration.MonitorIndex, configuration.Region,
+                    configuration.WindowsCaptureMode, configuration.Fps, configuration.AudioSource,
+                    configuration.MicrophoneDeviceId, configuration.SystemAudioDeviceId, configuration.EncoderType,
+                    configuration.VideoQualityPreset, configuration.AudioBitrateKbps }));
 
             var pipeName = NamedPipeConstants.PipeBaseName;
             var pipeIndex = Array.IndexOf(args, "--pipe");

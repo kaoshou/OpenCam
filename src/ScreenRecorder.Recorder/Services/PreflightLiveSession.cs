@@ -26,6 +26,7 @@ public sealed class PreflightLiveSession(Func<PreflightCaptureResources> create,
 
     public async Task StartAsync(RecordingConfiguration snapshot, CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         _configuration = snapshot;
         var monitors = displays.GetMonitors();
         var monitor = monitors.FirstOrDefault(m => m.Index == snapshot.MonitorIndex)
@@ -90,6 +91,7 @@ public sealed class PreflightLiveSession(Func<PreflightCaptureResources> create,
         {
             await resources.Engine.StopRecordingAsync(ct);
             if (resources.Engine.IsRunning) throw new IOException("Preflight stop is unconfirmed.");
+            await resources.StopSourcesAsync(ct);
         }
         if (_preview is { } preview)
         {

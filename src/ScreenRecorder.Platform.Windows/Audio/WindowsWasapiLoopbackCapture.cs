@@ -20,6 +20,7 @@ namespace ScreenRecorder.Platform.Windows.Audio;
 /// </summary>
 public class WindowsWasapiLoopbackCapture : ISystemAudioLoopbackCapture, IAudioLevelSource
 {
+    public bool RequireConfirmedShutdown { get; init; }
     private readonly AudioLevelAccumulator _levels = new();
     private long _lastLevelUpdateMs;
     private WasapiLoopbackCapture? _capture;
@@ -244,7 +245,7 @@ public class WindowsWasapiLoopbackCapture : ISystemAudioLoopbackCapture, IAudioL
     {
         lock (_syncLock)
         {
-            if (!_isCapturing) return;
+            if (!_isCapturing && (!RequireConfirmedShutdown || (_capture is null && _silencePlayer is null && _pipeServer is null))) return;
             _isCapturing = false;
         }
 
@@ -282,7 +283,7 @@ public class WindowsWasapiLoopbackCapture : ISystemAudioLoopbackCapture, IAudioL
             _silencePlayer?.Dispose();
             _silencePlayer = null;
         }
-        catch { }
+        catch when (!RequireConfirmedShutdown) { }
 
         try
         {
@@ -290,7 +291,7 @@ public class WindowsWasapiLoopbackCapture : ISystemAudioLoopbackCapture, IAudioL
             _capture?.Dispose();
             _capture = null;
         }
-        catch { }
+        catch when (!RequireConfirmedShutdown) { }
 
         lock (_syncLock)
         {
@@ -306,7 +307,7 @@ public class WindowsWasapiLoopbackCapture : ISystemAudioLoopbackCapture, IAudioL
                     _pipeServer = null;
                 }
             }
-            catch { }
+            catch when (!RequireConfirmedShutdown) { }
         }
 
         _isCapturing = false;

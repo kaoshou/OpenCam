@@ -10,6 +10,7 @@ namespace ScreenRecorder.Platform.Windows.Audio;
 /// <summary>Best-effort shared-mode tap; FFmpeg keeps owning the recording input.</summary>
 public sealed class WindowsMicrophoneLevelObserver : IMicrophoneLevelObserver
 {
+    public bool RequireConfirmedShutdown { get; init; }
     private static readonly Guid PcmSubFormat = new("00000001-0000-0010-8000-00aa00389b71");
     private static readonly Guid FloatSubFormat = new("00000003-0000-0010-8000-00aa00389b71");
     private readonly IAudioDeviceService _devices;
@@ -157,13 +158,13 @@ public sealed class WindowsMicrophoneLevelObserver : IMicrophoneLevelObserver
         {
             _capture.DataAvailable -= OnDataAvailable;
             _capture.RecordingStopped -= OnRecordingStopped;
-            try { _capture.StopRecording(); } catch { }
-            try { _capture.Dispose(); } catch { }
+            try { _capture.StopRecording(); } catch when (!RequireConfirmedShutdown) { }
+            try { _capture.Dispose(); } catch when (!RequireConfirmedShutdown) { }
             _capture = null;
         }
-        try { _endpoint?.Dispose(); } catch { }
+        try { _endpoint?.Dispose(); } catch when (!RequireConfirmedShutdown) { }
         _endpoint = null;
-        try { _enumerator?.Dispose(); } catch { }
+        try { _enumerator?.Dispose(); } catch when (!RequireConfirmedShutdown) { }
         _enumerator = null;
     }
 

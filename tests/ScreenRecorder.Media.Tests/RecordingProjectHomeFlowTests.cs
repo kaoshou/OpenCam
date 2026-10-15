@@ -26,7 +26,7 @@ public partial class RecordingEncoderLifecycleTests
         await using var scope = new RecordingScope();
         await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
         var dispatcher = new ProjectIpcDispatcher(coordinator);
-        var main = new MainViewModel(forScreenshot: true);
+        var main = CreatePreflightApprovedMain();
         main.ConfigureRecordingContent(new ProjectClient((command, request, ct) => dispatcher.DispatchAsync(new()
             { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) })), () => true, () => Task.CompletedTask);
         main.OutputDirectory = scope.Configuration.OutputDirectory;
@@ -102,7 +102,7 @@ public partial class RecordingEncoderLifecycleTests
         var strings = ScreenRecorder.UI.Localization.LanguageManager.Instance;
         var previous = strings.CurrentLanguage;
         strings.CurrentLanguage = language;
-        var main = new MainViewModel(forScreenshot: true);
+        var main = CreatePreflightApprovedMain();
         var home = new ScreenRecorder.UI.Views.MainWindow { DataContext = main };
         try
         {
@@ -136,7 +136,7 @@ public partial class RecordingEncoderLifecycleTests
         await using var scope = new RecordingScope();
         await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
         var dispatcher = new ProjectIpcDispatcher(coordinator);
-        var main = new MainViewModel(forScreenshot: true);
+        var main = CreatePreflightApprovedMain();
         var connection = new TaskCompletionSource();
         var calls = 0;
         main.ConfigureRecordingContent(new ProjectClient((command, request, ct) => dispatcher.DispatchAsync(new()
@@ -167,7 +167,7 @@ public partial class RecordingEncoderLifecycleTests
         await using var scope = new RecordingScope();
         await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
         var dispatcher = new ProjectIpcDispatcher(coordinator);
-        var main = new MainViewModel(forScreenshot: true);
+        var main = CreatePreflightApprovedMain();
         main.ConfigureRecordingContent(new ProjectClient((command, request, ct) => dispatcher.DispatchAsync(new()
             { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) })), () => true, () => Task.CompletedTask);
         main.OutputDirectory = scope.Configuration.OutputDirectory;
@@ -233,7 +233,7 @@ public partial class RecordingEncoderLifecycleTests
         await File.WriteAllTextAsync(path, "broken");
         await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, store, new ProjectProbeStub());
         var dispatcher = new ProjectIpcDispatcher(coordinator);
-        var main = new MainViewModel(forScreenshot: true);
+        var main = CreatePreflightApprovedMain();
         main.ConfigureRecordingContent(new ProjectClient((command, request, ct) => dispatcher.DispatchAsync(new()
             { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) })), () => true, () => Task.CompletedTask);
         main.OutputDirectory = scope.Configuration.OutputDirectory;
@@ -273,7 +273,7 @@ public partial class RecordingEncoderLifecycleTests
         await using var scope = new RecordingScope();
         await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
         var dispatcher = new ProjectIpcDispatcher(coordinator);
-        var main = new MainViewModel(forScreenshot: true);
+        var main = CreatePreflightApprovedMain();
         main.ConfigureRecordingContent(new ProjectClient((command, request, ct) => dispatcher.DispatchAsync(new()
             { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) })), () => true, () => Task.CompletedTask);
         main.OutputDirectory = scope.Configuration.OutputDirectory;
@@ -322,7 +322,7 @@ public partial class RecordingEncoderLifecycleTests
         await using var scope = new RecordingScope();
         await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
         var dispatcher = new ProjectIpcDispatcher(coordinator);
-        var main = new MainViewModel(forScreenshot: true);
+        var main = CreatePreflightApprovedMain();
         main.ConfigureRecordingContent(new ProjectClient((command, request, ct) => dispatcher.DispatchAsync(new()
             { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) })), () => true, () => Task.CompletedTask);
         main.OutputDirectory = scope.Configuration.OutputDirectory;
@@ -362,7 +362,7 @@ public partial class RecordingEncoderLifecycleTests
         var export = new ControlledContentExporter();
         await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub(), export);
         var dispatcher = new ProjectIpcDispatcher(coordinator);
-        var main = new MainViewModel(forScreenshot: true);
+        var main = CreatePreflightApprovedMain();
         main.ConfigureRecordingContent(new ProjectClient((command, request, ct) => dispatcher.DispatchAsync(new()
             { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) })), () => true, () => Task.CompletedTask);
         main.OutputDirectory = scope.Configuration.OutputDirectory;
@@ -408,7 +408,7 @@ public partial class RecordingEncoderLifecycleTests
         await using var scope = new RecordingScope();
         await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
         var dispatcher = new ProjectIpcDispatcher(coordinator);
-        var main = new MainViewModel(forScreenshot: true);
+        var main = CreatePreflightApprovedMain();
         main.ConfigureRecordingContent(new ProjectClient((command, request, ct) => dispatcher.DispatchAsync(new()
             { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) })), () => true, () => Task.CompletedTask);
         main.OutputDirectory = scope.Configuration.OutputDirectory;

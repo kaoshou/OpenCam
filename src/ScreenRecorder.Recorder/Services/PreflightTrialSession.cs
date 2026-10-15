@@ -116,6 +116,7 @@ public sealed class PreflightTrialSession(PreflightLiveSession live,
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         await capture.Engine.StopRecordingAsync(deadline.Token);
         if (capture.Engine.IsRunning) throw new IOException("Trial stop is unconfirmed.");
+        await capture.StopSourcesAsync(deadline.Token);
         await capture.DisposeAsync();
         capture.Engine.EngineErrorOccurred -= CaptureError;
         capture.Engine.EngineWarningOccurred -= CaptureError;

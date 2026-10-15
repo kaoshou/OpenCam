@@ -8,25 +8,28 @@ namespace ScreenRecorder.Recorder.Services;
 public sealed class PreflightIpcDispatcher : IAsyncDisposable
 {
     private readonly PreflightCoordinator coordinator;
+    private readonly Func<ScreenRecorder.Core.Models.RecordingConfiguration, string> _stamp;
+    private ScreenRecorder.Core.Models.RecordingConfiguration? _checkingConfiguration;
+    private string? _confirmed;
     private readonly Guid _instance = Guid.NewGuid();
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly CancellationTokenSource _lifetime = new();
     private readonly Task _expiry;
-    public PreflightIpcDispatcher(PreflightCoordinator coordinator)
-    { this.coordinator = coordinator; _expiry = ExpireAsync(); }
+    public PreflightIpcDispatcher(PreflightCoordinator coordinator, Func<ScreenRecorder.Core.Models.RecordingConfiguration, string>? stamp = null)
+    { this.coordinator = coordinator; _stamp = stamp ?? (configuration => JsonSerializer.Serialize(configuration)); _expiry = ExpireAsync(); }
     private Task _work = Task.CompletedTask;
     private Guid? _operation;
     private long _lastSeen = Environment.TickCount64;
     private string? _beginFingerprint, _failure;
     public static bool IsCommand(string type) => type is "BeginPreflight" or "GetPreflightStatus" or "RecordPreflightTrial"
-        or "PlayPreflightTrial" or "StopPreflightReplay" or "EndPreflight";
+        or "PlayPreflightTrial" or "StopPreflightReplay" or "EndPreflight" or "CheckPreflightConfirmation";
     private PreflightRequest Parse(IpcMessage message)
     {
         if (message.PayloadJson.Length > 65536) throw new InvalidDataException("Preflight request too large.");
         var request = JsonSerializer.Deserialize<PreflightRequest>(message.PayloadJson, new JsonSerializerOptions {
             MaxDepth = 16, UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow }) ?? throw new InvalidDataException("Missing request.");
         if (request.OperationId == Guid.Empty ||
-            (message.MessageType != "BeginPreflight" && request.ServerInstanceId != _instance) ||
+            (message.MessageType != "BeginPreflight" && !(message.MessageType == "GetPreflightStatus" && request.ServerInstanceId is null) && request.ServerInstanceId != _instance) ||
             (request.ServerInstanceId is { } instance && instance != _instance)) throw new InvalidOperationException("Preflight identity changed.");
         return request;
     }
@@ -43,6 +46,13 @@ public sealed class PreflightIpcDispatcher : IAsyncDisposable
         {
             if (!IsCommand(message.MessageType)) throw new InvalidDataException("Unknown preflight command.");
             var request = Parse(message);
+            if (message.MessageType == "GetPreflightStatus" && _operation is null)
+                return new() { Success = true, DataJson = JsonSerializer.Serialize(new PreflightReply(_instance,
+                    PreflightStatus.Empty with { OperationId = request.OperationId })) };
+            if (message.MessageType == "CheckPreflightConfirmation")
+                return new() { Success = true, DataJson = JsonSerializer.Serialize(new PreflightReply(_instance, Status(),
+                    _operation == request.OperationId && request.Configuration is not null && _confirmed is not null &&
+                    _confirmed == _stamp(request.Configuration))) };
             if (message.MessageType == "BeginPreflight")
             {
                 if (request.Configuration is null || request.Configuration.Fps is < 1 or > 120)
@@ -55,7 +65,8 @@ public sealed class PreflightIpcDispatcher : IAsyncDisposable
                 else
                 {
                     if (!_work.IsCompleted || coordinator.CurrentOperation is not null) throw new InvalidOperationException("Preflight is busy.");
-                    _operation = request.OperationId; _beginFingerprint = fingerprint; _failure = null;
+                    _operation = request.OperationId; _beginFingerprint = fingerprint; _failure = null; _confirmed = null;
+                    _checkingConfiguration = request.Configuration;
                     _work = ObserveAsync(() => coordinator.BeginAsync(request.OperationId, request.Configuration, _lifetime.Token));
                 }
             }
@@ -75,15 +86,17 @@ public sealed class PreflightIpcDispatcher : IAsyncDisposable
                     case "StopPreflightReplay":
                         _work = ObserveAsync(() => coordinator.SetReplayAsync(request.OperationId, request.ConfigurationRevision, false, _lifetime.Token)); break;
                     case "EndPreflight":
+                        string? confirmed = null;
                         if (request.Confirm)
                         {
                             var status = Status();
                             bool Readable(PreflightSourceResult source) => source.State is PreflightSourceState.Disabled or PreflightSourceState.Live or PreflightSourceState.Silent;
                             if (status.Phase != PreflightPhase.Checking || !status.HasFrame || status.ErrorCode is not null ||
                                 !Readable(status.Microphone) || !Readable(status.SystemAudio)) throw new InvalidOperationException("Preflight must be checked again before recording.");
+                            confirmed = _stamp(_checkingConfiguration!);
                         }
                         _work = ObserveAsync(async () => { using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                            await coordinator.EndAsync(request.OperationId, stop.Token); Volatile.Write(ref _failure, null); });
+                            await coordinator.EndAsync(request.OperationId, stop.Token); _confirmed = confirmed; Volatile.Write(ref _failure, null); });
                         break;
                 }
             }

@@ -1351,6 +1351,10 @@ public partial class MainViewModel : ObservableObject
             _diskWarningThresholdGb,
             _diskCriticalThresholdMb);
             _activeDiskWarningThresholdBytes = config.DiskWarningThresholdBytes;
+            var checkedConfiguration = RequestRecordingPreflight is null ? null : await RequestRecordingPreflight(config, false);
+            if (checkedConfiguration is null) return;
+            config = checkedConfiguration;
+            ApplyPreflightAudioSelection(config);
 
             // macOS native audio may need two FFmpeg startup attempts (hardware
             // encoder then CPU fallback). Keep the UI request alive for both.
@@ -1434,13 +1438,17 @@ public partial class MainViewModel : ObservableObject
             try
             {
                 StatusMessage = Strings["StatusResuming"];
+                var checkedConfiguration = RequestRecordingPreflight is null ? null :
+                    await RequestRecordingPreflight(BuildProjectConfiguration(), true);
+                if (checkedConfiguration is null) return;
+                ApplyPreflightAudioSelection(checkedConfiguration);
 
                 // Send one authoritative snapshot immediately before resume.
                 // This avoids racing fire-and-forget updates when the user
                 // changes several paused settings in quick succession.
                 var updateResponse = await _ipcClient.SendCommandAsync(
                     "UpdatePausedConfiguration",
-                    BuildPausedConfiguration(),
+                    checkedConfiguration,
                     timeoutMs: 8000);
                 if (!updateResponse.Success)
                 {

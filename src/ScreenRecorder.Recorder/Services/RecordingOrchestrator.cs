@@ -263,7 +263,7 @@ public class RecordingOrchestrator : IAsyncDisposable
             }
             _diskMonitor.StopMonitoring();
             _cursorHighlightService?.Stop();
-            if (_engine != null)
+            if (_engine != null || _captureOwnership != null)
             {
                 try { await DisposeCurrentEngineAsync(); }
                 catch (Exception cleanupError)
@@ -1404,7 +1404,7 @@ public class RecordingOrchestrator : IAsyncDisposable
                 await StopRecordingCoreAsync("Orchestrator 處置退出", default);
             }
 
-            if (_engine != null || _unconfirmedAttemptPath != null)
+            if (_engine != null || _unconfirmedAttemptPath != null || _captureOwnership != null)
                 await DisposeCurrentEngineAsync();
 
             await StopWatchdogAsync();

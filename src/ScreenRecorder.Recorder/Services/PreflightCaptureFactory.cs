@@ -19,13 +19,13 @@ public sealed class PreflightCaptureFactory(IFFmpegPlatformProvider provider, IE
         IMicrophoneLevelObserver? observer = null;
         if (OperatingSystem.IsWindows())
         {
-            system = new WindowsWasapiLoopbackCapture();
-            observer = new WindowsMicrophoneLevelObserver(new WindowsAudioDeviceService());
+            system = new WindowsWasapiLoopbackCapture { RequireConfirmedShutdown = true };
+            observer = new WindowsMicrophoneLevelObserver(new WindowsAudioDeviceService()) { RequireConfirmedShutdown = true };
         }
         else if (OperatingSystem.IsMacOS())
         {
-            system = new MacOsAudioLoopbackCapture();
-            microphone = new MacOsMicrophoneCapture();
+            system = new MacOsAudioLoopbackCapture { RequireConfirmedShutdown = true };
+            microphone = new MacOsMicrophoneCapture { RequireConfirmedShutdown = true };
         }
         else throw new PlatformNotSupportedException("Preflight capture requires Windows or macOS.");
         var engine = new FFmpegScreenRecorderEngine(provider, system, microphoneCapture: microphone,
@@ -38,8 +38,19 @@ public sealed class PreflightCaptureFactory(IFFmpegPlatformProvider provider, IE
 public sealed class PreflightCaptureResources(IScreenRecorderEngine engine, IReadOnlyList<IAsyncDisposable> sources) : IAsyncDisposable
 {
     public IScreenRecorderEngine Engine { get; } = engine;
+    public async Task StopSourcesAsync(CancellationToken ct)
+    {
+        foreach (var source in sources)
+        {
+            if (source is ISystemAudioLoopbackCapture system) await system.StopCaptureAsync(ct);
+            else if (source is IMicrophoneCapture microphone) await microphone.StopCaptureAsync(ct);
+            else if (source is IMicrophoneLevelObserver observer) await observer.StopAsync(ct);
+        }
+    }
     public async ValueTask DisposeAsync()
     {
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await StopSourcesAsync(stop.Token);
         await Engine.DisposeAsync();
         foreach (var source in sources) await source.DisposeAsync();
     }

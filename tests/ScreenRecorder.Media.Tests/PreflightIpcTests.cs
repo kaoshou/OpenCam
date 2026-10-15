@@ -9,6 +9,25 @@ namespace ScreenRecorder.Media.Tests;
 public class PreflightIpcTests
 {
     [Fact]
+    public async Task ResumeConfirmationRequiresUnchangedSettingsAndResolvedDevices()
+    {
+        var live = new Live(); live.Ready.SetResult();
+        await using var coordinator = new PreflightCoordinator(new(), () => live);
+        var endpoint = "original";
+        await using var dispatcher = new PreflightIpcDispatcher(coordinator, config => endpoint + ":" + config.Fps);
+        var config = new RecordingConfiguration { Fps = 30 };
+        var id = Guid.NewGuid();
+        var begun = JsonSerializer.Deserialize<PreflightReply>((await dispatcher.DispatchAsync(Message("BeginPreflight", new(id, Configuration: config)))).DataJson!)!;
+        var request = new PreflightRequest(id, begun.Status.ConfigurationRevision, begun.ServerInstanceId);
+        Assert.True((await dispatcher.DispatchAsync(Message("EndPreflight", request with { Confirm = true }))).Success);
+        async Task<bool> Confirm(RecordingConfiguration configuration) => JsonSerializer.Deserialize<PreflightReply>(
+            (await dispatcher.DispatchAsync(Message("CheckPreflightConfirmation", request with { Configuration = configuration }))).DataJson!)!.ConfigurationConfirmed;
+        Assert.True(await Confirm(config));
+        Assert.False(await Confirm(new() { Fps = 60 }));
+        endpoint = "replacement";
+        Assert.False(await Confirm(config));
+    }
+    [Fact]
     public async Task AuthenticatedControlAndMediaPipesPreservePreflightFrameEnvelope()
     {
         var live = new Live(); live.Ready.SetResult();

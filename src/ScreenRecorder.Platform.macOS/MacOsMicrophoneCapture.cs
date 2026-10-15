@@ -8,6 +8,7 @@ namespace ScreenRecorder.Platform.macOS;
 
 public sealed class MacOsMicrophoneCapture : IMicrophoneCapture, IAudioLevelSource
 {
+    public bool RequireConfirmedShutdown { get; init; }
     private const string ReadyLine =
         "READY sample-rate=48000 channels=1 format=s16le";
 
@@ -211,6 +212,7 @@ public sealed class MacOsMicrophoneCapture : IMicrophoneCapture, IAudioLevelSour
             }
             catch (Exception ex)
             {
+                if (RequireConfirmedShutdown) throw;
                 AudioErrorOccurred?.Invoke(
                     this,
                     $"Unable to stop OpenCam.Microphone cleanly: {ex.Message}");

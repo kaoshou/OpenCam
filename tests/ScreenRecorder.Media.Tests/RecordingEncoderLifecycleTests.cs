@@ -347,13 +347,13 @@ public partial class RecordingEncoderLifecycleTests
         public readonly ProbeStub Probe = new();
         public RecordingOrchestrator Recorder { get; }
         public RecordingConfiguration Configuration { get; }
-        public RecordingScope(IDisplayService? suppliedDisplay = null)
+        public RecordingScope(IDisplayService? suppliedDisplay = null, RecordingCaptureLease? captureLease = null)
         {
             var storage = new StorageService();
             var display = suppliedDisplay ?? new FixedDisplay();
             Recorder = new(new RecordingStateMachine(), storage, Store, new DiskSpaceMonitor(storage),
                 Remuxer, Probe, display, new MacOsFFmpegProvider(display),
-                encoderSelectionService: Selection, engineFactory: Factory, captureHealthMonitor: Health);
+                encoderSelectionService: Selection, engineFactory: Factory, captureHealthMonitor: Health, captureLease: captureLease);
             Configuration = new() { OutputDirectory = _root, AudioSource = AudioSourceType.None, EncoderType = HardwareEncoderType.Auto };
         }
         public async ValueTask DisposeAsync() { Factory.FailCleanup = false; await Recorder.DisposeAsync(); Directory.Delete(_root, true); }

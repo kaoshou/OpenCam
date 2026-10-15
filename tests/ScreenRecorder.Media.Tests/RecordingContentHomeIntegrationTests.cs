@@ -16,7 +16,7 @@ public partial class RecordingEncoderLifecycleTests
         await using var scope = new RecordingScope();
         await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
         var dispatcher = new ProjectIpcDispatcher(coordinator);
-        var main = new MainViewModel(forScreenshot: true);
+        var main = CreatePreflightApprovedMain();
         main.ConfigureRecordingContent(new ProjectClient((command, request, ct) => dispatcher.DispatchAsync(new()
             { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) })), () => true, () => Task.CompletedTask);
         var vm = await main.PrepareProjectWorkspaceAsync();
@@ -44,7 +44,7 @@ public partial class RecordingEncoderLifecycleTests
         await using var scope = new RecordingScope();
         await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
         var dispatcher = new ProjectIpcDispatcher(coordinator);
-        var main = new MainViewModel(forScreenshot: true);
+        var main = CreatePreflightApprovedMain();
         main.ConfigureRecordingContent(new ProjectClient((command, request, ct) => dispatcher.DispatchAsync(new()
             { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) })), () => true, () => Task.CompletedTask);
         try
@@ -76,7 +76,7 @@ public partial class RecordingEncoderLifecycleTests
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var holdStatus = false;
-        var main = new MainViewModel(forScreenshot: true);
+        var main = CreatePreflightApprovedMain();
         main.ConfigureRecordingContent(new ProjectClient(async (command, request, ct) =>
         {
             if (holdStatus && command == "GetProjectStatus")
@@ -139,7 +139,7 @@ public partial class RecordingEncoderLifecycleTests
         await using var scope = new RecordingScope();
         await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
         var dispatcher = new ProjectIpcDispatcher(coordinator);
-        var main = new MainViewModel(forScreenshot: true);
+        var main = CreatePreflightApprovedMain();
         main.ConfigureRecordingContent(new ProjectClient((command, request, ct) => dispatcher.DispatchAsync(new()
             { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) })), () => true, () => Task.CompletedTask);
         try
@@ -171,7 +171,7 @@ public partial class RecordingEncoderLifecycleTests
         await using var scope = new RecordingScope();
         await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
         var dispatcher = new ProjectIpcDispatcher(coordinator);
-        var main = new MainViewModel(forScreenshot: true);
+        var main = CreatePreflightApprovedMain();
         main.ConfigureRecordingContent(new ProjectClient((command, request, ct) => dispatcher.DispatchAsync(new()
             { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) })), () => true, () => Task.CompletedTask);
         main.OutputDirectory = scope.Configuration.OutputDirectory;
@@ -207,7 +207,7 @@ public partial class RecordingEncoderLifecycleTests
         var dispatcher = new ProjectIpcDispatcher(coordinator);
         var client = new ProjectClient((command, request, ct) => dispatcher.DispatchAsync(new()
             { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) }));
-        var main = new MainViewModel(forScreenshot: true);
+        var main = CreatePreflightApprovedMain();
         main.ConfigureRecordingContent(client, () => true, () => Task.CompletedTask);
         main.OutputDirectory = scope.Configuration.OutputDirectory;
         main.RequestRecordingProjectName = name => Task.FromResult<string?>(name);
@@ -241,7 +241,7 @@ public partial class RecordingEncoderLifecycleTests
         await using var scope = new RecordingScope();
         await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
         var dispatcher = new ProjectIpcDispatcher(coordinator);
-        var main = new MainViewModel(forScreenshot: true);
+        var main = CreatePreflightApprovedMain();
         main.ConfigureRecordingContent(new ProjectClient((command, request, ct) => dispatcher.DispatchAsync(new()
             { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) })), () => false, () => Task.CompletedTask);
         try

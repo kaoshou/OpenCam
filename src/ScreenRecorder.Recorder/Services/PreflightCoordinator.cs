@@ -46,8 +46,11 @@ public sealed class PreflightCoordinator(RecordingCaptureLease capture, Func<IPr
             Volatile.Write(ref _current, current);
             try
             {
+                // Publish Preparing before any potentially slow native initialization.
+                await Task.Yield();
                 using var start = CancellationTokenSource.CreateLinkedTokenSource(ct, current.Cancellation.Token);
                 start.CancelAfter(TimeSpan.FromSeconds(40));
+                start.Token.ThrowIfCancellationRequested();
                 await session.StartAsync(frozen, start.Token);
                 current.Phase = PreflightPhase.Checking;
                 return ReadStatus(operation, current.Revision);
@@ -122,7 +125,8 @@ public sealed class PreflightCoordinator(RecordingCaptureLease capture, Func<IPr
         if (current is null) return;
         if (current.Id != operation) throw new InvalidOperationException("Preflight identity changed.");
         current.Phase = PreflightPhase.Stopping;
-        current.Cancellation.Cancel();
+        try { current.Cancellation.Cancel(); }
+        catch (ObjectDisposedException) when (!ReferenceEquals(current, Volatile.Read(ref _current))) { return; }
         await _gate.WaitAsync(ct);
         try { if (ReferenceEquals(current, _current)) await StopCoreAsync(current, ct); }
         finally { _gate.Release(); }

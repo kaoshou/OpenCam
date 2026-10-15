@@ -18,6 +18,7 @@ public partial class MainWindow : Window
     private MainViewModel? _identificationViewModel;
     private bool _projectCloseAuthorized, _closingProject;
     private bool _initialSizeApplied;
+    private ScreenRecorder.Infrastructure.IPC.PreflightRequest? _lastPreflight;
 
     public MainWindow()
     {
@@ -29,6 +30,7 @@ public partial class MainWindow : Window
             {
                 _identificationViewModel.PropertyChanged -= OnIdentificationViewModelPropertyChanged;
                 _identificationViewModel.RequestRecordingProjectName = null;
+                _identificationViewModel.RequestRecordingPreflight = null;
                 _identificationViewModel.RequestUnsavedProjectDecision = null;
                 _identificationViewModel.RequestProjectDraftRecovery = null;
                 _identificationViewModel.RequestMp4Destination = null;
@@ -44,6 +46,20 @@ public partial class MainWindow : Window
             if (DataContext is MainViewModel vm)
             {
                 vm.RequestRecordingProjectName = AskRecordingProjectNameAsync;
+                vm.RequestRecordingPreflight = async (configuration, allowPrevious) =>
+                {
+                    if (allowPrevious && _lastPreflight is { } previous)
+                    {
+                        var response = await vm.SendPreflightCommandAsync("CheckPreflightConfirmation", previous with { Configuration = configuration }, default);
+                        if (response.Success && System.Text.Json.JsonSerializer.Deserialize<ScreenRecorder.Infrastructure.IPC.PreflightReply>(response.DataJson!)?.ConfigurationConfirmed == true)
+                            return configuration;
+                    }
+                    var dialog = new ScreenRecorder.UI.Preflight.RecordingPreflightWindow(configuration,
+                        vm.SendPreflightCommandAsync, vm.ReadPreflightFrameAsync);
+                    var accepted = await dialog.ShowDialog<RecordingConfiguration?>(_projectWindow?.IsVisible == true ? _projectWindow : this);
+                    _lastPreflight = accepted is null ? null : dialog.Request;
+                    return accepted;
+                };
                 vm.RequestMp4Destination = name => ScreenRecorder.UI.Projects.ProjectExportFileDialog.ChooseAsync(this, name);
                 vm.RequestWebPlayerDestination = () => ScreenRecorder.UI.Projects.ProjectExportFileDialog.ChooseWebParentAsync(this);
                 vm.RequestUnsavedProjectDecision = () => ScreenRecorder.UI.Projects.ProjectSaveDialogs.AskUnsavedAsync(
