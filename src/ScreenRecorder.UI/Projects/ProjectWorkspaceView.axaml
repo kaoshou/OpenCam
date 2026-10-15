@@ -145,6 +145,32 @@
       </StackPanel>
       <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
         <Button Content="{Binding Strings[ProjectSave]}" Command="{Binding SaveCommand}" IsEnabled="{Binding !IsBusy}"/>
+        <Button x:Name="BookmarksButton" Content="{Binding Strings[BookmarkTitle]}">
+          <Button.Flyout><Flyout>
+            <Grid Width="350" MaxHeight="440" RowDefinitions="Auto,Auto,*,Auto,Auto,Auto">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="{Binding Strings[BookmarkTitle]}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <Button Grid.Column="1" Content="↻" Command="{Binding RefreshBookmarksCommand}" ToolTip.Tip="{Binding Strings[ProjectRefresh]}"/>
+              </Grid>
+              <TextBlock Grid.Row="1" Text="{Binding Strings[BookmarkNotice]}" TextWrapping="Wrap" FontSize="11"/>
+              <ListBox Grid.Row="2" MinHeight="70" MaxHeight="230" ItemsSource="{Binding Bookmarks}" SelectedItem="{Binding SelectedBookmark}"
+                       ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox.ItemTemplate><DataTemplate x:DataType="core:ProjectBookmarkPosition">
+                  <Grid ColumnDefinitions="*,Auto" Margin="6">
+                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" ToolTip.Tip="{Binding Name}"/>
+                    <TextBlock Grid.Column="1" Text="{Binding TimeText}" FontSize="11" VerticalAlignment="Center"/>
+                  </Grid>
+                </DataTemplate></ListBox.ItemTemplate>
+              </ListBox>
+              <TextBox Grid.Row="3" Text="{Binding BookmarkName}" IsEnabled="{Binding CanEditTimeline}"/>
+              <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="8">
+                <Button Content="{Binding Strings[BookmarkRename]}" Command="{Binding RenameBookmarkCommand}" IsEnabled="{Binding CanEditTimeline}"/>
+                <Button Classes="danger" Content="{Binding Strings[BookmarkDelete]}" Command="{Binding DeleteBookmarkCommand}" IsEnabled="{Binding CanEditTimeline}"/>
+              </StackPanel>
+              <TextBlock Grid.Row="5" Text="{Binding BookmarkError}" TextWrapping="Wrap" Foreground="{DynamicResource ProjectErrorBrush}"/>
+            </Grid>
+          </Flyout></Button.Flyout>
+        </Button>
         <Button x:Name="SubtitlesButton" Click="OnManageSubtitles" IsEnabled="{Binding CanEditTimeline}">
           <editor:EditorToolContent Icon="subtitles" Text="{Binding Strings[SubtitleAttach]}"/>
         </Button>

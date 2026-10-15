@@ -57,6 +57,18 @@ public class LocalizationService : ILocalizationService
 
     public static readonly Dictionary<string, string> ZhTwDictionary = new()
     {
+        ["CountdownTitle"] = "即將開始錄製",
+        ["CountdownRecheck"] = "錄前檢查已失效，請重新確認錄製來源。",
+        ["CountdownSetting"] = "錄製倒數（秒；0為關閉）",
+        ["BookmarkHotkey"] = "標記重點快捷鍵",
+        ["BookmarkAdd"] = "標記重點",
+        ["BookmarkAdded"] = "重點已保存",
+        ["BookmarkPrefix"] = "重點",
+        ["BookmarkTitle"] = "重點標記",
+        ["BookmarkNotice"] = "重點自動保存；改名與刪除不納入片段復原／重做。— 表示目前未定位或該位置已裁掉。",
+        ["BookmarkRename"] = "套用名稱",
+        ["BookmarkDelete"] = "刪除重點",
+        ["HotkeyUnavailable"] = "快捷鍵無法註冊，可能已被系統或其他程式占用；原快捷鍵保持不變。",
         ["PreflightTitle"] = "錄製前檢查",
         ["PreflightPrivacy"] = "此視窗會暫時擷取所選畫面及音訊以供確認；即時檢查不存檔，只有按下「試錄5秒」才建立暫存影片。關閉後會清理試錄，不加入專案。",
         ["PreflightDisplay"] = "錄影範圍",
@@ -534,6 +546,18 @@ public class LocalizationService : ILocalizationService
 
     public static readonly Dictionary<string, string> EnUsDictionary = new()
     {
+        ["CountdownTitle"] = "Recording starts soon",
+        ["CountdownRecheck"] = "Preflight confirmation expired. Check recording sources again.",
+        ["CountdownSetting"] = "Countdown (seconds; 0 = off)",
+        ["BookmarkHotkey"] = "Bookmark shortcut",
+        ["BookmarkAdd"] = "Add bookmark",
+        ["BookmarkAdded"] = "Bookmark saved",
+        ["BookmarkPrefix"] = "Bookmark",
+        ["BookmarkTitle"] = "Bookmarks",
+        ["BookmarkNotice"] = "Bookmarks save automatically, outside clip Undo/Redo. — indicates unresolved or trimmed content.",
+        ["BookmarkRename"] = "Apply name",
+        ["BookmarkDelete"] = "Delete bookmark",
+        ["HotkeyUnavailable"] = "Cannot register shortcut; it may be reserved or in use. The previous shortcut remains active.",
         ["PreflightTitle"] = "Before you record",
         ["PreflightPrivacy"] = "This window temporarily captures the selected screen and audio for checking. Live checks are not saved. Only Record5s creates a private temporary video, removed on close and never added to your project.",
         ["PreflightDisplay"] = "Recording area",

@@ -19,6 +19,8 @@ public sealed record ProjectRequest
     public bool ConfirmSubtitleSync { get; init; }
     public string? Name { get; init; }
     public Guid ClipId { get; init; }
+    public Guid BookmarkId { get; init; }
+    public long BookmarkRevision { get; init; }
     public Guid? SubtitleTrackId { get; init; }
     public ProjectSubtitleSettings? SubtitleSettings { get; init; }
     public string? SubtitleLanguage { get; init; }
@@ -57,6 +59,9 @@ public sealed record ProjectSnapshot(Guid? ProjectId, string Name, string? Direc
 public sealed record ProjectReply(bool Success, string? Error, ProjectSnapshot State,
     ProjectClip[]? Clips = null, bool Unconfirmed = false, bool OperationKnown = true)
 {
+    public ProjectBookmarkPosition[]? Bookmarks { get; init; }
+    public int BookmarkCount { get; init; }
+    public long BookmarkRevision { get; init; }
     public ProjectTimelineClip[]? TimelineClips { get; init; }
     public ProjectWaveformReply? Waveform { get; init; }
     public ProjectFrameReply? Frame { get; init; }

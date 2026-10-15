@@ -35,6 +35,14 @@ public class UserSettings
     public string StartStopHotkeyKey { get; set; } = "F9";
     public uint PauseResumeHotkeyModifiers { get; set; } = 0;
     public string PauseResumeHotkeyKey { get; set; } = "F10";
+    public uint BookmarkHotkeyModifiers { get; set; } = 6;
+    public string BookmarkHotkeyKey { get; set; } = "M";
+    private int _recordingCountdownSeconds = 3;
+    public int RecordingCountdownSeconds
+    {
+        get => _recordingCountdownSeconds;
+        set => _recordingCountdownSeconds = value is 0 or 3 or 5 ? value : 3;
+    }
 
     // 視訊品質與行為自訂 (CRF: 18=Ultra, 23=Standard, 28=Compact)
     public string VideoQualityPreset { get; set; } = "Standard";

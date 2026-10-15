@@ -54,6 +54,11 @@ public partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     private KeyOption? _selectedPauseResumeKey;
+    [ObservableProperty] private ModifierOption? _selectedBookmarkModifier;
+    [ObservableProperty] private KeyOption? _selectedBookmarkKey;
+    [ObservableProperty] private int _selectedCountdownSeconds = 3;
+    public int[] CountdownOptions { get; } = [0, 3, 5];
+    public Func<UserSettings, string?>? TryApplyHotkeys { get; set; }
 
     [ObservableProperty]
     private LanguageOption? _selectedLanguage;
@@ -155,6 +160,7 @@ public partial class SettingsViewModel : ObservableObject
         AvailableKeys.Add(new KeyOption("R", 0x52));
         AvailableKeys.Add(new KeyOption("S", 0x53));
         AvailableKeys.Add(new KeyOption("P", 0x50));
+        AvailableKeys.Add(new KeyOption("M", 0x4D));
         AvailableKeys.Add(new KeyOption("Space", 0x20));
         AvailableKeys.Add(new KeyOption("Insert", 0x2D));
         AvailableKeys.Add(new KeyOption("Home", 0x24));
@@ -215,6 +221,9 @@ public partial class SettingsViewModel : ObservableObject
     public async Task LoadSettingsAsync()
     {
         _currentSettings = await _settingsService.LoadSettingsAsync();
+        SelectedBookmarkModifier = AvailableModifiers.FirstOrDefault(m => m.Value == _currentSettings.BookmarkHotkeyModifiers) ?? AvailableModifiers.Single(m => m.Value == 6);
+        SelectedBookmarkKey = AvailableKeys.FirstOrDefault(k => k.KeyName == _currentSettings.BookmarkHotkeyKey) ?? AvailableKeys.Single(k => k.KeyName == "M");
+        SelectedCountdownSeconds = _currentSettings.RecordingCountdownSeconds;
         SelectedCaptureMode = AvailableCaptureModes.Single(o => o.Mode == _currentSettings.WindowsCaptureMode);
 
         SelectedStartStopModifier = AvailableModifiers.FirstOrDefault(m => m.Value == _currentSettings.StartStopHotkeyModifiers)
@@ -253,6 +262,10 @@ public partial class SettingsViewModel : ObservableObject
         ErrorMessage = null;
 
         // 1. 快捷鍵防衝突校驗
+        if (SelectedBookmarkKey is null || SelectedBookmarkModifier is null || SelectedCountdownSeconds is not (0 or 3 or 5) ||
+            (SelectedBookmarkModifier.Value == SelectedStartStopModifier?.Value && SelectedBookmarkKey.KeyName == SelectedStartStopKey?.KeyName) ||
+            (SelectedBookmarkModifier.Value == SelectedPauseResumeModifier?.Value && SelectedBookmarkKey.KeyName == SelectedPauseResumeKey?.KeyName))
+        { ErrorMessage = Strings["HotkeyConflictError"]; return; }
         if (SelectedStartStopModifier?.Value == SelectedPauseResumeModifier?.Value &&
             SelectedStartStopKey?.KeyName == SelectedPauseResumeKey?.KeyName)
         {
@@ -261,6 +274,17 @@ public partial class SettingsViewModel : ObservableObject
         }
 
         // 2. 構建更新後之設定物件
+        var previousSettings = _currentSettings;
+        var candidate = System.Text.Json.JsonSerializer.Deserialize<UserSettings>(System.Text.Json.JsonSerializer.Serialize(_currentSettings))!;
+        candidate.StartStopHotkeyModifiers = SelectedStartStopModifier?.Value ?? 0;
+        candidate.StartStopHotkeyKey = SelectedStartStopKey?.KeyName ?? "F9";
+        candidate.PauseResumeHotkeyModifiers = SelectedPauseResumeModifier?.Value ?? 0;
+        candidate.PauseResumeHotkeyKey = SelectedPauseResumeKey?.KeyName ?? "F10";
+        candidate.BookmarkHotkeyModifiers = SelectedBookmarkModifier.Value;
+        candidate.BookmarkHotkeyKey = SelectedBookmarkKey.KeyName;
+        if (TryApplyHotkeys?.Invoke(candidate) is { } registrationError) { ErrorMessage = registrationError; return; }
+        _currentSettings = candidate;
+        _currentSettings.RecordingCountdownSeconds = SelectedCountdownSeconds;
         _currentSettings.StartStopHotkeyModifiers = SelectedStartStopModifier?.Value ?? 0;
         _currentSettings.StartStopHotkeyKey = SelectedStartStopKey?.KeyName ?? "F9";
         _currentSettings.PauseResumeHotkeyModifiers = SelectedPauseResumeModifier?.Value ?? 0;
@@ -283,7 +307,15 @@ public partial class SettingsViewModel : ObservableObject
         }
 
         // 4. 儲存設定至 JSON 檔案
-        await _settingsService.SaveSettingsAsync(_currentSettings);
+        try { await _settingsService.SaveSettingsAsync(_currentSettings); }
+        catch (Exception ex)
+        {
+            var rollbackError = TryApplyHotkeys?.Invoke(previousSettings);
+            _currentSettings = previousSettings;
+            Strings.CurrentLanguage = previousSettings.Language;
+            ErrorMessage = ex.Message + (rollbackError is null ? "" : " " + rollbackError);
+            return;
+        }
 
         SuccessMessage = Strings["SettingsSavedSuccess"];
 
@@ -297,6 +329,9 @@ public partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     public void ResetToDefaults()
     {
+        SelectedBookmarkModifier = AvailableModifiers.Single(m => m.Value == 6);
+        SelectedBookmarkKey = AvailableKeys.Single(k => k.KeyName == "M");
+        SelectedCountdownSeconds = 3;
         if (CanEditCaptureMode) SelectedCaptureMode = AvailableCaptureModes[0];
         SelectedStartStopModifier = AvailableModifiers[0]; // None
         SelectedStartStopKey = AvailableKeys.FirstOrDefault(k => k.KeyName == "F9");

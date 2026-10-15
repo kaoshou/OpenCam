@@ -80,6 +80,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
         if (reply.State.Mode != State.Mode) ClearPreview();
         if (reply.State.ProjectId != State.ProjectId)
         {
+            Bookmarks.Clear(); SelectedBookmark = null; _bookmarkRevision = 0;
             Clips.Clear();
             SelectedClip = null;
             PublishTimeline([]);
@@ -296,6 +297,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
         foreach (var clip in loaded) Clips.Add(clip);
         SelectedClip = Clips.FirstOrDefault(c => c.Id == selection) ?? Clips.FirstOrDefault();
         PublishTimeline(missingTiming ? [] : spans.AsReadOnly());
+        if (_bookmarksEnabled) await RefreshBookmarksAsync();
         OnPropertyChanged(nameof(ClipCountText));
     }
 

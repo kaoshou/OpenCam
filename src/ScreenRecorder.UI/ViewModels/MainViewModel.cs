@@ -92,6 +92,9 @@ public partial class MainViewModel : ObservableObject
     private string _startStopHotkeyKey = "F9";
     private uint _pauseResumeHotkeyModifiers = 0;
     private string _pauseResumeHotkeyKey = "F10";
+    private uint _bookmarkHotkeyModifiers = 6;
+    private string _bookmarkHotkeyKey = "M";
+    private int _recordingCountdownSeconds = 3;
     private string _videoQualityPreset = "Standard";
     private WindowsCaptureMode _windowsCaptureMode;
     private double _diskWarningThresholdGb = 2.0;
@@ -890,11 +893,6 @@ public partial class MainViewModel : ObservableObject
             RecordSystemAudio = false;
             _isLoadingSettings = false;
         }
-        else
-        {
-            LoadUserSettings();
-        }
-
         // 非同步掃描未完成之錄影
         if (!forScreenshot) _ = CheckRecoverableSessionsAsync();
 
@@ -902,17 +900,19 @@ public partial class MainViewModel : ObservableObject
         UpdateDiskSpaceRemaining();
 
         // 註冊 Windows 全域快捷鍵 (預設 F9 開始/停止，F10 暫停/繼續)
-        if (!forScreenshot && OperatingSystem.IsWindows())
+        if (!forScreenshot && (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() &&
+            Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime))
         {
             try
             {
-                _globalHotkeyService = new WindowsGlobalHotkeyService();
+                _globalHotkeyService = OperatingSystem.IsWindows() ? new WindowsGlobalHotkeyService() : new MacOsGlobalHotkeyService();
                 _globalHotkeyService.HotkeyTriggered += async (s, hotkeyId) =>
                 {
                     await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
                     {
                         if (hotkeyId == 9001) // F9: 開始 / 停止
                         {
+                            if (CancelRecordingCountdown is { } cancel) { cancel(); return; }
                             if (CanStartRecording)
                             {
                                 await StartRecordingAsync();
@@ -922,6 +922,7 @@ public partial class MainViewModel : ObservableObject
                                 await StopRecordingAsync();
                             }
                         }
+                        else if (hotkeyId == 9003) await AddBookmarkAsync();
                         else if (hotkeyId == 9002) // F10: 暫停 / 繼續
                         {
                             if ((IsRecording || IsPaused) && !IsPreparing)
@@ -931,12 +932,12 @@ public partial class MainViewModel : ObservableObject
                         }
                     });
                 };
-                // 預設先註冊 F9 與 F10，待 LoadUserSettings 讀取使用者設定後會自動更新註冊
-                _globalHotkeyService.RegisterHotkey(9001, 0x78); // VK_F9
-                _globalHotkeyService.RegisterHotkey(9002, 0x79); // VK_F10
+                // LoadUserSettings registers the full binding set transactionally.
             }
-            catch { }
+            catch (Exception ex) { _hotkeyInitializationError = Strings["HotkeyUnavailable"]; Log.Warning(ex, "Global shortcut initialization failed"); }
         }
+        // Initialize the service before loading settings, including synchronously completed loads.
+        if (!forScreenshot) LoadUserSettings();
     }
 
     private async void LoadUserSettings()
@@ -955,6 +956,9 @@ public partial class MainViewModel : ObservableObject
             _startStopHotkeyKey = s.StartStopHotkeyKey;
             _pauseResumeHotkeyModifiers = s.PauseResumeHotkeyModifiers;
             _pauseResumeHotkeyKey = s.PauseResumeHotkeyKey;
+            _bookmarkHotkeyModifiers = s.BookmarkHotkeyModifiers;
+            _bookmarkHotkeyKey = s.BookmarkHotkeyKey;
+            _recordingCountdownSeconds = s.RecordingCountdownSeconds;
             _videoQualityPreset = s.VideoQualityPreset;
             _windowsCaptureMode = s.WindowsCaptureMode;
             _openFolderOnFinished = s.OpenFolderOnFinished;
@@ -1141,6 +1145,9 @@ public partial class MainViewModel : ObservableObject
                 StartStopHotkeyKey = _startStopHotkeyKey,
                 PauseResumeHotkeyModifiers = _pauseResumeHotkeyModifiers,
                 PauseResumeHotkeyKey = _pauseResumeHotkeyKey,
+                BookmarkHotkeyModifiers = _bookmarkHotkeyModifiers,
+                BookmarkHotkeyKey = _bookmarkHotkeyKey,
+                RecordingCountdownSeconds = _recordingCountdownSeconds,
                 VideoQualityPreset = _videoQualityPreset,
                 WindowsCaptureMode = _windowsCaptureMode,
                 OpenFolderOnFinished = _openFolderOnFinished,
@@ -1162,6 +1169,9 @@ public partial class MainViewModel : ObservableObject
         _startStopHotkeyKey = newSettings.StartStopHotkeyKey;
         _pauseResumeHotkeyModifiers = newSettings.PauseResumeHotkeyModifiers;
         _pauseResumeHotkeyKey = newSettings.PauseResumeHotkeyKey;
+        _bookmarkHotkeyModifiers = newSettings.BookmarkHotkeyModifiers;
+        _bookmarkHotkeyKey = newSettings.BookmarkHotkeyKey;
+        _recordingCountdownSeconds = newSettings.RecordingCountdownSeconds;
         _videoQualityPreset = newSettings.VideoQualityPreset;
         if (CanEditRecordingSettings) _windowsCaptureMode = newSettings.WindowsCaptureMode;
         _openFolderOnFinished = newSettings.OpenFolderOnFinished;
@@ -1196,6 +1206,7 @@ public partial class MainViewModel : ObservableObject
             "R" => 0x52,
             "S" => 0x53,
             "P" => 0x50,
+            "M" => 0x4D,
             "SPACE" => 0x20,
             "INSERT" => 0x2D,
             "HOME" => 0x24,
@@ -1208,26 +1219,7 @@ public partial class MainViewModel : ObservableObject
 
     public void RegisterHotkeys(UserSettings s)
     {
-        if (!OperatingSystem.IsWindows() || _globalHotkeyService == null) return;
-
-        try
-        {
-            _globalHotkeyService.UnregisterHotkey(9001);
-            _globalHotkeyService.UnregisterHotkey(9002);
-
-            int vkStart = ResolveVirtualKey(s.StartStopHotkeyKey);
-            if (vkStart > 0)
-            {
-                _globalHotkeyService.RegisterHotkey(9001, vkStart, s.StartStopHotkeyModifiers);
-            }
-
-            int vkPause = ResolveVirtualKey(s.PauseResumeHotkeyKey);
-            if (vkPause > 0)
-            {
-                _globalHotkeyService.RegisterHotkey(9002, vkPause, s.PauseResumeHotkeyModifiers);
-            }
-        }
-        catch { }
+        if (TryApplyHotkeys(s) is { } error) StatusMessage = error;
     }
 
     private void LoadMonitors()
@@ -2131,7 +2123,7 @@ public partial class MainViewModel : ObservableObject
         {
             _globalHotkeyService?.Dispose();
         }
-        catch { }
+        catch (Exception ex) { Log.Warning(ex, "Global shortcut cleanup failed"); }
 
         try
         {

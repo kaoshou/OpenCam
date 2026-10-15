@@ -122,6 +122,13 @@ public sealed class ProjectTimelineControl : Control
                     ink, Math.Max(1, right - left - 16), 11);
         }
         // Draw the range above opaque clip cards so the selection covers video and audio visibly.
+        foreach (var bookmark in vm.Bookmarks)
+        {
+            if (bookmark.TimelineTicks is not long time) continue;
+            var x = X(time); if (x < 16 || x > Bounds.Width - 16) continue;
+            context.DrawLine(new Pen(Brushes.MediumPurple, 1), new(x, 34), new(x, Bounds.Height));
+            context.FillRectangle(Brushes.MediumPurple, new Rect(x, 35, 7, 7));
+        }
         if (vm.RangeStartTicks is long start && vm.RangeEndTicks is long end && end > start)
             context.FillRectangle(new SolidColorBrush(Color.FromArgb(36, 37, 99, 235)),
                 new Rect(X(start), 32, Math.Max(0, X(end) - X(start)), Math.Max(0, Bounds.Height - 32)));
@@ -163,7 +170,12 @@ public sealed class ProjectTimelineControl : Control
         var point = e.GetPosition(this);
         _gestureRevision = vm.State.Revision;
         _downX = point.X;
-        if (point.Y < 44) { _seeking = true; vm.BeginPreviewScrub(); vm.Seek(Ticks(point.X)); }
+        if (point.Y < 44)
+        {
+            var bookmark = vm.Bookmarks.FirstOrDefault(b => b.TimelineTicks is long t && Math.Abs(X(t) - point.X) < 6);
+            if (bookmark is not null) { vm.SelectedBookmark = bookmark; if (bookmark.TimelineTicks is long tick) vm.Seek(tick); e.Handled = true; return; }
+            _seeking = true; vm.BeginPreviewScrub(); vm.Seek(Ticks(point.X));
+        }
         else if (point.Y >= VideoTrackBounds.Top && point.Y <= VideoTrackBounds.Bottom)
         {
             var span = vm.TimelineClips.FirstOrDefault(c => Ticks(point.X) >= c.StartTicks && Ticks(point.X) < c.EndTicks);

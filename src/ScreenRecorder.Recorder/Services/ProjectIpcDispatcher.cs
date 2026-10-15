@@ -17,7 +17,8 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
         or "GetProjectClips" or "GetProjectWaveform" or "PlayProjectPreview" or "StopProjectPreview" or "SetProjectPreviewMuted" or "StartProjectRecording" or "PauseProjectRecording" or "FinishProjectRecording"
         or "SaveProject" or "FindProjectExport" or "DiscardProjectEdits" or "ResolveProjectDraft" or "SetProjectAutoExport" or "RenameProject" or "RenameProjectClip" or "ApplyProjectEdit" or "UndoProject" or "RedoProject" or "CloseProject" or "RestoreProjectBackup"
         or "StartNewRecordingContent" or "StartProjectInsertion" or "FinishRecordingContent" or "RetryRecordingContentExport" or "CancelRecordingContentExport" or "ExportRecordingContent"
-        or "ImportProjectSubtitle" or "EditProjectSubtitles";
+        or "ImportProjectSubtitle" or "EditProjectSubtitles"
+        or "AddProjectBookmark" or "GetProjectBookmarks" or "RenameProjectBookmark" or "DeleteProjectBookmark";
 
     private ProjectSnapshot Snapshot()
     {
@@ -69,6 +70,12 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
                 return Reply(new(true, null, Snapshot(), project.Clips.Skip(request.Offset).Take(request.Limit).ToArray())
                     { TimelineClips = timeline.Clips.Skip(request.Offset).Take(request.Limit).ToArray() });
             }
+            if (message.MessageType == "GetProjectBookmarks")
+            {
+                if (request.ServerInstanceId != _instanceId) throw new InvalidOperationException("Obsolete bookmark query.");
+                var page = await coordinator.ReadBookmarksAsync(request.Offset, request.Limit);
+                return Reply(new(true, null, Snapshot()) { Bookmarks = page.Items, BookmarkCount = page.Count, BookmarkRevision = page.Revision });
+            }
             if (message.MessageType == "FindProjectExport")
                 return Reply(new(true, null, Snapshot()) { ExistingOutputPath = await coordinator.FindExistingExportAsync(
                     request.Path ?? "", request.ExpectedRevision) });
@@ -81,6 +88,8 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
                 return Reply(new(true, null, Snapshot()) { Waveform = waveform });
             }
             if (request.OperationId == Guid.Empty) throw new InvalidDataException("An operation ID is required.");
+            if (message.MessageType is "AddProjectBookmark" or "RenameProjectBookmark" or "DeleteProjectBookmark" && request.ServerInstanceId != _instanceId)
+                throw new InvalidOperationException("Obsolete bookmark command.");
             if (message.MessageType == "ImportProjectSubtitle")
             {
                 if (request.ServerInstanceId != _instanceId || _operations.Count >= 20000)
@@ -121,6 +130,9 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
                 await frames.SuspendAsync();
             ProjectCommandResult result = message.MessageType switch
             {
+                "AddProjectBookmark" => await coordinator.AddBookmarkAsync(request.OperationId, request.Name ?? ""),
+                "RenameProjectBookmark" => await coordinator.ChangeBookmarkAsync(request.BookmarkId, request.Name ?? "", request.BookmarkRevision, request.OperationId),
+                "DeleteProjectBookmark" => await coordinator.ChangeBookmarkAsync(request.BookmarkId, null, request.BookmarkRevision, request.OperationId),
                 "CreateProject" => await coordinator.CreateAsync(request.Path ?? "", request.Name ?? ""),
                 "OpenProject" => await coordinator.OpenAsync(request.Path ?? ""),
                 "StartNewRecordingContent" => await coordinator.StartNewContentAsync(request.Configuration ?? throw new InvalidDataException("Missing capture configuration."), request.OperationId),

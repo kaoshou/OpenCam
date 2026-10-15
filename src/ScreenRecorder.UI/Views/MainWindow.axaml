@@ -54,7 +54,8 @@
                 </StackPanel>
             </Grid>
             <Grid Grid.Row="2" ColumnDefinitions="*,Auto">
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Left">
+                <WrapPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Stretch">
+                    <WrapPanel.Styles><Style Selector="Button"><Setter Property="Margin" Value="0,0,6,4"/></Style></WrapPanel.Styles>
                     <!-- 開始錄影按鈕 (奢華翡翠綠立體微光漸層) -->
                     <Button Command="{Binding StartRecordingCommand}"
                             IsEnabled="{Binding CanStartRecording}"
@@ -93,6 +94,10 @@
                         </StackPanel>
                     </Button>
 
+                    <Button Command="{Binding AddBookmarkCommand}" IsEnabled="{Binding CanAddBookmark}"
+                            IsVisible="{Binding IsRecording}"
+                            ToolTip.Tip="{Binding BookmarkHotkeyText}" Content="{Binding Strings[BookmarkAdd]}"
+                            FontSize="12" Padding="10,7.5" CornerRadius="8" VerticalContentAlignment="Center"/>
                     <!-- 停止錄影按鈕 (典雅深紅寶石漸層微光) -->
                     <Button Command="{Binding StopRecordingCommand}"
                             IsEnabled="{Binding CanStopRecording}"
@@ -119,7 +124,7 @@
                         <editor:EditorToolContent Icon="edit-recording" Text="{Binding Strings[ContentEditor]}"/>
                     </Button>
 
-                </StackPanel>
+                </WrapPanel>
                     <!-- 修復救援與主要錄製操作分組。 -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0" VerticalAlignment="Top">
                     <Button Command="{Binding RecoverSessionsCommand}" Height="36"

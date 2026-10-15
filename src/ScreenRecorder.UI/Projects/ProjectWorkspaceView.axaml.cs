@@ -90,7 +90,7 @@ public partial class ProjectWorkspaceView : Window
                     .Select(c => c.DataContext).OfType<ScreenRecorder.Core.Projects.ProjectClip>().Select(c => c.Id));
                 await vm.PollThumbnailAsync();
             } };
-        Opened += (_, _) => timer.Start();
+        Opened += async (_, _) => { timer.Start(); await vm.RefreshBookmarksAsync(); };
         Closed += (_, _) => timer.Stop();
         var previewTimer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
         previewTimer.Tick += async (_, _) => { if (IsVisible) await vm.PollPreviewAsync(); };

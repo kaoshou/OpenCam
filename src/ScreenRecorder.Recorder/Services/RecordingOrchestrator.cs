@@ -931,6 +931,17 @@ public class RecordingOrchestrator : IAsyncDisposable
             _stateMachine.CurrentState, input.SystemAudio, input.Microphone, now);
     }
 
+    internal long GetBookmarkOffset(RecordingSession expectedSession)
+    {
+        lock (_lock)
+        {
+            if (_currentSession != expectedSession || _stateMachine.CurrentState != RecordingState.Recording || _engine is not { IsRunning: true })
+                throw new InvalidOperationException("Recording source is no longer active.");
+            // A marker needs only the active source clock, not file sizes or a disk-space query.
+            return Math.Max(0, _engine.CurrentRecordedTime.Ticks);
+        }
+    }
+
     public RecorderTelemetry GetTelemetry()
     {
         var session = _currentSession;

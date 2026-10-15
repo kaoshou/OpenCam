@@ -1,5 +1,13 @@
 # OpenCam Complete User Guide (English)
 
+## Development countdown and bookmarks
+
+Settings offers a recording countdown of 0 (off), 3 or 5 seconds; the default is 3. It runs after preflight for new, appended or inserted recordings, not for a simple paused resume. Cancel, Escape or the start/stop shortcut cancels before capture. Countdown time is not part of the video; source confirmation is rechecked afterwards.
+
+While recording, choose **Add bookmark** or use Ctrl+Shift+M, configurable in Settings. Windows and macOS register the bookmark shortcut globally. Registration failures are reported; the button remains available. Existing macOS start/stop and pause/resume shortcuts remain foreground-only. Native background delivery, occupied keys and function-key settings require manual validation.
+
+The editor's **Bookmarks** menu provides a scrollable list with seek, rename and delete; purple timeline flags follow retained source content. Bookmarks save automatically to `opencam-bookmarks.json` inside the project, without rewriting video, upgrading the manifest or adding Web chapters. Rename/delete are outside clip Undo/Redo. Trimmed locations hide their flags and reappear when clips are restored; — means unresolved or trimmed. Keep the entire project folder. Older versions do not offer bookmark operations.
+
 ## Development build recording preflight
 
 New recordings, appended recordings and editor insertions first resolve the project name and unsaved changes, then show **Before you record**. Confirm the actual recording area and the separate microphone/system-audio meters. Speak and play some system sound. Silence requires a separate acknowledgement; waiting/unreadable input is not a silent pass. Fix the device/permission or explicitly disable that input and recheck. Recording with both audio inputs disabled also requires acknowledgement.

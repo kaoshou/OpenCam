@@ -54,4 +54,4 @@ Recorder 為唯一寫入者，使用現有專案目錄綁定與原子寫入原�
 - 執行 Release build、相關測試及完整現有測試；如有失敗如實列明，不放寬既有安全或輸出斷言。
 - Windows／macOS 實機需確認背景按鍵、系統占用、功能鍵設定、多螢幕倒數不入鏡及多次重設／退出無殘留。未執行者標示 REQUIRES MANUAL VALIDATION，不以鍵碼單元測試冒稱全域註冊成功。
 
-本文件為設計，尚未實作或執行上述驗收。後續在目前 worktree 內依本規格實作，不更動 main 原有 dirty 文件。
+實作與驗證結果記錄於 `docs/verification/2026-10-15-recording-countdown-and-bookmarks.md`。本次在既有 worktree 開發，不更動 main 原有 dirty 文件；原生實機驗證不以自動測試取代。
