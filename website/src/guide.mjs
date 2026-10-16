@@ -40,8 +40,16 @@ export function renderGuide(source, language) {
       if (level === 2 || level === 3) toc.push({ level, id, label });
     }
     if (token.type === 'inline') {
+      let insideLink = false;
+      const children = [];
       for (const child of token.children || []) {
-        if (child.type === 'link_open') child.attrSet('href', rewriteGuideHref(child.attrGet('href'), language));
+        if (child.type === 'link_open') {
+          const original = child.attrGet('href');
+          child.attrSet('href', rewriteGuideHref(original, language));
+          if (/^images\/preview_(main|settings|editor|subtitles)_(zhtw|enus)\.png$/.test(original))
+            child.attrSet('data-lightbox', '');
+          insideLink = true;
+        }
         if (child.type === 'image') {
           const source = child.attrGet('src');
           if (!/^images\/preview_(main|settings|editor|subtitles)_(zhtw|enus)\.png$/.test(source)) {
@@ -49,8 +57,19 @@ export function renderGuide(source, language) {
           }
           child.attrSet('src', rewriteGuideHref(source, language));
           child.attrSet('loading', 'lazy');
+          if (!insideLink) {
+            const open = new child.constructor('link_open', 'a', 1);
+            open.attrSet('href', child.attrGet('src'));
+            open.attrSet('data-lightbox', '');
+            open.attrSet('class', 'screenshot-link');
+            children.push(open, child, new child.constructor('link_close', 'a', -1));
+            continue;
+          }
         }
+        children.push(child);
+        if (child.type === 'link_close') insideLink = false;
       }
+      token.children = children;
     }
   }
   return { html: markdown.renderer.render(tokens, markdown.options, {}), toc };

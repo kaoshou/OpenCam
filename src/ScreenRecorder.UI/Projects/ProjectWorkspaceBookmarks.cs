@@ -13,11 +13,25 @@ public sealed partial class ProjectWorkspaceViewModel
     [ObservableProperty] private ProjectBookmarkPosition? _selectedBookmark;
     [ObservableProperty] private string _bookmarkName = "";
     [ObservableProperty] private string? _bookmarkError;
+    [ObservableProperty] private string _newBookmarkName = "";
+    public bool HasBookmarks => Bookmarks.Count > 0;
+    public bool CanAddEditorBookmark => CanEditTimeline && State.ProjectId is not null && !_loadingBookmarks &&
+        PlayheadTicks >= 0 && PlayheadTicks < DurationTicks;
+    public bool CanDeleteBookmark => CanEditTimeline && SelectedBookmark is not null && Bookmarks.Contains(SelectedBookmark);
+    public bool CanRenameBookmark => CanDeleteBookmark && !string.IsNullOrWhiteSpace(BookmarkName) && BookmarkName.Trim().Length <= 200;
+    public string BookmarkPositionText => Strings["BookmarkCurrentPosition"] + " " + FormatTime(PlayheadTicks);
+    private void NotifyBookmarkUi()
+    {
+        foreach (var property in new[] { nameof(HasBookmarks), nameof(CanAddEditorBookmark), nameof(CanDeleteBookmark), nameof(CanRenameBookmark), nameof(BookmarkPositionText) })
+            OnPropertyChanged(property);
+    }
+    partial void OnBookmarkNameChanged(string value) => NotifyBookmarkUi();
     private long _bookmarkRevision;
     private bool _loadingBookmarks, _bookmarksEnabled, _restoringBookmarkSelection;
     partial void OnSelectedBookmarkChanged(ProjectBookmarkPosition? value)
     {
         BookmarkName = value?.Name ?? "";
+        NotifyBookmarkUi();
         if (!_restoringBookmarkSelection && value?.TimelineTicks is long time && CanEditTimeline) Seek(time);
     }
     public async Task AddRecordingBookmarkAsync(string prefix)
@@ -38,10 +52,35 @@ public sealed partial class ProjectWorkspaceViewModel
         }
         catch (Exception ex) { BookmarkError = ex.Message; }
     }
-    [RelayCommand] public Task RenameBookmarkAsync() => !CanEditTimeline || SelectedBookmark is null ? Task.CompletedTask :
-        ExecuteAsync("RenameProjectBookmark", new() { BookmarkId = SelectedBookmark.Bookmark.Id, BookmarkRevision = _bookmarkRevision, Name = BookmarkName });
-    [RelayCommand] public Task DeleteBookmarkAsync() => !CanEditTimeline || SelectedBookmark is null ? Task.CompletedTask :
-        ExecuteAsync("DeleteProjectBookmark", new() { BookmarkId = SelectedBookmark.Bookmark.Id, BookmarkRevision = _bookmarkRevision });
+    [RelayCommand]
+    public async Task AddEditorBookmarkAsync()
+    {
+        if (!CanAddEditorBookmark) return;
+        var ticks = PlayheadTicks;
+        var name = string.IsNullOrWhiteSpace(NewBookmarkName) ? Strings["BookmarkPrefix"] + " " + (Bookmarks.Count + 1) : NewBookmarkName.Trim();
+        var old = Bookmarks.Select(b => b.Bookmark.Id).ToHashSet();
+        _bookmarksEnabled = true;
+        await ExecuteAsync("AddProjectBookmarkAtPlayhead", new() { TimelineTicks = ticks, Name = name, BookmarkRevision = _bookmarkRevision });
+        if (Error is not null) BookmarkError = Error;
+        if (Error is null && BookmarkError is null && !StatusUnconfirmed)
+        {
+            NewBookmarkName = "";
+            SelectedBookmark = Bookmarks.Where(b => !old.Contains(b.Bookmark.Id))
+                .OrderBy(b => b.TimelineTicks is long t ? Math.Abs(t - ticks) : long.MaxValue).FirstOrDefault();
+        }
+    }
+    [RelayCommand] public async Task RenameBookmarkAsync()
+    {
+        if (!CanRenameBookmark) return;
+        await ExecuteAsync("RenameProjectBookmark", new() { BookmarkId = SelectedBookmark!.Bookmark.Id, BookmarkRevision = _bookmarkRevision, Name = BookmarkName.Trim() });
+        if (Error is not null) BookmarkError = Error;
+    }
+    [RelayCommand] public async Task DeleteBookmarkAsync()
+    {
+        if (!CanDeleteBookmark) return;
+        await ExecuteAsync("DeleteProjectBookmark", new() { BookmarkId = SelectedBookmark!.Bookmark.Id, BookmarkRevision = _bookmarkRevision });
+        if (Error is not null) BookmarkError = Error;
+    }
 
     [RelayCommand]
     public async Task RefreshBookmarksAsync()
@@ -49,6 +88,7 @@ public sealed partial class ProjectWorkspaceViewModel
         _bookmarksEnabled = true;
         if (_loadingBookmarks || State.ProjectId is null) return;
         _loadingBookmarks = true;
+        NotifyBookmarkUi();
         var snapshot = State;
         try
         {
@@ -76,6 +116,6 @@ public sealed partial class ProjectWorkspaceViewModel
             BookmarkError = null; OnPropertyChanged(nameof(Bookmarks));
         }
         catch (Exception ex) { BookmarkError = ex.Message; }
-        finally { _loadingBookmarks = false; }
+        finally { _loadingBookmarks = false; NotifyBookmarkUi(); }
     }
 }

@@ -56,8 +56,6 @@ public partial class SettingsViewModel : ObservableObject
     private KeyOption? _selectedPauseResumeKey;
     [ObservableProperty] private ModifierOption? _selectedBookmarkModifier;
     [ObservableProperty] private KeyOption? _selectedBookmarkKey;
-    [ObservableProperty] private int _selectedCountdownSeconds = 3;
-    public int[] CountdownOptions { get; } = [0, 3, 5];
     public Func<UserSettings, string?>? TryApplyHotkeys { get; set; }
 
     [ObservableProperty]
@@ -224,7 +222,6 @@ public partial class SettingsViewModel : ObservableObject
         _currentSettings = await _settingsService.LoadSettingsAsync();
         SelectedBookmarkModifier = AvailableModifiers.FirstOrDefault(m => m.Value == _currentSettings.BookmarkHotkeyModifiers) ?? AvailableModifiers.Single(m => m.Value == 6);
         SelectedBookmarkKey = AvailableKeys.FirstOrDefault(k => k.KeyName == _currentSettings.BookmarkHotkeyKey) ?? AvailableKeys.Single(k => k.KeyName == "M");
-        SelectedCountdownSeconds = _currentSettings.RecordingCountdownSeconds;
         SelectedCaptureMode = AvailableCaptureModes.Single(o => o.Mode == _currentSettings.WindowsCaptureMode);
 
         SelectedStartStopModifier = AvailableModifiers.FirstOrDefault(m => m.Value == _currentSettings.StartStopHotkeyModifiers)
@@ -264,7 +261,7 @@ public partial class SettingsViewModel : ObservableObject
         ErrorMessage = null;
 
         // 1. 快捷鍵防衝突校驗
-        if (SelectedBookmarkKey is null || SelectedBookmarkModifier is null || SelectedCountdownSeconds is not (0 or 3 or 5) ||
+        if (SelectedBookmarkKey is null || SelectedBookmarkModifier is null ||
             (SelectedBookmarkModifier.Value == SelectedStartStopModifier?.Value && SelectedBookmarkKey.KeyName == SelectedStartStopKey?.KeyName) ||
             (SelectedBookmarkModifier.Value == SelectedPauseResumeModifier?.Value && SelectedBookmarkKey.KeyName == SelectedPauseResumeKey?.KeyName))
         { ErrorMessage = Strings["HotkeyConflictError"]; return; }
@@ -286,7 +283,6 @@ public partial class SettingsViewModel : ObservableObject
         candidate.BookmarkHotkeyKey = SelectedBookmarkKey.KeyName;
         if (TryApplyHotkeys?.Invoke(candidate) is { } registrationError) { ErrorMessage = registrationError; return; }
         _currentSettings = candidate;
-        _currentSettings.RecordingCountdownSeconds = SelectedCountdownSeconds;
         _currentSettings.StartStopHotkeyModifiers = SelectedStartStopModifier?.Value ?? 0;
         _currentSettings.StartStopHotkeyKey = SelectedStartStopKey?.KeyName ?? "F9";
         _currentSettings.PauseResumeHotkeyModifiers = SelectedPauseResumeModifier?.Value ?? 0;
@@ -334,7 +330,6 @@ public partial class SettingsViewModel : ObservableObject
     {
         SelectedBookmarkModifier = AvailableModifiers.Single(m => m.Value == 6);
         SelectedBookmarkKey = AvailableKeys.Single(k => k.KeyName == "M");
-        SelectedCountdownSeconds = 3;
         if (CanEditCaptureMode) SelectedCaptureMode = AvailableCaptureModes[0];
         SelectedStartStopModifier = AvailableModifiers[0]; // None
         SelectedStartStopKey = AvailableKeys.FirstOrDefault(k => k.KeyName == "F9");

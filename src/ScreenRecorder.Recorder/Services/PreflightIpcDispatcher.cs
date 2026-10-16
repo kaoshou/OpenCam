@@ -120,8 +120,9 @@ public sealed class PreflightIpcDispatcher : IAsyncDisposable
         var generation = Interlocked.Increment(ref _generation);
         var operation = _operation;
         try { if (defer) await Task.Yield(); await action(); }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Serilog.Log.Warning(ex, "Preflight operation failed: Phase={Phase}, Generation={Generation}", _queuedPhase, generation);
             if (generation == Volatile.Read(ref _generation) && operation == _operation)
                 Volatile.Write(ref _failure, "PreflightOperationFailed");
         }

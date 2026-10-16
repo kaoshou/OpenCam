@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 using System.Diagnostics;
+using System.Text;
+using Serilog;
 
 namespace ScreenRecorder.Media.Preflight;
 
@@ -10,7 +12,7 @@ public sealed class PreflightPreviewPipe : IAsyncDisposable
     private readonly Task _frames, _errors;
     private byte[]? _latest;
     private long _count;
-    private int _closed;
+    private int _closed, _disposing;
     public PreflightPreviewPipe(string executable)
     {
         var start = new ProcessStartInfo(executable) { UseShellExecute = false, CreateNoWindow = true,
@@ -51,7 +53,17 @@ public sealed class PreflightPreviewPipe : IAsyncDisposable
     private async Task DrainErrorsAsync()
     {
         var buffer = new char[2048];
-        while (await _process.StandardError.ReadAsync(buffer) != 0) { }
+        var tail = new StringBuilder();
+        int read;
+        while ((read = await _process.StandardError.ReadAsync(buffer)) != 0)
+        {
+            tail.Append(buffer, 0, read);
+            if (tail.Length > 4096) tail.Remove(0, tail.Length - 4096);
+        }
+        await _process.WaitForExitAsync();
+        if (_process.ExitCode != 0 && Volatile.Read(ref _disposing) == 0)
+            Log.Warning("Preflight preview decoder exited: ExitCode={ExitCode}, Frames={Frames}, Stderr={Stderr}",
+                _process.ExitCode, FrameCount, tail.ToString());
     }
     public async Task CompleteAsync(CancellationToken ct)
     {
@@ -62,6 +74,7 @@ public sealed class PreflightPreviewPipe : IAsyncDisposable
     }
     public async ValueTask DisposeAsync()
     {
+        Interlocked.Exchange(ref _disposing, 1);
         try
         {
             if (!_process.HasExited) _process.Kill(true);

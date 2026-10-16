@@ -94,7 +94,6 @@ public partial class MainViewModel : ObservableObject
     private string _pauseResumeHotkeyKey = "F10";
     private uint _bookmarkHotkeyModifiers = 6;
     private string _bookmarkHotkeyKey = "M";
-    private int _recordingCountdownSeconds = 3;
     private string _videoQualityPreset = "Standard";
     private WindowsCaptureMode _windowsCaptureMode;
     private double _diskWarningThresholdGb = 2.0;
@@ -916,7 +915,6 @@ public partial class MainViewModel : ObservableObject
                     {
                         if (hotkeyId == 9001) // F9: 開始 / 停止
                         {
-                            if (CancelRecordingCountdown is { } cancel) { cancel(); return; }
                             if (CanStartRecording)
                             {
                                 await StartRecordingAsync();
@@ -963,7 +961,6 @@ public partial class MainViewModel : ObservableObject
             _pauseResumeHotkeyKey = s.PauseResumeHotkeyKey;
             _bookmarkHotkeyModifiers = s.BookmarkHotkeyModifiers;
             _bookmarkHotkeyKey = s.BookmarkHotkeyKey;
-            _recordingCountdownSeconds = s.RecordingCountdownSeconds;
             _videoQualityPreset = s.VideoQualityPreset;
             _windowsCaptureMode = s.WindowsCaptureMode;
             _openFolderOnFinished = s.OpenFolderOnFinished;
@@ -1153,7 +1150,6 @@ public partial class MainViewModel : ObservableObject
                 PauseResumeHotkeyKey = _pauseResumeHotkeyKey,
                 BookmarkHotkeyModifiers = _bookmarkHotkeyModifiers,
                 BookmarkHotkeyKey = _bookmarkHotkeyKey,
-                RecordingCountdownSeconds = _recordingCountdownSeconds,
                 VideoQualityPreset = _videoQualityPreset,
                 WindowsCaptureMode = _windowsCaptureMode,
                 OpenFolderOnFinished = _openFolderOnFinished,
@@ -1177,7 +1173,6 @@ public partial class MainViewModel : ObservableObject
         _pauseResumeHotkeyKey = newSettings.PauseResumeHotkeyKey;
         _bookmarkHotkeyModifiers = newSettings.BookmarkHotkeyModifiers;
         _bookmarkHotkeyKey = newSettings.BookmarkHotkeyKey;
-        _recordingCountdownSeconds = newSettings.RecordingCountdownSeconds;
         _videoQualityPreset = newSettings.VideoQualityPreset;
         if (CanEditRecordingSettings) _windowsCaptureMode = newSettings.WindowsCaptureMode;
         _openFolderOnFinished = newSettings.OpenFolderOnFinished;

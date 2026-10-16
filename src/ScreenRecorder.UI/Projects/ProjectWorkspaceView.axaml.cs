@@ -10,6 +10,14 @@ namespace ScreenRecorder.UI.Projects;
 
 public partial class ProjectWorkspaceView : Window
 {
+    private async void OnBookmarksOpening(object? sender, EventArgs e)
+    {
+        if (sender is Flyout { Content: Control panel } && DataContext is ProjectWorkspaceViewModel vm)
+        {
+            panel.DataContext = vm;
+            await vm.RefreshBookmarksAsync();
+        }
+    }
     private async void OnManageSubtitles(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not ProjectWorkspaceViewModel vm || !vm.CanEditTimeline) return;

@@ -7,21 +7,26 @@ namespace ScreenRecorder.UI.Preflight;
 
 public sealed class RecordingPreflightViewModel(Guid operation) : ObservableObject
 {
-    public PreflightStatus Status { get; private set; } = PreflightStatus.Empty;
+    public static string AudioStatusKey(PreflightPhase phase, PreflightSourceState state) => state is PreflightSourceState.Disabled or PreflightSourceState.Unavailable
+        ? "PreflightSource" + state : phase switch
+        {
+            PreflightPhase.TrialRecording when state == PreflightSourceState.Waiting => "PreflightAudioTrialWaiting",
+            PreflightPhase.Reviewing => "PreflightAudioReview",
+            _ => "PreflightSource" + state
+        };
+    public PreflightStatus Status { get; private set; } = PreflightStatus.Empty with { OperationId = operation, Phase = PreflightPhase.Preparing };
     private Guid? _server;
     private long _sequence;
-    private bool _screen, _silence, _busy, _connectionFailed;
+    private bool _busy, _connectionFailed;
     public bool ConnectionFailed { get => _connectionFailed; set { SetProperty(ref _connectionFailed, value); Changed(); } }
-    public bool ScreenConfirmed { get => _screen; set { SetProperty(ref _screen, value); Changed(); } }
-    public bool SilenceAcknowledged { get => _silence; set { SetProperty(ref _silence, value); Changed(); } }
     public bool Busy { get => _busy; set { SetProperty(ref _busy, value); Changed(); } }
-    public bool NeedsSilenceAcknowledgement => Status.Microphone.State == PreflightSourceState.Silent ||
+    public bool ShowSilenceNotice => Status.Phase == PreflightPhase.Checking && (Status.Microphone.State == PreflightSourceState.Silent ||
         Status.SystemAudio.State == PreflightSourceState.Silent ||
-        Status.Microphone.State == PreflightSourceState.Disabled && Status.SystemAudio.State == PreflightSourceState.Disabled;
+        Status.Microphone.State == PreflightSourceState.Disabled && Status.SystemAudio.State == PreflightSourceState.Disabled);
     private static bool Readable(PreflightSourceResult source) => source.State is
         PreflightSourceState.Disabled or PreflightSourceState.Live or PreflightSourceState.Silent;
     public bool CanStart => !Busy && !ConnectionFailed && Status.Phase == PreflightPhase.Checking && Status.HasFrame && Status.ErrorCode is null &&
-        Readable(Status.Microphone) && Readable(Status.SystemAudio) && ScreenConfirmed && (!NeedsSilenceAcknowledgement || SilenceAcknowledged);
+        Readable(Status.Microphone) && Readable(Status.SystemAudio);
     public bool CanTrial => !Busy && !ConnectionFailed && Status.ErrorCode is null && !Status.Playing &&
         (Status.Phase == PreflightPhase.Checking && Status.HasFrame || Status.Phase == PreflightPhase.Reviewing && Status.HasTrial);
     public bool CanReplay => !Busy && Status.Phase == PreflightPhase.Reviewing && Status.HasTrial && !Status.Playing && Status.ErrorCode is null;
@@ -33,13 +38,11 @@ public sealed class RecordingPreflightViewModel(Guid operation) : ObservableObje
         _sequence = reply.Sequence;
         ConnectionFailed = false;
         Status = reply.Status;
-        if (Status.ErrorCode is not null || Status.Phase != PreflightPhase.Checking || !Status.HasFrame)
-        { ScreenConfirmed = false; SilenceAcknowledged = false; }
         OnPropertyChanged(nameof(Status)); Changed(); return true;
     }
     private void Changed()
     {
         OnPropertyChanged(nameof(CanStart)); OnPropertyChanged(nameof(CanTrial)); OnPropertyChanged(nameof(CanReplay));
-        OnPropertyChanged(nameof(NeedsSilenceAcknowledgement));
+        OnPropertyChanged(nameof(ShowSilenceNotice));
     }
 }

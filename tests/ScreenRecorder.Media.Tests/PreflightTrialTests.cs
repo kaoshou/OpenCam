@@ -14,6 +14,66 @@ namespace ScreenRecorder.Media.Tests;
 
 public class PreflightTrialTests
 {
+    [Theory]
+    [InlineData(AudioSourceType.None, false, false)]
+    [InlineData(AudioSourceType.SystemOnly, false, true)]
+    [InlineData(AudioSourceType.MicrophoneOnly, true, false)]
+    [InlineData(AudioSourceType.SystemAndMicrophone, true, true)]
+    public async Task TrialUsesCurrentEngineSamplesOnlyForSelectedInputs(AudioSourceType selection, bool microphone, bool system)
+    {
+        var root = Directory.CreateTempSubdirectory("OpenCam-trial-level-test-");
+        var displays = new Displays();
+        var executable = FFmpegDiscovery.FindFFmpegExecutable()!;
+        var trialEngine = new TrialLevelEngine(displays);
+        var session = new PreflightTrialSession(new(() => new(new FFmpegScreenRecorderEngine(
+            new MacOsFFmpegProvider(displays), pinnedEncoder: HardwareEncoderType.SoftwareCpu) { UseSyntheticCaptureSource = true }, []), displays, executable),
+            (_, _) => new(trialEngine, []), () => new(root.FullName), new(() => new TrialPipeMediaProcess(executable), () => new MeasuringAudio()));
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        try
+        {
+            await session.StartAsync(new() { AudioSource = selection, Fps = 10 }, deadline.Token);
+            while (!session.ReadStatus(DateTimeOffset.UtcNow).HasFrame) await Task.Delay(30, deadline.Token);
+            using var cancel = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
+            var recording = session.RecordTrialAsync(cancel.Token);
+            try
+            {
+                PreflightStatus status;
+                do { await Task.Delay(20, deadline.Token); status = session.ReadStatus(DateTimeOffset.UtcNow); }
+                while (trialEngine.Reads == 0);
+                Assert.Equal(PreflightPhase.TrialRecording, status.Phase);
+                Assert.Equal(microphone ? PreflightSourceState.Live : PreflightSourceState.Disabled, status.Microphone.State);
+                Assert.Equal(system ? PreflightSourceState.Live : PreflightSourceState.Disabled, status.SystemAudio.State);
+                Assert.Equal(microphone ? .65 : 0, status.Microphone.Rms);
+                Assert.Equal(system ? .25 : 0, status.SystemAudio.Rms);
+                trialEngine.SampleAge = TimeSpan.FromSeconds(2);
+                status = session.ReadStatus(DateTimeOffset.UtcNow);
+                Assert.Equal(microphone ? PreflightSourceState.Unavailable : PreflightSourceState.Disabled, status.Microphone.State);
+                Assert.Equal(system ? PreflightSourceState.Unavailable : PreflightSourceState.Disabled, status.SystemAudio.State);
+                trialEngine.NoSamples = true;
+                status = session.ReadStatus(DateTimeOffset.UtcNow);
+                Assert.Equal(microphone ? PreflightSourceState.Waiting : PreflightSourceState.Disabled, status.Microphone.State);
+                Assert.Equal(system ? PreflightSourceState.Waiting : PreflightSourceState.Disabled, status.SystemAudio.State);
+            }
+            finally { cancel.Cancel(); await Assert.ThrowsAnyAsync<OperationCanceledException>(() => recording); }
+            var reads = trialEngine.Reads;
+            session.ReadStatus(DateTimeOffset.UtcNow);
+            Assert.Equal(reads, trialEngine.Reads); // No reads after cancellation/disposal.
+        }
+        finally { await session.DisposeAsync(); root.Delete(true); }
+    }
+    private sealed class TrialLevelEngine : FFmpegScreenRecorderEngine, IRecordingAudioLevelSource
+    {
+        public int Reads;
+        public TimeSpan SampleAge;
+        public bool NoSamples;
+        public TrialLevelEngine(IDisplayService displays) : base(new MacOsFFmpegProvider(displays), pinnedEncoder: HardwareEncoderType.SoftwareCpu)
+            => UseSyntheticCaptureSource = true;
+        (AudioLevelSample? SystemAudio, AudioLevelSample? Microphone) IRecordingAudioLevelSource.ReadInputLevels(DateTimeOffset now)
+        {
+            Reads++;
+            return NoSamples ? (null, null) : (new(.25, .4, now - SampleAge), new(.65, .8, now - SampleAge));
+        }
+    }
     [Fact]
     public async Task CancelTrialJoinsBothEnginesAndRemovesPrivateFile()
     {

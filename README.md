@@ -8,12 +8,13 @@
 
 OpenCam 讓你錄影、剪輯，再繼續錄影。這款以可靠性為優先的跨平台桌面工具使用 MKV 保存原始錄影片段，透過可重開的專案保存剪輯，並在需要時輸出 MP4。
 
-## v0.3.7：錄前確認、倒數與錄製提醒
+## 錄前確認與錄製提醒
 
 - 正式錄製前確認錄影範圍、系統聲音及麥克風，可使用隔離的試錄及回放；試錄不加入正式專案。
-- 設定可選 0／3／5 秒倒數，預設 3 秒。倒數可取消，完成後重新核對錄前確認，暫停後續錄不重複倒數。
-- 錄影中可按「標記重點」或自訂快捷鍵（預設 Ctrl+Shift+M），在編輯器清單定位、改名、刪除；標記另存專案，不改寫影片。
-- 麥克風連續無聲 30 秒可提醒，預設開啟、有聲後收起，提醒本身不暫停或停止錄影。Windows 浮窗須先成功設定擷取排除；macOS 目前僅程式內提示。實際浮窗排除、裝置與背景快捷鍵仍待實機驗收。詳見 [v0.3.7 更新與限制](docs/releases/v0.3.7.md)。
+- 未勾選的音源明確標示本次不會錄製；已勾選的音源在五秒試錄期間顯示即時音量，完成後可回放確認。
+- 本版已移除錄製倒數：確認後直接準備錄製，以主畫面「錄製中」為準。錄前預覽載入、試錄與完成時有明確提示；直接按藍色確認按鈕即可，不需額外勾選。
+- 錄影中可按「標記重點」或自訂快捷鍵（預設 Ctrl+Shift+M）；編輯器也可在目前播放位置新增、定位、改名、刪除重點。標記自動另存專案，不改寫影片、不納入片段復原／重做。
+- 麥克風連續無聲 30 秒可提醒，預設開啟、有聲後收起，提醒本身不暫停或停止錄影。Windows 浮窗須先成功設定擷取排除；macOS 目前僅程式內提示。實際浮窗排除、裝置與背景快捷鍵仍待實機驗收。詳見 [v0.3.8 更新與限制](docs/releases/v0.3.8.md)。
 
 ## v0.3.6：改善未剪輯錄影的快速輸出
 
@@ -46,7 +47,7 @@ v0.3.3 新增「輸出… → 網頁播放器」：選擇存放位置後，建�
 
 🌐 [OpenCam 官方網站](https://kaoshou.github.io/OpenCam/)（可切換繁體中文／English）
 
-目前原始碼版本為 **0.3.7**，採用 **AGPL-3.0-or-later**。Windows 原生錄影、編輯影音預覽、輸出與長時間音畫同步實機驗收仍待完成；Windows FFmpeg 完整對應原始碼核對亦尚未完成。套件未簽章，發布不代表全部驗收通過。請保留重要素材備份，已發布安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。詳見 [v0.3.7 更新與限制](docs/releases/v0.3.7.md)。
+目前原始碼版本為 **0.3.8**，採用 **AGPL-3.0-or-later**。Windows 原生錄影、編輯影音預覽、輸出與長時間音畫同步實機驗收仍待完成；Windows FFmpeg 完整對應原始碼核對亦尚未完成。套件未簽章，發布不代表全部驗收通過。請保留重要素材備份，已發布安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。詳見 [v0.3.8 更新與限制](docs/releases/v0.3.8.md)。
 
 **v0.3.3** 新增可辨識的離線網頁播放器輸出；時間軸拖曳只調整排序，不再以邊緣拖曳裁剪。明確的分割／刪除範圍與復原操作保留，右側片段操作按鈕統一排列與圖示。先前已誤裁的片段不會自動改寫。
 
@@ -212,12 +213,13 @@ v0.2.0 的完整安裝檔請至 [OpenCam v0.2.0 Release](https://github.com/kaos
 
 # OpenCam (Screen Recorder) 🎥
 
-## v0.3.7: preflight, countdown and recording reminders
+## Preflight and recording reminders
 
 - Confirm capture bounds, system audio and microphone before recording, with an isolated trial and replay that never enters the real project.
-- Choose a 0/3/5-second countdown (default 3). Cancel before recording starts; accepted preflight configuration is rechecked after countdown. Simple paused resume does not count down again.
-- Add bookmarks using the button or a configurable shortcut (default Ctrl+Shift+M). Seek, rename or remove them in the editor. Project-owned bookmark data does not rewrite video.
-- A default-on advisory can warn after 30 seconds of microphone silence and clears on sound. The warning never pauses or stops recording. Windows floating warnings require successful capture-exclusion setup; macOS currently uses an in-app advisory only. Physical exclusion, device and background-hotkey acceptance remain pending. See [v0.3.7 changes and limitations](docs/releases/v0.3.7.md).
+- Unselected inputs explicitly say they will not be recorded. Selected inputs show live levels during the five-second trial; replay it afterward to verify sound.
+- This release removes the countdown: confirmation starts recording preparation; wait for the main window to show Recording. Preflight shows loading, trial and ready messages, with one confirmation button and no extra checkboxes.
+- Add bookmarks while recording using the button or a configurable shortcut (default Ctrl+Shift+M). In the editor, add bookmarks at the playhead, seek to them, rename or remove them. Bookmarks save automatically in the project, outside clip Undo/Redo, without rewriting video.
+- A default-on advisory can warn after 30 seconds of microphone silence and clears on sound. The warning never pauses or stops recording. Windows floating warnings require successful capture-exclusion setup; macOS currently uses an in-app advisory only. Physical exclusion, device and background-hotkey acceptance remain pending. See [v0.3.8 changes and limitations](docs/releases/v0.3.8.md).
 
 ## v0.3.6: faster export for unedited recordings
 
@@ -248,7 +250,7 @@ OpenCam is built with .NET 8, Avalonia UI, and FFmpeg, and supports Windows and 
 
 🌐 [OpenCam official website](https://kaoshou.github.io/OpenCam/) (English / 繁體中文)
 
-The current source version is **0.3.7**, under **AGPL-3.0-or-later**. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending, as does verification of complete corresponding sources for the Windows FFmpeg build. Packages are unsigned; publication does not establish complete acceptance. Keep backups of important media. Published packages are available from [Releases](https://github.com/kaoshou/OpenCam/releases); see [v0.3.7 changes and limitations](docs/releases/v0.3.7.md).
+The current source version is **0.3.8**, under **AGPL-3.0-or-later**. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending, as does verification of complete corresponding sources for the Windows FFmpeg build. Packages are unsigned; publication does not establish complete acceptance. Keep backups of important media. Published packages are available from [Releases](https://github.com/kaoshou/OpenCam/releases); see [v0.3.8 changes and limitations](docs/releases/v0.3.8.md).
 
 **v0.3.3** adds identifiable offline web-player exports. Timeline dragging only reorders clips and no longer trims their edges; explicit split/range deletion and undo remain available. Inspector actions have consistent icon buttons. Existing accidentally trimmed ranges are not rewritten automatically.
 

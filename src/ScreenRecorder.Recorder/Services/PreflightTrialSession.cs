@@ -32,6 +32,8 @@ public sealed class PreflightTrialSession(PreflightLiveSession live,
     private string? _error;
     private DateTimeOffset? _trialStarted;
     private double _seconds;
+    private readonly object _audioGate = new();
+    private bool _monitorTrialAudio;
     public async Task StartAsync(RecordingConfiguration snapshot, CancellationToken ct)
     {
         _configuration = snapshot;
@@ -45,7 +47,18 @@ public sealed class PreflightTrialSession(PreflightLiveSession live,
         // Closed/replayed media is not evidence of a fresh input signal.
         PreflightSourceResult Stopped(PreflightSourceResult source) => source.State == PreflightSourceState.Disabled
             ? source : new(PreflightSourceState.Waiting);
-        return status with { Phase = _phase, Microphone = Stopped(status.Microphone), SystemAudio = Stopped(status.SystemAudio),
+        var microphone = Stopped(status.Microphone);
+        var system = Stopped(status.SystemAudio);
+        lock (_audioGate)
+        {
+            if (_phase == PreflightPhase.TrialRecording && _monitorTrialAudio && _configuration is { } config)
+            {
+                var levels = (_capture?.Engine as IRecordingAudioLevelSource)?.ReadInputLevels(now) ?? default;
+                microphone = PreflightReadiness.Resolve(config.AudioSource is AudioSourceType.MicrophoneOnly or AudioSourceType.SystemAndMicrophone, levels.Microphone, now);
+                system = PreflightReadiness.Resolve(config.AudioSource is AudioSourceType.SystemOnly or AudioSourceType.SystemAndMicrophone, levels.SystemAudio, now);
+            }
+        }
+        return status with { Phase = _phase, Microphone = microphone, SystemAudio = system,
             HasFrame = _frame is not null, HasTrial = _trial is not null,
             TrialSeconds = _trialStarted is { } start ? Math.Clamp((now - start).TotalSeconds, 0, 5) : _seconds,
             Playing = _replay?.Playing == true, ErrorCode = _error ?? status.ErrorCode ?? _replay?.ErrorCode };
@@ -78,6 +91,7 @@ public sealed class PreflightTrialSession(PreflightLiveSession live,
                 startup.CancelAfter(TimeSpan.FromSeconds(40));
                 await _capture.Engine.StartRecordingAsync("preflight-trial.mkv", _configuration, before.Bounds, startup.Token);
             }
+            lock (_audioGate) _monitorTrialAudio = true;
             _trialStarted = DateTimeOffset.UtcNow;
             await Task.Delay(TimeSpan.FromSeconds(5), ct);
             await StopCaptureAsync();
@@ -112,6 +126,8 @@ public sealed class PreflightTrialSession(PreflightLiveSession live,
     private void AudioLost(object? sender, EventArgs args) => Volatile.Write(ref _error, "PreflightAudioUnavailable");
     private async Task StopCaptureAsync()
     {
+        // Finish any sample read before stopping/disposal; do not hold the lock across awaits.
+        lock (_audioGate) _monitorTrialAudio = false;
         if (_capture is not { } capture) return;
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         await capture.Engine.StopRecordingAsync(deadline.Token);

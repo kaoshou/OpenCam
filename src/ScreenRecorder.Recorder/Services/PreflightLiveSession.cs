@@ -20,7 +20,9 @@ public sealed class PreflightLiveSession(Func<PreflightCaptureResources> create,
     private string _displayName = "", _displaySignature = "", _audioIdentity = "";
     private string? _error;
     private DateTimeOffset _started;
-    private bool _stopped;
+    private readonly object _captureState = new();
+    private volatile PreflightPhase _capturePhase = PreflightPhase.Preparing;
+    private int _missingFrameReported;
     public HardwareEncoderType ActiveEncoder => _resources?.Engine.ActiveEncoder ?? throw new InvalidOperationException("Check has not started.");
     public CaptureSelection? ActiveCapture => _resources?.Engine.ActiveCapture;
 
@@ -50,7 +52,11 @@ public sealed class PreflightLiveSession(Func<PreflightCaptureResources> create,
         output.OutputStream = _preview.Input;
         _started = DateTimeOffset.UtcNow;
         await _resources.Engine.StartRecordingAsync("preflight-check.mkv", snapshot, _bounds, ct);
-        _started = DateTimeOffset.UtcNow;
+        lock (_captureState)
+        {
+            _started = DateTimeOffset.UtcNow;
+            _capturePhase = PreflightPhase.Checking;
+        }
     }
     private void EngineError(object? sender, string error) => Volatile.Write(ref _error, "PreflightCaptureFailed");
     private void EngineWarning(object? sender, string warning) => Volatile.Write(ref _error, "PreflightAudioUnavailable");
@@ -58,18 +64,45 @@ public sealed class PreflightLiveSession(Func<PreflightCaptureResources> create,
 
     public PreflightStatus ReadStatus(DateTimeOffset now)
     {
-        if (_configuration is not { } configuration || _resources is null)
+        var phase = _capturePhase;
+        if (_configuration is not { } configuration || _resources is not { } resources)
             return PreflightStatus.Empty with { Phase = PreflightPhase.Preparing };
         var error = Volatile.Read(ref _error);
+        // The UI polls while native initialization is still awaiting its first frame.
+        // Not running yet is not an unexpected capture exit, and must not poison
+        // every subsequent frame with a sticky failure.
+        if (phase == PreflightPhase.Preparing)
+            return PreflightStatus.Empty with { Phase = phase, Bounds = _bounds, DisplayName = _displayName,
+                Microphone = PreflightReadiness.Resolve(configuration.AudioSource is AudioSourceType.MicrophoneOnly or AudioSourceType.SystemAndMicrophone, null, now),
+                SystemAudio = PreflightReadiness.Resolve(configuration.AudioSource is AudioSourceType.SystemOnly or AudioSourceType.SystemAndMicrophone, null, now),
+                ErrorCode = error };
         try
         {
             if (_displaySignature != JsonSerializer.Serialize(displays.GetMonitors()) ||
                 _audioIdentity != (audioIdentity?.Invoke(configuration) ?? "")) error = "PreflightDeviceChanged";
         }
         catch { error = "PreflightDeviceChanged"; }
-        if (!_stopped && (!_resources.Engine.IsRunning || _preview?.HasExited == true)) error ??= "PreflightCaptureFailed";
+        (bool Running, long Frames, double Seconds, bool DecoderExited)? missingFrame = null;
+        lock (_captureState)
+        {
+            // Serialize the health snapshot with intentional shutdown. Otherwise
+            // a poll could observe Checking, then the engine after Stop changed it.
+            phase = _capturePhase;
+            if (phase == PreflightPhase.Checking)
+            {
+                var running = resources.Engine.IsRunning;
+                var exited = _preview?.HasExited == true;
+                if (!running || exited) error ??= "PreflightCaptureFailed";
+                if (_preview is { LatestFrame: null } && now - _started > TimeSpan.FromSeconds(5) &&
+                    Interlocked.Exchange(ref _missingFrameReported, 1) == 0)
+                    missingFrame = (running, resources.Engine.CurrentFramesRecorded, resources.Engine.CurrentRecordedTime.TotalSeconds, exited);
+            }
+        }
+        if (missingFrame is { } missing)
+            Serilog.Log.Warning("Preflight preview has no frame: EngineRunning={EngineRunning}, CapturedFrames={CapturedFrames}, RecordedSeconds={RecordedSeconds}, DecoderExited={DecoderExited}, ErrorCode={ErrorCode}",
+                missing.Running, missing.Frames, missing.Seconds, missing.DecoderExited, error);
         if (error is not null) Volatile.Write(ref _error, error); // invalidation is sticky until a new check
-        var levels = (_resources.Engine as IRecordingAudioLevelSource)?.ReadInputLevels(now) ?? default;
+        var levels = (resources.Engine as IRecordingAudioLevelSource)?.ReadInputLevels(now) ?? default;
         var microphone = PreflightReadiness.Resolve(configuration.AudioSource is AudioSourceType.MicrophoneOnly or AudioSourceType.SystemAndMicrophone,
             levels.Microphone, now);
         var system = PreflightReadiness.Resolve(configuration.AudioSource is AudioSourceType.SystemOnly or AudioSourceType.SystemAndMicrophone,
@@ -79,14 +112,16 @@ public sealed class PreflightLiveSession(Func<PreflightCaptureResources> create,
             if (microphone.State == PreflightSourceState.Waiting) microphone = new(PreflightSourceState.Unavailable);
             if (system.State == PreflightSourceState.Waiting) system = new(PreflightSourceState.Unavailable);
         }
-        return PreflightStatus.Empty with { Phase = PreflightPhase.Checking, Bounds = _bounds, DisplayName = _displayName,
-            Microphone = microphone, SystemAudio = system, HasFrame = error is null && _preview?.LatestFrame is not null, ErrorCode = error };
+        return PreflightStatus.Empty with { Phase = phase, Bounds = _bounds, DisplayName = _displayName,
+            Microphone = microphone, SystemAudio = system, HasFrame = phase == PreflightPhase.Checking && error is null && _preview?.LatestFrame is not null, ErrorCode = error };
     }
-    public ProjectFrameReply? ReadFrame() => ReadStatus(DateTimeOffset.UtcNow).ErrorCode is null && _preview?.LatestFrame is { } pixels
+    public ProjectFrameReply? ReadFrame() => ReadStatus(DateTimeOffset.UtcNow).HasFrame && _preview?.LatestFrame is { } pixels
         ? new(0, 0, Guid.Empty, pixels) { PixelWidth = PreflightPreviewPipe.Width, PixelHeight = PreflightPreviewPipe.Height } : null;
 
     public async Task StopAsync(CancellationToken ct)
     {
+        // Publish intentional shutdown before the engine changes IsRunning.
+        lock (_captureState) _capturePhase = PreflightPhase.Stopping;
         if (_resources is { } resources)
         {
             await resources.Engine.StopRecordingAsync(ct);
@@ -98,7 +133,7 @@ public sealed class PreflightLiveSession(Func<PreflightCaptureResources> create,
             await preview.DisposeAsync();
             _preview = null;
         }
-        _stopped = true;
+        _capturePhase = PreflightPhase.Closed;
     }
     public async ValueTask DisposeAsync()
     {

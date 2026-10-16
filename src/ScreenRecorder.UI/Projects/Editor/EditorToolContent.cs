@@ -42,6 +42,7 @@ public sealed class EditorToolContent : UserControl
         _icon.Width = Icon == "chevron-down" ? 10 : 16;
         _icon.Height = Icon == "chevron-down" ? 6 : 16;
         _icon.Data = Geometry.Parse(Icon switch {
+            "bookmark" => "M3,15 V2 H13 L10,6 L13,10 H3",
             "chevron-down" => "M2,5 L8,11 L14,5",
             "subtitles" => "M1,3 H15 V13 H1 Z M4,7 H7 M4,10 H6 M9,7 H12 M9,10 H11",
             "fullscreen" => "M6,1 H1 V6 M10,1 H15 V6 M1,10 V15 H6 M10,15 H15 V10",

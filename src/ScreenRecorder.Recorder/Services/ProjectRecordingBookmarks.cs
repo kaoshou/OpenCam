@@ -2,6 +2,7 @@
 using ScreenRecorder.Core.Enums;
 using ScreenRecorder.Core.Projects;
 using ScreenRecorder.Infrastructure.Projects;
+using System.Numerics;
 
 namespace ScreenRecorder.Recorder.Services;
 
@@ -42,6 +43,28 @@ public sealed partial class ProjectRecordingCoordinator
             var bookmark = new ProjectBookmark(operationId, _session.SessionId, path, ticks, $"{(string.IsNullOrWhiteSpace(name) ? "重點" : name.Trim())} {doc.Bookmarks.Length + 1}");
             await ProjectBookmarkStore.WriteAsync(_handle, doc with { Revision = checked(doc.Revision + 1), Bookmarks = doc.Bookmarks.Add(bookmark) }, doc.Revision, ct);
         }, operationId, "bookmark:" + name, ct);
+
+    public Task<ProjectCommandResult> AddEditorBookmarkAsync(long timelineTicks, string name, long expectedRevision,
+        long bookmarkRevision, Guid operationId, CancellationToken ct = default) => Run(async () =>
+        {
+            RequireNoExport();
+            if (_handle is null || Current is null || Mode is not (ProjectMode.Ready or ProjectMode.Paused) || HasRecoverableDraft)
+                throw new InvalidOperationException("Pause or finish recording and resolve pending drafts before adding an editor bookmark.");
+            CheckRevision(expectedRevision);
+            ProjectValidation.ValidateName(name.Trim());
+            var position = ProjectTimeline.Build(Current).Locate(timelineTicks)
+                ?? throw new InvalidDataException("The bookmark must be inside the edited timeline.");
+            var source = Current.Sources.Single(s => s.Id == position.SourceId);
+            // Store source-relative media time, not a fragile absolute timeline position.
+            // Round upward to retain the located PTS when the projector converts ticks back to PTS.
+            var numerator = ((BigInteger)position.SourcePts - source.Timing.StartPts) * source.Timing.TimeBase.Numerator * TimeSpan.TicksPerSecond;
+            var ticks = checked((long)((numerator + source.Timing.TimeBase.Denominator - 1) / source.Timing.TimeBase.Denominator));
+            var doc = await ProjectBookmarkStore.ReadAsync(_handle, ct);
+            if (doc.Revision != bookmarkRevision) throw new InvalidOperationException("Bookmark revision changed; refresh before adding.");
+            var bookmark = new ProjectBookmark(operationId, source.SessionId, source.RelativePath, ticks, name.Trim());
+            await ProjectBookmarkStore.WriteAsync(_handle, doc with { Revision = checked(doc.Revision + 1),
+                Bookmarks = doc.Bookmarks.Add(bookmark) }, doc.Revision, ct);
+        }, operationId, $"bookmark-at:{expectedRevision}:{bookmarkRevision}:{timelineTicks}:{name}", ct);
 
     public Task<ProjectCommandResult> ChangeBookmarkAsync(Guid id, string? name, long revision, Guid operationId, CancellationToken ct = default) =>
         Run(async () =>

@@ -18,7 +18,7 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
         or "SaveProject" or "FindProjectExport" or "DiscardProjectEdits" or "ResolveProjectDraft" or "SetProjectAutoExport" or "RenameProject" or "RenameProjectClip" or "ApplyProjectEdit" or "UndoProject" or "RedoProject" or "CloseProject" or "RestoreProjectBackup"
         or "StartNewRecordingContent" or "StartProjectInsertion" or "FinishRecordingContent" or "RetryRecordingContentExport" or "CancelRecordingContentExport" or "ExportRecordingContent"
         or "ImportProjectSubtitle" or "EditProjectSubtitles"
-        or "AddProjectBookmark" or "GetProjectBookmarks" or "RenameProjectBookmark" or "DeleteProjectBookmark";
+        or "AddProjectBookmark" or "AddProjectBookmarkAtPlayhead" or "GetProjectBookmarks" or "RenameProjectBookmark" or "DeleteProjectBookmark";
 
     private ProjectSnapshot Snapshot()
     {
@@ -88,7 +88,7 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
                 return Reply(new(true, null, Snapshot()) { Waveform = waveform });
             }
             if (request.OperationId == Guid.Empty) throw new InvalidDataException("An operation ID is required.");
-            if (message.MessageType is "AddProjectBookmark" or "RenameProjectBookmark" or "DeleteProjectBookmark" && request.ServerInstanceId != _instanceId)
+            if (message.MessageType is "AddProjectBookmark" or "AddProjectBookmarkAtPlayhead" or "RenameProjectBookmark" or "DeleteProjectBookmark" && request.ServerInstanceId != _instanceId)
                 throw new InvalidOperationException("Obsolete bookmark command.");
             if (message.MessageType == "ImportProjectSubtitle")
             {
@@ -131,6 +131,8 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
             ProjectCommandResult result = message.MessageType switch
             {
                 "AddProjectBookmark" => await coordinator.AddBookmarkAsync(request.OperationId, request.Name ?? ""),
+                "AddProjectBookmarkAtPlayhead" => await coordinator.AddEditorBookmarkAsync(request.TimelineTicks, request.Name ?? "",
+                    request.ExpectedRevision, request.BookmarkRevision, request.OperationId),
                 "RenameProjectBookmark" => await coordinator.ChangeBookmarkAsync(request.BookmarkId, request.Name ?? "", request.BookmarkRevision, request.OperationId),
                 "DeleteProjectBookmark" => await coordinator.ChangeBookmarkAsync(request.BookmarkId, null, request.BookmarkRevision, request.OperationId),
                 "CreateProject" => await coordinator.CreateAsync(request.Path ?? "", request.Name ?? ""),

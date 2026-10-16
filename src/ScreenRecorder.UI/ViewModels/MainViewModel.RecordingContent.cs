@@ -15,9 +15,6 @@ public partial class MainViewModel
     public bool UsesRecordingContent => _content is not null;
     public Func<string, Task<string?>>? RequestRecordingProjectName { get; set; }
     public Func<ScreenRecorder.Core.Models.RecordingConfiguration, bool, Task<ScreenRecorder.Core.Models.RecordingConfiguration?>>? RequestRecordingPreflight { get; set; }
-    public Func<int, Task<bool>>? RequestRecordingCountdown { get; set; }
-    public Action? CancelRecordingCountdown { get; set; }
-    public string? RecordingCountdownError { get; set; }
     internal Task<ScreenRecorder.Infrastructure.IPC.IpcResponse> SendPreflightCommandAsync(string command,
         ScreenRecorder.Infrastructure.IPC.PreflightRequest request, CancellationToken ct) =>
         _ipcClient.SendCommandAsync(command, request, cancellationToken: ct);
@@ -221,9 +218,6 @@ public partial class MainViewModel
                 await RequestRecordingPreflight(configuration, !newContent && insertionTicks is null && vm.State.Mode == ProjectMode.Paused);
             if (checkedConfiguration is null) return;
             configuration = checkedConfiguration;
-            RecordingCountdownError = null;
-            if ((vm.State.Mode != ProjectMode.Paused || insertionTicks is not null) && _recordingCountdownSeconds > 0 && RequestRecordingCountdown is { } countdown &&
-                !await countdown(_recordingCountdownSeconds)) { if (RecordingCountdownError is not null) vm.Error = RecordingCountdownError; return; }
             ApplyPreflightAudioSelection(configuration);
             _activeDiskWarningThresholdBytes = configuration.DiskWarningThresholdBytes;
             if (insertionTicks is { } ticks)

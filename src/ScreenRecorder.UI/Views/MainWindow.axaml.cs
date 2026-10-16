@@ -19,7 +19,6 @@ public partial class MainWindow : Window
     private bool _projectCloseAuthorized, _closingProject;
     private bool _initialSizeApplied;
     private ScreenRecorder.Infrastructure.IPC.PreflightRequest? _lastPreflight;
-    private RecordingConfiguration? _countdownConfiguration;
     private readonly ScreenRecorder.UI.Recording.MicrophoneWarningPresenter _microphoneWarning;
 
     public MainWindow()
@@ -35,8 +34,6 @@ public partial class MainWindow : Window
                 _identificationViewModel.MicrophoneWarningOverlayVisible = false;
                 _identificationViewModel.RequestRecordingProjectName = null;
                 _identificationViewModel.RequestRecordingPreflight = null;
-                _identificationViewModel.CancelRecordingCountdown?.Invoke();
-                _identificationViewModel.RequestRecordingCountdown = null;
                 _identificationViewModel.RequestUnsavedProjectDecision = null;
                 _identificationViewModel.RequestProjectDraftRecovery = null;
                 _identificationViewModel.RequestMp4Destination = null;
@@ -53,22 +50,6 @@ public partial class MainWindow : Window
             if (DataContext is MainViewModel vm)
             {
                 vm.RequestRecordingProjectName = AskRecordingProjectNameAsync;
-                vm.RequestRecordingCountdown = async seconds =>
-                {
-                    var dialog = new ScreenRecorder.UI.Recording.RecordingCountdownWindow(seconds);
-                    dialog.KeyDown += (_, e) => { if (vm.MatchesStartStopHotkey(e.Key, e.KeyModifiers)) { e.Handled = true; dialog.CancelCountdown(); } };
-                    vm.CancelRecordingCountdown = dialog.CancelCountdown;
-                    try
-                    {
-                        if (!await dialog.ShowDialog<bool>(_projectWindow?.IsVisible == true ? _projectWindow : this)) return false;
-                        if (_lastPreflight is not { } previous) return false;
-                        var response = await vm.SendPreflightCommandAsync("CheckPreflightConfirmation", previous with { Configuration = _countdownConfiguration }, default);
-                        var valid = response.Success && System.Text.Json.JsonSerializer.Deserialize<ScreenRecorder.Infrastructure.IPC.PreflightReply>(response.DataJson!)?.ConfigurationConfirmed == true;
-                        if (!valid) vm.RecordingCountdownError = vm.Strings["CountdownRecheck"];
-                        return valid;
-                    }
-                    finally { vm.CancelRecordingCountdown = null; }
-                };
                 vm.RequestRecordingPreflight = async (configuration, allowPrevious) =>
                 {
                     if (allowPrevious && _lastPreflight is { } previous)
@@ -81,7 +62,6 @@ public partial class MainWindow : Window
                         vm.SendPreflightCommandAsync, vm.ReadPreflightFrameAsync);
                     var accepted = await dialog.ShowDialog<RecordingConfiguration?>(_projectWindow?.IsVisible == true ? _projectWindow : this);
                     _lastPreflight = accepted is null ? null : dialog.Request;
-                    _countdownConfiguration = accepted;
                     return accepted;
                 };
                 vm.RequestMp4Destination = name => ScreenRecorder.UI.Projects.ProjectExportFileDialog.ChooseAsync(this, name);
@@ -398,7 +378,6 @@ public partial class MainWindow : Window
             if (vm.MatchesStartStopHotkey(e.Key, e.KeyModifiers))
             {
                 e.Handled = true;
-                if (vm.CancelRecordingCountdown is { } cancel) { cancel(); return; }
                 if (vm.CanStartRecording)
                 {
                     await vm.StartRecordingCommand.ExecuteAsync(null);

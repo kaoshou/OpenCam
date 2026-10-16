@@ -74,6 +74,7 @@ public sealed partial class ProjectWorkspaceViewModel
     partial void OnRangeEndTicksChanged(long? value) => NotifyTimeline();
     private void NotifyTimeline()
     {
+        NotifyBookmarkUi();
         OnPropertyChanged(nameof(CanSplit));
         OnPropertyChanged(nameof(CanDeleteRange));
         OnPropertyChanged(nameof(TimelineTimeText));

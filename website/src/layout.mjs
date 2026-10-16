@@ -13,6 +13,8 @@ export function renderLayout({ language, title, description, page, body }) {
   const guideLabel = language === 'zh-TW' ? '使用說明' : 'User guide';
   const skip = language === 'zh-TW' ? '跳至主要內容' : 'Skip to content';
   const licenseLabel = language === 'zh-TW' ? '授權：AGPL-3.0-or-later' : 'License: AGPL-3.0-or-later';
+  const previewLabel = language === 'zh-TW' ? '圖片預覽' : 'Image preview';
+  const closeLabel = language === 'zh-TW' ? '關閉' : 'Close';
   return `<!doctype html>
 <html lang="${language}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${escapeHtml(title)} · OpenCam</title><meta name="description" content="${escapeHtml(description)}">
@@ -22,7 +24,11 @@ export function renderLayout({ language, title, description, page, body }) {
 <a class="skip-link" href="#main">${skip}</a>
 <header class="site-header"><nav class="nav-wrap" aria-label="${language === 'zh-TW' ? '主要導覽' : 'Main navigation'}"><a class="brand" href="${home}"><img src="${assetPath('app_icon.png')}" alt="OpenCam" width="32" height="32">OpenCam</a><div class="nav-links"><a class="home-link" href="${home}">${language === 'zh-TW' ? '首頁' : 'Home'}</a><a class="guide-link" href="${guide}">${guideLabel}</a><a class="github-link" href="https://github.com/kaoshou/OpenCam" target="_blank" rel="noopener noreferrer">GitHub</a><a class="language-switch" href="${otherRoute}" data-language="${other}">${other === 'zh-TW' ? '繁體中文' : 'English'}</a></div></nav></header>
 <main id="main">${body}</main>
-<footer class="site-footer"><div class="container"><span>© OpenCam · 鄭郁翰 (Yu-Han Cheng)</span><a href="https://github.com/kaoshou/OpenCam">GitHub</a><a href="${guide}">${guideLabel}</a><a href="https://github.com/kaoshou/OpenCam/blob/master/LICENSE">${licenseLabel}</a></div></footer></body></html>`;
+<footer class="site-footer"><div class="container"><span>© OpenCam · 鄭郁翰 (Yu-Han Cheng)</span><a href="https://github.com/kaoshou/OpenCam">GitHub</a><a href="${guide}">${guideLabel}</a><a href="https://github.com/kaoshou/OpenCam/blob/master/LICENSE">${licenseLabel}</a></div></footer>
+<dialog id="image-lightbox" class="image-lightbox" aria-label="${previewLabel}" aria-describedby="image-lightbox-caption">
+<div class="lightbox-toolbar"><span>${previewLabel}</span><button type="button" data-lightbox-close><span aria-hidden="true">×</span> ${closeLabel}</button></div>
+<figure><img alt="${previewLabel}"><figcaption id="image-lightbox-caption"></figcaption></figure></dialog>
+</body></html>`;
 }
 
 export function renderEntry() {

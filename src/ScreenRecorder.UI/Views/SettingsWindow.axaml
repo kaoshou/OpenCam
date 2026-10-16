@@ -106,10 +106,6 @@
                                     <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding KeyName}" FontSize="11.5"/></DataTemplate></ComboBox.ItemTemplate>
                                 </ComboBox>
                             </Grid>
-                            <Grid ColumnDefinitions="*,Auto" Margin="0,2">
-                                <TextBlock Text="{Binding Strings[CountdownSetting]}" VerticalAlignment="Center" FontSize="12"/>
-                                <ComboBox Grid.Column="1" Width="100" ItemsSource="{Binding CountdownOptions}" SelectedItem="{Binding SelectedCountdownSeconds}"/>
-                            </Grid>
                             <!-- 開始 / 停止快捷鍵 -->
                             <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,2">
                                 <TextBlock Grid.Column="0" Text="{Binding Strings[HotkeyStartStopLabel]}" VerticalAlignment="Center" FontSize="12" Foreground="#334155" />
