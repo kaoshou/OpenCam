@@ -311,7 +311,7 @@ public class ActualRecordingIntegrationTests : IDisposable
     {
         var stateMachine = new RecordingStateMachine();
         var storageService = new StorageService();
-        var sessionStore = new JsonRecordingSessionStore();
+        var sessionStore = new FailOnceRecordingSessionStore();
         var diskMonitor = new DiskSpaceMonitor(storageService);
         var remuxer = new StreamCopyRemuxer();
         var probe = new MediaFileProbe();
@@ -348,11 +348,14 @@ public class ActualRecordingIntegrationTests : IDisposable
         Assert.NotNull(started);
 
         using var stackObserver = new DelayedHeartbeatStackObserver(() =>
-            orchestrator.CurrentSession?.LastHeartbeatTime <= started.LastHeartbeatTime);
+            sessionStore.LastPersistedHeartbeatTicks <= started.LastHeartbeatTime.UtcTicks);
         await Task.Delay(2500);
         var whileRecording = await sessionStore.LoadSessionAsync(sessionDirectory);
         Assert.NotNull(whileRecording);
-        Assert.True(whileRecording.LastHeartbeatTime > started.LastHeartbeatTime);
+        Assert.True(whileRecording.LastHeartbeatTime > started.LastHeartbeatTime,
+            $"Durable heartbeat did not advance; memory={orchestrator.CurrentSession?.LastHeartbeatTime:O}, " +
+            $"persisted={whileRecording.LastHeartbeatTime:O}; store events before cleanup:\n{string.Join("\n", sessionStore.Events)}\n" +
+            $"Scheduling diagnostics before cleanup:\n{string.Join("\n", _diagnostics.Entries)}");
 
         var (pauseSuccess, pauseError) = await orchestrator.PauseRecordingAsync();
         Assert.True(pauseSuccess, pauseError);
@@ -539,7 +542,7 @@ public class ActualRecordingIntegrationTests : IDisposable
         // Capture the Windows worker stacks when the first watchdog delay is late.
         // Keep the same fault, retry deadline and durable-save assertions.
         using var stackObserver = new DelayedHeartbeatStackObserver(() =>
-            orchestrator.CurrentSession?.LastHeartbeatTime <= started.LastHeartbeatTime);
+            sessionStore.LastPersistedHeartbeatTicks <= started.LastHeartbeatTime.UtcTicks);
         // Wait for a completed durable retry, not two nominal timer intervals.
         // Stop must not supply the successful save that satisfies this test.
         try { await sessionStore.SavedAfterFailure.Task.WaitAsync(TimeSpan.FromSeconds(20)); }
@@ -946,6 +949,8 @@ public class ActualRecordingIntegrationTests : IDisposable
         private readonly JsonRecordingSessionStore _inner = new();
         private int _failNextSave;
         private int _failureInjected;
+        private long _lastPersistedHeartbeatTicks;
+        public long LastPersistedHeartbeatTicks => Interlocked.Read(ref _lastPersistedHeartbeatTicks);
         public TaskCompletionSource SavedAfterFailure { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public System.Collections.Concurrent.ConcurrentQueue<string> Events { get; } = new();
         public void Trace(string message)
@@ -970,15 +975,22 @@ public class ActualRecordingIntegrationTests : IDisposable
             }
 
             var isRetry = Volatile.Read(ref _failureInjected) == 1;
+            var heartbeatTicks = session.LastHeartbeatTime.UtcTicks;
             await _inner.SaveSessionAsync(session, cancellationToken);
+            Interlocked.Exchange(ref _lastPersistedHeartbeatTicks, heartbeatTicks);
             Trace($"save persisted; isRetry={isRetry}");
             if (isRetry) SavedAfterFailure.TrySetResult();
         }
 
-        public Task<RecordingSession?> LoadSessionAsync(
+        public async Task<RecordingSession?> LoadSessionAsync(
             string sessionDirectory,
-            CancellationToken cancellationToken = default) =>
-            _inner.LoadSessionAsync(sessionDirectory, cancellationToken);
+            CancellationToken cancellationToken = default)
+        {
+            Trace("load entered");
+            var session = await _inner.LoadSessionAsync(sessionDirectory, cancellationToken);
+            Trace($"load completed; heartbeat={session?.LastHeartbeatTime:O}");
+            return session;
+        }
 
         public Task<IReadOnlyList<RecordingSession>> FindAllSessionsAsync(
             string rootRecordingsPath,
