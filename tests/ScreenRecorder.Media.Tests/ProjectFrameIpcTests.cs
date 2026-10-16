@@ -91,6 +91,8 @@ public partial class RecordingEncoderLifecycleTests
     [Fact]
     public async Task SlowMediaReaderDoesNotBlockStopAndTransfersAreSerialized()
     {
+        using var diagnostics = new MediaDiagnosticCapture();
+        var elapsed = System.Diagnostics.Stopwatch.StartNew();
         var name = SessionPipeNameFactory.Create(OperatingSystem.IsWindows());
         var key = AuthenticatedIpc.CreateKey();
         var calls = 0;
@@ -115,8 +117,11 @@ public partial class RecordingEncoderLifecycleTests
         var stop = await client.SendCommandAsync("StopProjectPreview", new ProjectRequest(), timeoutMs: 500);
         Assert.True(stop.Success, stop.ErrorMessage);
         Assert.Equal(1, Volatile.Read(ref calls));
+        var abandonedAt = elapsed.ElapsedMilliseconds;
         slow.Dispose(); // Abandoning the transfer releases its sole slot.
-        Assert.True((await next).Success);
+        var reply = await next;
+        Assert.True(reply.Success, $"Next frame failed: {reply.Error}; elapsedMs={elapsed.ElapsedMilliseconds}, " +
+            $"abandonedAtMs={abandonedAt}, calls={Volatile.Read(ref calls)}; server: {string.Join(" | ", diagnostics.Sink.Events)}");
         Assert.Equal(2, Volatile.Read(ref calls));
     }
 
