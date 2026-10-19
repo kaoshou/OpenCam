@@ -21,6 +21,8 @@ public class PreflightTrialTests
     [InlineData(AudioSourceType.SystemAndMicrophone, true, true)]
     public async Task TrialUsesCurrentEngineSamplesOnlyForSelectedInputs(AudioSourceType selection, bool microphone, bool system)
     {
+        using var diagnostics = new PreflightTrialTestDiagnostics();
+        var elapsed = System.Diagnostics.Stopwatch.StartNew();
         var root = Directory.CreateTempSubdirectory("OpenCam-trial-level-test-");
         var displays = new Displays();
         var executable = FFmpegDiscovery.FindFFmpegExecutable()!;
@@ -33,12 +35,23 @@ public class PreflightTrialTests
         {
             await session.StartAsync(new() { AudioSource = selection, Fps = 10 }, deadline.Token);
             while (!session.ReadStatus(DateTimeOffset.UtcNow).HasFrame) await Task.Delay(30, deadline.Token);
+            var checkingReadyMs = elapsed.Elapsed.TotalMilliseconds;
+            // Observe the trial transition independently of the scheduler under test.
+            // Existing CI-only helper uses bounded dotnet-stack output, not dumps.
+            using var observer = new DelayedHeartbeatStackObserver(() => Volatile.Read(ref trialEngine.Reads) == 0);
             using var cancel = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
             var recording = session.RecordTrialAsync(cancel.Token);
+            PreflightStatus? status = null;
+            double lastPollDelayMs = 0;
             try
             {
-                PreflightStatus status;
-                do { await Task.Delay(20, deadline.Token); status = session.ReadStatus(DateTimeOffset.UtcNow); }
+                do
+                {
+                    var poll = System.Diagnostics.Stopwatch.StartNew();
+                    await Task.Delay(20, deadline.Token);
+                    lastPollDelayMs = poll.Elapsed.TotalMilliseconds;
+                    status = session.ReadStatus(DateTimeOffset.UtcNow);
+                }
                 while (trialEngine.Reads == 0);
                 Assert.Equal(PreflightPhase.TrialRecording, status.Phase);
                 Assert.Equal(microphone ? PreflightSourceState.Live : PreflightSourceState.Disabled, status.Microphone.State);
@@ -53,6 +66,17 @@ public class PreflightTrialTests
                 status = session.ReadStatus(DateTimeOffset.UtcNow);
                 Assert.Equal(microphone ? PreflightSourceState.Waiting : PreflightSourceState.Disabled, status.Microphone.State);
                 Assert.Equal(system ? PreflightSourceState.Waiting : PreflightSourceState.Disabled, status.SystemAudio.State);
+            }
+            catch (Exception error)
+            {
+                ThreadPool.GetAvailableThreads(out var available, out _);
+                throw new Xunit.Sdk.XunitException($"{error}\nTrial diagnostics before cleanup: selection={selection}, " +
+                    $"elapsedMs={elapsed.Elapsed.TotalMilliseconds:R}, checkingReadyMs={checkingReadyMs:R}, " +
+                    $"lastPollDelayMs={lastPollDelayMs:R}, task={recording.Status}, phase={status?.Phase}, " +
+                    $"error={status?.ErrorCode}, reads={trialEngine.Reads}, running={trialEngine.IsRunning}, " +
+                    $"frames={trialEngine.CurrentFramesRecorded}, seconds={trialEngine.CurrentRecordedTime.TotalSeconds:R}, " +
+                    $"workers={ThreadPool.ThreadCount}, available={available}, pending={ThreadPool.PendingWorkItemCount}\n" +
+                    diagnostics.Snapshot());
             }
             finally { cancel.Cancel(); await Assert.ThrowsAnyAsync<OperationCanceledException>(() => recording); }
             var reads = trialEngine.Reads;
