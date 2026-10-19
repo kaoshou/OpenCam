@@ -125,7 +125,7 @@ public class PreflightDiagnosticsTests
         var id = Guid.NewGuid();
         var response = await dispatcher.DispatchAsync(new() { MessageType = "BeginPreflight",
             PayloadJson = JsonSerializer.Serialize(new PreflightRequest(id, Configuration: new())) });
-        Assert.True(response.Success);
+        Assert.True(response.Success, response.ErrorMessage);
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(3));
         PreflightReply reply;
         do

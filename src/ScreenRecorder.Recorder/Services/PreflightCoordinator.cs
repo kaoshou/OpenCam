@@ -76,8 +76,12 @@ public sealed class PreflightCoordinator(RecordingCaptureLease capture, Func<IPr
     public PreflightStatus ReadStatus(Guid operation, long revision)
     {
         var current = Require(operation, revision);
+        return Snapshot(current);
+    }
+    private static PreflightStatus Snapshot(Operation current)
+    {
         return current.Session.ReadStatus(DateTimeOffset.UtcNow) with
-        { OperationId = operation, ConfigurationRevision = current.Revision, Phase = current.Phase };
+        { OperationId = current.Id, ConfigurationRevision = current.Revision, Phase = current.Phase };
     }
     public ProjectFrameReply? ReadFrame(Guid operation, long revision)
     {
@@ -87,7 +91,9 @@ public sealed class PreflightCoordinator(RecordingCaptureLease capture, Func<IPr
     public PreflightStatus ReadCurrentStatus()
     {
         var current = Volatile.Read(ref _current);
-        return current is null ? PreflightStatus.Empty : ReadStatus(current.Id, current.Revision);
+        // Cleanup can clear _current after this read. Build from this same
+        // operation rather than looking it up again and rejecting our snapshot.
+        return current is null ? PreflightStatus.Empty : Snapshot(current);
     }
     public async Task RecordTrialAsync(Guid operation, long revision, CancellationToken ct)
     {
