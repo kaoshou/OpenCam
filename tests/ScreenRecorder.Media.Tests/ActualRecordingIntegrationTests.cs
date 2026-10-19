@@ -968,7 +968,14 @@ public class ActualRecordingIntegrationTests : IDisposable
             Trace($"save entered; failureInjected={Volatile.Read(ref _failureInjected)}");
             if (Interlocked.Exchange(ref _failNextSave, 0) == 1)
             {
-                await Task.Delay(failureDelayMs, cancellationToken);
+                var started = System.Diagnostics.Stopwatch.GetTimestamp();
+                var delay = Task.Delay(failureDelayMs, cancellationToken);
+                Trace($"fault-delay created; requestedMs={failureDelayMs}, " +
+                    $"context={SynchronizationContext.Current?.GetType().Name ?? "none"}, scheduler={TaskScheduler.Current.GetType().Name}");
+                using var delayProbe = new IndependentDelayProbe(delay, Trace);
+                await delay;
+                Trace($"fault-delay await resumed; elapsedMs={System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds:F1}, " +
+                    $"status={delay.Status}");
                 Interlocked.Exchange(ref _failureInjected, 1);
                 Trace("injecting save failure");
                 throw new IOException("Injected transient session-store failure");

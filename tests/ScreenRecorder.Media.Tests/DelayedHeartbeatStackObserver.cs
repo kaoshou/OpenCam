@@ -22,6 +22,7 @@ internal sealed class DelayedHeartbeatStackObserver : IDisposable
     private void Observe(string tool, Func<bool> heartbeatHasNotAdvanced)
     {
         if (_stop.Wait(5000) || !heartbeatHasNotAdvanced()) return;
+        var collectionStarted = Stopwatch.GetTimestamp();
         try
         {
             ThreadPool.GetAvailableThreads(out var available, out _);
@@ -32,6 +33,7 @@ internal sealed class DelayedHeartbeatStackObserver : IDisposable
             child.StartInfo.ArgumentList.Add("report");
             child.StartInfo.ArgumentList.Add("--process-id");
             child.StartInfo.ArgumentList.Add(Environment.ProcessId.ToString());
+            Serilog.Log.Debug("Independent heartbeat stack tool starting at {Timestamp}", DateTimeOffset.UtcNow);
             child.Start();
             // A separate synchronous waiter bounds the tool even when neither
             // timer nor ThreadPool continuation can currently run in testhost.
@@ -55,6 +57,11 @@ internal sealed class DelayedHeartbeatStackObserver : IDisposable
             finally { deadline.Join(); }
         }
         catch (Exception ex) { Serilog.Log.Debug(ex, "Delayed heartbeat stack collection failed"); }
+        finally
+        {
+            Serilog.Log.Debug("Independent heartbeat stack tool finished at {Timestamp}; elapsedMs={ElapsedMs}",
+                DateTimeOffset.UtcNow, Stopwatch.GetElapsedTime(collectionStarted).TotalMilliseconds);
+        }
     }
 
     public void Dispose()

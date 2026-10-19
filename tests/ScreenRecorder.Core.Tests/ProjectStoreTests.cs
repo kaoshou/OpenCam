@@ -6,6 +6,7 @@ using ScreenRecorder.Infrastructure.Projects;
 
 namespace ScreenRecorder.Core.Tests;
 
+[Collection("Process spawning")]
 public sealed class ProjectStoreTests : IDisposable
 {
     [Fact]
