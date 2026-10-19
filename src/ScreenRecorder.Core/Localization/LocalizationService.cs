@@ -475,6 +475,8 @@ public class LocalizationService : ILocalizationService
 
         // 系統托盤與偏好設定
         ["MinimizeOnRecord"] = "開始錄影時自動最小化視窗",
+        ["RecordingPreflightSetting"] = "錄製前進行檢查（建議開啟）",
+        ["RecordingPreflightSettingHelp"] = "預設開啟。關閉後，開始、續錄或插入錄製將跳過檢查視窗；請先確認錄影範圍與錄音來源。必要的權限與錄影安全檢查仍會執行。",
         ["MicrophoneSilenceReminderSetting"] = "麥克風持續無聲時提醒（預設開啟）",
         ["MicrophoneSilenceReminderHelp"] = "已開啟麥克風錄製且連續 30 秒無聲時提示；不會暫停或停止錄影。有聲後自動收起。無法排除擷取時僅在程式內顯示。",
         ["MicrophoneSilenceReminderTitle"] = "麥克風持續無聲",
@@ -982,6 +984,8 @@ public class LocalizationService : ILocalizationService
 
         // 系統托盤與偏好設定
         ["MinimizeOnRecord"] = "Minimize window when recording starts",
+        ["RecordingPreflightSetting"] = "Check before recording (recommended)",
+        ["RecordingPreflightSettingHelp"] = "On by default. Turn off to skip the check window when starting, resuming or inserting a recording. Verify the capture area and audio sources yourself; required permissions and recording safety checks still apply.",
         ["MicrophoneSilenceReminderSetting"] = "Warn when the microphone stays silent (on by default)",
         ["MicrophoneSilenceReminderHelp"] = "Warn after 30 seconds of silence while recording the microphone. Recording continues; the warning clears when sound returns. If capture exclusion is unavailable, show only in the app.",
         ["MicrophoneSilenceReminderTitle"] = "Microphone has been silent",

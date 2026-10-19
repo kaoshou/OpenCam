@@ -176,6 +176,13 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider
     }
 
     public string BuildOutputArguments(RecordingConfiguration config, HardwareEncoderType encoderType, string outputPath)
+        => BuildOutputArguments(config, encoderType, outputPath, livePreview: false);
+
+    public string BuildLivePreviewOutputArguments(RecordingConfiguration config, HardwareEncoderType encoderType, string outputPath)
+        => BuildOutputArguments(config, encoderType, outputPath, livePreview: true);
+
+    private static string BuildOutputArguments(RecordingConfiguration config, HardwareEncoderType encoderType,
+        string outputPath, bool livePreview)
     {
         var args = new List<string>();
 
@@ -198,6 +205,7 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider
             args.Add("-preset fast");
             args.Add("-pix_fmt yuv420p");
             args.Add($"-crf {config.VideoQualityValue}");
+            if (livePreview) args.Add("-tune zerolatency -bf 0");
         }
 
         if (config.AudioSource != AudioSourceType.None ||
@@ -207,7 +215,7 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider
                 $"-c:a aac -ar 48000 -ac 2 -b:a {config.AudioBitrateKbps}k");
         }
 
-        args.Add("-flush_packets 1 -cluster_time_limit 1000 -f matroska");
+        args.Add($"-flush_packets 1 -cluster_time_limit {(livePreview ? 100 : 1000)} -f matroska");
         args.Add($"\"{outputPath}\"");
 
         return string.Join(" ", args);

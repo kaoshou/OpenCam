@@ -74,7 +74,7 @@ public class Program
             await using var preflight = new PreflightCoordinator(serviceProvider.GetRequiredService<RecordingCaptureLease>(), () =>
             {
                 if (mediaExecutable is null) throw new FileNotFoundException("FFmpeg unavailable.");
-                var live = new PreflightLiveSession(() => preflightFactory.Create(), displayService, mediaExecutable,
+                var live = new PreflightLiveSession(() => preflightFactory.Create(livePreview: true), displayService, mediaExecutable,
                     PreflightAudioIdentity.Read);
                 return previewDecoder is null ? live : new PreflightTrialSession(live,
                     (encoder, capture) => preflightFactory.Create(encoder, capture), () => new(), previewDecoder);

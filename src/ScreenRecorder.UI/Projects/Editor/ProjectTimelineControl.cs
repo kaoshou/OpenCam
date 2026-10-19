@@ -31,6 +31,7 @@ public sealed class ProjectTimelineControl : Control
     {
         Focusable = true;
         ClipToBounds = true;
+        ToolTip.SetPlacement(this, PlacementMode.Pointer);
         DataContextChanged += (_, _) => Bind();
         AttachedToVisualTree += (_, _) => Bind();
         DetachedFromVisualTree += (_, _) => { CancelGesture(); if (_model is not null) _model.PropertyChanged -= Changed; _model = null; };
@@ -165,6 +166,7 @@ public sealed class ProjectTimelineControl : Control
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
+        HideBookmarkTooltip();
         if (_model is not { CanEditTimeline: true, DurationTicks: > 0 } vm || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
         Focus();
         var point = e.GetPosition(this);
@@ -191,8 +193,31 @@ public sealed class ProjectTimelineControl : Control
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
+        if (_pointer is null)
+        {
+            var point = e.GetPosition(this);
+            var bookmark = _model?.Bookmarks.FirstOrDefault(b => b.TimelineTicks is long t &&
+                X(t) >= 16 && X(t) <= Bounds.Width - 16 &&
+                new Rect(X(t) - 5, 32, 14, 12).Contains(point));
+            if (bookmark is null) HideBookmarkTooltip();
+            else
+            {
+                ToolTip.SetTip(this, bookmark.Name);
+                ToolTip.SetIsOpen(this, true);
+            }
+        }
         if (_pointer != e.Pointer) return;
         UpdateGesture(e.GetPosition(this));
+    }
+    protected override void OnPointerExited(PointerEventArgs e)
+    {
+        base.OnPointerExited(e);
+        HideBookmarkTooltip();
+    }
+    private void HideBookmarkTooltip()
+    {
+        ToolTip.SetIsOpen(this, false);
+        ToolTip.SetTip(this, null);
     }
     private void UpdateGesture(Point point)
     {
@@ -256,6 +281,7 @@ public sealed class ProjectTimelineControl : Control
     }
     private void CancelGesture()
     {
+        HideBookmarkTooltip();
         var seeking = _seeking;
         var pointer = _pointer; _pointer = null;
         _movingClip = null; _beforeClip = null; _dragging = false; _seeking = false;

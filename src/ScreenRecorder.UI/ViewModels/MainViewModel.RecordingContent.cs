@@ -15,6 +15,17 @@ public partial class MainViewModel
     public bool UsesRecordingContent => _content is not null;
     public Func<string, Task<string?>>? RequestRecordingProjectName { get; set; }
     public Func<ScreenRecorder.Core.Models.RecordingConfiguration, bool, Task<ScreenRecorder.Core.Models.RecordingConfiguration?>>? RequestRecordingPreflight { get; set; }
+
+    private Task<ScreenRecorder.Core.Models.RecordingConfiguration?> CheckBeforeRecordingAsync(
+        ScreenRecorder.Core.Models.RecordingConfiguration configuration, bool resuming)
+    {
+        // Skip only the optional UI check. Permission, recorder ownership, output
+        // validation and the actual start acknowledgement remain on the normal path.
+        if (!_recordingPreflightEnabled)
+            return Task.FromResult<ScreenRecorder.Core.Models.RecordingConfiguration?>(configuration);
+        return RequestRecordingPreflight?.Invoke(configuration, resuming)
+            ?? Task.FromResult<ScreenRecorder.Core.Models.RecordingConfiguration?>(null);
+    }
     internal Task<ScreenRecorder.Infrastructure.IPC.IpcResponse> SendPreflightCommandAsync(string command,
         ScreenRecorder.Infrastructure.IPC.PreflightRequest request, CancellationToken ct) =>
         _ipcClient.SendCommandAsync(command, request, cancellationToken: ct);
@@ -214,8 +225,8 @@ public partial class MainViewModel
             }
             await _ensureContentRecorder!();
             if (!await vm.StopPreviewAsync() || !await vm.ResolveUnsavedAsync()) return;
-            var checkedConfiguration = RequestRecordingPreflight is null ? null :
-                await RequestRecordingPreflight(configuration, !newContent && insertionTicks is null && vm.State.Mode == ProjectMode.Paused);
+            var checkedConfiguration = await CheckBeforeRecordingAsync(configuration,
+                !newContent && insertionTicks is null && vm.State.Mode == ProjectMode.Paused);
             if (checkedConfiguration is null) return;
             configuration = checkedConfiguration;
             ApplyPreflightAudioSelection(configuration);

@@ -45,8 +45,8 @@ export const content = {
       ['06', '修復救援', '意外中斷後，可嘗試救回已寫入的 MKV 錄影片段。'],
       ['07', '網頁播放器輸出', '包含多語字幕、章節起始與長度、音量、速度、寬螢幕和全螢幕；可離線開啟或整包上傳網站。'],
       ['08', '逐字稿搜尋', '搜尋已附加字幕，標示關鍵字並跳到該時間；可跟隨播放或自由閱讀，清單限高捲動。'],
-      ['09', '錄前確認與試錄', '確認範圍與已勾選音源；五秒試錄可看即時音量並回放，未勾選來源明確顯示不會錄製。試錄不加入正式專案。'],
-      ['10', '快捷鍵標記重點', '錄影時按按鈕或自訂快捷鍵，編輯器可定位、改名與刪除重點；不改寫原始影片。']
+      ['09', '錄前確認與試錄', '檢查預設開啟，可在設定關閉。即時預覽減少緩衝；五秒試錄可看已勾選音源的即時音量並回放，不加入專案。實際延遲依設備而定。'],
+      ['10', '快捷鍵標記重點', '錄影時按按鈕或自訂快捷鍵；編輯器可定位、改名與刪除，滑鼠停在紫色旗標可查看完整名稱，不改寫原始影片。']
     ],
     processEyebrow: '錄影機制', processTitle: '先保留錄影，再交付 MP4。',
     processText: '錄影先寫入 MKV，專案保留原始素材與剪輯決策。相容的完整片段可保留影片直接封裝或串接，必要時僅處理音訊；缺少影格長度資訊時，會先核對時間戳與尾端間隔。裁剪、效果或無法確認的素材會重新編碼。介面顯示實際處理階段，封裝後仍需校驗，輸出時間依內容而定。',
@@ -88,8 +88,8 @@ export const content = {
       ['06', 'Crash Recovery', 'After an interruption, attempt to salvage MKV segments already written.'],
       ['07', 'Web player export', 'Package multilingual captions, chapters, volume, speed, wide-screen and fullscreen controls. Open offline or upload the entire folder.'],
       ['08', 'Transcript search', 'Search attached captions, highlight matches and jump to their timestamps. Follow playback or read freely in a bounded scrolling list.'],
-      ['09', 'Preflight and trial recording', 'Check bounds and selected inputs, with live levels during a five-second trial and replay afterward. Unselected inputs explicitly will not be recorded. Trials never enter the project.'],
-      ['10', 'Bookmark with a shortcut', 'Add recording bookmarks using a button or configurable shortcut, then seek, rename or remove them in the editor without rewriting video.']
+      ['09', 'Preflight and trial recording', 'Default-on checks can be disabled in Settings. Live preview reduces buffering; five-second trials show selected-input levels and support replay without entering the project. Device latency varies.'],
+      ['10', 'Bookmark with a shortcut', 'Add bookmarks with a button or configurable shortcut; seek, rename or remove them in the editor. Hover over purple timeline flags for full names without rewriting video.']
     ],
     processEyebrow: 'How recording works', processTitle: 'Preserve first. Deliver MP4 afterward.',
     processText: 'Recordings are written to MKV; projects retain source media and editing decisions. Compatible whole segments preserve video through packaging or joining, processing only audio when needed. Missing video durations require ordered timestamps and a checked final interval. Trims, effects or uncertain sources retain re-encoding. The interface shows the actual stage; packaging still needs verification, and export time depends on the content.',

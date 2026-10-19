@@ -87,6 +87,7 @@ public partial class MainViewModel : ObservableObject
 
     public ISettingsService SettingsService => _settingsService;
     private bool _openFolderOnFinished = false;
+    private bool _recordingPreflightEnabled = true;
     private bool _deleteWorkingFileAfterRemux = false;
     private uint _startStopHotkeyModifiers = 0;
     private string _startStopHotkeyKey = "F9";
@@ -947,6 +948,7 @@ public partial class MainViewModel : ObservableObject
         try
         {
             var s = await _settingsService.LoadSettingsAsync();
+            _recordingPreflightEnabled = s.RecordingPreflightEnabled;
             RecentProjectPaths = (s.RecentProjectPaths ?? []).Where(p => !string.IsNullOrWhiteSpace(p)).Distinct().Take(20).ToList();
             SelectedFps = s.Fps;
             RecordSystemAudio = SupportsSystemAudio && s.RecordSystemAudio;
@@ -1143,6 +1145,7 @@ public partial class MainViewModel : ObservableObject
                 RegionHeight = RegionHeight,
                 CustomOutputDirectory = OutputDirectory,
                 MinimizeOnRecord = MinimizeOnRecord,
+                RecordingPreflightEnabled = _recordingPreflightEnabled,
                 MicrophoneSilenceReminderEnabled = MicrophoneSilenceReminderEnabled,
                 StartStopHotkeyModifiers = _startStopHotkeyModifiers,
                 StartStopHotkeyKey = _startStopHotkeyKey,
@@ -1167,6 +1170,7 @@ public partial class MainViewModel : ObservableObject
 
     public void ApplyNewSettings(UserSettings newSettings)
     {
+        _recordingPreflightEnabled = newSettings.RecordingPreflightEnabled;
         _startStopHotkeyModifiers = newSettings.StartStopHotkeyModifiers;
         _startStopHotkeyKey = newSettings.StartStopHotkeyKey;
         _pauseResumeHotkeyModifiers = newSettings.PauseResumeHotkeyModifiers;
@@ -1345,7 +1349,7 @@ public partial class MainViewModel : ObservableObject
             _diskWarningThresholdGb,
             _diskCriticalThresholdMb);
             _activeDiskWarningThresholdBytes = config.DiskWarningThresholdBytes;
-            var checkedConfiguration = RequestRecordingPreflight is null ? null : await RequestRecordingPreflight(config, false);
+            var checkedConfiguration = await CheckBeforeRecordingAsync(config, false);
             if (checkedConfiguration is null) return;
             config = checkedConfiguration;
             ApplyPreflightAudioSelection(config);
@@ -1432,8 +1436,7 @@ public partial class MainViewModel : ObservableObject
             try
             {
                 StatusMessage = Strings["StatusResuming"];
-                var checkedConfiguration = RequestRecordingPreflight is null ? null :
-                    await RequestRecordingPreflight(BuildProjectConfiguration(), true);
+                var checkedConfiguration = await CheckBeforeRecordingAsync(BuildProjectConfiguration(), true);
                 if (checkedConfiguration is null) return;
                 ApplyPreflightAudioSelection(checkedConfiguration);
 

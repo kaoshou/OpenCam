@@ -33,4 +33,10 @@ public interface IFFmpegPlatformProvider
         RecordingConfiguration config,
         HardwareEncoderType encoderType,
         string workingFilePath);
+
+    // Explicitly opt in for disposable live preview only. Providers without a
+    // specialized profile retain their normal encoder and output behavior.
+    string BuildLivePreviewOutputArguments(RecordingConfiguration config,
+        HardwareEncoderType encoderType, string outputPath) =>
+        BuildOutputArguments(config, encoderType, outputPath);
 }

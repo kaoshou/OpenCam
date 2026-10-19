@@ -12,6 +12,7 @@
 ## Recordings & Test Output
 Recordings/
 TestResults/
+test-results/
 *.mkv
 *.mp4
 

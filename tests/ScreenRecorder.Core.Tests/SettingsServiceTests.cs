@@ -25,6 +25,21 @@ public class SettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task PreflightPreferenceDefaultsOnForOldSettingsAndPersistsExplicitOptOut()
+    {
+        var service = new SettingsService(_tempFile);
+        await File.WriteAllTextAsync(_tempFile, "{\"Fps\":60}");
+        var oldSettings = await service.LoadSettingsAsync();
+        var defaults = System.Text.Json.JsonSerializer.SerializeToElement(oldSettings);
+        Assert.True(defaults.TryGetProperty("RecordingPreflightEnabled", out var enabled), "Old settings must default to preflight on.");
+        Assert.True(enabled.GetBoolean());
+        var optedOut = System.Text.Json.JsonSerializer.Deserialize<UserSettings>("{\"RecordingPreflightEnabled\":false}")!;
+        await service.SaveSettingsAsync(optedOut);
+        var reloaded = System.Text.Json.JsonSerializer.SerializeToElement(await service.LoadSettingsAsync());
+        Assert.False(reloaded.GetProperty("RecordingPreflightEnabled").GetBoolean());
+    }
+
+    [Fact]
     public async Task LoadSettings_WhenFileDoesNotExist_ShouldReturnDefaultSettings()
     {
         var service = new SettingsService(_tempFile);

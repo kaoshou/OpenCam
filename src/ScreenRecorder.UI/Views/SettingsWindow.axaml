@@ -227,6 +227,11 @@
                             <CheckBox IsChecked="{Binding MinimizeOnRecord}" Margin="0,2">
                                 <TextBlock Text="{Binding Strings[MinimizeOnRecord]}" FontSize="12" Foreground="#334155" TextWrapping="Wrap" />
                             </CheckBox>
+                            <CheckBox x:Name="RecordingPreflightToggle" IsChecked="{Binding RecordingPreflightEnabled}" Margin="0,2">
+                                <TextBlock Text="{Binding Strings[RecordingPreflightSetting]}" FontSize="12" Foreground="#334155" TextWrapping="Wrap" />
+                            </CheckBox>
+                            <TextBlock Text="{Binding Strings[RecordingPreflightSettingHelp]}" Margin="24,0,0,0"
+                                       FontSize="11" Foreground="#64748B" TextWrapping="Wrap" />
                             <CheckBox IsChecked="{Binding MicrophoneSilenceReminderEnabled}" Margin="0,2">
                                 <TextBlock Text="{Binding Strings[MicrophoneSilenceReminderSetting]}" FontSize="12" Foreground="#334155" TextWrapping="Wrap" />
                             </CheckBox>

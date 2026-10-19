@@ -1,5 +1,11 @@
 # OpenCam Complete User Guide (English)
 
+## v0.3.9 preflight preference and bookmark tooltips
+
+Recording preflight is enabled by default in Settings. Disable it to proceed directly to normal recording preparation; permissions, output validation and actual recording-start acknowledgement remain in place. Live preflight preview uses lower-buffering encoding/container settings, without changing saved recordings or five-second trials. Preview update frequency is unchanged; device latency may vary.
+
+Hover over a purple timeline bookmark flag to see its full name. Moving away hides it, while clicking still seeks to the bookmark. Source video remains unchanged.
+
 ## v0.3.8 microphone silence reminder
 
 “Warn when the microphone stays silent” is enabled by default in Settings. While recording the microphone, 30 seconds of continuously observed silence triggers an advisory, independently of system audio. Sound returning, pause, stop, disabling the microphone or disabling reminders clears it and resets the interval. Missing level telemetry is not silence; the existing unavailable indicator still applies.
@@ -42,7 +48,7 @@ Change capture mode only while idle, not while paused. Existing audio/cursor con
 
 OpenCam lets you record, edit, and resume recording. It writes MKV sources, retains them alongside a reopenable editing project, and exports MP4 when needed. Crash Recovery can attempt to preserve successfully written recordings; project recovery drafts protect interrupted unsaved edits.
 
-> This guide covers OpenCam v0.3.8, not a claim of completed acceptance. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending. Complete corresponding-source verification for Windows FFmpeg also remains pending, and packages are unsigned. Use disposable media; see the [release notes and limitations](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.3.8.md).
+> This guide covers OpenCam v0.3.9, not a claim of completed acceptance. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending. Complete corresponding-source verification for Windows FFmpeg also remains pending, and packages are unsigned. Use disposable media; see the [release notes and limitations](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.3.9.md).
 
 v0.3.3 replaces manual export with an **Export…** menu offering MP4 video or Web player. MP4 accepts a filename; Web player creates a unique folder containing index.html, media.mp4 and opencam-player.js. Chapters follow saved clips and show start times and durations in a scrollable index. Overlay controls provide seeking, volume, speed, wide-screen and fullscreen. Move the complete folder together and use an H.264/AAC-capable browser. See [the web export format](https://github.com/kaoshou/OpenCam/blob/master/docs/WEB_PLAYER_EXPORT.md).
 

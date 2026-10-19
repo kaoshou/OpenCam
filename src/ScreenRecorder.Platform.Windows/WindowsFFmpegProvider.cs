@@ -129,6 +129,13 @@ public class WindowsFFmpegProvider : IFFmpegPlatformProvider
     }
 
     public string BuildOutputArguments(RecordingConfiguration config, HardwareEncoderType encoderType, string workingFilePath)
+        => BuildOutputArguments(config, encoderType, workingFilePath, livePreview: false);
+
+    public string BuildLivePreviewOutputArguments(RecordingConfiguration config, HardwareEncoderType encoderType, string outputPath)
+        => BuildOutputArguments(config, encoderType, outputPath, livePreview: true);
+
+    private static string BuildOutputArguments(RecordingConfiguration config, HardwareEncoderType encoderType,
+        string workingFilePath, bool livePreview)
     {
         var quality = config.VideoQualityValue;
         var vCodec = encoderType switch
@@ -138,14 +145,17 @@ public class WindowsFFmpegProvider : IFFmpegPlatformProvider
             HardwareEncoderType.AmdAmf => $"-c:v h264_amf -quality speed -rc cqp -qp_p {quality} -pix_fmt yuv420p",
             _ => $"-c:v libx264 -preset veryfast -crf {quality} -pix_fmt yuv420p"
         };
+        if (livePreview && encoderType is not (HardwareEncoderType.NvidiaNvenc or HardwareEncoderType.IntelQsv or HardwareEncoderType.AmdAmf))
+            vCodec += " -tune zerolatency -bf 0";
+        var clusterMs = livePreview ? 100 : 1000;
 
         if (config.AudioSource == AudioSourceType.None &&
             !config.MaintainSegmentAudioTrack)
         {
-            return $"{vCodec} -flush_packets 1 -cluster_time_limit 1000 -f matroska \"{workingFilePath}\"";
+            return $"{vCodec} -flush_packets 1 -cluster_time_limit {clusterMs} -f matroska \"{workingFilePath}\"";
         }
 
         return $"{vCodec} -c:a aac -ar 48000 -ac 2 -b:a {config.AudioBitrateKbps}k " +
-               $"-flush_packets 1 -cluster_time_limit 1000 -f matroska \"{workingFilePath}\"";
+               $"-flush_packets 1 -cluster_time_limit {clusterMs} -f matroska \"{workingFilePath}\"";
     }
 }

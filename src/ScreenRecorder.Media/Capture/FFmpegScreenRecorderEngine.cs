@@ -49,6 +49,7 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
     private Stream? _systemPcm;
     private Stream? _microphonePcm;
     private readonly IFFmpegPlatformProvider _ffmpegPlatformProvider;
+    private readonly bool _livePreviewOutput;
     private readonly ISystemAudioLoopbackCapture? _systemAudioLoopbackCapture;
     private readonly IMicrophoneCapture? _microphoneCapture;
     private readonly IMicrophoneLevelObserver? _microphoneLevelObserver;
@@ -133,9 +134,11 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
         IEncoderSelectionService? encoderSelectionService = null,
         HardwareEncoderType? pinnedEncoder = null,
         ICapturePlanProvider? capturePlanProvider = null,
-        CaptureSelection? pinnedCapture = null)
+        CaptureSelection? pinnedCapture = null,
+        bool livePreviewOutput = false)
     {
         _ffmpegPlatformProvider = ffmpegPlatformProvider ?? throw new ArgumentNullException(nameof(ffmpegPlatformProvider));
+        _livePreviewOutput = livePreviewOutput;
         _systemAudioLoopbackCapture = systemAudioLoopbackCapture;
         _microphoneCapture = microphoneCapture;
         _microphoneLevelObserver = microphoneLevelObserver;
@@ -183,6 +186,8 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
         CaptureRegion actualBounds,
         CancellationToken cancellationToken)
     {
+        if (_livePreviewOutput && OutputStream is null)
+            throw new InvalidOperationException("Live preview requires a bound streaming output.");
         _systemPcm = null;
         _microphonePcm = null;
         _systemLevelActive = false;
@@ -409,7 +414,10 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
                 hasDirectShowMic,
                 systemAudioPipeArg,
                 microphoneAudioPipeArg);
-            var outputArgs = _ffmpegPlatformProvider.BuildOutputArguments(config, encoderType, OutputStream is null ? workingFilePath : "pipe:1");
+            var outputPath = OutputStream is null ? workingFilePath : "pipe:1";
+            var outputArgs = _livePreviewOutput
+                ? _ffmpegPlatformProvider.BuildLivePreviewOutputArguments(config, encoderType, outputPath)
+                : _ffmpegPlatformProvider.BuildOutputArguments(config, encoderType, outputPath);
             // Each attempt has its own fresh path. Refuse overwrite even if a
             // file appears after the caller's existence check.
             // FFmpeg's interactive stats use carriage-return updates on some
