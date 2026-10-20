@@ -76,6 +76,10 @@ public class DirectPreflightTests
     [InlineData(true, AudioSourceType.SystemAndMicrophone)]
     public async Task LiveOutputCanBeDisplayedWithoutAContainerOrDecoder(bool mac, AudioSourceType audio)
     {
+        using var diagnostics = new PreflightTrialTestDiagnostics();
+        var elapsed = System.Diagnostics.Stopwatch.StartNew();
+        double? startupMs = null, stoppedMs = null;
+        long? finalBytes = null;
         IFFmpegPlatformProvider provider = mac ? new MacOsFFmpegProvider() : new WindowsFFmpegProvider();
         using var output = new MemoryStream();
         await using var engine = new FFmpegScreenRecorderEngine(provider,
@@ -83,14 +87,33 @@ public class DirectPreflightTests
             pinnedEncoder: HardwareEncoderType.SoftwareCpu, livePreviewOutput: true)
             { UseSyntheticCaptureSource = true, OutputStream = output };
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        await engine.StartRecordingAsync("unused.mkv", new() { AudioSource = audio, Fps = 10 },
-            new(0, 0, 128, 72), deadline.Token);
-        await engine.StopRecordingAsync(deadline.Token);
-        var bytes = output.ToArray();
-        Assert.True(bytes.Length >= 960 * 540 * 4);
-        Assert.Equal(0, bytes.Length % (960 * 540 * 4));
-        Assert.All(Enumerable.Range(0, 960 * 540).Select(i => bytes[i * 4 + 3]), alpha => Assert.Equal(255, alpha));
-        Assert.Contains(Enumerable.Range(0, 960 * 540), i => bytes[i * 4] > 32 || bytes[i * 4 + 1] > 32 || bytes[i * 4 + 2] > 32);
-        Assert.False(engine.IsRunning);
+        try
+        {
+            await engine.StartRecordingAsync("unused.mkv", new() { AudioSource = audio, Fps = 10 },
+                new(0, 0, 128, 72), deadline.Token);
+            startupMs = elapsed.Elapsed.TotalMilliseconds;
+            await engine.StopRecordingAsync(deadline.Token);
+            stoppedMs = elapsed.Elapsed.TotalMilliseconds;
+            var bytes = output.ToArray();
+            finalBytes = bytes.LongLength;
+            Assert.True(bytes.Length >= 960 * 540 * 4);
+            Assert.Equal(0, bytes.Length % (960 * 540 * 4));
+            Assert.All(Enumerable.Range(0, 960 * 540).Select(i => bytes[i * 4 + 3]), alpha => Assert.Equal(255, alpha));
+            Assert.Contains(Enumerable.Range(0, 960 * 540), i => bytes[i * 4] > 32 || bytes[i * 4 + 1] > 32 || bytes[i * 4 + 2] > 32);
+            Assert.False(engine.IsRunning);
+        }
+        catch (Exception error)
+        {
+            // Preserve the failure before Dispose performs another stop. Do not
+            // inspect the MemoryStream while its producer may still be writing.
+            ThreadPool.GetAvailableThreads(out var available, out _);
+            throw new Xunit.Sdk.XunitException($"{error}\nDirect preview diagnostics before cleanup: " +
+                $"macProvider={mac}, audio={audio}, elapsedMs={elapsed.Elapsed.TotalMilliseconds:R}, " +
+                $"startupMs={startupMs:R}, stoppedMs={stoppedMs:R}, stopMs={stoppedMs - startupMs:R}, " +
+                $"deadlineCanceled={deadline.IsCancellationRequested}, bytes={finalBytes}, " +
+                $"frames={engine.CurrentFramesRecorded}, seconds={engine.CurrentRecordedTime.TotalSeconds:R}, " +
+                $"running={engine.IsRunning}, workers={ThreadPool.ThreadCount}, available={available}, " +
+                $"pending={ThreadPool.PendingWorkItemCount}\n{diagnostics.Snapshot()}");
+        }
     }
 }
