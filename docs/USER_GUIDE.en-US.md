@@ -1,8 +1,8 @@
 # OpenCam Complete User Guide (English)
 
-## v0.3.10 direct preview and trial phases
+## Unreleased development change: audio-only preflight
 
-Recording preflight is enabled by default in Settings. Disable it to proceed directly to normal recording preparation; permissions, output validation and actual recording-start acknowledgement remain in place. Live preview receives aspect-fitted raw frames at a target 10 FPS, keeping only the latest complete picture without video encoding, packaging or a second decoder. A quiet range note explains that preview is delayed and intended to confirm the capture area. Actual speed depends on hardware and load; saved recording and trial pipelines remain unchanged.
+This section describes unreleased development changes; published v0.3.10 still has direct video preview. Preflight remains enabled by default in Settings, but now checks audio only, without screen capture or preview. Disabled checks or no selected inputs bypass audio checking while retaining formal preparation, permissions, project/output validation and actual start acknowledgement. Formal video encoding and audio recording pipelines are unchanged.
 
 Hover over a purple timeline bookmark flag to see its full name. Moving away hides it, while clicking still seeks to the bookmark. Source video remains unchanged.
 
@@ -20,13 +20,15 @@ While recording, choose **Add bookmark** or use Ctrl+Shift+M, configurable in Se
 
 The editor's **Bookmarks** menu provides a scrollable list with seek, rename and delete; purple timeline flags follow retained source content. Bookmarks save automatically to `opencam-bookmarks.json` inside the project, without rewriting video, upgrading the manifest or adding Web chapters. Rename/delete are outside clip Undo/Redo. Trimmed locations hide their flags and reappear when clips are restored; — means unresolved or trimmed. Keep the entire project folder. Older versions do not offer bookmark operations.
 
-## v0.3.8 recording preflight
+## Audio checking (unreleased development change)
 
 Preflight and trials monitor only the inputs selected on the main window. Unselected inputs explicitly say they will not be recorded, without meters or prompts to speak/play sound. Return to the main window to enable an input. Selected inputs show current levels from the trial engine during the five-second trial. Live monitoring stops on completion or replay. Missing or stale samples do not prove successful capture; replay the trial to verify sound.
 
-New recordings, appended recordings and editor insertions first resolve the project name and unsaved changes, then show **Before you record**. Check the recording area and the separate microphone/system-audio meters. Speak and play some system sound, then select **Confirm and record** without extra checkboxes. Silent or disabled audio shows a notice; waiting/unreadable input still blocks recording. Fix the device/permission or disable that input and recheck. The preview area shows loading and trial messages; when the trial is ready, select **Play trial** to check picture and sound.
+New recordings, appended recordings and editor insertions first resolve the project name and unsaved changes, then show separate microphone/system-audio meters. Speak and play some system sound, then select **Confirm and record** without extra checkboxes. Silent or disabled audio shows a notice; waiting/unreadable input still blocks recording. Fix the device/permission or disable that input and recheck. A separate status area below the source cards replaces the black video-preview area.
 
-Live checking starts actual capture without saving video; direct preview does not replace a trial of the saved encoder path. **Record5s** first shows “Starting trial recording, please wait…”. Recording status and the five-second timer start after engine acknowledgement, followed by preparing playback. The trial creates a private temporary MKV for **Play trial**, never a formal clip or project session. Monitoring stops during replay so output cannot validate its own input. The temporary MKV can include encoder-initialization frames; playback selects only its final five seconds recorded after startup acknowledgement. Listening to a mixed track does not replace checking the independent meters. After replay, select **Check again** before starting formal recording.
+Live checking activates selected audio inputs without saving a file. A five-second trial shows startup first, counts only after audio acknowledgement, then prepares and verifies playback. Its private temporary PCM-audio MKV contains no video track and never enters the project. It does not validate screen capture or the video encoder. Replay uses the final five seconds after startup, with input monitoring stopped so replay cannot validate its own input. Listening to the mixed track does not replace independent meters. Select **Check again** after replay before formal recording.
+
+Confirmation first stops audio checking and releases devices. The same window becomes a compact formal-preparation area until actual recording acknowledgement. Unknown startup remains protected against duplicate starts or false cancellation, while the main window's Stop/safety controls remain accessible. A confirmed failure can be dismissed; inspect the error on the main window.
 
 Cancel/close stops owned capture/playback and cleans the trial. Unconfirmed shutdown blocks formal recording; cleanup never recursively deletes unexpected files. An unchanged paused recording can resume directly; changed configuration or display/audio-device identity requires another check. A preflight reflects current conditions, not a guarantee against later unplugging, permission changes or long-recording faults. Windows/macOS physical-device validation remains required.
 

@@ -45,7 +45,7 @@ export const content = {
       ['06', '修復救援', '意外中斷後，可嘗試救回已寫入的 MKV 錄影片段。'],
       ['07', '網頁播放器輸出', '包含多語字幕、章節起始與長度、音量、速度、寬螢幕和全螢幕；可離線開啟或整包上傳網站。'],
       ['08', '逐字稿搜尋', '搜尋已附加字幕，標示關鍵字並跳到該時間；可跟隨播放或自由閱讀，清單限高捲動。'],
-      ['09', '錄前確認與試錄', '檢查預設開啟，可在設定關閉。預覽直接顯示縮小影格，僅供確認範圍；試錄區分啟動、錄製與準備回放，五秒從確認啟動開始計時。可看已勾選音源音量並回放，不加入專案。實際延遲依設備而定。'],
+      ['09', '錄前聲音確認', '未發布開發版：只檢查已選音源，提供五秒純音訊試錄與回放，不擷取畫面或驗證影片編碼器。獨立狀態區顯示載入、啟動、收音與準備回放。關閉檢查或無音源仍保留正式錄製準備。目前已發布版本仍使用畫面預覽。'],
       ['10', '快捷鍵標記重點', '錄影時按按鈕或自訂快捷鍵；編輯器可定位、改名與刪除，滑鼠停在紫色旗標可查看完整名稱，不改寫原始影片。']
     ],
     processEyebrow: '錄影機制', processTitle: '先保留錄影，再交付 MP4。',
@@ -88,7 +88,7 @@ export const content = {
       ['06', 'Crash Recovery', 'After an interruption, attempt to salvage MKV segments already written.'],
       ['07', 'Web player export', 'Package multilingual captions, chapters, volume, speed, wide-screen and fullscreen controls. Open offline or upload the entire folder.'],
       ['08', 'Transcript search', 'Search attached captions, highlight matches and jump to their timestamps. Follow playback or read freely in a bounded scrolling list.'],
-      ['09', 'Preflight and trial recording', 'Default-on checks can be disabled in Settings. Direct scaled frames help confirm the capture area. Trials distinguish startup, recording and preparing playback, timing five seconds after acknowledgement. Selected-input levels and replay stay outside the project. Device latency varies.'],
+      ['09', 'Audio preflight', 'Unreleased: selected-input checks and five-second audio-only trials, without screen capture or video-encoder validation. A separate area shows loading, startup, capture and preparing playback. Disabled checks or no inputs still show formal preparation. The currently published release retains video preview.'],
       ['10', 'Bookmark with a shortcut', 'Add bookmarks with a button or configurable shortcut; seek, rename or remove them in the editor. Hover over purple timeline flags for full names without rewriting video.']
     ],
     processEyebrow: 'How recording works', processTitle: 'Preserve first. Deliver MP4 afterward.',

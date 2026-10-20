@@ -12,9 +12,9 @@ OpenCam 讓你錄影、剪輯，再繼續錄影。這款以可靠性為優先的
 
 - v0.3.10：錄前預覽直接接收縮小原始影格，省去影片編碼／封裝／再次解碼，只保留最新完整影格。範圍文字附延遲說明；試錄區分啟動、實際錄製與準備回放，五秒計時從引擎確認啟動開始。正式錄影與試錄保存管線不變，實際延遲仍依設備而定。
 - 時間軸紫色重點旗標可滑鼠停留查看完整名稱，點擊仍可跳轉。詳見 [v0.3.10 更新與限制](docs/releases/v0.3.10.md)。
-- 正式錄製前確認錄影範圍、系統聲音及麥克風，可使用隔離的試錄及回放；試錄不加入正式專案。
+- 未發布開發版：錄前檢查改為只確認系統聲音及麥克風，不擷取或預覽畫面；五秒純音訊試錄與回放不加入專案，也不驗證影片編碼器。以下新版行為尚未包含在已發布的 v0.3.10。
 - 未勾選的音源明確標示本次不會錄製；已勾選的音源在五秒試錄期間顯示即時音量，完成後可回放確認。
-- 本版已移除錄製倒數：確認後直接準備錄製，以主畫面「錄製中」為準。錄前預覽載入、試錄與完成時有明確提示；直接按藍色確認按鈕即可，不需額外勾選。
+- 已移除錄製倒數：確認後直接準備錄製，以實際啟動確認為準。音源卡片下方的獨立狀態區顯示載入、試錄啟動、五秒收音、準備回放與正式錄製準備；未選音源或關閉檢查仍顯示正式準備狀態。
 - 錄影中可按「標記重點」或自訂快捷鍵（預設 Ctrl+Shift+M）；編輯器也可在目前播放位置新增、定位、改名、刪除重點。標記自動另存專案，不改寫影片、不納入片段復原／重做。
 - 麥克風連續無聲 30 秒可提醒，預設開啟、有聲後收起，提醒本身不暫停或停止錄影。Windows 浮窗須先成功設定擷取排除；macOS 目前僅程式內提示。實際浮窗排除、裝置與背景快捷鍵仍待實機驗收。詳見 [v0.3.8 更新與限制](docs/releases/v0.3.8.md)。
 
@@ -219,9 +219,9 @@ v0.2.0 的完整安裝檔請至 [OpenCam v0.2.0 Release](https://github.com/kaos
 
 ## Preflight and recording reminders
 
-- Confirm capture bounds, system audio and microphone before recording, with an isolated trial and replay that never enters the real project.
+- Unreleased development change: preflight checks system audio and microphone only, with no screen capture or preview. The isolated five-second audio trial and replay never enter the project or validate the video encoder. This new behavior is not included in published v0.3.10.
 - Unselected inputs explicitly say they will not be recorded. Selected inputs show live levels during the five-second trial; replay it afterward to verify sound.
-- This release removes the countdown: confirmation starts recording preparation; wait for the main window to show Recording. Preflight shows loading, trial and ready messages, with one confirmation button and no extra checkboxes.
+- The countdown is removed. A separate status area below the source cards shows loading, trial startup, five seconds of capture, preparing replay and formal recording preparation. Disabled checks or no selected inputs bypass audio checking, not preparation or actual startup acknowledgement.
 - Add bookmarks while recording using the button or a configurable shortcut (default Ctrl+Shift+M). In the editor, add bookmarks at the playhead, seek to them, rename or remove them. Bookmarks save automatically in the project, outside clip Undo/Redo, without rewriting video.
 - A default-on advisory can warn after 30 seconds of microphone silence and clears on sound. The warning never pauses or stops recording. Windows floating warnings require successful capture-exclusion setup; macOS currently uses an in-app advisory only. Physical exclusion, device and background-hotkey acceptance remain pending. See [v0.3.8 changes and limitations](docs/releases/v0.3.8.md).
 
