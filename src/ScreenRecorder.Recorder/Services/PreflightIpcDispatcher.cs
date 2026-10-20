@@ -103,7 +103,7 @@ public sealed class PreflightIpcDispatcher : IAsyncDisposable
                         {
                             var status = Status();
                             bool Readable(PreflightSourceResult source) => source.State is PreflightSourceState.Disabled or PreflightSourceState.Live or PreflightSourceState.Silent;
-                            if (status.Phase != PreflightPhase.Checking || !status.HasFrame || status.ErrorCode is not null ||
+                            if (status.Phase != PreflightPhase.Checking || !status.AudioReady || status.ErrorCode is not null ||
                                 !Readable(status.Microphone) || !Readable(status.SystemAudio)) throw new InvalidOperationException("Preflight must be checked again before recording.");
                             confirmed = _stamp(_checkingConfiguration!);
                         }

@@ -70,14 +70,17 @@ public class Program
             await using var projectPreview = previewDecoder is not null
                 ? new ProjectPreviewCoordinator(projects, previewDecoder.PlayConfiguredAsync) : null;
             var projectDispatcher = new ProjectIpcDispatcher(projects, projectWaveforms, projectFrames, projectPreview);
-            var preflightFactory = serviceProvider.GetRequiredService<PreflightCaptureFactory>();
+            var preflightFactory = new PreflightAudioCaptureFactory(
+                (IPreflightAudioPlatformProvider)serviceProvider.GetRequiredService<IFFmpegPlatformProvider>());
             await using var preflight = new PreflightCoordinator(serviceProvider.GetRequiredService<RecordingCaptureLease>(), () =>
             {
-                if (mediaExecutable is null) throw new FileNotFoundException("FFmpeg unavailable.");
-                var live = new PreflightLiveSession(() => preflightFactory.Create(livePreview: true), displayService, mediaExecutable,
-                    PreflightAudioIdentity.Read);
-                return previewDecoder is null ? live : new PreflightTrialSession(live,
-                    (encoder, capture) => preflightFactory.Create(encoder, capture), () => new(), previewDecoder);
+                if (mediaBackend is null) throw new FileNotFoundException("Audio media backend unavailable.");
+                var probe = new ScreenRecorder.Media.Preflight.PreflightAudioProbe(
+                    mediaBackend.CreateProcess, mediaBackend.CreateStreamingProcess);
+                return new PreflightAudioSession(preflightFactory.Create, PreflightAudioIdentity.Read,
+                    () => new(), probe.ValidateAsync, (storage, duration) => new(storage.OpenRead,
+                        mediaBackend.CreateAudio ?? throw new IOException("Audio playback output unavailable."),
+                        mediaBackend.CreateStreamingProcess, duration));
             });
             await using var preflightDispatcher = new PreflightIpcDispatcher(preflight, configuration =>
                 JsonSerializer.Serialize(displayService.GetMonitors()) + "\n" + PreflightAudioIdentity.Read(configuration) + "\n" +

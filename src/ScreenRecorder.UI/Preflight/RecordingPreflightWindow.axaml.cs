@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-using System.Runtime.InteropServices;
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using Avalonia.Media.Imaging;
-using Avalonia.Platform;
 using ScreenRecorder.Core.Enums;
 using ScreenRecorder.Core.Models;
 using ScreenRecorder.Core.Preflight;
@@ -17,12 +14,10 @@ namespace ScreenRecorder.UI.Preflight;
 public partial class RecordingPreflightWindow : Window
 {
     private readonly Func<string, PreflightRequest, CancellationToken, Task<IpcResponse>> _send;
-    private readonly Func<PreflightRequest, CancellationToken, Task<ProjectReply>> _frame;
     private readonly RecordingConfiguration _configuration;
     private RecordingPreflightViewModel _model = null!;
     private CancellationTokenSource _pollCancellation = new();
     private Task _poll = Task.CompletedTask;
-    private WriteableBitmap? _bitmap;
     private bool _closing, _authorized;
     private string? _pendingAction;
     private readonly SemaphoreSlim _action = new(1, 1);
@@ -30,14 +25,13 @@ public partial class RecordingPreflightWindow : Window
     private static LanguageManager Strings => LanguageManager.Instance;
     public RecordingPreflightWindow(RecordingConfiguration configuration,
         Func<string, PreflightRequest, CancellationToken, Task<IpcResponse>> send,
-        Func<PreflightRequest, CancellationToken, Task<ProjectReply>> frame)
+        Func<PreflightRequest, CancellationToken, Task<ProjectReply>>? frame = null)
     {
         _configuration = JsonSerializer.Deserialize<RecordingConfiguration>(JsonSerializer.Serialize(configuration))!;
-        _send = send; _frame = frame;
+        _send = send;
         InitializeComponent();
         Title = Heading.Text = Strings["PreflightTitle"];
         Privacy.Text = Strings["PreflightPrivacy"];
-        DisplayLabel.Text = Strings["PreflightDisplay"];
         MicrophoneLabel.Text = Strings["PreflightMicrophone"]; SystemLabel.Text = Strings["PreflightSystem"];
         SilenceNotice.Text = Strings["PreflightSilenceNotice"];
         TrialButton.Content = Strings["PreflightTrial"]; ReplayButton.Content = Strings["PreflightReplay"];
@@ -50,7 +44,6 @@ public partial class RecordingPreflightWindow : Window
     private void ResetModel()
     {
         Request = new(Guid.NewGuid()); _model = new(Request.OperationId); DataContext = _model;
-        Preview.Source = null; _bitmap?.Dispose(); _bitmap = null;
         Render();
     }
     private async Task<PreflightReply> SendAsync(string command, PreflightRequest request, CancellationToken ct)
@@ -74,24 +67,6 @@ public partial class RecordingPreflightWindow : Window
             while (!ct.IsCancellationRequested)
             {
                 await SendAsync("GetPreflightStatus", Request, ct);
-                if (_model.Status.HasFrame && _model.Status.ErrorCode is null)
-                {
-                    var phase = _model.Status.Phase;
-                    var reply = await _frame(Request, ct);
-                    if (_model.Status.HasFrame && _model.Status.ErrorCode is null && _model.Status.Phase == phase &&
-                        reply.Success && reply.State.ServerInstanceId == Request.ServerInstanceId && reply.Frame is { } frame &&
-                        frame.ClipId == Request.OperationId && frame.Revision == Request.ConfigurationRevision &&
-                        frame.PixelWidth is > 0 and <= 960 && frame.PixelHeight is > 0 and <= 540 &&
-                        frame.Rgba?.Length == frame.PixelWidth * frame.PixelHeight * 4)
-                    {
-                        var bitmap = new WriteableBitmap(new(frame.PixelWidth, frame.PixelHeight), new(96, 96), PixelFormat.Rgba8888, AlphaFormat.Opaque);
-                        using (var buffer = bitmap.Lock())
-                            for (var row = 0; row < frame.PixelHeight; row++)
-                                Marshal.Copy(frame.Rgba, row * frame.PixelWidth * 4, buffer.Address + row * buffer.RowBytes, frame.PixelWidth * 4);
-                        var previous = _bitmap; _bitmap = bitmap; Preview.Source = bitmap; previous?.Dispose();
-                        RenderPlaceholder();
-                    }
-                }
                 await Task.Delay(100, ct);
             }
         }
@@ -101,8 +76,6 @@ public partial class RecordingPreflightWindow : Window
     private void Render()
     {
         var status = _model.Status;
-        if (!status.HasFrame || status.ErrorCode is not null)
-        { Preview.Source = null; _bitmap?.Dispose(); _bitmap = null; }
         var microphoneEnabled = _configuration.AudioSource is AudioSourceType.MicrophoneOnly or AudioSourceType.SystemAndMicrophone;
         var systemEnabled = _configuration.AudioSource is AudioSourceType.SystemOnly or AudioSourceType.SystemAndMicrophone;
         MicrophoneLabel.Text = Strings[microphoneEnabled ? "PreflightMicrophone" : "PreflightMicrophoneDisabled"];
@@ -116,8 +89,6 @@ public partial class RecordingPreflightWindow : Window
         SystemMeter.Value = systemEnabled && status.SystemAudio.State == PreflightSourceState.Live ? status.SystemAudio.Rms : 0;
         DisableMicrophone.IsVisible = microphoneEnabled;
         DisableSystem.IsVisible = systemEnabled;
-        BoundsLabel.Text = $"{status.DisplayName} · {status.Bounds.Width} × {status.Bounds.Height} · ({status.Bounds.X}, {status.Bounds.Y}) · {Strings["PreflightRangeHint"]}";
-        PhaseLabel.Text = Strings["Preflight" + status.Phase];
         TrialProgress.IsVisible = status.Phase == PreflightPhase.TrialRecording;
         TrialProgress.Value = status.TrialSeconds;
         StopReplayButton.IsEnabled = status.Playing && !_model.Busy;
@@ -139,16 +110,19 @@ public partial class RecordingPreflightWindow : Window
         var stopping = _closing || status.Phase is PreflightPhase.Stopping or PreflightPhase.Closed;
         var reviewing = status.Phase == PreflightPhase.Reviewing && !status.Playing &&
             _pendingAction is not ("PlayPreflightTrial" or "RecordPreflightTrial");
-        PreviewPlaceholder.IsVisible = failed || trial || stopping || Preview.Source is null;
-        PreviewActivity.IsVisible = !failed && !reviewing && status.Phase != PreflightPhase.Closed;
-        PreviewMessage.Text = Strings[failed ? "PreflightPreviewFailed" : stopping ? "PreflightStopping" :
+        StatusActivity.IsVisible = !failed && !reviewing &&
+            (stopping || trialStarting || status.Phase is PreflightPhase.Preparing or PreflightPhase.TrialFinalizing);
+        StatusMessage.Text = Strings[failed ? "PreflightFailed" : stopping ? "PreflightStopping" :
             trialStarting ? "PreflightTrialStarting" : status.Phase == PreflightPhase.TrialFinalizing ? "PreflightTrialFinalizing" :
-            trial ? "PreflightTrialRecording" : reviewing ? "PreflightTrialReady" : "PreflightPreviewLoading"];
-        PreviewHint.Text = Strings[failed ? "PreflightPreviewRetry" : stopping ? "PreflightStartWait" :
-            trialStarting ? "PreflightTrialStartingHint" : trial ? "PreflightTrialPreviewHint" : reviewing ? "PreflightTrialReadyHint" : "PreflightPreviewLoadingHint"];
+            trial ? "PreflightTrialRecording" : reviewing ? "PreflightTrialReady" : status.Playing ? "PreflightPlaying" :
+            status.Phase == PreflightPhase.Checking ? "PreflightChecking" : "PreflightPreparing"];
+        if (!failed && !stopping && status.Phase == PreflightPhase.TrialRecording)
+            StatusMessage.Text = Strings.GetFormatted("PreflightTrialRecording", Math.Clamp((int)Math.Ceiling(5 - status.TrialSeconds), 0, 5));
+        StatusHint.Text = Strings[failed ? "PreflightAudioRetry" : stopping ? "PreflightStartWait" :
+            trialStarting ? "PreflightTrialStartingHint" : trial ? "PreflightAudioTrialHint" : reviewing ? "PreflightTrialReadyHint" : "PreflightAudioHint"];
     }
     private void Failure()
-    { _model.ConnectionFailed = true; Preview.Source = null; _bitmap?.Dispose(); _bitmap = null;
+    { _model.ConnectionFailed = true;
         ErrorLabel.IsVisible = true; ErrorLabel.Text = Strings["PreflightConnectionError"]; RecheckButton.IsEnabled = true; RenderPlaceholder(); }
     private async Task ActionAsync(string command)
     {
@@ -182,7 +156,7 @@ public partial class RecordingPreflightWindow : Window
         if (_closing || !await _action.WaitAsync(0)) return;
         try
         {
-            _model.Busy = true; Preview.Source = null; RenderPlaceholder(); await StopPollingAsync(); await EndAsync(false);
+            _model.Busy = true; RenderPlaceholder(); await StopPollingAsync(); await EndAsync(false);
             if (_closing) return;
             if (audio is { } source) _configuration.AudioSource = source;
             _pollCancellation.Dispose(); _pollCancellation = new(); ResetModel();
@@ -208,7 +182,7 @@ public partial class RecordingPreflightWindow : Window
         try
         {
             await StopPollingAsync(); await EndAsync(confirm);
-            _authorized = true; _bitmap?.Dispose(); _bitmap = null;
+            _authorized = true;
             Close(confirm ? _configuration : null);
         }
         catch { _closing = false; Failure(); }

@@ -9,6 +9,18 @@ namespace ScreenRecorder.Media.Tests;
 public class PreflightAudioSessionTests
 {
     [Fact]
+    public async Task DisablingLastSourceAllowsConfirmationWithoutOpeningDevicesOrTrial()
+    {
+        await using var session = new PreflightAudioSession(() => throw new InvalidOperationException("No devices selected."));
+        await session.StartAsync(new() { AudioSource = AudioSourceType.None }, default);
+        var status = session.ReadStatus(DateTimeOffset.UtcNow);
+        Assert.True(status.AudioReady);
+        Assert.Equal(PreflightSourceState.Disabled, status.Microphone.State);
+        Assert.Equal(PreflightSourceState.Disabled, status.SystemAudio.State);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => session.RecordTrialAsync(default));
+    }
+
+    [Fact]
     public async Task AudioReadyRequiresAcknowledgementButNeverRequiresVideoFrames()
     {
         var capture = new ControlledCapture();

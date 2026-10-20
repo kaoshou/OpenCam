@@ -130,16 +130,14 @@ public class RecordingPreflightUiTests
     [Avalonia.Headless.XUnit.AvaloniaTheory]
     [InlineData(ScreenRecorder.Core.Localization.AppLanguage.ZhTw)]
     [InlineData(ScreenRecorder.Core.Localization.AppLanguage.EnUs)]
-    public async Task PreviewShowsLoadingTrialReadyAndFailureInsteadOfUnexplainedBlackArea(ScreenRecorder.Core.Localization.AppLanguage language)
+    public async Task AudioStatusShowsStartingBeforeTrialAcknowledgementAndLiveTrialLevels(ScreenRecorder.Core.Localization.AppLanguage language)
     {
         var strings = ScreenRecorder.UI.Localization.LanguageManager.Instance;
         var previous = strings.CurrentLanguage; strings.CurrentLanguage = language;
         var server = Guid.NewGuid(); long sequence = 0;
         var status = PreflightStatus.Empty with { Phase = PreflightPhase.Preparing };
         var trialCommand = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var frameReady = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var frameRequested = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var window = new RecordingPreflightWindow(new(), async (command, request, ct) =>
+        var window = new RecordingPreflightWindow(new() { AudioSource = ScreenRecorder.Core.Enums.AudioSourceType.SystemAndMicrophone }, async (command, request, ct) =>
         {
             if (command == "RecordPreflightTrial")
             {
@@ -151,43 +149,34 @@ public class RecordingPreflightUiTests
             var reply = new PreflightReply(server, status with { OperationId = request.OperationId, ConfigurationRevision = 1 },
                 Sequence: Interlocked.Increment(ref sequence));
             return new IpcResponse { Success = true, DataJson = System.Text.Json.JsonSerializer.Serialize(reply) };
-        }, async (request, ct) =>
-        {
-            frameRequested.TrySetResult(); await frameReady.Task.WaitAsync(ct);
-            return new ProjectReply(true, null, ProjectSnapshot.Closed with { ServerInstanceId = server })
-            { Frame = new(1, 0, request.OperationId, [255, 0, 0, 255]) { PixelWidth = 1, PixelHeight = 1 } };
-        });
+        }, (_, _) => throw new InvalidOperationException("No video requests"));
         var closed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         window.Closed += (_, _) => closed.TrySetResult();
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(8));
         async Task Until(Func<bool> condition) { while (!condition()) await Task.Delay(10, deadline.Token); }
         try
         {
-            Assert.Equal(strings["PreflightPreviewLoading"], window.FindControl<TextBlock>("PreviewMessage")!.Text);
+            Assert.Equal(strings["PreflightPreparing"], window.FindControl<TextBlock>("StatusMessage")!.Text);
             window.Show(); window.UpdateLayout();
-            Assert.Equal(620, window.Height);
-            Assert.Equal(540, window.MinHeight);
-            var placeholder = window.FindControl<Border>("PreviewPlaceholder")!;
-            var message = window.FindControl<TextBlock>("PreviewMessage")!;
-            var hint = window.FindControl<TextBlock>("PreviewHint")!;
-            var activity = window.FindControl<ProgressBar>("PreviewActivity")!;
+            Assert.Equal(480, window.Height);
+            Assert.Equal(420, window.MinHeight);
+            var placeholder = window.FindControl<Border>("StatusArea")!;
+            var message = window.FindControl<TextBlock>("StatusMessage")!;
+            var activity = window.FindControl<ProgressBar>("StatusActivity")!;
             var start = window.FindControl<Button>("StartButton")!;
             Assert.True(placeholder.IsVisible); Assert.True(activity.IsVisible);
-            Assert.Equal(strings["PreflightPreviewLoading"], message.Text); Assert.False(start.IsEnabled);
-            status = status with { Phase = PreflightPhase.Checking, HasFrame = true };
-            await frameRequested.Task.WaitAsync(deadline.Token);
-            Assert.True(placeholder.IsVisible); // A status reply alone is not a presented frame.
-            frameReady.TrySetResult();
-            await Until(() => !placeholder.IsVisible);
-            Assert.NotNull(window.FindControl<Image>("Preview")!.Source);
+            Assert.Equal(strings["PreflightPreparing"], message.Text); Assert.False(start.IsEnabled);
+            status = status with { Phase = PreflightPhase.Checking, AudioReady = true,
+                Microphone = new(PreflightSourceState.Silent), SystemAudio = new(PreflightSourceState.Silent) };
+            await Until(() => window.FindControl<Button>("TrialButton")!.IsEnabled);
+            Assert.Null(window.FindControl<Image>("Preview"));
             window.FindControl<Button>("TrialButton")!.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
             Assert.True(placeholder.IsVisible); // Feedback appears before the trial command returns.
-            Assert.Equal(language == ScreenRecorder.Core.Localization.AppLanguage.ZhTw
-                ? "啟動試錄中，請稍候…" : "Starting trial recording, please wait…", message.Text);
+            Assert.Equal(strings["PreflightTrialStarting"], message.Text);
             Assert.False(window.FindControl<ProgressBar>("TrialProgress")!.IsVisible);
             trialCommand.TrySetResult();
             await Until(() => ((RecordingPreflightViewModel)window.DataContext!).Status.Phase == PreflightPhase.TrialRecording);
-            Assert.Equal(strings["PreflightTrialRecording"], message.Text);
+            Assert.Equal(strings.GetFormatted("PreflightTrialRecording", 5), message.Text);
             Assert.False(start.IsEnabled);
             Assert.Equal(strings["PreflightAudioTrialWaiting"], window.FindControl<TextBlock>("MicrophoneStatus")!.Text);
             Assert.Equal(strings["PreflightAudioTrialWaiting"], window.FindControl<TextBlock>("SystemStatus")!.Text);
@@ -209,12 +198,12 @@ public class RecordingPreflightUiTests
             Assert.True(window.FindControl<Button>("ReplayButton")!.IsEnabled);
             Assert.False(start.IsEnabled);
             status = status with { Phase = PreflightPhase.Failed, ErrorCode = "InjectedFailure" };
-            await Until(() => message.Text == strings["PreflightPreviewFailed"]);
+            await Until(() => message.Text == strings["PreflightFailed"]);
             Assert.True(placeholder.IsVisible); Assert.False(activity.IsVisible); Assert.False(start.IsEnabled);
         }
         finally
         {
-            frameReady.TrySetResult(); trialCommand.TrySetResult(); window.Close();
+            trialCommand.TrySetResult(); window.Close();
             await closed.Task.WaitAsync(TimeSpan.FromSeconds(5)); strings.CurrentLanguage = previous;
         }
     }
@@ -224,7 +213,7 @@ public class RecordingPreflightUiTests
     {
         var id = Guid.NewGuid(); var server = Guid.NewGuid(); var vm = new RecordingPreflightViewModel(id);
         var checking = PreflightStatus.Empty with { OperationId = id, ConfigurationRevision = 1,
-            Phase = PreflightPhase.Checking, HasFrame = true };
+            Phase = PreflightPhase.Checking, AudioReady = true };
         Assert.True(vm.Apply(new(server, checking, Sequence: 1)));
         Assert.True(vm.CanStart);
         Assert.True(vm.Apply(new(server, checking with { Phase = PreflightPhase.TrialRecording, HasFrame = false }, Sequence: 3)));
@@ -247,7 +236,7 @@ public class RecordingPreflightUiTests
         window.Show();
         var model = Assert.IsType<RecordingPreflightViewModel>(window.DataContext);
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        while (!model.Status.HasFrame || model.Status.Phase != PreflightPhase.Checking) await Task.Delay(10, deadline.Token);
+        while (!model.Status.AudioReady || model.Status.Phase != PreflightPhase.Checking) await Task.Delay(10, deadline.Token);
         window.UpdateLayout();
         var start = window.FindControl<Avalonia.Controls.Button>("StartButton")!;
         Assert.True(start.IsEnabled);
@@ -265,7 +254,7 @@ public class RecordingPreflightUiTests
     {
         public bool Stopped;
         public Task StartAsync(ScreenRecorder.Core.Models.RecordingConfiguration config, CancellationToken ct) => Task.CompletedTask;
-        public PreflightStatus ReadStatus(DateTimeOffset now) => PreflightStatus.Empty with { Phase = PreflightPhase.Checking, HasFrame = true };
+        public PreflightStatus ReadStatus(DateTimeOffset now) => PreflightStatus.Empty with { Phase = PreflightPhase.Checking, AudioReady = true };
         public ProjectFrameReply? ReadFrame() => new(0, 0, Guid.Empty, [255, 0, 0, 255]) { PixelWidth = 1, PixelHeight = 1 };
         public Task StopAsync(CancellationToken ct) { Stopped = true; return Task.CompletedTask; }
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
@@ -278,7 +267,7 @@ public class RecordingPreflightUiTests
         var id = Guid.NewGuid();
         var vm = new RecordingPreflightViewModel(id);
         vm.Apply(new(Guid.NewGuid(), PreflightStatus.Empty with { OperationId = id, ConfigurationRevision = 1,
-            Phase = PreflightPhase.Checking, HasFrame = true, Microphone = new(state) }));
+            Phase = PreflightPhase.Checking, AudioReady = true, Microphone = new(state) }));
         Assert.False(vm.CanStart);
     }
     [Fact]
@@ -287,7 +276,7 @@ public class RecordingPreflightUiTests
         var id = Guid.NewGuid(); var server = Guid.NewGuid();
         var vm = new RecordingPreflightViewModel(id);
         var status = PreflightStatus.Empty with { OperationId = id, ConfigurationRevision = 1, Phase = PreflightPhase.Checking,
-            HasFrame = true, Microphone = new(PreflightSourceState.Silent), SystemAudio = new(PreflightSourceState.Live, .5, .8) };
+            AudioReady = true, Microphone = new(PreflightSourceState.Silent), SystemAudio = new(PreflightSourceState.Live, .5, .8) };
         vm.Apply(new(server, status));
         Assert.True(vm.ShowSilenceNotice);
         Assert.True(vm.CanStart);
@@ -302,7 +291,7 @@ public class RecordingPreflightUiTests
     {
         var id = Guid.NewGuid(); var vm = new RecordingPreflightViewModel(id);
         vm.Apply(new(Guid.NewGuid(), PreflightStatus.Empty with { OperationId = id, ConfigurationRevision = 1,
-            Phase = PreflightPhase.Checking, HasFrame = true }));
+            Phase = PreflightPhase.Checking, AudioReady = true }));
         Assert.True(vm.ShowSilenceNotice);
         Assert.True(vm.CanStart);
         vm.Busy = true;

@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="using:ScreenRecorder.UI.Preflight" x:Class="ScreenRecorder.UI.Preflight.RecordingPreflightWindow"
-        x:DataType="local:RecordingPreflightViewModel" Width="940" Height="620" MinWidth="760" MinHeight="540"
+        x:DataType="local:RecordingPreflightViewModel" Width="740" Height="480" MinWidth="640" MinHeight="420"
         WindowStartupLocation="CenterOwner" Background="#F8FAFC" RequestedThemeVariant="Light" Icon="/Assets/app_icon.png">
   <Window.Styles>
     <Style Selector="Button"><Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="CornerRadius" Value="8"/><Setter Property="Padding" Value="14,9"/></Style>
@@ -19,26 +19,7 @@
     </StackPanel>
     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
       <StackPanel Margin="20,0,20,12" Spacing="10">
-        <Grid ColumnDefinitions="*,14,280">
-        <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="14">
-          <StackPanel Spacing="8">
-            <TextBlock x:Name="DisplayLabel" FontWeight="SemiBold"/>
-            <Border Background="#101722" CornerRadius="8" ClipToBounds="True" Height="260">
-              <Grid>
-                <Image x:Name="Preview" Stretch="Uniform"/>
-                <Border x:Name="PreviewPlaceholder" Background="#101722" Padding="24">
-                  <StackPanel Spacing="12" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="440">
-                    <TextBlock x:Name="PreviewMessage" Foreground="#F8FAFC" FontSize="17" FontWeight="SemiBold" TextAlignment="Center" TextWrapping="Wrap"/>
-                    <ProgressBar x:Name="PreviewActivity" IsIndeterminate="True" Height="4" Width="150"/>
-                    <TextBlock x:Name="PreviewHint" Foreground="#CBD5E1" FontSize="12" TextAlignment="Center" TextWrapping="Wrap"/>
-                  </StackPanel>
-                </Border>
-              </Grid>
-            </Border>
-            <TextBlock x:Name="BoundsLabel" Foreground="#64748B" FontSize="12" TextWrapping="Wrap"/>
-          </StackPanel>
-        </Border>
-        <StackPanel Grid.Column="2" Spacing="12">
+        <Grid x:Name="AudioCards" ColumnDefinitions="*,12,*">
           <Border Background="White" CornerRadius="10" Padding="14" BorderBrush="#E2E8F0" BorderThickness="1">
             <StackPanel Spacing="7">
               <TextBlock x:Name="MicrophoneLabel" FontWeight="SemiBold"/>
@@ -47,7 +28,7 @@
               <Button x:Name="DisableMicrophone" Classes="quiet" Click="OnDisableMicrophone" FontSize="11"/>
             </StackPanel>
           </Border>
-          <Border Background="White" CornerRadius="10" Padding="14" BorderBrush="#E2E8F0" BorderThickness="1">
+          <Border Grid.Column="2" Background="White" CornerRadius="10" Padding="14" BorderBrush="#E2E8F0" BorderThickness="1">
             <StackPanel Spacing="7">
               <TextBlock x:Name="SystemLabel" FontWeight="SemiBold"/>
               <ProgressBar x:Name="SystemMeter" Maximum="1" Height="8"/>
@@ -55,29 +36,34 @@
               <Button x:Name="DisableSystem" Classes="quiet" Click="OnDisableSystem" FontSize="11"/>
             </StackPanel>
           </Border>
-        </StackPanel>
         </Grid>
-        <TextBlock x:Name="PhaseLabel" TextWrapping="Wrap" FontSize="12" Foreground="#2563EB"/>
-        <ProgressBar x:Name="TrialProgress" Maximum="5" Height="5" IsVisible="False"/>
+        <Border x:Name="StatusArea" Background="#F1F5F9" CornerRadius="10" Padding="14" MinHeight="110">
+          <StackPanel Spacing="9">
+            <TextBlock x:Name="StatusMessage" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap"/>
+            <TextBlock x:Name="StatusHint" Foreground="#64748B" FontSize="12" TextWrapping="Wrap"/>
+            <ProgressBar x:Name="StatusActivity" IsIndeterminate="True" Height="4"/>
+            <ProgressBar x:Name="TrialProgress" Maximum="5" Height="5" IsVisible="False"/>
+            <TextBlock x:Name="ErrorLabel" Foreground="#B91C1C" TextWrapping="Wrap" IsVisible="False"/>
+          </StackPanel>
+        </Border>
         <Border Background="#FFFBEB" CornerRadius="8" Padding="12,9" IsVisible="{Binding ShowSilenceNotice}">
           <TextBlock x:Name="SilenceNotice" Foreground="#92400E" FontSize="12" TextWrapping="Wrap"/>
         </Border>
-        <TextBlock x:Name="ErrorLabel" Foreground="#B91C1C" TextWrapping="Wrap" IsVisible="False"/>
       </StackPanel>
     </ScrollViewer>
     <Border Grid.Row="2" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Background="White" Padding="20,12">
-      <Grid ColumnDefinitions="*,Auto">
-        <WrapPanel Orientation="Horizontal">
+      <StackPanel Spacing="8">
+        <WrapPanel x:Name="AudioActions" Orientation="Horizontal">
           <Button x:Name="TrialButton" Margin="0,0,6,4" IsEnabled="{Binding CanTrial}" Click="OnTrial"/>
           <Button x:Name="ReplayButton" Margin="0,0,6,4" IsEnabled="{Binding CanReplay}" Click="OnReplay"/>
           <Button x:Name="StopReplayButton" Margin="0,0,6,4" Click="OnStopReplay"/>
           <Button x:Name="RecheckButton" Margin="0,0,6,4" Click="OnRecheck"/>
         </WrapPanel>
-        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
           <Button x:Name="CancelButton" Click="OnCancel"/>
           <Button x:Name="StartButton" Classes="primary" IsEnabled="{Binding CanStart}" Click="OnStart"/>
         </StackPanel>
-      </Grid>
+      </StackPanel>
     </Border>
   </Grid>
 </Window>

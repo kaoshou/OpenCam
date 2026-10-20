@@ -27,10 +27,11 @@ public sealed class RecordingPreflightViewModel(Guid operation) : ObservableObje
         Status.Microphone.State == PreflightSourceState.Disabled && Status.SystemAudio.State == PreflightSourceState.Disabled);
     private static bool Readable(PreflightSourceResult source) => source.State is
         PreflightSourceState.Disabled or PreflightSourceState.Live or PreflightSourceState.Silent;
-    public bool CanStart => !Busy && !ConnectionFailed && Status.Phase == PreflightPhase.Checking && Status.HasFrame && Status.ErrorCode is null &&
+    public bool CanStart => !Busy && !ConnectionFailed && Status.Phase == PreflightPhase.Checking && Status.AudioReady && Status.ErrorCode is null &&
         Readable(Status.Microphone) && Readable(Status.SystemAudio);
     public bool CanTrial => !Busy && !ConnectionFailed && Status.ErrorCode is null && !Status.Playing &&
-        (Status.Phase == PreflightPhase.Checking && Status.HasFrame || Status.Phase == PreflightPhase.Reviewing && Status.HasTrial);
+        (Status.Microphone.State != PreflightSourceState.Disabled || Status.SystemAudio.State != PreflightSourceState.Disabled) &&
+        (Status.Phase == PreflightPhase.Checking && Status.AudioReady || Status.Phase == PreflightPhase.Reviewing && Status.HasTrial);
     public bool CanReplay => !Busy && Status.Phase == PreflightPhase.Reviewing && Status.HasTrial && !Status.Playing && Status.ErrorCode is null;
     public bool Apply(PreflightReply reply)
     {

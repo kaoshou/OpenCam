@@ -101,7 +101,7 @@ public class PreflightIpcTests
     {
         public TaskCompletionSource Ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public Task StartAsync(RecordingConfiguration config, CancellationToken ct) => Ready.Task.WaitAsync(ct);
-        public PreflightStatus ReadStatus(DateTimeOffset now) => PreflightStatus.Empty with { HasFrame = true, Phase = PreflightPhase.Checking };
+        public PreflightStatus ReadStatus(DateTimeOffset now) => PreflightStatus.Empty with { HasFrame = true, AudioReady = true, Phase = PreflightPhase.Checking };
         public ProjectFrameReply? ReadFrame() => new(0, 0, Guid.Empty, [255, 0, 0, 255]) { PixelWidth = 1, PixelHeight = 1 };
         public Task StopAsync(CancellationToken ct) => Task.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;

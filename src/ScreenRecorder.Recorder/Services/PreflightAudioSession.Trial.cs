@@ -16,7 +16,8 @@ public sealed partial class PreflightAudioSession
     public async Task RecordTrialAsync(CancellationToken ct)
     {
         var before = ReadStatus(DateTimeOffset.UtcNow);
-        if (_configuration is null || validate is null || before.ErrorCode is not null ||
+        if (_configuration is null || _configuration.AudioSource == ScreenRecorder.Core.Enums.AudioSourceType.None ||
+            validate is null || before.ErrorCode is not null ||
             _phase is not (PreflightPhase.Checking or PreflightPhase.Reviewing) ||
             _phase == PreflightPhase.Checking && !before.AudioReady)
             throw new InvalidOperationException("Audio trial is unavailable.");

@@ -29,6 +29,11 @@ public sealed partial class PreflightAudioSession(
         try
         {
             _identity = audioIdentity?.Invoke(_configuration);
+            if (_configuration.AudioSource == AudioSourceType.None)
+            {
+                _phase = PreflightPhase.Checking;
+                return;
+            }
             _capture = create();
             await _capture.StartAsync(_configuration, null, ct);
             lock (_audioGate) _monitor = true;
@@ -49,7 +54,7 @@ public sealed partial class PreflightAudioSession(
         var config = _configuration;
         var mic = PreflightReadiness.Resolve(config?.AudioSource is AudioSourceType.MicrophoneOnly or AudioSourceType.SystemAndMicrophone, null, now);
         var sys = PreflightReadiness.Resolve(config?.AudioSource is AudioSourceType.SystemOnly or AudioSourceType.SystemAndMicrophone, null, now);
-        var ready = false;
+        var ready = config?.AudioSource == AudioSourceType.None && _error is null;
         if (config is not null && audioIdentity is not null && _phase != PreflightPhase.Closed)
         {
             try

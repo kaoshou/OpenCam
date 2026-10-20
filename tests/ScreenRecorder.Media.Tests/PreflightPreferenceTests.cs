@@ -38,7 +38,7 @@ public sealed class PreflightPreferenceUiTests
             var label = Assert.IsType<TextBlock>(toggle.Content).Text;
             Assert.False(string.IsNullOrWhiteSpace(label));
             Assert.NotEqual("RecordingPreflightSetting", label);
-            Assert.Equal(language == AppLanguage.ZhTw ? "錄製前進行檢查（建議開啟）" : "Check before recording (recommended)", label);
+            Assert.Equal(language == AppLanguage.ZhTw ? "錄製前確認聲音（建議開啟）" : "Check audio before recording (recommended)", label);
             toggle.IsChecked = true;
             await vm.SaveAsync();
             Assert.True(JsonSerializer.SerializeToElement(store.CurrentSettings).GetProperty("RecordingPreflightEnabled").GetBoolean());
