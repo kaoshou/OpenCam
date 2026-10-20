@@ -10,8 +10,8 @@ OpenCam 讓你錄影、剪輯，再繼續錄影。這款以可靠性為優先的
 
 ## 錄前確認與錄製提醒
 
-- v0.3.9：設定中的錄製前檢查預設開啟，可選擇關閉；關閉不會略過權限、輸出及錄製啟動確認。即時錄前預覽採低緩衝參數，正式錄影與五秒試錄不變，實際延遲仍依設備而定。
-- 時間軸紫色重點旗標可滑鼠停留查看完整名稱，點擊仍可跳轉。詳見 [v0.3.9 更新與限制](docs/releases/v0.3.9.md)。
+- v0.3.10：錄前預覽直接接收縮小原始影格，省去影片編碼／封裝／再次解碼，只保留最新完整影格。範圍文字附延遲說明；試錄區分啟動、實際錄製與準備回放，五秒計時從引擎確認啟動開始。正式錄影與試錄保存管線不變，實際延遲仍依設備而定。
+- 時間軸紫色重點旗標可滑鼠停留查看完整名稱，點擊仍可跳轉。詳見 [v0.3.10 更新與限制](docs/releases/v0.3.10.md)。
 - 正式錄製前確認錄影範圍、系統聲音及麥克風，可使用隔離的試錄及回放；試錄不加入正式專案。
 - 未勾選的音源明確標示本次不會錄製；已勾選的音源在五秒試錄期間顯示即時音量，完成後可回放確認。
 - 本版已移除錄製倒數：確認後直接準備錄製，以主畫面「錄製中」為準。錄前預覽載入、試錄與完成時有明確提示；直接按藍色確認按鈕即可，不需額外勾選。
@@ -49,7 +49,7 @@ v0.3.3 新增「輸出… → 網頁播放器」：選擇存放位置後，建�
 
 🌐 [OpenCam 官方網站](https://kaoshou.github.io/OpenCam/)（可切換繁體中文／English）
 
-目前原始碼版本為 **0.3.9**，採用 **AGPL-3.0-or-later**。Windows 原生錄影、編輯影音預覽、輸出與長時間音畫同步實機驗收仍待完成；Windows FFmpeg 完整對應原始碼核對亦尚未完成。套件未簽章，發布不代表全部驗收通過。請保留重要素材備份，已發布安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。詳見 [v0.3.9 更新與限制](docs/releases/v0.3.9.md)。
+目前原始碼版本為 **0.3.10**，採用 **AGPL-3.0-or-later**。Windows 原生錄影、編輯影音預覽、輸出與長時間音畫同步實機驗收仍待完成；Windows FFmpeg 完整對應原始碼核對亦尚未完成。套件未簽章，發布不代表全部驗收通過。請保留重要素材備份，已發布安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。詳見 [v0.3.10 更新與限制](docs/releases/v0.3.10.md)。
 
 **v0.3.3** 新增可辨識的離線網頁播放器輸出；時間軸拖曳只調整排序，不再以邊緣拖曳裁剪。明確的分割／刪除範圍與復原操作保留，右側片段操作按鈕統一排列與圖示。先前已誤裁的片段不會自動改寫。
 
@@ -254,9 +254,9 @@ OpenCam is built with .NET 8, Avalonia UI, and FFmpeg, and supports Windows and 
 
 🌐 [OpenCam official website](https://kaoshou.github.io/OpenCam/) (English / 繁體中文)
 
-The current source version is **0.3.9**, under **AGPL-3.0-or-later**. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending, as does verification of complete corresponding sources for the Windows FFmpeg build. Packages are unsigned; publication does not establish complete acceptance. Keep backups of important media. Published packages are available from [Releases](https://github.com/kaoshou/OpenCam/releases); see [v0.3.9 changes and limitations](docs/releases/v0.3.9.md).
+The current source version is **0.3.10**, under **AGPL-3.0-or-later**. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending, as does verification of complete corresponding sources for the Windows FFmpeg build. Packages are unsigned; publication does not establish complete acceptance. Keep backups of important media. Published packages are available from [Releases](https://github.com/kaoshou/OpenCam/releases); see [v0.3.10 changes and limitations](docs/releases/v0.3.10.md).
 
-**New in v0.3.9:** a default-on preflight preference, lower-buffering live preflight preview without changing saved recording/trial settings, and full bookmark names on timeline hover. Disabling preflight does not bypass permissions, output validation or recording-start acknowledgement. Actual preview latency still depends on hardware.
+**New in v0.3.10:** direct scaled raw-frame preflight preview removes video encoding/container/second-decoder buffering and retains only the latest complete frame. A quiet range hint explains delay. Trials distinguish startup, acknowledged recording and preparing playback; the five-second timer starts after acknowledgement. Saved recording/trial pipelines remain unchanged. Actual preview latency still depends on hardware.
 
 **v0.3.3** adds identifiable offline web-player exports. Timeline dragging only reorders clips and no longer trims their edges; explicit split/range deletion and undo remain available. Inspector actions have consistent icon buttons. Existing accidentally trimmed ranges are not rewritten automatically.
 

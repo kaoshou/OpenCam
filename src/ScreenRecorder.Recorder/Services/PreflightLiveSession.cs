@@ -15,6 +15,8 @@ public sealed class PreflightLiveSession(Func<PreflightCaptureResources> create,
 {
     private PreflightCaptureResources? _resources;
     private PreflightPreviewPipe? _preview;
+    private LatestPreviewFrameStream? _directPreview;
+    private byte[]? LatestFrame => _directPreview?.LatestFrame ?? _preview?.LatestFrame;
     private RecordingConfiguration? _configuration;
     private CaptureRegion _bounds = CaptureRegion.Empty;
     private string _displayName = "", _displaySignature = "", _audioIdentity = "";
@@ -48,8 +50,13 @@ public sealed class PreflightLiveSession(Func<PreflightCaptureResources> create,
         _resources.Engine.EngineWarningOccurred += EngineWarning;
         _resources.Engine.AudioDeviceLost += AudioLost;
         if (_resources.Engine is not IBoundRecordingOutput output) throw new NotSupportedException("Preflight streaming output unavailable.");
-        _preview = new(executable);
-        output.OutputStream = _preview.Input;
+        if (output.UsesDirectPreview)
+            output.OutputStream = _directPreview = new();
+        else
+        {
+            _preview = new(executable);
+            output.OutputStream = _preview.Input;
+        }
         _started = DateTimeOffset.UtcNow;
         await _resources.Engine.StartRecordingAsync("preflight-check.mkv", snapshot, _bounds, ct);
         lock (_captureState)
@@ -93,7 +100,7 @@ public sealed class PreflightLiveSession(Func<PreflightCaptureResources> create,
                 var running = resources.Engine.IsRunning;
                 var exited = _preview?.HasExited == true;
                 if (!running || exited) error ??= "PreflightCaptureFailed";
-                if (_preview is { LatestFrame: null } && now - _started > TimeSpan.FromSeconds(5) &&
+                if (LatestFrame is null && now - _started > TimeSpan.FromSeconds(5) &&
                     Interlocked.Exchange(ref _missingFrameReported, 1) == 0)
                     missingFrame = (running, resources.Engine.CurrentFramesRecorded, resources.Engine.CurrentRecordedTime.TotalSeconds, exited);
             }
@@ -113,9 +120,9 @@ public sealed class PreflightLiveSession(Func<PreflightCaptureResources> create,
             if (system.State == PreflightSourceState.Waiting) system = new(PreflightSourceState.Unavailable);
         }
         return PreflightStatus.Empty with { Phase = phase, Bounds = _bounds, DisplayName = _displayName,
-            Microphone = microphone, SystemAudio = system, HasFrame = phase == PreflightPhase.Checking && error is null && _preview?.LatestFrame is not null, ErrorCode = error };
+            Microphone = microphone, SystemAudio = system, HasFrame = phase == PreflightPhase.Checking && error is null && LatestFrame is not null, ErrorCode = error };
     }
-    public ProjectFrameReply? ReadFrame() => ReadStatus(DateTimeOffset.UtcNow).HasFrame && _preview?.LatestFrame is { } pixels
+    public ProjectFrameReply? ReadFrame() => ReadStatus(DateTimeOffset.UtcNow).HasFrame && LatestFrame is { } pixels
         ? new(0, 0, Guid.Empty, pixels) { PixelWidth = PreflightPreviewPipe.Width, PixelHeight = PreflightPreviewPipe.Height } : null;
 
     public async Task StopAsync(CancellationToken ct)
@@ -133,6 +140,8 @@ public sealed class PreflightLiveSession(Func<PreflightCaptureResources> create,
             await preview.DisposeAsync();
             _preview = null;
         }
+        _directPreview?.Dispose();
+        _directPreview = null;
         _capturePhase = PreflightPhase.Closed;
     }
     public async ValueTask DisposeAsync()

@@ -72,17 +72,19 @@ public sealed class PreflightTrialSession(PreflightLiveSession live,
             (_phase != PreflightPhase.Checking && _phase != PreflightPhase.Reviewing))
             throw new InvalidOperationException("Preflight is not ready for a trial.");
         if (_phase == PreflightPhase.Checking && !before.HasFrame) throw new InvalidOperationException("Check preview is not ready.");
-        await StopReplayAsync(ct);
-        await live.StopAsync(ct);
-        if (_storage is not null) { await _storage.DisposeAsync(); _storage = null; }
-        _trial = null; _frame = null; _seconds = 0; _error = null;
-        _phase = PreflightPhase.TrialRecording;
-        _capture = create(live.ActiveEncoder, live.ActiveCapture);
-        _capture.Engine.EngineErrorOccurred += CaptureError;
-        _capture.Engine.EngineWarningOccurred += CaptureError;
-        _capture.Engine.AudioDeviceLost += AudioLost;
+        _phase = PreflightPhase.TrialStarting;
+        _trialStarted = null;
+        _seconds = 0;
         try
         {
+            await StopReplayAsync(ct);
+            await live.StopAsync(ct);
+            if (_storage is not null) { await _storage.DisposeAsync(); _storage = null; }
+            _trial = null; _frame = null; _error = null;
+            _capture = create(live.ActiveEncoder, live.ActiveCapture);
+            _capture.Engine.EngineErrorOccurred += CaptureError;
+            _capture.Engine.EngineWarningOccurred += CaptureError;
+            _capture.Engine.AudioDeviceLost += AudioLost;
             _storage = storage();
             if (_capture.Engine is not IBoundRecordingOutput output) throw new NotSupportedException("Trial streaming unavailable.");
             output.OutputStream = _storage.Writer;
@@ -93,7 +95,11 @@ public sealed class PreflightTrialSession(PreflightLiveSession live,
             }
             lock (_audioGate) _monitorTrialAudio = true;
             _trialStarted = DateTimeOffset.UtcNow;
+            _phase = PreflightPhase.TrialRecording;
             await Task.Delay(TimeSpan.FromSeconds(5), ct);
+            _phase = PreflightPhase.TrialFinalizing;
+            _trialStarted = null;
+            _seconds = 5;
             await StopCaptureAsync();
             _trialStarted = null;
             if (_error is not null) throw new IOException(_error);

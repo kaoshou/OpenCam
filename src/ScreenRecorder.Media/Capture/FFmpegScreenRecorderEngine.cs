@@ -40,10 +40,12 @@ public interface IBoundRecordingOutput
 {
     // Caller owns the exclusively-created destination and keeps it open until Stop/Dispose.
     Stream? OutputStream { get; set; }
+    bool UsesDirectPreview => false;
 }
 
 public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudioLevelSource, IBoundRecordingOutput
 {
+    public bool UsesDirectPreview => _livePreviewOutput;
     public Stream? OutputStream { get; set; }
     private Task? _outputCopyTask;
     private Stream? _systemPcm;
@@ -402,7 +404,11 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
             using var microphoneDescriptor = InheritedAudioDescriptor.Duplicate(_microphonePcm);
             systemAudioPipeArg = systemDescriptor?.Input(2) ?? systemAudioPipeArg;
             microphoneAudioPipeArg = microphoneDescriptor?.Input(1) ?? microphoneAudioPipeArg;
-            var inputArgs = _capturePlan != null
+            var inputArgs = _livePreviewOutput
+                ? _ffmpegPlatformProvider.BuildDirectPreviewArguments(config, x, y, width, height,
+                    UseSyntheticCaptureSource, hasDirectShowMic, systemAudioPipeArg, microphoneAudioPipeArg,
+                    _capturePlan?.VideoInputArguments)
+                : _capturePlan != null
                 ? _capturePlanProvider!.BuildInputArguments(_capturePlan, config, hasDirectShowMic, systemAudioPipeArg, microphoneAudioPipeArg)
                 : _ffmpegPlatformProvider.BuildInputArguments(
                 config,
@@ -415,9 +421,7 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
                 systemAudioPipeArg,
                 microphoneAudioPipeArg);
             var outputPath = OutputStream is null ? workingFilePath : "pipe:1";
-            var outputArgs = _livePreviewOutput
-                ? _ffmpegPlatformProvider.BuildLivePreviewOutputArguments(config, encoderType, outputPath)
-                : _ffmpegPlatformProvider.BuildOutputArguments(config, encoderType, outputPath);
+            var outputArgs = _livePreviewOutput ? "" : _ffmpegPlatformProvider.BuildOutputArguments(config, encoderType, outputPath);
             // Each attempt has its own fresh path. Refuse overwrite even if a
             // file appears after the caller's existence check.
             // FFmpeg's interactive stats use carriage-return updates on some

@@ -3,7 +3,7 @@ using ScreenRecorder.Core.Models;
 
 namespace ScreenRecorder.Core.Preflight;
 
-public enum PreflightPhase { Preparing, Checking, TrialRecording, Reviewing, Stopping, Closed, Failed }
+public enum PreflightPhase { Preparing, Checking, TrialRecording, Reviewing, Stopping, Closed, Failed, TrialStarting, TrialFinalizing }
 public enum PreflightSourceState { Disabled, Waiting, Live, Silent, Unavailable }
 public sealed record PreflightSourceResult(PreflightSourceState State, double Rms = 0, double Peak = 0);
 public sealed record PreflightStatus(Guid OperationId, long ConfigurationRevision, PreflightPhase Phase,

@@ -10,6 +10,8 @@ public sealed class RecordingPreflightViewModel(Guid operation) : ObservableObje
     public static string AudioStatusKey(PreflightPhase phase, PreflightSourceState state) => state is PreflightSourceState.Disabled or PreflightSourceState.Unavailable
         ? "PreflightSource" + state : phase switch
         {
+            PreflightPhase.TrialStarting => "PreflightTrialStarting",
+            PreflightPhase.TrialFinalizing => "PreflightTrialFinalizing",
             PreflightPhase.TrialRecording when state == PreflightSourceState.Waiting => "PreflightAudioTrialWaiting",
             PreflightPhase.Reviewing => "PreflightAudioReview",
             _ => "PreflightSource" + state

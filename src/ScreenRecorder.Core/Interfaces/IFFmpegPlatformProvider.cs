@@ -10,6 +10,13 @@ namespace ScreenRecorder.Core.Interfaces;
 /// </summary>
 public interface IFFmpegPlatformProvider
 {
+    // Full live-check command tail: native capture -> scaled raw RGBA.
+    // videoInput is the already validated/pinned Windows capture plan, when present.
+    string BuildDirectPreviewArguments(RecordingConfiguration config,
+        int x, int y, int width, int height, bool synthetic, bool hasDirectShowMic,
+        string? systemAudioPipeArg, string? microphoneAudioPipeArg, string? videoInput = null) =>
+        throw new NotSupportedException("Direct preview is unavailable for this capture provider.");
+
     /// <summary>
     /// 取得硬體加速編碼器的快速預檢清單
     /// </summary>

@@ -37,7 +37,26 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider
         bool hasDirectShowMic,
         string? systemAudioPipeArg = null,
         string? microphoneAudioPipeArg = null)
+        => BuildInputArgumentsCore(config, x, y, width, height, useSynthetic, hasDirectShowMic,
+            systemAudioPipeArg, microphoneAudioPipeArg, false, out _);
+
+    public string BuildDirectPreviewArguments(RecordingConfiguration config,
+        int x, int y, int width, int height, bool synthetic, bool hasDirectShowMic,
+        string? systemAudioPipeArg, string? microphoneAudioPipeArg, string? videoInput = null)
     {
+        if (videoInput is not null) throw new NotSupportedException("Unexpected macOS capture plan.");
+        var input = BuildInputArgumentsCore(config, x, y, width, height, synthetic, hasDirectShowMic,
+            systemAudioPipeArg, microphoneAudioPipeArg, true, out var filter);
+        return input + " " +
+            LivePreviewFormat.OutputArguments(config.AudioSource != AudioSourceType.None || config.MaintainSegmentAudioTrack,
+                filter);
+    }
+
+    private string BuildInputArgumentsCore(RecordingConfiguration config, int x, int y, int width, int height,
+        bool useSynthetic, bool hasDirectShowMic, string? systemAudioPipeArg, string? microphoneAudioPipeArg,
+        bool directPreview, out string videoFilter)
+    {
+        videoFilter = "";
         var includeAudioTrack =
             config.AudioSource != AudioSourceType.None ||
             config.MaintainSegmentAudioTrack;
@@ -156,23 +175,18 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider
             }
         }
 
-        if (config.CaptureSource == CaptureSourceType.CustomRegion)
-        {
-            var localX = Math.Max(0, x - (display?.Bounds.X ?? 0));
-            var localY = Math.Max(0, y - (display?.Bounds.Y ?? 0));
-            args.Add($"-filter:v \"crop={width}:{height}:{localX}:{localY}\"");
-        }
-        else
-        {
-            // AVFoundation reports Retina screen frames in backing pixels
-            // (for example 4480x2520) while the display service exposes the
-            // logical capture size (2240x1260). Normalize monitor captures so
-            // VideoToolbox receives the requested, encodable dimensions.
-            args.Add(
-                $"-filter:v \"scale={width}:{height}:flags=fast_bilinear\"");
-        }
+        videoFilter = VideoFilter(config, display, x, y, width, height);
+        if (!directPreview) args.Add($"-filter:v \"{videoFilter}\"");
 
         return string.Join(" ", args);
+    }
+
+    private static string VideoFilter(RecordingConfiguration config, MonitorInfo? display, int x, int y, int width, int height)
+    {
+        // Preserve the same source crop/Retina normalization as saved recording.
+        return config.CaptureSource == CaptureSourceType.CustomRegion
+            ? $"crop={width}:{height}:{Math.Max(0, x - (display?.Bounds.X ?? 0))}:{Math.Max(0, y - (display?.Bounds.Y ?? 0))}"
+            : $"scale={width}:{height}:flags=fast_bilinear";
     }
 
     public string BuildOutputArguments(RecordingConfiguration config, HardwareEncoderType encoderType, string outputPath)

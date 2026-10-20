@@ -114,6 +114,8 @@ public class RecordingPreflightUiTests
     }
     [Theory]
     [InlineData(PreflightPhase.Checking, PreflightSourceState.Waiting, "PreflightSourceWaiting")]
+    [InlineData(PreflightPhase.TrialStarting, PreflightSourceState.Waiting, "PreflightTrialStarting")]
+    [InlineData(PreflightPhase.TrialFinalizing, PreflightSourceState.Waiting, "PreflightTrialFinalizing")]
     [InlineData(PreflightPhase.TrialRecording, PreflightSourceState.Waiting, "PreflightAudioTrialWaiting")]
     [InlineData(PreflightPhase.TrialRecording, PreflightSourceState.Live, "PreflightSourceLive")]
     [InlineData(PreflightPhase.TrialRecording, PreflightSourceState.Silent, "PreflightSourceSilent")]
@@ -180,10 +182,12 @@ public class RecordingPreflightUiTests
             Assert.NotNull(window.FindControl<Image>("Preview")!.Source);
             window.FindControl<Button>("TrialButton")!.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
             Assert.True(placeholder.IsVisible); // Feedback appears before the trial command returns.
-            Assert.Equal(strings["PreflightTrialRecording"], message.Text);
-            Assert.Equal(strings["PreflightTrialPreviewHint"], hint.Text);
+            Assert.Equal(language == ScreenRecorder.Core.Localization.AppLanguage.ZhTw
+                ? "啟動試錄中，請稍候…" : "Starting trial recording, please wait…", message.Text);
+            Assert.False(window.FindControl<ProgressBar>("TrialProgress")!.IsVisible);
             trialCommand.TrySetResult();
             await Until(() => ((RecordingPreflightViewModel)window.DataContext!).Status.Phase == PreflightPhase.TrialRecording);
+            Assert.Equal(strings["PreflightTrialRecording"], message.Text);
             Assert.False(start.IsEnabled);
             Assert.Equal(strings["PreflightAudioTrialWaiting"], window.FindControl<TextBlock>("MicrophoneStatus")!.Text);
             Assert.Equal(strings["PreflightAudioTrialWaiting"], window.FindControl<TextBlock>("SystemStatus")!.Text);
@@ -192,6 +196,11 @@ public class RecordingPreflightUiTests
             await Until(() => window.FindControl<ProgressBar>("MicrophoneMeter")!.Value == .65);
             Assert.Equal(strings["PreflightSourceLive"], window.FindControl<TextBlock>("MicrophoneStatus")!.Text);
             Assert.Equal(strings["PreflightSourceSilent"], window.FindControl<TextBlock>("SystemStatus")!.Text);
+            status = status with { Phase = PreflightPhase.TrialFinalizing,
+                Microphone = new(PreflightSourceState.Waiting), SystemAudio = new(PreflightSourceState.Waiting) };
+            await Until(() => message.Text == strings["PreflightTrialFinalizing"]);
+            Assert.False(window.FindControl<ProgressBar>("TrialProgress")!.IsVisible);
+            Assert.False(window.FindControl<ProgressBar>("MicrophoneMeter")!.IsVisible);
             status = status with { Phase = PreflightPhase.Reviewing, HasTrial = true, HasFrame = false };
             await Until(() => message.Text == strings["PreflightTrialReady"]);
             Assert.True(placeholder.IsVisible); Assert.False(activity.IsVisible);

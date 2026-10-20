@@ -1,8 +1,8 @@
 # OpenCam Complete User Guide (English)
 
-## v0.3.9 preflight preference and bookmark tooltips
+## v0.3.10 direct preview and trial phases
 
-Recording preflight is enabled by default in Settings. Disable it to proceed directly to normal recording preparation; permissions, output validation and actual recording-start acknowledgement remain in place. Live preflight preview uses lower-buffering encoding/container settings, without changing saved recordings or five-second trials. Preview update frequency is unchanged; device latency may vary.
+Recording preflight is enabled by default in Settings. Disable it to proceed directly to normal recording preparation; permissions, output validation and actual recording-start acknowledgement remain in place. Live preview receives aspect-fitted raw frames at a target 10 FPS, keeping only the latest complete picture without video encoding, packaging or a second decoder. A quiet range note explains that preview is delayed and intended to confirm the capture area. Actual speed depends on hardware and load; saved recording and trial pipelines remain unchanged.
 
 Hover over a purple timeline bookmark flag to see its full name. Moving away hides it, while clicking still seeks to the bookmark. Source video remains unchanged.
 
@@ -26,7 +26,7 @@ Preflight and trials monitor only the inputs selected on the main window. Unsele
 
 New recordings, appended recordings and editor insertions first resolve the project name and unsaved changes, then show **Before you record**. Check the recording area and the separate microphone/system-audio meters. Speak and play some system sound, then select **Confirm and record** without extra checkboxes. Silent or disabled audio shows a notice; waiting/unreadable input still blocks recording. Fix the device/permission or disable that input and recheck. The preview area shows loading and trial messages; when the trial is ready, select **Play trial** to check picture and sound.
 
-Live checking starts actual capture and encoding/decoding without saving video. **Record5s** creates a private temporary MKV for **Play trial**, never a formal clip or project session. Monitoring stops during replay so output cannot validate its own input. The temporary MKV can include encoder-initialization frames; playback selects only its final five seconds recorded after startup acknowledgement. Listening to a mixed track does not replace checking the independent meters. After replay, select **Check again** before starting formal recording.
+Live checking starts actual capture without saving video; direct preview does not replace a trial of the saved encoder path. **Record5s** first shows “Starting trial recording, please wait…”. Recording status and the five-second timer start after engine acknowledgement, followed by preparing playback. The trial creates a private temporary MKV for **Play trial**, never a formal clip or project session. Monitoring stops during replay so output cannot validate its own input. The temporary MKV can include encoder-initialization frames; playback selects only its final five seconds recorded after startup acknowledgement. Listening to a mixed track does not replace checking the independent meters. After replay, select **Check again** before starting formal recording.
 
 Cancel/close stops owned capture/playback and cleans the trial. Unconfirmed shutdown blocks formal recording; cleanup never recursively deletes unexpected files. An unchanged paused recording can resume directly; changed configuration or display/audio-device identity requires another check. A preflight reflects current conditions, not a guarantee against later unplugging, permission changes or long-recording faults. Windows/macOS physical-device validation remains required.
 
@@ -48,7 +48,7 @@ Change capture mode only while idle, not while paused. Existing audio/cursor con
 
 OpenCam lets you record, edit, and resume recording. It writes MKV sources, retains them alongside a reopenable editing project, and exports MP4 when needed. Crash Recovery can attempt to preserve successfully written recordings; project recovery drafts protect interrupted unsaved edits.
 
-> This guide covers OpenCam v0.3.9, not a claim of completed acceptance. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending. Complete corresponding-source verification for Windows FFmpeg also remains pending, and packages are unsigned. Use disposable media; see the [release notes and limitations](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.3.9.md).
+> This guide covers OpenCam v0.3.10, not a claim of completed acceptance. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending. Complete corresponding-source verification for Windows FFmpeg also remains pending, and packages are unsigned. Use disposable media; see the [release notes and limitations](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.3.10.md).
 
 v0.3.3 replaces manual export with an **Export…** menu offering MP4 video or Web player. MP4 accepts a filename; Web player creates a unique folder containing index.html, media.mp4 and opencam-player.js. Chapters follow saved clips and show start times and durations in a scrollable index. Overlay controls provide seeking, volume, speed, wide-screen and fullscreen. Move the complete folder together and use an H.264/AAC-capable browser. See [the web export format](https://github.com/kaoshou/OpenCam/blob/master/docs/WEB_PLAYER_EXPORT.md).
 

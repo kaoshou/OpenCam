@@ -80,8 +80,12 @@ public sealed class PreflightCoordinator(RecordingCaptureLease capture, Func<IPr
     }
     private static PreflightStatus Snapshot(Operation current)
     {
-        return current.Session.ReadStatus(DateTimeOffset.UtcNow) with
-        { OperationId = current.Id, ConfigurationRevision = current.Revision, Phase = current.Phase };
+        var status = current.Session.ReadStatus(DateTimeOffset.UtcNow);
+        var phase = current.Phase;
+        if (phase == PreflightPhase.TrialStarting && status.Phase is
+            PreflightPhase.TrialStarting or PreflightPhase.TrialRecording or PreflightPhase.TrialFinalizing)
+            phase = status.Phase;
+        return status with { OperationId = current.Id, ConfigurationRevision = current.Revision, Phase = phase };
     }
     public ProjectFrameReply? ReadFrame(Guid operation, long revision)
     {
@@ -106,7 +110,7 @@ public sealed class PreflightCoordinator(RecordingCaptureLease capture, Func<IPr
             if (current.Phase is not (PreflightPhase.Checking or PreflightPhase.Reviewing) ||
                 current.Session is not IPreflightTrialSession trial) throw new InvalidOperationException("Trial unavailable.");
             using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(ct, current.Cancellation.Token);
-            current.Phase = PreflightPhase.TrialRecording;
+            current.Phase = PreflightPhase.TrialStarting;
             try { await trial.RecordTrialAsync(lifetime.Token); current.Phase = PreflightPhase.Reviewing; }
             catch { current.Phase = PreflightPhase.Failed; throw; }
         }

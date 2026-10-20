@@ -92,7 +92,7 @@ public partial class RecordingPreflightWindow : Window
                         RenderPlaceholder();
                     }
                 }
-                await Task.Delay(250, ct);
+                await Task.Delay(100, ct);
             }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
@@ -116,7 +116,7 @@ public partial class RecordingPreflightWindow : Window
         SystemMeter.Value = systemEnabled && status.SystemAudio.State == PreflightSourceState.Live ? status.SystemAudio.Rms : 0;
         DisableMicrophone.IsVisible = microphoneEnabled;
         DisableSystem.IsVisible = systemEnabled;
-        BoundsLabel.Text = $"{status.DisplayName} · {status.Bounds.Width} × {status.Bounds.Height} · ({status.Bounds.X}, {status.Bounds.Y})";
+        BoundsLabel.Text = $"{status.DisplayName} · {status.Bounds.Width} × {status.Bounds.Height} · ({status.Bounds.X}, {status.Bounds.Y}) · {Strings["PreflightRangeHint"]}";
         PhaseLabel.Text = Strings["Preflight" + status.Phase];
         TrialProgress.IsVisible = status.Phase == PreflightPhase.TrialRecording;
         TrialProgress.Value = status.TrialSeconds;
@@ -133,15 +133,19 @@ public partial class RecordingPreflightWindow : Window
     {
         var status = _model.Status;
         var failed = _model.ConnectionFailed || status.ErrorCode is not null || status.Phase == PreflightPhase.Failed;
-        var trial = _pendingAction == "RecordPreflightTrial" || status.Phase == PreflightPhase.TrialRecording;
+        var trialStarting = status.Phase == PreflightPhase.TrialStarting ||
+            _pendingAction == "RecordPreflightTrial" && status.Phase is PreflightPhase.Checking or PreflightPhase.Reviewing;
+        var trial = trialStarting || status.Phase is PreflightPhase.TrialRecording or PreflightPhase.TrialFinalizing;
         var stopping = _closing || status.Phase is PreflightPhase.Stopping or PreflightPhase.Closed;
-        var reviewing = status.Phase == PreflightPhase.Reviewing && !status.Playing && _pendingAction != "PlayPreflightTrial";
+        var reviewing = status.Phase == PreflightPhase.Reviewing && !status.Playing &&
+            _pendingAction is not ("PlayPreflightTrial" or "RecordPreflightTrial");
         PreviewPlaceholder.IsVisible = failed || trial || stopping || Preview.Source is null;
         PreviewActivity.IsVisible = !failed && !reviewing && status.Phase != PreflightPhase.Closed;
         PreviewMessage.Text = Strings[failed ? "PreflightPreviewFailed" : stopping ? "PreflightStopping" :
+            trialStarting ? "PreflightTrialStarting" : status.Phase == PreflightPhase.TrialFinalizing ? "PreflightTrialFinalizing" :
             trial ? "PreflightTrialRecording" : reviewing ? "PreflightTrialReady" : "PreflightPreviewLoading"];
         PreviewHint.Text = Strings[failed ? "PreflightPreviewRetry" : stopping ? "PreflightStartWait" :
-            trial ? "PreflightTrialPreviewHint" : reviewing ? "PreflightTrialReadyHint" : "PreflightPreviewLoadingHint"];
+            trialStarting ? "PreflightTrialStartingHint" : trial ? "PreflightTrialPreviewHint" : reviewing ? "PreflightTrialReadyHint" : "PreflightPreviewLoadingHint"];
     }
     private void Failure()
     { _model.ConnectionFailed = true; Preview.Source = null; _bitmap?.Dispose(); _bitmap = null;

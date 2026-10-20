@@ -40,8 +40,12 @@ public sealed class PreflightIpcDispatcher : IAsyncDisposable
     private PreflightStatus Status()
     {
         var status = coordinator.ReadCurrentStatus();
+        var phase = !_work.IsCompleted ? _queuedPhase : status.Phase;
+        if (!_work.IsCompleted && _queuedPhase == PreflightPhase.TrialStarting &&
+            status.Phase is PreflightPhase.TrialStarting or PreflightPhase.TrialRecording or PreflightPhase.TrialFinalizing)
+            phase = status.Phase;
         return status with { OperationId = _operation ?? Guid.Empty,
-            Phase = _failure is not null ? PreflightPhase.Failed : !_work.IsCompleted ? _queuedPhase : status.Phase,
+            Phase = _failure is not null ? PreflightPhase.Failed : phase,
             ErrorCode = _failure ?? status.ErrorCode };
     }
     public async Task<IpcResponse> DispatchAsync(IpcMessage message)
@@ -85,7 +89,7 @@ public sealed class PreflightIpcDispatcher : IAsyncDisposable
                 switch (message.MessageType)
                 {
                     case "RecordPreflightTrial":
-                        _queuedPhase = PreflightPhase.TrialRecording;
+                        _queuedPhase = PreflightPhase.TrialStarting;
                         _work = ObserveAsync(() => coordinator.RecordTrialAsync(request.OperationId, request.ConfigurationRevision, _lifetime.Token)); break;
                     case "PlayPreflightTrial":
                         _queuedPhase = PreflightPhase.Preparing;

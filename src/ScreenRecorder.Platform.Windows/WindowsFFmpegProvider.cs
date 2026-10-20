@@ -8,6 +8,16 @@ namespace ScreenRecorder.Platform.Windows;
 
 public class WindowsFFmpegProvider : IFFmpegPlatformProvider
 {
+    public string BuildDirectPreviewArguments(RecordingConfiguration config,
+        int x, int y, int width, int height, bool synthetic, bool hasDirectShowMic,
+        string? systemAudioPipeArg, string? microphoneAudioPipeArg, string? videoInput = null)
+    {
+        var input = videoInput is not null
+            ? BuildAudioInputArguments(videoInput, config, hasDirectShowMic, systemAudioPipeArg)
+            : BuildInputArguments(config, x, y, width, height, synthetic, hasDirectShowMic, systemAudioPipeArg, microphoneAudioPipeArg);
+        return input + " " + LivePreviewFormat.OutputArguments(config.AudioSource != AudioSourceType.None || config.MaintainSegmentAudioTrack);
+    }
+
     public IEnumerable<(string EncoderName, string ExtraArgs, HardwareEncoderType Type)> GetHardwareEncoderProbes()
     {
         yield return ("h264_nvenc", "-pix_fmt yuv420p", HardwareEncoderType.NvidiaNvenc);

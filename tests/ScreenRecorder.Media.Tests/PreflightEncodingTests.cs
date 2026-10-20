@@ -140,5 +140,8 @@ public partial class FFmpegStartupHandshakeTests
             bool synthetic, bool hasDirectShowMic, string? systemAudioPipeArg = null, string? microphoneAudioPipeArg = null) => "";
         public string BuildOutputArguments(RecordingConfiguration config, HardwareEncoderType encoder, string path) => "-metadata profile=saved-recording -f null -";
         public string BuildLivePreviewOutputArguments(RecordingConfiguration config, HardwareEncoderType encoder, string path) => "-metadata profile=live-preview -f null -";
+        public string BuildDirectPreviewArguments(RecordingConfiguration config, int x, int y, int width, int height,
+            bool synthetic, bool hasDirectShowMic, string? systemAudioPipeArg, string? microphoneAudioPipeArg, string? videoInput = null) =>
+            "-metadata profile=live-preview -f null -";
     }
 }
