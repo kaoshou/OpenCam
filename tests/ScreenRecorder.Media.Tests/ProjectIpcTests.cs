@@ -330,7 +330,8 @@ public partial class RecordingEncoderLifecycleTests
         }
         finally { export.ReleaseCancellation.TrySetResult(); }
         await UntilAsync(() => coordinator.ExportStatus!.State == RecordingExportState.Canceled);
-        Assert.True((await coordinator.CloseAsync()).Success);
+        var close = await coordinator.CloseAsync();
+        Assert.True(close.Success, close.ErrorCode);
         dispatcher = new ProjectIpcDispatcher(coordinator);
         Assert.False((await client.SendAsync("StartNewRecordingContent", start)).Success);
         Assert.Null(coordinator.Current);

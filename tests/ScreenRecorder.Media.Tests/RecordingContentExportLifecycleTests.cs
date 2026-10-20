@@ -7,6 +7,35 @@ namespace ScreenRecorder.Media.Tests;
 
 public partial class RecordingEncoderLifecycleTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TerminalExportStatusMeansWorkerHasCompleted(bool cancel)
+    {
+        await using var scope = new RecordingScope();
+        await using var owner = await new JsonProjectStore().CreateAsync(scope.Configuration.OutputDirectory, "terminal");
+        var premature = 0;
+        // Observe the real job from an independent thread, including the interval
+        // between its terminal-state assignment and Task.Run completion.
+        await Task.Factory.StartNew(() =>
+        {
+            for (var i = 0; i < 2000; i++)
+            {
+                var exporter = new ControlledContentExporter();
+                using var job = new RecordingContentExportJob(exporter, owner, owner.Current, scope.Configuration.OutputDirectory);
+                if (cancel) job.Cancel();
+                else exporter.Complete.TrySetResult(new(false, null, "controlled failure"));
+                var deadline = System.Diagnostics.Stopwatch.StartNew();
+                while (job.Status.State == RecordingExportState.Running && deadline.Elapsed < TimeSpan.FromSeconds(5))
+                    Thread.SpinWait(1);
+                if (!job.Completion.IsCompleted) premature++;
+                job.Completion.GetAwaiter().GetResult();
+                Assert.Equal(cancel ? RecordingExportState.Canceled : RecordingExportState.Failed, job.Status.State);
+            }
+        }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+        Assert.True(premature == 0, $"Terminal status exposed before worker completion: {premature}");
+    }
+
     [Fact]
     public async Task CancelOptionalReceiptHashPreservesSuccessfulExport()
     {

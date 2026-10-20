@@ -9,7 +9,20 @@ internal sealed class RecordingContentExportJob : IRecordingExportProgress, IDis
     private readonly object _sync = new();
     private readonly CancellationTokenSource _cancellation = new();
     private RecordingExportStatus _status;
-    public RecordingExportStatus Status { get { lock (_sync) return _status; } }
+    public RecordingExportStatus Status
+    {
+        get
+        {
+            lock (_sync)
+            {
+                // A terminal result is actionable only after the worker has
+                // released its resources, matching the coordinator's owner gate.
+                return _status.State != RecordingExportState.Running && !Completion.IsCompleted
+                    ? _status with { State = RecordingExportState.Running, FinalPath = null, Error = null }
+                    : _status;
+            }
+        }
+    }
     public Task Completion { get; }
 
     public RecordingContentExportJob(IRecordingContentExporter exporter, IProjectHandle owner,
