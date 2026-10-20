@@ -59,6 +59,7 @@ public partial class RecordingEncoderLifecycleTests
             new ScreenRecorder.Infrastructure.Projects.JsonProjectStore(), new ProjectProbeStub());
         var dispatcher = new ScreenRecorder.Recorder.Services.ProjectIpcDispatcher(coordinator);
         var main = CreatePreflightApprovedMain();
+        main.RecordMicrophone = true;
         main.ConfigureRecordingContent(new ScreenRecorder.UI.Projects.ProjectClient((command, request, ct) => dispatcher.DispatchAsync(new()
             { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) })), () => true, () => Task.CompletedTask);
         main.OutputDirectory = scope.Configuration.OutputDirectory;

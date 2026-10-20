@@ -2,6 +2,7 @@
 using ScreenRecorder.Core.Projects;
 using ScreenRecorder.UI.Projects;
 using CommunityToolkit.Mvvm.Input;
+using ScreenRecorder.UI.Preflight;
 
 namespace ScreenRecorder.UI.ViewModels;
 
@@ -15,16 +16,37 @@ public partial class MainViewModel
     public bool UsesRecordingContent => _content is not null;
     public Func<string, Task<string?>>? RequestRecordingProjectName { get; set; }
     public Func<ScreenRecorder.Core.Models.RecordingConfiguration, bool, Task<ScreenRecorder.Core.Models.RecordingConfiguration?>>? RequestRecordingPreflight { get; set; }
+    public Action<RecordingPreparationState>? RecordingPreparationChanged { get; set; }
+    private bool _recordingPreparationActive;
+    private RecordingPreparationState? _lastPreparation;
 
-    private Task<ScreenRecorder.Core.Models.RecordingConfiguration?> CheckBeforeRecordingAsync(
+    private async Task<ScreenRecorder.Core.Models.RecordingConfiguration?> CheckBeforeRecordingAsync(
         ScreenRecorder.Core.Models.RecordingConfiguration configuration, bool resuming)
     {
         // Skip only the optional UI check. Permission, recorder ownership, output
         // validation and the actual start acknowledgement remain on the normal path.
-        if (!_recordingPreflightEnabled)
-            return Task.FromResult<ScreenRecorder.Core.Models.RecordingConfiguration?>(configuration);
-        return RequestRecordingPreflight?.Invoke(configuration, resuming)
-            ?? Task.FromResult<ScreenRecorder.Core.Models.RecordingConfiguration?>(null);
+        var accepted = !_recordingPreflightEnabled || configuration.AudioSource == ScreenRecorder.Core.Enums.AudioSourceType.None
+            ? configuration : RequestRecordingPreflight is { } check ? await check(configuration, resuming) : null;
+        if (accepted is not null)
+        {
+            _lastPreparation = null;
+            ReportRecordingPreparation(RecordingPreparationState.Preparing);
+        }
+        return accepted;
+    }
+    private void ReportRecordingPreparation(RecordingPreparationState state)
+    {
+        _recordingPreparationActive = state is RecordingPreparationState.Preparing or RecordingPreparationState.Confirming or RecordingPreparationState.Unconfirmed;
+        if (_lastPreparation == state) return;
+        _lastPreparation = state;
+        RecordingPreparationChanged?.Invoke(state);
+    }
+    private void ResolveContentPreparation()
+    {
+        if (!_recordingPreparationActive || _content is null) return;
+        var vm = _content.Workspace;
+        ReportRecordingPreparation(vm.StatusUnconfirmed ? RecordingPreparationState.Unconfirmed :
+            vm.State.Mode == ProjectMode.Recording ? RecordingPreparationState.Started : RecordingPreparationState.Failed);
     }
     internal Task<ScreenRecorder.Infrastructure.IPC.IpcResponse> SendPreflightCommandAsync(string command,
         ScreenRecorder.Infrastructure.IPC.PreflightRequest request, CancellationToken ct) =>
@@ -150,6 +172,7 @@ public partial class MainViewModel
     {
         if (_content is null) return;
         var vm = _content.Workspace;
+        if (!_openingContent && !vm.IsBusy && !_content.IsBusy) ResolveContentPreparation();
         var sessionTime = TimeSpan.FromTicks(Math.Max(0, vm.State.SessionRecordingTicks));
         ElapsedTimeText = $"{(long)sessionTime.TotalHours:00}:{sessionTime.Minutes:00}:{sessionTime.Seconds:00}";
         OnPropertyChanged(nameof(TotalRecordingTimeText));
@@ -239,7 +262,7 @@ public partial class MainViewModel
                 RequestMinimizeWindow?.Invoke(this, EventArgs.Empty);
         }
         catch (Exception ex) { vm.Error = ex.Message; }
-        finally { _openingContent = false; SyncRecordingContent(); }
+        finally { _openingContent = false; ResolveContentPreparation(); SyncRecordingContent(); }
     }
 
     public Task StartEditorRecordingAsync(long? insertionTicks = null, long? revision = null) =>

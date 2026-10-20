@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia;
 using ScreenRecorder.Core.Enums;
 using ScreenRecorder.Core.Localization;
 using ScreenRecorder.Core.Preflight;
@@ -83,6 +84,10 @@ public class AudioPreflightUiTests
                 Assert.True(button.IsVisible);
                 Assert.True(button.Bounds.Width > 0);
                 Assert.True(button.Bounds.Height > 0);
+                var point = button.TranslatePoint(default, window);
+                Assert.NotNull(point);
+                Assert.InRange(point.Value.X, 0, window.ClientSize.Width - button.Bounds.Width);
+                Assert.InRange(point.Value.Y, 0, window.ClientSize.Height - button.Bounds.Height);
             }
         }
         finally

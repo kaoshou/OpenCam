@@ -46,7 +46,7 @@
             <TextBlock x:Name="ErrorLabel" Foreground="#B91C1C" TextWrapping="Wrap" IsVisible="False"/>
           </StackPanel>
         </Border>
-        <Border Background="#FFFBEB" CornerRadius="8" Padding="12,9" IsVisible="{Binding ShowSilenceNotice}">
+        <Border x:Name="SilenceArea" Background="#FFFBEB" CornerRadius="8" Padding="12,9" IsVisible="{Binding ShowSilenceNotice}">
           <TextBlock x:Name="SilenceNotice" Foreground="#92400E" FontSize="12" TextWrapping="Wrap"/>
         </Border>
       </StackPanel>

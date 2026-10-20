@@ -6,6 +6,7 @@ using ScreenRecorder.Core.Models;
 using ScreenRecorder.Infrastructure.IPC;
 using ScreenRecorder.UI.Services;
 using ScreenRecorder.UI.ViewModels;
+using ScreenRecorder.UI.Preflight;
 
 namespace ScreenRecorder.Media.Tests;
 
@@ -33,8 +34,9 @@ public class RecordingStartCoordinatorTests
         server.Start();
         await using var client = new NamedPipeIpcClient(pipeName, IpcKey);
 
+        var states = new List<RecordingPreparationState>();
         var pending = RecordingStartCoordinator.StartAsync(
-            client, new RecordingConfiguration(), 250, () => false);
+            client, new RecordingConfiguration(), 250, () => false, reportState: states.Add);
 
         await Task.Delay(400);
         Assert.False(pending.IsCompleted);
@@ -44,6 +46,8 @@ public class RecordingStartCoordinatorTests
         Assert.True(result.Success);
         Assert.Equal("session-1", result.SessionId);
         Assert.Equal(1, starts);
+        Assert.Equal(new[] { RecordingPreparationState.Preparing, RecordingPreparationState.Confirming,
+            RecordingPreparationState.Started }, states);
     }
 
     [Fact]
@@ -90,13 +94,15 @@ public class RecordingStartCoordinatorTests
         await using var client = new NamedPipeIpcClient(pipeName, IpcKey);
         var stopwatch = Stopwatch.StartNew();
 
+        var states = new List<RecordingPreparationState>();
         var result = await RecordingStartCoordinator.StartAsync(
             client, new RecordingConfiguration(), 150, () => false,
-            confirmationTimeout: TimeSpan.FromMilliseconds(150));
+            confirmationTimeout: TimeSpan.FromMilliseconds(150), reportState: states.Add);
 
         Assert.False(result.Success);
         Assert.True(result.StatusUnconfirmed);
         Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(1));
+        Assert.Equal(RecordingPreparationState.Unconfirmed, states.Last());
     }
 
     private static IpcResponse TelemetryResponse(RecordingState state, string? error = null) =>

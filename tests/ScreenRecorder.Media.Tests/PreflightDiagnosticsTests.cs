@@ -50,8 +50,10 @@ public class PreflightDiagnosticsTests
         Assert.True(frame.Rgba![0] > 200 && frame.Rgba[2] < 30);
         var ready = live.ReadStatus(DateTimeOffset.UtcNow);
         Assert.Null(ready.ErrorCode);
+        Assert.True(ready.HasFrame);
+        Assert.False(ready.AudioReady);
         model.Apply(new(server, ready with { OperationId = operation }, false, 4));
-        Assert.True(model.CanStart);
+        Assert.False(model.CanStart); // A legacy video preview cannot authorize an audio-only check.
     }
 
     [Fact]

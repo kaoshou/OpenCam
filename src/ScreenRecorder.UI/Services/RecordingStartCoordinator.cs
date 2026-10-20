@@ -4,6 +4,7 @@ using System.Text.Json;
 using ScreenRecorder.Core.Enums;
 using ScreenRecorder.Core.Models;
 using ScreenRecorder.Infrastructure.IPC;
+using ScreenRecorder.UI.Preflight;
 
 namespace ScreenRecorder.UI.Services;
 
@@ -20,18 +21,29 @@ internal static class RecordingStartCoordinator
         int startTimeoutMs,
         Func<bool> recorderExited,
         TimeSpan? confirmationTimeout = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Action<RecordingPreparationState>? reportState = null,
+        string command = "StartRecording")
     {
+        if (command is not ("StartRecording" or "ResumeRecording")) throw new ArgumentOutOfRangeException(nameof(command));
+        IpcResponse Finish(IpcResponse result)
+        {
+            reportState?.Invoke(result.StatusUnconfirmed ? RecordingPreparationState.Unconfirmed :
+                result.Success ? RecordingPreparationState.Started : RecordingPreparationState.Failed);
+            return result;
+        }
+        reportState?.Invoke(RecordingPreparationState.Preparing);
         var response = await SendWithHardTimeoutAsync(
             client,
-            "StartRecording",
+            command,
             configuration,
             startTimeoutMs,
             cancellationToken);
         if (!response.TimedOut)
         {
-            return response;
+            return Finish(response);
         }
+        reportState?.Invoke(RecordingPreparationState.Confirming);
 
         // The server handles lifecycle commands serially. A telemetry reply
         // therefore arrives only after the timed-out StartRecording has ended.
@@ -42,17 +54,17 @@ internal static class RecordingStartCoordinator
             cancellationToken.ThrowIfCancellationRequested();
             if (recorderExited())
             {
-                return new IpcResponse
+                return Finish(new IpcResponse
                 {
                     Success = false,
                     ErrorMessage = "Recorder process exited while confirming recording startup."
-                };
+                });
             }
 
             var remaining = confirmationLimit - stopwatch.Elapsed;
             if (remaining <= TimeSpan.Zero)
             {
-                return new IpcResponse { StatusUnconfirmed = true };
+                return Finish(new IpcResponse { StatusUnconfirmed = true });
             }
 
             var telemetryTimeoutMs = (int)Math.Clamp(
@@ -81,23 +93,25 @@ internal static class RecordingStartCoordinator
 
                 if (telemetry is not null)
                 {
-                    if (telemetry.State is RecordingState.Recording or RecordingState.Paused)
+                    if (telemetry.State == RecordingState.Recording ||
+                        command == "StartRecording" && telemetry.State == RecordingState.Paused)
                     {
-                        return new IpcResponse
+                        return Finish(new IpcResponse
                         {
                             Success = true,
                             SessionId = telemetry.SessionId
-                        };
+                        });
                     }
 
                     if (telemetry.State is RecordingState.Failed or RecordingState.Idle or
-                        RecordingState.Completed or RecordingState.Interrupted or RecordingState.Recoverable)
+                        RecordingState.Completed or RecordingState.Interrupted or RecordingState.Recoverable ||
+                        command == "ResumeRecording" && telemetry.State == RecordingState.Paused)
                     {
-                        return new IpcResponse
+                        return Finish(new IpcResponse
                         {
                             Success = false,
                             ErrorMessage = telemetry.LastError ?? "Recorder did not start recording."
-                        };
+                        });
                     }
                 }
             }

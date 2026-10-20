@@ -18,14 +18,17 @@ public partial class RecordingPreflightWindow : Window
     private RecordingPreflightViewModel _model = null!;
     private CancellationTokenSource _pollCancellation = new();
     private Task _poll = Task.CompletedTask;
-    private bool _closing, _authorized;
+    private bool _closing, _authorized, _cancelHandoff;
+    private readonly TaskCompletionSource<RecordingConfiguration?> _confirmation = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public Task<RecordingConfiguration?> Confirmation => _confirmation.Task;
+    public RecordingPreparationState? PreparationState { get; private set; }
     private string? _pendingAction;
     private readonly SemaphoreSlim _action = new(1, 1);
     public PreflightRequest Request { get; private set; } = new(Guid.NewGuid());
     private static LanguageManager Strings => LanguageManager.Instance;
     public RecordingPreflightWindow(RecordingConfiguration configuration,
         Func<string, PreflightRequest, CancellationToken, Task<IpcResponse>> send,
-        Func<PreflightRequest, CancellationToken, Task<ProjectReply>>? frame = null)
+        Func<PreflightRequest, CancellationToken, Task<ProjectReply>>? frame = null, bool preparationOnly = false)
     {
         _configuration = JsonSerializer.Deserialize<RecordingConfiguration>(JsonSerializer.Serialize(configuration))!;
         _send = send;
@@ -39,7 +42,8 @@ public partial class RecordingPreflightWindow : Window
         DisableMicrophone.Content = Strings["PreflightDisableMic"]; DisableSystem.Content = Strings["PreflightDisableSystem"];
         CancelButton.Content = Strings["Cancel"]; StartButton.Content = Strings["PreflightStart"];
         ResetModel();
-        Opened += (_, _) => _poll = PollAsync(begin: true, _pollCancellation.Token);
+        if (preparationOnly) SetPreparationState(RecordingPreparationState.Preparing);
+        Opened += (_, _) => { if (!preparationOnly) _poll = PollAsync(begin: true, _pollCancellation.Token); };
     }
     private void ResetModel()
     {
@@ -102,6 +106,16 @@ public partial class RecordingPreflightWindow : Window
     }
     private void RenderPlaceholder()
     {
+        if (PreparationState is { } preparation)
+        {
+            StatusMessage.Text = Strings[preparation == RecordingPreparationState.Failed ? "RecordingPreparationFailed" :
+                preparation is RecordingPreparationState.Confirming or RecordingPreparationState.Unconfirmed
+                    ? "RecordingConfirming" : "RecordingPreparing"];
+            StatusHint.Text = Strings[preparation == RecordingPreparationState.Unconfirmed
+                ? "RecordingUnconfirmedHint" : "PreflightStartWait"];
+            StatusActivity.IsVisible = preparation != RecordingPreparationState.Failed;
+            return;
+        }
         var status = _model.Status;
         var failed = _model.ConnectionFailed || status.ErrorCode is not null || status.Phase == PreflightPhase.Failed;
         var trialStarting = status.Phase == PreflightPhase.TrialStarting ||
@@ -176,14 +190,33 @@ public partial class RecordingPreflightWindow : Window
     }
     private async Task FinishAsync(bool confirm)
     {
-        if (_closing || confirm && !_model.CanStart) return;
+        if (PreparationState is { } preparing)
+        {
+            if (preparing == RecordingPreparationState.Failed) { _authorized = true; Close(); }
+            return;
+        }
+        if (_closing)
+        {
+            if (!confirm) _cancelHandoff = true;
+            return;
+        }
+        if (confirm && !_model.CanStart) return;
         _closing = true; _model.Busy = true; RenderPlaceholder();
         await _action.WaitAsync();
         try
         {
             await StopPollingAsync(); await EndAsync(confirm);
-            _authorized = true;
-            Close(confirm ? _configuration : null);
+            if (confirm && !_cancelHandoff)
+            {
+                SetPreparationState(RecordingPreparationState.Preparing);
+                _confirmation.TrySetResult(_configuration);
+            }
+            else
+            {
+                _confirmation.TrySetResult(null);
+                _authorized = true;
+                Close();
+            }
         }
         catch { _closing = false; Failure(); }
         finally { _action.Release(); }
@@ -191,5 +224,35 @@ public partial class RecordingPreflightWindow : Window
     private async void OnStart(object? sender, RoutedEventArgs e) => await FinishAsync(true);
     private async void OnCancel(object? sender, RoutedEventArgs e) => await FinishAsync(false);
     protected override void OnClosing(WindowClosingEventArgs e)
-    { if (!_authorized) { e.Cancel = true; _ = FinishAsync(false); } base.OnClosing(e); }
+    {
+        if (PreparationState == RecordingPreparationState.Failed) _authorized = true;
+        if (!_authorized) { e.Cancel = true; _ = FinishAsync(false); }
+        base.OnClosing(e);
+    }
+
+    public void SetPreparationState(RecordingPreparationState state)
+    {
+        PreparationState = state;
+        if (state == RecordingPreparationState.Started)
+        {
+            _authorized = true; Close(); return;
+        }
+        _model.Busy = true;
+        AudioCards.IsVisible = AudioActions.IsVisible = StartButton.IsVisible = false;
+        SilenceArea.IsVisible = false;
+        TrialProgress.IsVisible = ErrorLabel.IsVisible = false;
+        CancelButton.IsEnabled = state == RecordingPreparationState.Failed;
+        Heading.Text = Title = Strings["RecordingPreparing"];
+        Privacy.IsVisible = false;
+        MinHeight = 240; Height = 280;
+        RenderPlaceholder();
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        _confirmation.TrySetResult(null);
+        _pollCancellation.Cancel();
+        _pollCancellation.Dispose();
+        base.OnClosed(e);
+    }
 }

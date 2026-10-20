@@ -19,6 +19,7 @@ public partial class MainWindow : Window
     private bool _projectCloseAuthorized, _closingProject;
     private bool _initialSizeApplied;
     private ScreenRecorder.Infrastructure.IPC.PreflightRequest? _lastPreflight;
+    private ScreenRecorder.UI.Preflight.RecordingPreflightWindow? _preparationWindow;
     private readonly ScreenRecorder.UI.Recording.MicrophoneWarningPresenter _microphoneWarning;
 
     public MainWindow()
@@ -34,6 +35,7 @@ public partial class MainWindow : Window
                 _identificationViewModel.MicrophoneWarningOverlayVisible = false;
                 _identificationViewModel.RequestRecordingProjectName = null;
                 _identificationViewModel.RequestRecordingPreflight = null;
+                _identificationViewModel.RecordingPreparationChanged = null;
                 _identificationViewModel.RequestUnsavedProjectDecision = null;
                 _identificationViewModel.RequestProjectDraftRecovery = null;
                 _identificationViewModel.RequestMp4Destination = null;
@@ -50,6 +52,18 @@ public partial class MainWindow : Window
             if (DataContext is MainViewModel vm)
             {
                 vm.RequestRecordingProjectName = AskRecordingProjectNameAsync;
+                vm.RecordingPreparationChanged = state =>
+                {
+                    if (state == ScreenRecorder.UI.Preflight.RecordingPreparationState.Preparing &&
+                        _preparationWindow?.PreparationState == ScreenRecorder.UI.Preflight.RecordingPreparationState.Failed)
+                        _preparationWindow.Close();
+                    if (_preparationWindow is null && state is not (ScreenRecorder.UI.Preflight.RecordingPreparationState.Started or
+                        ScreenRecorder.UI.Preflight.RecordingPreparationState.Failed))
+                    {
+                        ShowPreparationWindow(new(new(), vm.SendPreflightCommandAsync, preparationOnly: true));
+                    }
+                    _preparationWindow?.SetPreparationState(state);
+                };
                 vm.RequestRecordingPreflight = async (configuration, allowPrevious) =>
                 {
                     if (allowPrevious && _lastPreflight is { } previous)
@@ -58,9 +72,11 @@ public partial class MainWindow : Window
                         if (response.Success && System.Text.Json.JsonSerializer.Deserialize<ScreenRecorder.Infrastructure.IPC.PreflightReply>(response.DataJson!)?.ConfigurationConfirmed == true)
                             return configuration;
                     }
-                    var dialog = new ScreenRecorder.UI.Preflight.RecordingPreflightWindow(configuration,
-                        vm.SendPreflightCommandAsync, vm.ReadPreflightFrameAsync);
-                    var accepted = await dialog.ShowDialog<RecordingConfiguration?>(_projectWindow?.IsVisible == true ? _projectWindow : this);
+                    if (_preparationWindow?.PreparationState == ScreenRecorder.UI.Preflight.RecordingPreparationState.Failed)
+                        _preparationWindow.Close();
+                    var dialog = new ScreenRecorder.UI.Preflight.RecordingPreflightWindow(configuration, vm.SendPreflightCommandAsync);
+                    ShowPreparationWindow(dialog);
+                    var accepted = await dialog.Confirmation;
                     _lastPreflight = accepted is null ? null : dialog.Request;
                     return accepted;
                 };
@@ -87,6 +103,16 @@ public partial class MainWindow : Window
                 };
             }
         };
+    }
+
+    private void ShowPreparationWindow(ScreenRecorder.UI.Preflight.RecordingPreflightWindow dialog)
+    {
+        if (_preparationWindow is not null) throw new InvalidOperationException("Recording preparation is already active.");
+        _preparationWindow = dialog;
+        dialog.Closed += (_, _) => { if (ReferenceEquals(_preparationWindow, dialog)) _preparationWindow = null; };
+        // Owned, not modal: the ViewModel locks editing/start while existing Stop
+        // and force-quit safety controls remain reachable if startup is unknown.
+        dialog.Show(_projectWindow?.IsVisible == true ? _projectWindow : this);
     }
 
     protected override void OnOpened(EventArgs e)

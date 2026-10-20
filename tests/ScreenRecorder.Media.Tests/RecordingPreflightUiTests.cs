@@ -52,6 +52,7 @@ public partial class RecordingEncoderLifecycleTests
             new ScreenRecorder.Infrastructure.Projects.JsonProjectStore(), new ProjectProbeStub());
         var dispatcher = new ScreenRecorder.Recorder.Services.ProjectIpcDispatcher(coordinator);
         var main = CreatePreflightApprovedMain();
+        main.RecordMicrophone = true;
         var calls = 0;
         main.ConfigureRecordingContent(new ScreenRecorder.UI.Projects.ProjectClient((command, request, ct) => dispatcher.DispatchAsync(new()
             { MessageType = command, PayloadJson = System.Text.Json.JsonSerializer.Serialize(request) })), () => true, () => Task.CompletedTask);
@@ -222,7 +223,7 @@ public class RecordingPreflightUiTests
         Assert.Equal(PreflightPhase.TrialRecording, vm.Status.Phase);
     }
     [Avalonia.Headless.XUnit.AvaloniaFact]
-    public async Task ActualDialogUsesSingleConfirmationAndJoinsCaptureBeforeClosing()
+    public async Task ActualDialogUsesSingleConfirmationAndJoinsCaptureBeforeFormalStartup()
     {
         var capture = new ScreenRecorder.Recorder.Services.RecordingCaptureLease();
         var source = new WindowSession();
@@ -246,9 +247,12 @@ public class RecordingPreflightUiTests
         Assert.Equal(Avalonia.Layout.VerticalAlignment.Center, start.VerticalContentAlignment);
         Assert.InRange(start.Bounds.Height, 25, 48);
         start.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
-        await closed.Task.WaitAsync(deadline.Token);
+        Assert.NotNull(await window.Confirmation.WaitAsync(deadline.Token));
+        Assert.True(window.IsVisible);
         Assert.False(capture.IsOwned);
         Assert.True(source.Stopped);
+        window.SetPreparationState(RecordingPreparationState.Started);
+        await closed.Task.WaitAsync(deadline.Token);
     }
     private sealed class WindowSession : ScreenRecorder.Recorder.Services.IPreflightLiveSession
     {

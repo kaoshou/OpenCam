@@ -55,9 +55,11 @@ public sealed class PreflightPreferenceUiTests
 public partial class RecordingEncoderLifecycleTests
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task PreflightPreferenceAppliesToNewRecordingAndResume(bool enabled)
+    [InlineData(false, true, false)]
+    [InlineData(true, true, false)]
+    [InlineData(true, false, false)]
+    [InlineData(true, true, true)]
+    public async Task PreflightPreferenceAppliesToNewRecordingResumeAndInsertAndAlwaysShowsPreparation(bool enabled, bool selected, bool insert)
     {
         await using var scope = new RecordingScope();
         await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
@@ -68,6 +70,10 @@ public partial class RecordingEncoderLifecycleTests
         main.OutputDirectory = scope.Configuration.OutputDirectory;
         main.RequestRecordingProjectName = _ => Task.FromResult<string?>("Preflight preference");
         main.ApplyNewSettings(JsonSerializer.Deserialize<UserSettings>($"{{\"RecordingPreflightEnabled\":{(enabled ? "true" : "false")}}}")!);
+        main.RecordMicrophone = selected;
+        main.RecordSystemAudio = false;
+        var preparation = new List<ScreenRecorder.UI.Preflight.RecordingPreparationState>();
+        main.RecordingPreparationChanged = preparation.Add;
         var checks = 0;
         main.RequestRecordingPreflight = (configuration, _) =>
         {
@@ -77,12 +83,16 @@ public partial class RecordingEncoderLifecycleTests
         try
         {
             await main.StartRecordingAsync();
-            Assert.Equal(enabled ? 1 : 0, checks);
+            Assert.Equal(enabled && selected ? 1 : 0, checks);
+            Assert.Contains(ScreenRecorder.UI.Preflight.RecordingPreparationState.Preparing, preparation);
+            Assert.Equal(ScreenRecorder.UI.Preflight.RecordingPreparationState.Started, preparation.Last());
             Assert.True(main.IsRecording);
             Assert.Equal(ProjectMode.Recording, coordinator.Mode);
             await main.TogglePauseResumeAsync();
-            await main.TogglePauseResumeAsync();
-            Assert.Equal(enabled ? 2 : 0, checks);
+            if (insert) await main.StartEditorRecordingAsync(0, coordinator.Current!.Revision);
+            else await main.TogglePauseResumeAsync();
+            Assert.Equal(enabled && selected ? 2 : 0, checks);
+            Assert.Equal(2, preparation.Count(s => s == ScreenRecorder.UI.Preflight.RecordingPreparationState.Started));
             Assert.True(main.IsRecording);
             Assert.Equal(2, scope.Factory.Paths.Count);
             Assert.True((await coordinator.FinishAsync(Guid.NewGuid())).Success);
@@ -114,6 +124,7 @@ public partial class RecordingEncoderLifecycleTests
             Assert.True(main.IsRecording);
             await main.TogglePauseResumeAsync();
             main.ApplyNewSettings(new UserSettings()); // Default-on settings take effect immediately.
+            main.RecordMicrophone = true;
             main.RequestRecordingPreflight = (_, _) => Task.FromResult<RecordingConfiguration?>(null);
             await main.TogglePauseResumeAsync();
             Assert.Equal(ProjectMode.Paused, coordinator.Mode);

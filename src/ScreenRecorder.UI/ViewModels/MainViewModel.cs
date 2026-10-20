@@ -25,6 +25,7 @@ using ScreenRecorder.Media.Encoders;
 using ScreenRecorder.Platform.macOS;
 using ScreenRecorder.UI.Localization;
 using ScreenRecorder.UI.Services;
+using ScreenRecorder.UI.Preflight;
 using ScreenRecorder.UI.Views;
 using Serilog;
 using ScreenRecorder.Core;
@@ -1312,7 +1313,7 @@ public partial class MainViewModel : ObservableObject
 
         IsPreparing = true;
         StatusMessage = Strings["StatusInitializing"];
-
+        var startSent = false;
         try
         {
             if (_macOsScreenCapturePermissionService is not null &&
@@ -1358,11 +1359,13 @@ public partial class MainViewModel : ObservableObject
             // encoder then CPU fallback). Keep the UI request alive for both.
             var startTimeoutMs = OperatingSystem.IsMacOS() &&
                 config.AudioSource != AudioSourceType.None ? 40000 : 8000;
+            startSent = true;
             var response = await RecordingStartCoordinator.StartAsync(
                 _ipcClient,
                 config,
                 startTimeoutMs,
-                () => _recorderProcess?.HasExited != false);
+                () => _recorderProcess?.HasExited != false,
+                reportState: ReportRecordingPreparation);
 
             if (response.Success)
             {
@@ -1383,21 +1386,17 @@ public partial class MainViewModel : ObservableObject
             }
             else
             {
-                if (response.ErrorMessage?.Contains("Recording") == true)
-                {
-                    IsRecording = true;
-                    IsPaused = false;
-                    StatusMessage = Strings["StatusRecordingActive"];
-                    _telemetryTimer.Start();
-                    StartAudioMeterPolling();
-                    return;
-                }
                 StatusMessage = Strings.GetFormatted("StatusFailed", response.ErrorMessage ?? string.Empty);
             }
         }
         catch (Exception ex)
         {
-            StatusMessage = Strings.GetFormatted("StatusFailed", ex.Message);
+            if (startSent) EnterUnconfirmedStartup();
+            else
+            {
+                if (_recordingPreparationActive) ReportRecordingPreparation(RecordingPreparationState.Failed);
+                StatusMessage = Strings.GetFormatted("StatusFailed", ex.Message);
+            }
         }
         finally
         {
@@ -1407,6 +1406,7 @@ public partial class MainViewModel : ObservableObject
 
     internal void EnterUnconfirmedStartup()
     {
+        ReportRecordingPreparation(RecordingPreparationState.Unconfirmed);
         _startupStatusUnconfirmed = true;
         _unconfirmedStopFailed = false;
         IsPreparing = false;
@@ -1433,6 +1433,7 @@ public partial class MainViewModel : ObservableObject
         if (IsPaused)
         {
             IsPreparing = true;
+            var resumeSent = false;
             try
             {
                 StatusMessage = Strings["StatusResuming"];
@@ -1455,16 +1456,17 @@ public partial class MainViewModel : ObservableObject
                     return;
                 }
 
-                var response = await _ipcClient.SendCommandAsync(
-                    "ResumeRecording",
-                    new { },
-                    timeoutMs: 8000);
+                resumeSent = true;
+                var response = await RecordingStartCoordinator.StartAsync(_ipcClient, checkedConfiguration,
+                    8000, () => _recorderProcess?.HasExited != false,
+                    reportState: ReportRecordingPreparation, command: "ResumeRecording");
                 if (response.Success)
                 {
                     IsRecording = true;
                     IsPaused = false;
                     StatusMessage = Strings["StatusRecordingActive"];
                 }
+                else if (response.StatusUnconfirmed) EnterUnconfirmedStartup();
                 else
                 {
                     StatusMessage = Strings.GetFormatted(
@@ -1472,8 +1474,15 @@ public partial class MainViewModel : ObservableObject
                         response.ErrorMessage ?? string.Empty);
                 }
             }
+            catch (Exception ex)
+            {
+                if (resumeSent) EnterUnconfirmedStartup();
+                else StatusMessage = Strings.GetFormatted("StatusFailed", ex.Message);
+            }
             finally
             {
+                if (_recordingPreparationActive && !_startupStatusUnconfirmed)
+                    ReportRecordingPreparation(RecordingPreparationState.Failed);
                 IsPreparing = false;
             }
         }
@@ -1524,6 +1533,7 @@ public partial class MainViewModel : ObservableObject
 
             if (response.Success)
             {
+                if (_recordingPreparationActive) ReportRecordingPreparation(RecordingPreparationState.Failed);
                 ClearUnconfirmedStartup();
                 LastOutputFilePath = response.SessionId;
                 SetActualEncoder(null);
@@ -1947,6 +1957,9 @@ public partial class MainViewModel : ObservableObject
                             return;
                         }
 
+                        if (_recordingPreparationActive)
+                            ReportRecordingPreparation(telemetry.State is RecordingState.Recording or RecordingState.Paused
+                                ? RecordingPreparationState.Started : RecordingPreparationState.Failed);
                         ClearUnconfirmedStartup();
                         if (telemetry.State is RecordingState.Recording or RecordingState.Paused)
                         {
@@ -2034,6 +2047,7 @@ public partial class MainViewModel : ObservableObject
                 return;
             }
 
+            if (_recordingPreparationActive) ReportRecordingPreparation(RecordingPreparationState.Failed);
             ClearUnconfirmedStartup();
             _telemetryTimer.Stop();
             StopAudioMeterPolling();
