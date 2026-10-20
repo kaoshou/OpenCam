@@ -1,8 +1,8 @@
 # OpenCam Complete User Guide (English)
 
-## Unreleased development change: audio-only preflight
+## v0.3.11: audio-only preflight
 
-This section describes unreleased development changes; published v0.3.10 still has direct video preview. Preflight remains enabled by default in Settings, but now checks audio only, without screen capture or preview. Disabled checks or no selected inputs bypass audio checking while retaining formal preparation, permissions, project/output validation and actual start acknowledgement. Formal video encoding and audio recording pipelines are unchanged.
+Preflight remains enabled by default in Settings, but now checks audio only, without screen capture or preview. Disabled checks or no selected inputs bypass audio checking while retaining formal preparation, permissions, project/output validation and actual start acknowledgement. Formal video encoding and audio recording pipelines are unchanged.
 
 Hover over a purple timeline bookmark flag to see its full name. Moving away hides it, while clicking still seeks to the bookmark. Source video remains unchanged.
 
@@ -20,7 +20,7 @@ While recording, choose **Add bookmark** or use Ctrl+Shift+M, configurable in Se
 
 The editor's **Bookmarks** menu provides a scrollable list with seek, rename and delete; purple timeline flags follow retained source content. Bookmarks save automatically to `opencam-bookmarks.json` inside the project, without rewriting video, upgrading the manifest or adding Web chapters. Rename/delete are outside clip Undo/Redo. Trimmed locations hide their flags and reappear when clips are restored; — means unresolved or trimmed. Keep the entire project folder. Older versions do not offer bookmark operations.
 
-## Audio checking (unreleased development change)
+## Audio checking
 
 Preflight and trials monitor only the inputs selected on the main window. Unselected inputs explicitly say they will not be recorded, without meters or prompts to speak/play sound. Return to the main window to enable an input. Selected inputs show current levels from the trial engine during the five-second trial. Live monitoring stops on completion or replay. Missing or stale samples do not prove successful capture; replay the trial to verify sound.
 
@@ -50,7 +50,7 @@ Change capture mode only while idle, not while paused. Existing audio/cursor con
 
 OpenCam lets you record, edit, and resume recording. It writes MKV sources, retains them alongside a reopenable editing project, and exports MP4 when needed. Crash Recovery can attempt to preserve successfully written recordings; project recovery drafts protect interrupted unsaved edits.
 
-> This guide covers OpenCam v0.3.10, not a claim of completed acceptance. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending. Complete corresponding-source verification for Windows FFmpeg also remains pending, and packages are unsigned. Use disposable media; see the [release notes and limitations](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.3.10.md).
+> This guide covers OpenCam v0.3.11, not a claim of completed acceptance. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending. Complete corresponding-source verification for Windows FFmpeg also remains pending, and packages are unsigned. Use disposable media; see the [release notes and limitations](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.3.11.md).
 
 v0.3.3 replaces manual export with an **Export…** menu offering MP4 video or Web player. MP4 accepts a filename; Web player creates a unique folder containing index.html, media.mp4 and opencam-player.js. Chapters follow saved clips and show start times and durations in a scrollable index. Overlay controls provide seeking, volume, speed, wide-screen and fullscreen. Move the complete folder together and use an H.264/AAC-capable browser. See [the web export format](https://github.com/kaoshou/OpenCam/blob/master/docs/WEB_PLAYER_EXPORT.md).
 

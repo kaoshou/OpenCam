@@ -10,9 +10,9 @@ OpenCam 讓你錄影、剪輯，再繼續錄影。這款以可靠性為優先的
 
 ## 錄前確認與錄製提醒
 
-- v0.3.10：錄前預覽直接接收縮小原始影格，省去影片編碼／封裝／再次解碼，只保留最新完整影格。範圍文字附延遲說明；試錄區分啟動、實際錄製與準備回放，五秒計時從引擎確認啟動開始。正式錄影與試錄保存管線不變，實際延遲仍依設備而定。
-- 時間軸紫色重點旗標可滑鼠停留查看完整名稱，點擊仍可跳轉。詳見 [v0.3.10 更新與限制](docs/releases/v0.3.10.md)。
-- 未發布開發版：錄前檢查改為只確認系統聲音及麥克風，不擷取或預覽畫面；五秒純音訊試錄與回放不加入專案，也不驗證影片編碼器。以下新版行為尚未包含在已發布的 v0.3.10。
+- v0.3.11：錄前檢查改為純音訊，移除畫面擷取與預覽；音源卡片下方的獨立狀態區顯示載入、聲音試錄與正式錄製準備。
+- 時間軸紫色重點旗標可滑鼠停留查看完整名稱，點擊仍可跳轉。詳見 [v0.3.11 更新與限制](docs/releases/v0.3.11.md)。
+- 錄前檢查只確認系統聲音及麥克風；五秒純音訊試錄與回放不加入專案，也不驗證影片編碼器。正式錄影仍保存原設定的畫面與聲音。
 - 未勾選的音源明確標示本次不會錄製；已勾選的音源在五秒試錄期間顯示即時音量，完成後可回放確認。
 - 已移除錄製倒數：確認後直接準備錄製，以實際啟動確認為準。音源卡片下方的獨立狀態區顯示載入、試錄啟動、五秒收音、準備回放與正式錄製準備；未選音源或關閉檢查仍顯示正式準備狀態。
 - 錄影中可按「標記重點」或自訂快捷鍵（預設 Ctrl+Shift+M）；編輯器也可在目前播放位置新增、定位、改名、刪除重點。標記自動另存專案，不改寫影片、不納入片段復原／重做。
@@ -49,7 +49,7 @@ v0.3.3 新增「輸出… → 網頁播放器」：選擇存放位置後，建�
 
 🌐 [OpenCam 官方網站](https://kaoshou.github.io/OpenCam/)（可切換繁體中文／English）
 
-目前原始碼版本為 **0.3.10**，採用 **AGPL-3.0-or-later**。Windows 原生錄影、編輯影音預覽、輸出與長時間音畫同步實機驗收仍待完成；Windows FFmpeg 完整對應原始碼核對亦尚未完成。套件未簽章，發布不代表全部驗收通過。請保留重要素材備份，已發布安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。詳見 [v0.3.10 更新與限制](docs/releases/v0.3.10.md)。
+目前原始碼版本為 **0.3.11**，採用 **AGPL-3.0-or-later**。Windows 原生錄影、編輯影音預覽、輸出與長時間音畫同步實機驗收仍待完成；Windows FFmpeg 完整對應原始碼核對亦尚未完成。套件未簽章，發布不代表全部驗收通過。請保留重要素材備份，已發布安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。詳見 [v0.3.11 更新與限制](docs/releases/v0.3.11.md)。
 
 **v0.3.3** 新增可辨識的離線網頁播放器輸出；時間軸拖曳只調整排序，不再以邊緣拖曳裁剪。明確的分割／刪除範圍與復原操作保留，右側片段操作按鈕統一排列與圖示。先前已誤裁的片段不會自動改寫。
 
@@ -219,7 +219,7 @@ v0.2.0 的完整安裝檔請至 [OpenCam v0.2.0 Release](https://github.com/kaos
 
 ## Preflight and recording reminders
 
-- Unreleased development change: preflight checks system audio and microphone only, with no screen capture or preview. The isolated five-second audio trial and replay never enter the project or validate the video encoder. This new behavior is not included in published v0.3.10.
+- Preflight checks system audio and microphone only, with no screen capture or preview. The isolated five-second audio trial and replay never enter the project or validate the video encoder. Formal recording still saves the configured video and audio.
 - Unselected inputs explicitly say they will not be recorded. Selected inputs show live levels during the five-second trial; replay it afterward to verify sound.
 - The countdown is removed. A separate status area below the source cards shows loading, trial startup, five seconds of capture, preparing replay and formal recording preparation. Disabled checks or no selected inputs bypass audio checking, not preparation or actual startup acknowledgement.
 - Add bookmarks while recording using the button or a configurable shortcut (default Ctrl+Shift+M). In the editor, add bookmarks at the playhead, seek to them, rename or remove them. Bookmarks save automatically in the project, outside clip Undo/Redo, without rewriting video.
@@ -254,9 +254,9 @@ OpenCam is built with .NET 8, Avalonia UI, and FFmpeg, and supports Windows and 
 
 🌐 [OpenCam official website](https://kaoshou.github.io/OpenCam/) (English / 繁體中文)
 
-The current source version is **0.3.10**, under **AGPL-3.0-or-later**. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending, as does verification of complete corresponding sources for the Windows FFmpeg build. Packages are unsigned; publication does not establish complete acceptance. Keep backups of important media. Published packages are available from [Releases](https://github.com/kaoshou/OpenCam/releases); see [v0.3.10 changes and limitations](docs/releases/v0.3.10.md).
+The current source version is **0.3.11**, under **AGPL-3.0-or-later**. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending, as does verification of complete corresponding sources for the Windows FFmpeg build. Packages are unsigned; publication does not establish complete acceptance. Keep backups of important media. Published packages are available from [Releases](https://github.com/kaoshou/OpenCam/releases); see [v0.3.11 changes and limitations](docs/releases/v0.3.11.md).
 
-**New in v0.3.10:** direct scaled raw-frame preflight preview removes video encoding/container/second-decoder buffering and retains only the latest complete frame. A quiet range hint explains delay. Trials distinguish startup, acknowledged recording and preparing playback; the five-second timer starts after acknowledgement. Saved recording/trial pipelines remain unchanged. Actual preview latency still depends on hardware.
+**New in v0.3.11:** audio-only preflight removes screen capture and preview. A separate status area shows loading, trial startup, acknowledged five-second capture, preparing playback and formal recording preparation. Formal recording still uses the configured video/audio pipeline.
 
 **v0.3.3** adds identifiable offline web-player exports. Timeline dragging only reorders clips and no longer trims their edges; explicit split/range deletion and undo remain available. Inspector actions have consistent icon buttons. Existing accidentally trimmed ranges are not rewritten automatically.
 

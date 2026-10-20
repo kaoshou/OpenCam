@@ -1,6 +1,6 @@
 # ADR 0009: Audio-only preflight and continuous startup status
 
-Status: implemented locally, unreleased (2026-10-21).
+Status: accepted for v0.3.11 (2026-10-21).
 
 ## Decision
 
