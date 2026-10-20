@@ -10,7 +10,10 @@ namespace ScreenRecorder.Recorder.Services;
 
 public sealed partial class PreflightAudioSession(
     Func<IPreflightAudioCapture> create,
-    Func<RecordingConfiguration, string>? audioIdentity = null) : IPreflightLiveSession
+    Func<RecordingConfiguration, string>? audioIdentity = null,
+    Func<PreflightTrialStorage>? storage = null,
+    Func<Stream, CancellationToken, Task<TimeSpan>>? validate = null,
+    Func<PreflightTrialStorage, TimeSpan, PreflightAudioPlayback>? playback = null) : IPreflightLiveSession, IPreflightTrialSession
 {
     private readonly object _audioGate = new();
     private RecordingConfiguration? _configuration;
@@ -75,7 +78,9 @@ public sealed partial class PreflightAudioSession(
         return PreflightStatus.Empty with
         {
             Phase = _phase, Microphone = mic, SystemAudio = sys,
-            ErrorCode = _error, AudioReady = _phase == PreflightPhase.Checking && ready
+            ErrorCode = _error ?? _replay?.ErrorCode, AudioReady = _phase == PreflightPhase.Checking && ready,
+            HasTrial = _trialReady, Playing = _replay?.Playing == true,
+            TrialSeconds = _clock?.IsRunning == true ? Math.Clamp(_clock.Elapsed.TotalSeconds, 0, 5) : _trialSeconds
         };
     }
 
@@ -95,7 +100,10 @@ public sealed partial class PreflightAudioSession(
     public async Task StopAsync(CancellationToken ct)
     {
         _phase = PreflightPhase.Stopping;
+        await StopReplayAsync(ct);
         await StopCaptureAsync(ct);
+        if (_storage is not null) { await _storage.DisposeAsync(); _storage = null; }
+        _trialReady = false;
         _phase = PreflightPhase.Closed;
     }
 
