@@ -7,7 +7,11 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const tools = {
-  dotnet: { command: 'dotnet', args: ['--info'] },
+  // Query version inventories independently: --info also gathers workload and
+  // other SDK diagnostics, which can stall before reaching these inventories.
+  dotnet: { command: 'dotnet', args: ['--version'] },
+  dotnetSdks: { command: 'dotnet', args: ['--list-sdks'] },
+  dotnetRuntimes: { command: 'dotnet', args: ['--list-runtimes'] },
   ffmpeg: { command: 'ffmpeg', args: ['-version'] },
   ffprobe: { command: 'ffprobe', args: ['-version'] },
 };

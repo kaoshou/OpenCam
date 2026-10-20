@@ -13,6 +13,20 @@ const implementation = new URL('../../scripts/collect-test-environment.mjs', imp
 const loadCollector = () => import(implementation);
 const nodeProbe = (source) => ({ command: process.execPath, args: ['-e', source] });
 
+test('default evidence independently records selected SDK and installed SDK/runtime inventories', async () => {
+  const { collectTestEnvironment } = await loadCollector();
+  const report = collectTestEnvironment();
+  assert.equal(report.success, true, JSON.stringify(report.tools));
+  assert.match(report.tools.dotnet.stdout.trim(), /^\d+\.\d+\.\d+\S*$/);
+  assert.match(report.tools.dotnetSdks.stdout, /\d+\.\d+\.\d+\S* \[/);
+  assert.match(report.tools.dotnetRuntimes.stdout, /Microsoft.NETCore.App \d+\.\d+\.\d+\S* \[/);
+  for (const name of ['dotnet', 'dotnetSdks', 'dotnetRuntimes']) {
+    assert.equal(report.tools[name].status, 0);
+    assert.equal(report.tools[name].errorCode, null);
+    assert.equal(report.tools[name].truncated, false);
+  }
+});
+
 test('environment evidence records tool results and only allowlisted runner metadata', async () => {
   const { collectTestEnvironment } = await loadCollector();
   const report = collectTestEnvironment({
@@ -94,7 +108,8 @@ test('CLI exits unsuccessfully but leaves readable evidence when prerequisites a
     assert.equal(result.status, 1, result.stderr);
     const report = JSON.parse(await readFile(destination, 'utf8'));
     assert.equal(report.success, false);
-    for (const name of ['dotnet', 'ffmpeg', 'ffprobe']) assert.equal(report.tools[name].errorCode, 'ENOENT');
+    for (const name of ['dotnet', 'dotnetSdks', 'dotnetRuntimes', 'ffmpeg', 'ffprobe'])
+      assert.equal(report.tools[name].errorCode, 'ENOENT');
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
