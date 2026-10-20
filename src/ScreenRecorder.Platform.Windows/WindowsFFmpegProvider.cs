@@ -6,8 +6,23 @@ using ScreenRecorder.Core.Models;
 
 namespace ScreenRecorder.Platform.Windows;
 
-public class WindowsFFmpegProvider : IFFmpegPlatformProvider
+public class WindowsFFmpegProvider : IFFmpegPlatformProvider, IPreflightAudioPlatformProvider
 {
+    public string BuildPreflightAudioInputArguments(RecordingConfiguration configuration, bool synthetic,
+        string? systemAudioInput, string? microphoneAudioInput)
+    {
+        if (!synthetic && microphoneAudioInput is null &&
+            configuration.AudioSource is AudioSourceType.MicrophoneOnly or AudioSourceType.SystemAndMicrophone)
+        {
+            var id = configuration.MicrophoneDeviceId;
+            if (string.IsNullOrWhiteSpace(id) || id == "default_mic" || id.Any(c => c is '"' or '\r' or '\n'))
+                throw new InvalidOperationException("A selected microphone device is required.");
+            microphoneAudioInput = $"-f dshow -i audio=\"{id}\"";
+        }
+        return ScreenRecorder.Media.Preflight.PreflightAudioFormat.BuildInput(configuration, synthetic,
+            systemAudioInput, microphoneAudioInput, mac: false);
+    }
+
     public string BuildDirectPreviewArguments(RecordingConfiguration config,
         int x, int y, int width, int height, bool synthetic, bool hasDirectShowMic,
         string? systemAudioPipeArg, string? microphoneAudioPipeArg, string? videoInput = null)

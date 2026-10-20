@@ -5,8 +5,13 @@ using ScreenRecorder.Core.Models;
 
 namespace ScreenRecorder.Platform.macOS;
 
-public class MacOsFFmpegProvider : IFFmpegPlatformProvider
+public class MacOsFFmpegProvider : IFFmpegPlatformProvider, IPreflightAudioPlatformProvider
 {
+    public string BuildPreflightAudioInputArguments(RecordingConfiguration configuration, bool synthetic,
+        string? systemAudioInput, string? microphoneAudioInput) =>
+        ScreenRecorder.Media.Preflight.PreflightAudioFormat.BuildInput(configuration, synthetic,
+            systemAudioInput, microphoneAudioInput, mac: true);
+
     private readonly IDisplayService _displayService;
 
     public MacOsFFmpegProvider()
