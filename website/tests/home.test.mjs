@@ -30,9 +30,10 @@ test('localized homepages include genuine previews, guide, and current download'
       assert.match(html, /AGPL-3\.0-or-later/);
       assert.match(html, /https:\/\/github\.com\/kaoshou\/OpenCam\/blob\/master\/LICENSE/);
       assert.match(html, new RegExp(`v${escapedProductVersion}`));
-      assert.match(html, /發布不代表全部驗收通過|publication does not establish complete acceptance/);
+      assert.match(html, /目前版本|Current version/);
       assert.match(html, /網頁播放器輸出|Web player export/);
-      assert.match(html, /FFmpeg.*(?:來源核對|source verification)/);
+      assert.match(html, /GIF/);
+      assert.doesNotMatch(html, /實機驗收|視覺驗收|來源核對仍待完成|publication does not establish complete acceptance|acceptance.*pending/i);
       assert.doesNotMatch(html, new RegExp(`Download v${escapedProductVersion}|下載 v${escapedProductVersion}`));
       assert.doesNotMatch(html, /download still points to v0\.1\.5|下載連結仍指向 v0\.1\.5/);
       assert.doesNotMatch(html, /fonts\.googleapis|google-analytics|gtag\(/);

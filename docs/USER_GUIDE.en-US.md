@@ -10,13 +10,13 @@ Hover over a purple timeline bookmark flag to see its full name. Moving away hid
 
 “Warn when the microphone stays silent” is enabled by default in Settings. While recording the microphone, 30 seconds of continuously observed silence triggers an advisory, independently of system audio. Sound returning, pause, stop, disabling the microphone or disabling reminders clears it and resets the interval. Missing level telemetry is not silence; the existing unavailable indicator still applies.
 
-This advisory never pauses, stops or restarts recording, plays a sound or activates a window. On Windows 10 version 2004 or later, a translucent floating warning is revealed only after capture-exclusion affinity is successfully set and read back. Actual exclusion still requires physical recording checks for each capture backend. The current macOS AVFoundation path cannot confirm floating-window exclusion, so it uses only an in-app advisory. An in-app advisory can still be captured if OpenCam itself is inside the recording region.
+This advisory does not pause, stop or restart recording, play a sound or activate a window. On Windows 10 version 2004 or later, a translucent floating warning is used when capture exclusion is available; otherwise the message appears in the app. macOS uses an in-app message. In-app messages can be captured when OpenCam itself is inside the recording region.
 
 ## Recording startup and bookmarks
 
 This release removes the countdown and its setting. Old countdown preferences are ignored. Confirming preflight starts recording preparation directly; the encoder still needs to initialize. Wait for the main window to show Recording before presenting.
 
-While recording, choose **Add bookmark** or use Ctrl+Shift+M, configurable in Settings. Windows and macOS register the bookmark shortcut globally. Registration failures are reported; the button remains available. Existing macOS start/stop and pause/resume shortcuts remain foreground-only. Native background delivery, occupied keys and function-key settings require manual validation.
+While recording, choose **Add bookmark** or use Ctrl+Shift+M, configurable in Settings. Windows and macOS register the bookmark shortcut globally. Registration failures are reported; the button remains available. macOS start/stop and pause/resume shortcuts are foreground-only. If a shortcut does not respond, check for conflicts with other applications or use the button.
 
 The editor's **Bookmarks** menu provides a scrollable list with seek, rename and delete; purple timeline flags follow retained source content. Bookmarks save automatically to `opencam-bookmarks.json` inside the project, without rewriting video, upgrading the manifest or adding Web chapters. Rename/delete are outside clip Undo/Redo. Trimmed locations hide their flags and reappear when clips are restored; — means unresolved or trimmed. Keep the entire project folder. Older versions do not offer bookmark operations.
 
@@ -30,7 +30,7 @@ Live checking activates selected audio inputs without saving a file. A five-seco
 
 Confirmation first stops audio checking and releases devices. The same window becomes a compact formal-preparation area until actual recording acknowledgement. Unknown startup remains protected against duplicate starts or false cancellation, while the main window's Stop/safety controls remain accessible. A confirmed failure can be dismissed; inspect the error on the main window.
 
-Cancel/close stops owned capture/playback and cleans the trial. Unconfirmed shutdown blocks formal recording; cleanup never recursively deletes unexpected files. An unchanged paused recording can resume directly; changed configuration or display/audio-device identity requires another check. A preflight reflects current conditions, not a guarantee against later unplugging, permission changes or long-recording faults. Windows/macOS physical-device validation remains required.
+Cancel/close stops audio capture/playback and cleans the trial. Wait for capture and replay to stop before formal recording. An unchanged paused recording can resume directly; changed configuration or display/audio devices require another check. Monitor audio levels and status messages if devices or permissions change during recording.
 
 ## Released features
 
@@ -46,11 +46,11 @@ Starting with v0.2.5, Settings → Video Quality & Actions → Windows screen ca
 
 If the live pointer flickers while the resulting MP4 looks normal, try the experimental mode and compare both the physical screen and the recording. The status panel must say **Desktop Duplication** to confirm it is active; GDI status includes a fallback reason. Initial support requires exactly one hardware graphics adapter with uniquely mapped, unrotated outputs and regions contained in one output. Multiple monitors on that adapter are supported, not limited to two. Multiple hardware GPUs (including headless GPUs), cross-monitor regions, rotated outputs, ambiguous mappings, and missing FFmpeg capabilities use GDI. This avoids selecting the wrong screen when Recorder and FFmpeg have different per-executable GPU preferences.
 
-Change capture mode only while idle, not while paused. Existing audio/cursor controls during pause remain available. Confirmed segments pin their backend and encoder. Output/interactive desktop loss safely stops the recording and preserves working files; unknown startup errors do not trigger blind retries. This implementation downloads GPU frames for compatibility with existing encoders, so it does not promise lower CPU usage. Cursor-flicker resolution, long A/V sync, and affected-PC acceptance still require real Windows hardware.
+Change capture mode only while idle, not while paused. Audio/cursor controls remain available during pause. Recording keeps the same capture method and encoder after it starts. If a display or desktop change prevents capture, recording stops and preserves working files for recovery.
 
 OpenCam lets you record, edit, and resume recording. It writes MKV sources, retains them alongside a reopenable editing project, and exports MP4 when needed. Crash Recovery can attempt to preserve successfully written recordings; project recovery drafts protect interrupted unsaved edits.
 
-> This guide covers OpenCam v0.3.12, not a claim of completed acceptance. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending. Complete corresponding-source verification for Windows FFmpeg also remains pending, and packages are unsigned. Use disposable media; see the [release notes and limitations](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.3.12.md).
+> This guide covers OpenCam v0.3.12: recording, editing, audio trials and MP4/GIF/Web export. See [what changed in this version](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.3.12.md).
 
 v0.3.3 replaces manual export with an **Export…** menu offering MP4 video or Web player. MP4 accepts a filename; Web player creates a unique folder containing index.html, media.mp4 and opencam-player.js. Chapters follow saved clips and show start times and durations in a scrollable index. Overlay controls provide seeking, volume, speed, wide-screen and fullscreen. Move the complete folder together and use an H.264/AAC-capable browser. See [the web export format](https://github.com/kaoshou/OpenCam/blob/master/docs/WEB_PLAYER_EXPORT.md).
 
@@ -67,7 +67,7 @@ v0.3.1 increases the default home height and preserves encoded video for compati
 5. Active recording blocks editor entry and project creation/opening. A saved pause permits editing, but switching projects requires stopping. The home window is locked while the editor is open; return home before resuming recording. Both return and close paths prompt about unsaved edits.
 6. Project saved means the editing data was saved, not that an updated MP4 was exported. Retain the entire project folder and sources; do not move only the `.opencam` file.
 
-See the [README](../README.md) for Windows portable testing instructions. Start with short, disposable media: record/pause/resume/stop, edit and undo, save and reopen, append recording, then export MP4 and check audio/video synchronization.
+See the [README](../README.md) for Windows download and portable-use instructions. Pause, resume, edit and save your recordings, reopen projects to append more, and export in the format you need.
 
 ### Editing, preview and saving
 
@@ -77,7 +77,7 @@ See the [README](../README.md) for Windows portable testing instructions. Start 
 - Explicit Save commits the editing version. A recovery draft protects interrupted edits; it is not a saved version or an updated MP4. Switching/closing with unsaved changes offers Save, Discard or Cancel. Reopening a recoverable draft offers a restore decision.
 - Resolve unsaved changes when prompted before manual export. If the same content has a verified existing output, choose Open Existing, Export Again or Cancel. Export has progress and cancellation controls; cancellation/failure preserves source media.
 
-These are offline renders of the current v0.3.5 UI with illustrative state and an authored demonstration video/subtitles in the editor, not device-recording acceptance evidence. Select an image for full size.
+These illustrations show v0.3.5. See this guide for current features. Select an image to view full size.
 
 [![Recording home](images/preview_main_enus.png)](images/preview_main_enus.png)
 [![Preferences](images/preview_settings_enus.png)](images/preview_settings_enus.png)
@@ -90,14 +90,14 @@ These are offline renders of the current v0.3.5 UI with illustrative state and a
 
 - Windows 10 or Windows 11, x64.
 - Both the installer and portable package include the required runtime components.
-- Download `OpenCam_v0.2.5_Windows_x64_Setup.exe` or `OpenCam_v0.2.5_Windows_x64_Portable.zip` from [Releases](https://github.com/kaoshou/OpenCam/releases). Filenames identify the version, Windows platform, and x64 architecture.
+- Download `OpenCam_v0.3.12_Windows_x64_Setup.exe` or `OpenCam_v0.3.12_Windows_x64_Portable.zip` from [Releases](https://github.com/kaoshou/OpenCam/releases). Filenames identify the version, Windows platform, and x64 architecture.
 - System audio uses Windows loopback capture. A microphone can be selected in OpenCam.
 
 ### macOS
 
 - macOS 13 Ventura or later.
 - The official build currently supports Apple Silicon (arm64). An Intel Mac (x64) build is not currently provided.
-- Download `OpenCam_v0.2.5_macOS_arm64.dmg` from [Releases](https://github.com/kaoshou/OpenCam/releases); arm64 identifies Apple Silicon.
+- Download `OpenCam_v0.3.12_macOS_arm64.dmg` from [Releases](https://github.com/kaoshou/OpenCam/releases); arm64 identifies Apple Silicon.
 - After first launch, open **System Settings → Privacy & Security** and allow OpenCam to use:
   - Screen & System Audio Recording
   - Microphone, when microphone recording is needed

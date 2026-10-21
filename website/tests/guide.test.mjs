@@ -47,8 +47,8 @@ test('project documentation reports only current, evidence-backed behavior', asy
   assert.match(documents['ARCHITECTURE.md'], /畫面擷取[^\n]*AVFoundation[^\n]*FFmpeg/i);
   assert.match(documents['MANUAL_TEST_CHECKLIST.md'], /實體硬體.*人工驗證|人工驗證.*實體硬體/s);
   assert.match(documents['MANUAL_TEST_CHECKLIST.md'], /OpenCam 版本[\s\S]*Commit[\s\S]*OS[^\n]*Build[\s\S]*PASS[\s\S]*FAIL[\s\S]*BLOCKED[\s\S]*(?:產出物|Artifact)[\s\S]*Log/i);
-  assert.match(documents['README.md'], new RegExp(`目前(?:原始碼)?版本為 \\*\\*${version.replaceAll('.', '\\.')}`));
-  assert.match(documents['README.md'], new RegExp(`current (?:source )?version is \\*\\*${version.replaceAll('.', '\\.')}`, 'i'));
+  assert.match(documents['README.md'], new RegExp(`v${version.replaceAll('.', '\\.')} 更新重點`));
+  assert.match(documents['README.md'], new RegExp(`What's new in v${version.replaceAll('.', '\\.')}`, 'i'));
   assert.match(documents['docs/USER_GUIDE.zh-TW.md'], new RegExp(`本說明適用於 OpenCam v${version.replaceAll('.', '\\.')}`));
   assert.match(documents['docs/USER_GUIDE.en-US.md'], new RegExp(`guide covers OpenCam v${version.replaceAll('.', '\\.')}`, 'i'));
   assert.match(documents['ACCEPTANCE_REPORT.md'], /tests\/native\/OpenCamSystemAudioTests\.sh/);
@@ -82,6 +82,7 @@ test('full guides retain modes, settings, locations, and recovery', async () => 
       const html = await readFile(join(out, lang, 'guide', 'index.html'), 'utf8');
       for (const heading of headings) assert.ok(html.includes(heading), `${lang}: ${heading}`);
       assert.match(html, /class="guide-toc"/);
+      assert.doesNotMatch(html, /實機驗收|驗收仍待完成|不表示全部驗收通過|acceptance.*pending|physical-device validation remains required|require manual validation/i);
       assert.doesNotMatch(html, /href="[^"]*USER_GUIDE\..*\.md"/);
     }
   } finally { await rm(out, { recursive: true, force: true }); }

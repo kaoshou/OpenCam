@@ -16,10 +16,10 @@ export const content = {
   'zh-TW': {
     eyebrow: 'Windows 與 macOS 的簡單錄影與剪輯工具',
     heroTitle: '<span class="hero-line">把重要的畫面，</span><em class="hero-line">好好錄下來。</em>',
-    heroText: '錄影、剪輯、續錄，一次完成。整理片段、附加多語字幕，再輸出 MP4 或具章節與逐字稿搜尋的網頁播放器。原始 MKV 素材保留在專案中。',
+    heroText: '錄影、剪輯、續錄，一次完成。整理片段、附加多語字幕，再輸出 MP4、GIF 或具章節與逐字稿搜尋的網頁播放器。原始 MKV 素材保留在專案中。',
     downloadLabel: '下載 OpenCam', guideLabel: '閱讀使用說明',
     openSource: '開放原始碼 · 免費使用',
-    licenseReleaseNote: `此頁介紹 ${displayVersion} 原始碼功能；Windows 實機驗收、瀏覽器視覺驗收與 FFmpeg 來源核對仍待完成。已發布版本請至 Releases 下載，發布不代表全部驗收通過。AGPL-3.0-or-later。`,
+    licenseReleaseNote: `目前版本 ${displayVersion} · Windows 與 macOS · AGPL-3.0-or-later`,
     screenshotTitle: '每一步，都清楚直覺。',
     screenshotText: '從開始錄影到整理片段，保留熟悉而簡單的操作。錄影中分別查看兩種收音波形；需要剪輯時，再開啟時間軸。點選圖片可在頁內放大檢視。',
     mainAlt: `OpenCam ${mainScreenshotVersion} macOS 繁體中文錄影中主畫面，右側顯示系統聲音與麥克風收音波形`,
@@ -45,24 +45,25 @@ export const content = {
       ['06', '修復救援', '意外中斷後，可嘗試救回已寫入的 MKV 錄影片段。'],
       ['07', '網頁播放器輸出', '包含多語字幕、章節起始與長度、音量、速度、寬螢幕和全螢幕；可離線開啟或整包上傳網站。'],
       ['08', '逐字稿搜尋', '搜尋已附加字幕，標示關鍵字並跳到該時間；可跟隨播放或自由閱讀，清單限高捲動。'],
-      ['09', '錄前聲音確認', '只檢查已選音源，提供五秒純音訊試錄與回放，不擷取畫面或驗證影片編碼器。獨立狀態區顯示載入、啟動、收音與準備回放。關閉檢查或無音源仍保留正式錄製準備，收到真正啟動確認才結束提示。'],
-      ['10', '快捷鍵標記重點', '錄影時按按鈕或自訂快捷鍵；編輯器可定位、改名與刪除，滑鼠停在紫色旗標可查看完整名稱，不改寫原始影片。']
+      ['09', '錄前聲音確認', '確認已選的系統聲音與麥克風，提供五秒聲音試錄與回放。獨立狀態區清楚顯示載入、試錄與正式錄製準備。'],
+      ['10', '快捷鍵標記重點', '錄影時按按鈕或自訂快捷鍵；編輯器可定位、改名與刪除，滑鼠停在紫色旗標可查看完整名稱，不改寫原始影片。'],
+      ['11', 'GIF 與單一片段匯出', '整部影片或單一片段可匯出 MP4／GIF。GIF 可選大小與 FPS、沒有音訊；達五分鐘會提示轉換時間與檔案大小，確認後仍可繼續。']
     ],
-    processEyebrow: '錄影機制', processTitle: '先保留錄影，再交付 MP4。',
-    processText: '錄影先寫入 MKV，專案保留原始素材與剪輯決策。相容的完整片段可保留影片直接封裝或串接，必要時僅處理音訊；缺少影格長度資訊時，會先核對時間戳與尾端間隔。裁剪、效果或無法確認的素材會重新編碼。介面顯示實際處理階段，封裝後仍需校驗，輸出時間依內容而定。',
-    processSteps: ['錄製並保留 MKV', '儲存或繼續編輯', '下次開啟並續錄', '驗證並輸出 MP4'],
+    processEyebrow: '錄影與輸出', processTitle: '保留原始錄影，自由選擇輸出。',
+    processText: '錄影片段以 MKV 保存在專案內，剪輯不覆寫原始素材。隨時儲存、重開及追加錄影，再依需求輸出 MP4、GIF 或網頁播放器。相容的完整片段可快速輸出；修剪與效果會依內容進行轉換，介面會顯示目前進度。',
+    processSteps: ['錄製並保留 MKV', '儲存或繼續編輯', '下次開啟並續錄', '輸出 MP4、GIF 或網頁'],
     platformsTitle: '選擇你的平台', windowsTitle: 'Windows', windowsText: 'Windows 10／11 · x64',
     macTitle: 'macOS', macText: 'macOS 13 以上 · Apple Silicon（arm64）',
-    guideTitle: '第一次使用？從這裡開始。', guideText: '完整說明錄影、剪輯、儲存與續錄、MP4 輸出和修復救援。',
-    previewNote: `圖片由 ${mainScreenshotDisplayVersion} 程式介面離線渲染；錄影狀態為示範資料，剪輯器使用自製影片。這些圖片不是實機收音或跨平台驗收證據。Windows 介面與裝置選項可能不同。`
+    guideTitle: '第一次使用？從這裡開始。', guideText: '完整說明錄影、剪輯、儲存與續錄、MP4／GIF／網頁輸出和修復救援。',
+    previewNote: `圖片為 ${mainScreenshotDisplayVersion} 的介面示意，最新功能請參考使用說明。Windows 與 macOS 的裝置選項依平台顯示。`
   },
   'en-US': {
     eyebrow: 'Simple recording and editing for Windows and macOS',
     heroTitle: '<span class="hero-line">Capture what matters.</span><em class="hero-line">Keep it safe.</em>',
-    heroText: 'Record, edit and continue in one place. Organize clips, attach multilingual subtitles and export MP4 or a web player with chapters and transcript search. Keep original MKV media in your project.',
+    heroText: 'Record, edit and continue in one place. Organize clips, attach multilingual subtitles and export MP4, GIF or a web player with chapters and transcript search. Keep original MKV media in your project.',
     downloadLabel: 'Download OpenCam', guideLabel: 'Read the user guide',
     openSource: 'Open source · Free to use',
-    licenseReleaseNote: `This page describes ${displayVersion} source features. Windows device acceptance, browser visual acceptance and FFmpeg source verification remain pending. Download published versions from Releases; publication does not establish complete acceptance. AGPL-3.0-or-later.`,
+    licenseReleaseNote: `Current version ${displayVersion} · Windows and macOS · AGPL-3.0-or-later`,
     screenshotTitle: 'Clear from the first click.',
     screenshotText: 'Keep recording simple, then open the timeline when you need to edit. Separate audio waveforms help monitor capture. Enlarge images in place without leaving the page.',
     mainAlt: `OpenCam ${mainScreenshotVersion} macOS English Recording screen with live system-audio and microphone audio waveforms`,
@@ -88,16 +89,17 @@ export const content = {
       ['06', 'Crash Recovery', 'After an interruption, attempt to salvage MKV segments already written.'],
       ['07', 'Web player export', 'Package multilingual captions, chapters, volume, speed, wide-screen and fullscreen controls. Open offline or upload the entire folder.'],
       ['08', 'Transcript search', 'Search attached captions, highlight matches and jump to their timestamps. Follow playback or read freely in a bounded scrolling list.'],
-      ['09', 'Audio preflight', 'Selected-input checks and five-second audio-only trials, without screen capture or video-encoder validation. A separate area shows loading, startup, capture and preparing playback. Disabled checks or no inputs still show formal preparation until actual startup acknowledgement.'],
-      ['10', 'Bookmark with a shortcut', 'Add bookmarks with a button or configurable shortcut; seek, rename or remove them in the editor. Hover over purple timeline flags for full names without rewriting video.']
+      ['09', 'Audio preflight', 'Check selected system-audio and microphone inputs with a five-second audio trial and replay. A separate status area shows loading, trials and recording preparation.'],
+      ['10', 'Bookmark with a shortcut', 'Add bookmarks with a button or configurable shortcut; seek, rename or remove them in the editor. Hover over purple timeline flags for full names without rewriting video.'],
+      ['11', 'GIF and individual clip export', 'Export a whole video or one clip as MP4/GIF. Choose GIF size and FPS; GIF has no audio. Exports of five minutes or longer show a confirmation about time and file size, with the option to continue.']
     ],
-    processEyebrow: 'How recording works', processTitle: 'Preserve first. Deliver MP4 afterward.',
-    processText: 'Recordings are written to MKV; projects retain source media and editing decisions. Compatible whole segments preserve video through packaging or joining, processing only audio when needed. Missing video durations require ordered timestamps and a checked final interval. Trims, effects or uncertain sources retain re-encoding. The interface shows the actual stage; packaging still needs verification, and export time depends on the content.',
-    processSteps: ['Record and retain MKV', 'Save or edit', 'Reopen and append', 'Verify and export MP4'],
+    processEyebrow: 'Recording and export', processTitle: 'Keep originals. Choose how to share.',
+    processText: 'MKV recordings stay in your project while edits preserve the original media. Save, reopen and append recordings, then export MP4, GIF or a Web player. Compatible whole clips support fast export; trims and effects are converted as needed, with progress shown in the interface.',
+    processSteps: ['Record and retain MKV', 'Save or edit', 'Reopen and append', 'Export MP4, GIF or Web'],
     platformsTitle: 'Choose your platform', windowsTitle: 'Windows', windowsText: 'Windows 10/11 · x64',
     macTitle: 'macOS', macText: 'macOS 13 or later · Apple Silicon (arm64)',
-    guideTitle: 'New to OpenCam? Start here.', guideText: 'A complete guide to recording, editing, saving, resuming, MP4 export and Crash Recovery.',
-    previewNote: `Images are offline renders of the ${mainScreenshotDisplayVersion} application UI. Recording status is illustrative; the editor uses an authored demo video. They are not evidence of hardware audio capture or cross-platform acceptance. Windows controls and devices may differ.`
+    guideTitle: 'New to OpenCam? Start here.', guideText: 'A complete guide to recording, editing, saving, resuming, MP4/GIF/Web export and Crash Recovery.',
+    previewNote: `Illustrations show the ${mainScreenshotDisplayVersion} interface. See the user guide for current features. Device options follow the Windows or macOS platform.`
   }
 };
 
