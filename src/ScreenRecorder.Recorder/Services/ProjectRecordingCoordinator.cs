@@ -320,6 +320,8 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
     public Task<ProjectCommandResult> RetryExportAsync(Guid operationId, CancellationToken ct = default) => Run(async () =>
     {
         RequireNoExport();
+        if (_export?.Options is not null)
+            throw new InvalidOperationException("請從匯出選單重新選擇格式與片段。Select the format and target again from the export menu.");
         if (_handle is null || Mode != ProjectMode.Ready)
             throw new InvalidOperationException("Finish and save recording before exporting.");
         await EnsureSavedForOperationAsync(ct);

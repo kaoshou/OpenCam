@@ -227,13 +227,15 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
         finally { IsBusy = false; _gate.Release(); }
     }
 
-    private async Task ExecuteAsync(string command, ProjectRequest? request = null)
+    private async Task ExecuteAsync(string command, ProjectRequest? request = null, Func<bool>? precondition = null)
     {
         if (command != "GetProjectStatus" && (IsPlayingPreview || IsChangingPreviewQuality) && !await StopPreviewAsync()) return;
         await _gate.WaitAsync();
         try
         {
             if (StatusUnconfirmed && command != "GetProjectStatus") return;
+            if (precondition is not null && !precondition())
+            { Error = Strings["ProjectExportTargetChanged"]; return; }
             IsBusy = true;
             var reply = await SendAsync(command, request ?? new());
             if (command == "GetProjectStatus" && _pendingOperation != Guid.Empty && !reply.OperationKnown)

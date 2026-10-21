@@ -6,6 +6,15 @@ namespace ScreenRecorder.Media.Tests;
 
 public class ProjectExportPhaseTests
 {
+    [Theory]
+    [InlineData(ScreenRecorder.Core.Localization.AppLanguage.ZhTw, "校驗 GIF")]
+    [InlineData(ScreenRecorder.Core.Localization.AppLanguage.EnUs, "Verifying GIF")]
+    public void GifVerificationHasLocalizedLabel(ScreenRecorder.Core.Localization.AppLanguage language, string expected)
+    {
+        var strings = new ScreenRecorder.Core.Localization.LocalizationService { CurrentLanguage = language };
+        Assert.Equal(expected, strings["ProjectExportPhaseVerifyingGif"]);
+    }
+
     [Fact]
     public void RunningStatusDistinguishesCopyAudioConversionAndRender()
     {
@@ -18,7 +27,10 @@ public class ProjectExportPhaseTests
             labels.Add(vm.ExportStatusText);
             Assert.Contains("50%", vm.ExportStatusText);
         }
-        Assert.Equal(5, labels.Count);
+        Assert.Equal(6, labels.Count);
+        Assert.Contains(labels, label => label.Contains("GIF"));
+        Assert.Equal(4, (int)RecordingExportPhase.Verifying); // Existing IPC values stay stable.
+        Assert.Equal(5, (int)RecordingExportPhase.VerifyingGif);
     }
     private sealed class ClosedClient : IProjectClient
     {

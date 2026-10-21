@@ -24,12 +24,14 @@ internal sealed class RecordingContentExportJob : IRecordingExportProgress, IDis
         }
     }
     public Task Completion { get; }
+    public ProjectExportOptions? Options { get; }
 
     public RecordingContentExportJob(IRecordingContentExporter exporter, IProjectHandle owner,
         RecordingProject snapshot, string outputDirectory,
         Func<IProjectHandle, RecordingProject, string, CancellationToken, Task>? writeReceipt = null,
         string? fileName = null, bool webPlayer = false, ProjectExportOptions? exportOptions = null)
     {
+        Options = exportOptions;
         _status = new(Guid.NewGuid(), snapshot.Revision, RecordingExportState.Running, 0);
         Completion = Task.Run(async () =>
         {

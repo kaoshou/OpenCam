@@ -64,6 +64,17 @@ public sealed class ProjectGifExportDialogTests
     }
 
     [Fact]
+    public async Task PreviewShutdownCannotReplaceTheCapturedExportRevision()
+    {
+        var client = new ExportClient(); var vm = new ProjectWorkspaceViewModel(client); await vm.RefreshAsync();
+        var target = (await vm.PrepareExportAsync(null))!;
+        await vm.TogglePlaybackAsync(); Assert.True(vm.IsPlayingPreview);
+        client.BeforeSend = command => { if (command == "StopProjectPreview") vm.State = vm.State with { Revision=8,SavedRevision=8 }; };
+        await vm.ExportFileAsync("/test/export.gif",target,new(ProjectExportFormat.Gif,Gif:new()));
+        Assert.Empty(client.Exports);
+    }
+
+    [Fact]
     public async Task CapturesSelectedClipDurationAndRoutesOptionsWithoutChangingProject()
     {
         var client = new ExportClient(); var vm = new ProjectWorkspaceViewModel(client);
@@ -126,10 +137,13 @@ public sealed class ProjectGifExportDialogTests
         public ProjectSnapshot State = new(Guid.NewGuid(), "Long movie", "/test", 7, 7, ProjectMode.Ready, 2, false, false);
         public ProjectClip[] Clips = [new() { Id=Guid.NewGuid(), Name="First" }, new() { Id=Guid.NewGuid(), Name="片段 / name" }];
         public List<ProjectRequest> Exports = [];
+        public Action<string>? BeforeSend;
         public Task<ProjectReply> SendAsync(string command, ProjectRequest request, CancellationToken ct = default)
         {
+            BeforeSend?.Invoke(command);
             if (command == "ExportRecordingContent") Exports.Add(request);
             return Task.FromResult(new ProjectReply(true, null, State, command == "GetProjectClips" ? Clips : null) {
+                Playback = command == "PlayProjectPreview" ? new(Guid.NewGuid(),0,true,null) : null,
                 TimelineClips = command == "GetProjectClips" ? [new(Clips[0].Id,0,TimeSpan.FromSeconds(600).Ticks),
                     new(Clips[1].Id,TimeSpan.FromSeconds(600).Ticks,TimeSpan.FromSeconds(603).Ticks)] : null });
         }

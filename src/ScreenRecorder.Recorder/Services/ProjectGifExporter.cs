@@ -65,7 +65,7 @@ public sealed class ProjectGifExporter(IProjectMediaProcess process, GifExportOp
                 gif.Flush(true);
             }
             progress.Report(.9);
-            (progress as IRecordingExportProgress)?.ReportPhase(RecordingExportPhase.Verifying);
+            (progress as IRecordingExportProgress)?.ReportPhase(RecordingExportPhase.VerifyingGif);
             await using (var gif = directory.Read(gifName))
             {
                 var info = GifStructureReader.Read(gif, ct);

@@ -37,20 +37,21 @@ public class ClipListPolishTests
             Assert.Equal(client.Clips[2].Id, vm.SelectedClip?.Id);
             var menu = list.ContextMenu!;
             var items = menu.Items.OfType<MenuItem>().ToArray();
-            Assert.Equal(6, items.Length);
+            Assert.Equal(7, items.Length);
             Assert.False(items[1].IsEnabled); // Merge across group boundary is unsafe.
             Assert.False(items[2].IsEnabled); // No next clip.
             Assert.True(items[3].IsEnabled); // Group with the previous group.
             Assert.False(items[4].IsEnabled);
-            items[5].RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+            Assert.Equal(2, items[5].Items.Count); // Native MP4/GIF submenu, not a destructive action.
+            items[6].RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
             Assert.Contains(client.Requests, r => r.Edit is ProjectClipEdit.Remove remove && remove.ClipId == client.Clips[2].Id);
             var count = client.Requests.Count;
             vm.SelectedClip = vm.Clips[0];
-            items[5].RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+            items[6].RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
             Assert.Equal(count, client.Requests.Count); // A stale popup cannot delete another selection.
             menu.Close();
             rows[0].RaiseEvent(new ContextRequestedEventArgs { RoutedEvent = Control.ContextRequestedEvent });
-            Assert.Equal(7, list.ContextMenu!.Items.OfType<MenuItem>().Count());
+            Assert.Equal(8, list.ContextMenu!.Items.OfType<MenuItem>().Count());
             list.ContextMenu.Close();
         }
         finally { await window.RequestCloseAsync(); }

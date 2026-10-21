@@ -25,11 +25,12 @@ public sealed partial class ProjectWorkspaceViewModel
 
     public async Task ExportFileAsync(string path, ProjectExportTarget target, ProjectExportOptions options)
     {
-        if (!CanExport || State.IsDirty || HasPropertyDraft || State.ProjectId != target.ProjectId ||
-            State.Revision != target.Revision || target.ClipId is Guid clip && !Clips.Any(c => c.Id == clip) ||
-            options.ClipId != target.ClipId || options.Scope != (target.ClipId is null ? ProjectExportScope.WholeProject : ProjectExportScope.Clip))
+        bool Current() => CanExport && !State.IsDirty && !HasPropertyDraft && State.ProjectId == target.ProjectId &&
+            State.Revision == target.Revision && (target.ClipId is not Guid clip || Clips.Any(c => c.Id == clip)) &&
+            options.ClipId == target.ClipId && options.Scope == (target.ClipId is null ? ProjectExportScope.WholeProject : ProjectExportScope.Clip);
+        if (!Current())
         { Error = Strings["ProjectExportTargetChanged"]; return; }
-        await ExecuteAsync("ExportRecordingContent", new() { Path = path, PathIsExportFile = true, ExportOptions = options });
+        await ExecuteAsync("ExportRecordingContent", new() { Path = path, PathIsExportFile = true, ExportOptions = options }, Current);
     }
 
     public async Task RequestExportAsync(ProjectExportFormat format, Guid? clipId,

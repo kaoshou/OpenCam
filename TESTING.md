@@ -14,6 +14,12 @@
 
 ## 1. 測試金字塔與分類
 
+### GIF／片段匯出（開發分支）
+
+Core `ProjectExportSelectionTests` 驗證保留範圍、合併／群組語意、選項與指紋。Media 的 `ProjectGifMediaTests`、`ProjectScopedExportTests`、`ProjectGifExportIntegrationTests` 使用真實 FFmpeg／綁定檔案，驗證累積 GIF 時間、無音訊、合併片段顏色順序、MP4 聲音／靜音、取消、故障清理與目錄替換。`ProjectExportMenuTests`、`ProjectGifExportDialogTests` 驗證兩個整片入口、原生階層選單結構、五分鐘邊界、選項、過期版本及預覽停止後版本競態。
+
+定向命令：`dotnet test tests/ScreenRecorder.Media.Tests -c Release --filter "FullyQualifiedName~ProjectGif|FullyQualifiedName~ProjectScopedExport|FullyQualifiedName~ProjectExportMenuTests"`。FFmpeg 必須可在 PATH 找到；目前真實媒體新測試使用 macOS process adapter，不能把其他平台略過當成 Windows 通過。仍須跑完整 solution 回歸；GUI hover／鍵盤、高 DPI、原生 GIF 播放器與長片資源量測依人工清單驗收。見 [本輪證據與限制](docs/verification/2026-10-21-gif-and-clip-export.md)。
+
 ```text
                ▲
               / \

@@ -11,6 +11,27 @@ namespace ScreenRecorder.Media.Tests;
 
 public sealed class ProjectExportMenuTests
 {
+    [AvaloniaFact]
+    public async Task OriginalVideoGifCommandExportsWholeProjectThroughSharedFlow()
+    {
+        var client = new ProjectGifExportDialogTests.ExportClient();
+        var main = new MainViewModel(forScreenshot:true);
+        main.ConfigureRecordingContent(client,()=>true,()=>Task.CompletedTask);
+        try
+        {
+            await main.OpenRecordingProjectAsync("/test/project.opencam");
+            main.RequestMediaExport = (model,format)=>model.RequestExportAsync(format,null,
+                _=>Task.FromResult<ScreenRecorder.Core.Projects.GifExportOptions?>(new()),
+                (_,_)=>Task.FromResult<string?>("/test/whole.gif"));
+            await main.ExportGifCommand.ExecuteAsync(null);
+            var request=Assert.Single(client.Exports);
+            Assert.Equal(ScreenRecorder.Core.Projects.ProjectExportFormat.Gif,request.ExportOptions!.Format);
+            Assert.Equal(ScreenRecorder.Core.Projects.ProjectExportScope.WholeProject,request.ExportOptions.Scope);
+            Assert.Null(request.ExportOptions.ClipId);
+        }
+        finally { main.Cleanup(); }
+    }
+
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
@@ -42,7 +63,7 @@ public sealed class ProjectExportMenuTests
             main.Show(); editor.Show(); main.UpdateLayout(); editor.UpdateLayout();
             foreach (var window in new Window[] { main, editor })
             {
-                var button = Assert.Single(window.GetVisualDescendants().OfType<Button>().Where(b => b.Flyout is MenuFlyout));
+                var button = Assert.Single(window.GetVisualDescendants().OfType<Button>(),b => b.Flyout is MenuFlyout);
                 var menu = (MenuFlyout)button.Flyout!;
                 menu.ShowAt(button);
                 Avalonia.Threading.Dispatcher.UIThread.RunJobs();

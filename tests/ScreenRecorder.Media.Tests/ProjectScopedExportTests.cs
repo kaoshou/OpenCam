@@ -37,7 +37,10 @@ public sealed class ProjectScopedExportTests
             }
             else
             {
-                var result = await exporter.ExportAsync(owner, owner.Current, output, Guid.NewGuid(), new Progress<double>(), default);
+                var progress = new PhaseProgress();
+                var result = await exporter.ExportAsync(owner, owner.Current, output, Guid.NewGuid(), progress, default);
+                Assert.Contains(progress.Phases, phase => phase.ToString() == "VerifyingGif");
+                Assert.DoesNotContain(RecordingExportPhase.Verifying, progress.Phases);
                 Assert.True(result.Success, result.Error);
                 Assert.EndsWith(".gif", result.FinalPath);
                 using var gif = File.OpenRead(result.FinalPath!);
@@ -54,6 +57,13 @@ public sealed class ProjectScopedExportTests
         finally { root.Delete(true); }
     }
 
+    private sealed class PhaseProgress : IRecordingExportProgress
+    {
+        public List<RecordingExportPhase> Phases { get; } = new();
+        public void Report(double value) { }
+        public void ReportPhase(RecordingExportPhase phase) => Phases.Add(phase);
+    }
+
     private sealed class FailProcess(IProjectMediaProcess inner, int failAt) : IProjectMediaProcess
     {
         private int _calls;
@@ -68,6 +78,24 @@ public sealed class ProjectScopedExportTests
 
 public partial class RecordingEncoderLifecycleTests
 {
+    [Fact]
+    public async Task ProjectScopedExport_LegacyRetryCannotSilentlyChangeGifIntoWholeMp4()
+    {
+        await using var scope = new RecordingScope();
+        var mp4 = new ControlledContentExporter(); var gif = new ControlledContentExporter();
+        await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder,new JsonProjectStore(),new ProjectProbeStub(),mp4,_=>gif);
+        Assert.True((await coordinator.StartNewContentAsync(scope.Configuration,Guid.NewGuid())).Success);
+        Assert.True((await coordinator.FinishAsync(Guid.NewGuid())).Success);
+        var snapshot=coordinator.Current!;
+        Assert.True((await coordinator.ExportAsync(scope.Configuration.OutputDirectory,snapshot.Revision,Guid.NewGuid(),
+            exportOptions:new(ProjectExportFormat.Gif,ProjectExportScope.Clip,snapshot.Clips[0].Id,new()))).Success);
+        await gif.Entered.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        gif.Complete.SetResult(new(false,null,"injected"));
+        await UntilAsync(()=>coordinator.ExportStatus?.State==RecordingExportState.Failed);
+        Assert.False((await coordinator.RetryExportAsync(Guid.NewGuid())).Success);
+        Assert.Equal(0,mp4.Calls);
+    }
+
     [Fact]
     public async Task ProjectScopedExport_GifRequestSelectsGifBackendAndRejectsWebCombination()
     {

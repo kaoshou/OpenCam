@@ -8,6 +8,13 @@
 
 OpenCam 讓你錄影、剪輯，再繼續錄影。這款以可靠性為優先的跨平台桌面工具使用 MKV 保存原始錄影片段，透過可重開的專案保存剪輯，並在需要時輸出 MP4。
 
+## 開發分支：GIF 與單一片段匯出（尚未發布）
+
+- 原本影片與編輯視窗的「輸出…」選單，都在 MP4 下方提供 GIF。片段清單／時間軸右鍵的「匯出片段…」會展開 MP4、GIF 子選單，只輸出該片段的保留範圍（合併片段含全部子段，不擴展至整個群組）。
+- GIF 不包含音訊；設定可選最大寬度 480／640／960／原始大小及 10／15／20 FPS，預設 640／15，保持比例、不放大、循環播放。色彩與畫質可能不同於 MP4。
+- 不設長度上限；實際匯出範圍達五分鐘會再確認耗時／檔案大小與無音訊提示，仍可繼續。原始素材與專案內容不變；大型 GIF 需要足夠暫存磁碟空間。
+- Development branch, not yet released: both the original video's Export menu and the editor offer GIF below MP4. Hover **Export clip…** in the clip list/timeline context menu for MP4 or GIF. Export uses only that edited logical clip, including compound parts, not its group. GIF is silent, loops continuously, and offers width/FPS settings (default 640/15). At five minutes or longer, a confirmation warns about conversion time, size and missing audio without imposing a duration cap. Originals remain unchanged. Native platform acceptance is still required; see [verification notes](docs/verification/2026-10-21-gif-and-clip-export.md).
+
 ## 錄前確認與錄製提醒
 
 - v0.3.11：錄前檢查改為純音訊，移除畫面擷取與預覽；音源卡片下方的獨立狀態區顯示載入、聲音試錄與正式錄製準備。

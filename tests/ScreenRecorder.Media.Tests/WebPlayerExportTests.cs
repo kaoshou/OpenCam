@@ -170,7 +170,7 @@ public sealed class WebPlayerExportTests
 public partial class RecordingEncoderLifecycleTests
 {
     [Avalonia.Headless.XUnit.AvaloniaFact]
-    public async Task EditorExportMenuOffersBothFormatsWithInheritedLabels()
+    public async Task EditorExportMenuOffersMp4GifAndWebWithInheritedLabels()
     {
         var state = new ScreenRecorder.Infrastructure.IPC.ProjectSnapshot(Guid.NewGuid(), "menu", "/test", 0, 0,
             ProjectMode.Ready, 1, false, false);
@@ -188,9 +188,10 @@ public partial class RecordingEncoderLifecycleTests
             flyout.ShowAt(button);
             Avalonia.Threading.Dispatcher.UIThread.RunJobs();
             var items = flyout.Items.OfType<Avalonia.Controls.MenuItem>().ToArray();
-            Assert.Equal(2, items.Length);
+            Assert.Equal(3, items.Length);
             Assert.Equal(vm.Strings["ProjectExportVideo"], items[0].Header);
-            Assert.Equal(vm.Strings["ProjectExportWeb"], items[1].Header);
+            Assert.Equal(vm.Strings["ProjectExportGif"], items[1].Header);
+            Assert.Equal(vm.Strings["ProjectExportWeb"], items[2].Header);
             flyout.Hide();
         }
         finally { await window.RequestCloseAsync(); }
