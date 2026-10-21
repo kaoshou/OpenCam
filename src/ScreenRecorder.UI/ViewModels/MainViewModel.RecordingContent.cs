@@ -64,6 +64,7 @@ public partial class MainViewModel
     public bool CanExportRecordingContent => !IsProjectWorkspaceOpen && _content?.Workspace.CanExport == true;
     public Task SetProjectAutoExportAsync(bool value) => _content?.Workspace.SetAutoExportOnStopAsync(value) ?? Task.CompletedTask;
     public Func<string, Task<string?>>? RequestMp4Destination { get; set; }
+    public Func<ProjectWorkspaceViewModel, ProjectExportFormat, Task>? RequestMediaExport { get; set; }
     public Func<Task<string?>>? RequestWebPlayerDestination { get; set; }
     [RelayCommand] public async Task ExportWebPlayerAsync()
     {
@@ -73,10 +74,14 @@ public partial class MainViewModel
     }
     [RelayCommand] public async Task ExportRecordingContentAsync()
     {
+        if (CanExportRecordingContent && RequestMediaExport is { } export)
+        { await export(_content!.Workspace, ProjectExportFormat.Mp4); return; }
         if (!CanExportRecordingContent || RequestMp4Destination is null) return;
         var path = await RequestMp4Destination(_content!.Workspace.State.Name);
         if (path is not null && CanExportRecordingContent) await _content.Workspace.ExportFileAsync(path);
     }
+    [RelayCommand] public Task ExportGifAsync() => CanExportRecordingContent && RequestMediaExport is { } export
+        ? export(_content!.Workspace, ProjectExportFormat.Gif) : Task.CompletedTask;
     public bool HasRecordingProject => _content?.Workspace.State.ProjectId is not null;
     public Task<bool> CloseRecordingProjectAsync() => _content?.Workspace.CloseAsync() ?? Task.FromResult(true);
     public bool CanManageRecordingProject => !IsProjectWorkspaceOpen && !IsPreparing && !IsRecovering && _content?.CanReplaceProject == true;

@@ -44,6 +44,7 @@ public partial class ProjectWorkspaceView : Window
         InitializeComponent();
         InitializePreviewViewport();
         InitializeClipListDrag();
+        TimelineControl.ExportRequested += RequestExportAsync;
         LayoutUpdated += (_, _) => { if (DataContext is ProjectWorkspaceViewModel vm) vm.SetSubtitleViewportWidth(PreviewPane.Bounds.Width); };
         Closed += (_, _) => { if (_recordingWindow is not null) _recordingWindow.IsEnabled = _homeWasEnabled; };
         Opened += (_, _) => UpdateEditorLayout();
@@ -130,10 +131,12 @@ public partial class ProjectWorkspaceView : Window
 
     private async void OnExport(object? sender, RoutedEventArgs e)
     {
-        if (!Model.CanExport) return;
-        if (await ProjectExportFileDialog.ChooseAsync(this, Model.State.Name) is { } path)
-            await Model.ExportFileAsync(path);
+        await RequestExportAsync(ScreenRecorder.Core.Projects.ProjectExportFormat.Mp4, null);
     }
+    private async void OnExportGif(object? sender, RoutedEventArgs e) =>
+        await RequestExportAsync(ScreenRecorder.Core.Projects.ProjectExportFormat.Gif, null);
+    private Task RequestExportAsync(ScreenRecorder.Core.Projects.ProjectExportFormat format, Guid? clipId) =>
+        ProjectExportFileDialog.ExportAsync(this, Model, format, clipId);
     private async void OnExportWebPlayer(object? sender, RoutedEventArgs e)
     {
         if (!Model.CanExport) return;

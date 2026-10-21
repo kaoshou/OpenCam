@@ -30,11 +30,31 @@ public sealed class ProjectTimelineControl : Control
     public ProjectTimelineControl()
     {
         Focusable = true;
+        ContextRequested += OnExportContextRequested;
         ClipToBounds = true;
         ToolTip.SetPlacement(this, PlacementMode.Pointer);
         DataContextChanged += (_, _) => Bind();
         AttachedToVisualTree += (_, _) => Bind();
         DetachedFromVisualTree += (_, _) => { CancelGesture(); if (_model is not null) _model.PropertyChanged -= Changed; _model = null; };
+    }
+    public event Func<ProjectExportFormat, Guid?, Task>? ExportRequested;
+    private void OnExportContextRequested(object? sender, ContextRequestedEventArgs e)
+    {
+        ContextMenu?.Close(); ContextMenu = null; e.Handled = true;
+        if (_model is not { CanEditTimeline: true } vm) return;
+        Guid? id;
+        if (e.TryGetPosition(this, out var point))
+        {
+            if (!VideoTrackBounds.Contains(point) && !AudioTrackBounds.Contains(point)) return;
+            var ticks = Ticks(point.X);
+            id = vm.TimelineClips.FirstOrDefault(c => ticks >= c.StartTicks && ticks < c.EndTicks)?.ClipId;
+        }
+        else id = vm.SelectedClip?.Id;
+        if (id is not Guid clipId || vm.Clips.FirstOrDefault(c => c.Id == clipId) is not { } clip) return;
+        CancelGesture(); vm.SelectedClip = clip;
+        ContextMenu = new ContextMenu { Items = { ProjectClipExportMenu.Create(vm, clipId,
+            (format, selected) => ExportRequested?.Invoke(format, selected) ?? Task.CompletedTask) } };
+        ContextMenu.Open(this);
     }
     private void Bind()
     {

@@ -66,6 +66,8 @@ public partial class ProjectWorkspaceView
         if (clip.GroupId is not null)
             menu.Items.Add(Item("ProjectUngroup", vm.CanUngroup, vm.UngroupSelectedAsync));
         menu.Items.Add(new Separator());
+        menu.Items.Add(ProjectClipExportMenu.Create(vm, id, RequestExportAsync));
+        menu.Items.Add(new Separator());
         menu.Items.Add(Item("ProjectDeleteClip", true, vm.DeleteSelectedAsync));
         ClipList.ContextMenu = menu;
         menu.Open(ClipList);

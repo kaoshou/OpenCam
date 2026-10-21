@@ -201,6 +201,7 @@
         <Button x:Name="ExportButton" IsEnabled="{Binding CanExport}" Background="#2563EB" Foreground="White" AutomationProperties.Name="{Binding Strings[ProjectExportMenu]}">
           <Button.Flyout><MenuFlyout>
             <MenuItem Header="{Binding Strings[ProjectExportVideo]}" Click="OnExport"/>
+            <MenuItem Header="{Binding Strings[ProjectExportGif]}" Click="OnExportGif"/>
             <MenuItem Header="{Binding Strings[ProjectExportWeb]}" Click="OnExportWebPlayer"/>
           </MenuFlyout></Button.Flyout>
           <StackPanel Orientation="Horizontal" Spacing="7"><editor:EditorToolContent Icon="export" Text="{Binding Strings[ProjectExportMenu]}" Foreground="White"/><editor:EditorToolContent Icon="chevron-down" Foreground="White"/></StackPanel>

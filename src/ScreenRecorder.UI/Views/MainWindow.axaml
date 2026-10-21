@@ -142,6 +142,7 @@
                             Background="#EFF6FF" Foreground="#1D4ED8" BorderBrush="#BFDBFE" BorderThickness="1">
                         <Button.Flyout><MenuFlyout>
                             <MenuItem Header="{Binding Strings[ProjectExportVideo]}" Command="{Binding ExportRecordingContentCommand}"/>
+                            <MenuItem Header="{Binding Strings[ProjectExportGif]}" Command="{Binding ExportGifCommand}"/>
                             <MenuItem Header="{Binding Strings[ProjectExportWeb]}" Command="{Binding ExportWebPlayerCommand}"/>
                         </MenuFlyout></Button.Flyout>
                         <StackPanel Orientation="Horizontal" Spacing="7"><editor:EditorToolContent Icon="export" Text="{Binding Strings[ProjectExportMenu]}"/><editor:EditorToolContent Icon="chevron-down"/></StackPanel>
