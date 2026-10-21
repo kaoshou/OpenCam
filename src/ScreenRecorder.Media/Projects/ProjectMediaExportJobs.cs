@@ -34,13 +34,14 @@ public sealed partial class ProjectMediaJob
     public static ProjectMediaJob EncodeClipVideo(ProjectRenderPlan plan, int index, long skipFrames = 0)
         => ComposeClipVideo(plan, index, skipFrames, false);
 
-    private static ProjectMediaJob ComposeClipVideo(ProjectRenderPlan plan, int index, long skipFrames, bool preview)
+    private static ProjectMediaJob ComposeClipVideo(ProjectRenderPlan plan, int index, long skipFrames, bool preview,
+        GifExportOptions? gif = null)
     {
         var part = plan.Clips[index];
         var canvas = plan.Canvas;
         var count = part.EndFrame - part.StartFrame - skipFrames;
         if (skipFrames < 0) throw new ArgumentOutOfRangeException(nameof(skipFrames));
-        if (count <= 0 || (!preview && (canvas.Width % 2 != 0 || canvas.Height % 2 != 0 ||
+        if (count <= 0 || (!preview && gif is null && (canvas.Width % 2 != 0 || canvas.Height % 2 != 0 ||
             canvas.Width > 4096 || canvas.Height > 4096)))
             throw new InvalidDataException("H.264 export requires a positive frame range and an even canvas up to 4096 pixels.");
         // Large project canvases remain valid for preview. Bound intermediate allocations;
@@ -51,7 +52,7 @@ public sealed partial class ProjectMediaJob
             canvas = canvas with { Width = Math.Max(2, (int)(canvas.Width * ratio)),
                 Height = Math.Max(2, (int)(canvas.Height * ratio)) };
         }
-        var rgbCanvas = preview && (canvas.Width % 2 != 0 || canvas.Height % 2 != 0);
+        var rgbCanvas = gif is not null || preview && (canvas.Width % 2 != 0 || canvas.Height % 2 != 0);
         var clip = part.Clip;
         ValidateTimestamp(clip.InPts, part.Source.Timing.TimeBase);
         ValidateTimestamp(clip.OutPts, part.Source.Timing.TimeBase);
@@ -65,6 +66,11 @@ public sealed partial class ProjectMediaJob
             $"scale={canvas.Width}:{canvas.Height}:force_original_aspect_ratio=decrease:force_divisible_by=2," +
             $"pad={canvas.Width}:{canvas.Height}:(ow-iw)/2:(oh-ih)/2:color=black," +
             $"scale=trunc(iw*{Number(clip.Scale)}/2)*2:trunc(ih*{Number(clip.Scale)}/2)*2";
+        if (gif is not null)
+            effects = $"format=rgba,crop=max(1\\,trunc(iw*{crop})):max(1\\,trunc(ih*{crop}))," +
+                $"scale={canvas.Width}:{canvas.Height}:force_original_aspect_ratio=decrease," +
+                $"pad={canvas.Width}:{canvas.Height}:(ow-iw)/2:(oh-ih)/2:color=black," +
+                $"scale=max(1\\,trunc(iw*{Number(clip.Scale)})):max(1\\,trunc(ih*{Number(clip.Scale)}))";
         var filter = $"[0:v:0]trim=start_pts={clip.InPts}:end_pts={clip.OutPts}," +
             $"setpts=PTS-({origin}+{Number(phase)})/TB,{effects}," +
             $"fps=fps={fps}:start_time=0:round=up,tpad=stop_mode=clone:stop_duration=1," +
@@ -72,6 +78,11 @@ public sealed partial class ProjectMediaJob
             $"color=c=black:s={canvas.Width}x{canvas.Height}:r={fps}," + (rgbCanvas ? "format=rgba," : "") + $"trim=end_frame={count}[bg];" +
             $"[bg][v]overlay=x=(W-w)/2+W*{Number(clip.PositionX / 100)}:y=(H-h)/2+H*{Number(clip.PositionY / 100)}:shortest=1:eof_action=endall" +
             (rgbCanvas ? ":format=rgb" : "") + "[out]";
+        if (gif is not null)
+        {
+            var size = GifTiming.OutputSize(canvas, gif);
+            filter += $";[out]scale={size.Width}:{size.Height},format=rgb24[gifout]";
+        }
         // Preserve the original sampling grid: shifting by a fractional source tick changes
         // fps rounding. Only seek demuxing; discard the prefix before overlay composition.
         var seekPts = skipFrames == 0 ? clip.InPts : checked(clip.InPts +
@@ -80,6 +91,18 @@ public sealed partial class ProjectMediaJob
         var job = new ProjectMediaJob(seekPts, part.Source.Timing.TimeBase, 0, 0)
         { RequiresOutput = true, IsLongRunning = true,
             OutputLimit = checked(count * ((long)canvas.Width * canvas.Height * 4 + 65536)) };
+        if (gif is not null)
+        {
+            var size = GifTiming.OutputSize(canvas, gif);
+            job = new ProjectMediaJob(seekPts, part.Source.Timing.TimeBase, 0, 0) {
+                RequiresOutput = true, IsLongRunning = true,
+                OutputLimit = checked(count * size.Width * size.Height * 3),
+                ExactLength = checked(count * size.Width * size.Height * 3) };
+            job._exportArguments = [..job.InputArguments(), "-filter_complex_threads", "1", "-filter_complex", filter,
+                "-map", "[gifout]", "-an", "-sn", "-dn", "-frames:v", count.ToString(CultureInfo.InvariantCulture),
+                "-fps_mode", "passthrough", "-c:v", "rawvideo", "-threads", "1", "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1"];
+            return job;
+        }
         job._exportArguments = [..job.InputArguments(), "-filter_complex_threads", "1", "-filter_complex", filter,
             "-map", "[out]", "-an", "-sn", "-dn",
             "-frames:v", count.ToString(CultureInfo.InvariantCulture), "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
