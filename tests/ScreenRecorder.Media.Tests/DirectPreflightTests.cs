@@ -87,10 +87,22 @@ public class DirectPreflightTests
             pinnedEncoder: HardwareEncoderType.SoftwareCpu, livePreviewOutput: true)
             { UseSyntheticCaptureSource = true, OutputStream = output };
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        Task? startupTask = null;
+        var startupAcknowledged = 0;
+        using var startupObserver = new DelayedHeartbeatStackObserver(() =>
+        {
+            if (Volatile.Read(ref startupAcknowledged) != 0) return false;
+            Serilog.Log.Debug("Direct preview startup observation: elapsedMs={ElapsedMs}, task={Task}, deadlineCanceled={Canceled}, frames={Frames}, seconds={Seconds}, running={Running}",
+                elapsed.Elapsed.TotalMilliseconds, startupTask?.Status, deadline.IsCancellationRequested,
+                engine.CurrentFramesRecorded, engine.CurrentRecordedTime.TotalSeconds, engine.IsRunning);
+            return true;
+        });
         try
         {
-            await engine.StartRecordingAsync("unused.mkv", new() { AudioSource = audio, Fps = 10 },
+            startupTask = engine.StartRecordingAsync("unused.mkv", new() { AudioSource = audio, Fps = 10 },
                 new(0, 0, 128, 72), deadline.Token);
+            await startupTask;
+            Volatile.Write(ref startupAcknowledged, 1);
             startupMs = elapsed.Elapsed.TotalMilliseconds;
             await engine.StopRecordingAsync(deadline.Token);
             stoppedMs = elapsed.Elapsed.TotalMilliseconds;

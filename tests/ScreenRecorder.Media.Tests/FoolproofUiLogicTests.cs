@@ -434,9 +434,10 @@ public class FoolproofUiLogicTests
 
     }
 
-    [Fact]
+    [Avalonia.Headless.XUnit.AvaloniaFact]
     public void CursorEffect_ShouldInitializeWithAllOptionsAndLocalize()
     {
+        Assert.IsType<ProjectLayoutApp>(Avalonia.Application.Current);
         var vm = new MainViewModel(forScreenshot: true);
 
         // 驗收：4 種模式皆存在且預設為 Default

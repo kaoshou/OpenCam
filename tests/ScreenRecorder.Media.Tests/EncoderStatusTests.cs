@@ -45,9 +45,10 @@ public class EncoderStatusTests
         Assert.Contains(en, EncoderStatusFormatter.Format(selection, new LocalizationService { CurrentLanguage = AppLanguage.EnUs }));
     }
 
-    [Fact]
+    [Avalonia.Headless.XUnit.AvaloniaFact]
     public void RecorderSelection_OverridesUiProbeWithoutChangingPreference()
     {
+        Assert.IsType<ProjectLayoutApp>(Avalonia.Application.Current);
         var vm = new MainViewModel(forScreenshot: true);
         vm.AvailableEncoders.Add(new MainViewModel.EncoderOption(HardwareEncoderType.IntelQsv, "QSV"));
         vm.ApplyEncoderTelemetry(new() { SessionId = "one", State = RecordingState.Recording,

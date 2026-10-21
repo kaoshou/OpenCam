@@ -22,6 +22,8 @@ internal sealed class PreflightTrialTestDiagnostics : IDisposable
             var template = value.MessageTemplate.Text;
             if (value.Level < LogEventLevel.Warning && !template.StartsWith("[FFmpeg Stderr]", StringComparison.Ordinal) &&
                 !template.StartsWith("Independent heartbeat observer", StringComparison.Ordinal) &&
+                !template.StartsWith("Independent heartbeat stack tool", StringComparison.Ordinal) &&
+                !template.StartsWith("Direct preview startup observation", StringComparison.Ordinal) &&
                 !template.StartsWith("Delayed heartbeat", StringComparison.Ordinal)) return;
             var text = value.RenderMessage();
             lock (_events)
@@ -51,10 +53,14 @@ public sealed class PreflightTrialTestDiagnosticsTests
         Log.Information("launch arguments {Arguments}", "must-not-be-copied");
         Log.Debug("Independent heartbeat observer: {Workers}", 8);
         Log.Debug("Delayed heartbeat managed stacks chunk {Chunk}: {Report}", 0, "worker-stack-evidence");
+        Log.Debug("Direct preview startup observation: task={Task}", "WaitingForActivation");
+        Log.Debug("Independent heartbeat stack tool starting at {Timestamp}", "bounded-start-time");
         var report = capture.Snapshot();
         Assert.Contains("trial fault 99:", report);
         Assert.DoesNotContain("trial fault 0:", report);
         Assert.Contains("worker-stack-evidence", report);
+        Assert.Contains("Direct preview startup observation", report);
+        Assert.Contains("bounded-start-time", report);
         Assert.DoesNotContain("must-not-be-copied", report);
         Assert.InRange(report.Length, 1, 120000);
     }

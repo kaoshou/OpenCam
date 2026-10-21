@@ -17,6 +17,9 @@ on:
 permissions:
   contents: read
 
+env:
+  OPENCAM_TEST_UI_TRACE: ${{ github.workspace }}/test-results/headless-lifecycle.jsonl
+
 jobs:
   verify-portable:
     runs-on: ubuntu-latest

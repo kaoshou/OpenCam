@@ -43,9 +43,10 @@ public class SettingsViewModelTests
         }
     }
 
-    [Fact]
+    [Avalonia.Headless.XUnit.AvaloniaFact]
     public void AboutVersionLabelRefreshesWhenLanguageChanges()
     {
+        Assert.IsType<ProjectLayoutApp>(Avalonia.Application.Current);
         var vm = new SettingsViewModel(new MockSettingsService());
         var original = vm.Strings.CurrentLanguage;
         try
@@ -127,9 +128,10 @@ public class SettingsViewModelTests
         Assert.Equal(0, mockService.SaveCount);
     }
 
-    [Fact]
+    [Avalonia.Headless.XUnit.AvaloniaFact]
     public async Task SettingsViewModel_Save_ValidSettings_ShouldInvokeSavedEventAndPersist()
     {
+        Assert.IsType<ProjectLayoutApp>(Avalonia.Application.Current);
         var mockService = new MockSettingsService();
         var vm = new SettingsViewModel(mockService);
         await vm.LoadSettingsAsync();
