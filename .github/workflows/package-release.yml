@@ -1,0 +1,177 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Package OpenCam (manual)
+
+# Packaging is separate from verification. This workflow never publishes a Release.
+# The normal build-and-release verification gates remain unchanged.
+on:
+  workflow_dispatch:
+    inputs:
+      expected_revision:
+        description: Full source commit SHA authorized for packaging
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  verify-source:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Verify immutable source revision
+      env:
+        EXPECTED_REVISION: ${{ inputs.expected_revision }}
+      run: |
+        [[ "$EXPECTED_REVISION" =~ ^[0-9a-f]{40}$ ]]
+        test "$EXPECTED_REVISION" = "$GITHUB_SHA"
+        test "$(git rev-parse HEAD)" = "$EXPECTED_REVISION"
+    - uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    - uses: actions/setup-node@v7
+      with:
+        node-version: '22'
+    - name: Check version and dependency vulnerabilities
+      run: |
+        node scripts/check-version-consistency.mjs
+        dotnet restore ScreenRecorder.sln
+        node scripts/check-nuget-vulnerabilities.mjs ScreenRecorder.sln
+
+  build-windows:
+    needs: verify-source
+    runs-on: windows-latest
+    steps:
+    - name: Checkout Source Code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET 8
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Setup Node.js for release notice verification
+      uses: actions/setup-node@v7
+      with:
+        node-version: '22'
+
+    - name: Load canonical product version
+      run: |
+        node scripts/check-version-consistency.mjs
+        if ($LASTEXITCODE -ne 0) { throw "Version consistency check failed" }
+        node scripts/release-artifact-names.mjs | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        if ($LASTEXITCODE -ne 0) { throw "Artifact name generation failed" }
+
+    - name: Restore Dependencies
+      run: dotnet restore src/ScreenRecorder.UI/ScreenRecorder.UI.csproj
+
+    - name: Build and Publish Windows
+      run: |
+        dotnet publish src/ScreenRecorder.UI/ScreenRecorder.UI.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o installer/publish
+
+    - name: Install pinned FFmpeg for Windows package
+      shell: powershell
+      run: |
+        .\scripts\install-windows-ffmpeg.ps1 -Destination "installer\publish" | Out-Null
+
+    - name: Add project license and corresponding source notice
+      run: |
+        Copy-Item LICENSE installer/publish/LICENSE
+        Copy-Item LICENSE installer/publish/LICENSE.txt
+        Copy-Item NOTICE.md installer/publish/NOTICE.md
+        node scripts/assemble-third-party-notices.mjs installer/publish win-x64 installer/publish/ffmpeg-notices
+        if ($LASTEXITCODE -ne 0) { throw "Third-party notice assembly failed" }
+        @"
+        OpenCam $env:OPENCAM_VERSION
+        SPDX-License-Identifier: AGPL-3.0-or-later
+        Corresponding source: https://github.com/kaoshou/OpenCam/tree/$env:GITHUB_SHA
+        "@ | Set-Content installer/publish/SOURCE.txt -Encoding utf8
+        node scripts/check-release-notices.mjs installer/publish $env:GITHUB_SHA $env:OPENCAM_VERSION --installer
+
+    - name: Create Windows Portable ZIP
+      run: |
+        Compress-Archive -Path "installer/publish/*" -DestinationPath $env:WINDOWS_PORTABLE -Force
+
+    - name: Compile Inno Setup Installer
+      run: |
+        & "C:\Program Files (x86)\Inno Setup 6\iscc.exe" "/DMyAppVersion=$env:OPENCAM_VERSION" installer\OpenCam.iss
+        if ($LASTEXITCODE -ne 0) { throw "Installer compilation failed" }
+        foreach ($asset in @("installer/Output/$env:WINDOWS_SETUP", $env:WINDOWS_PORTABLE)) {
+          if (!(Test-Path -LiteralPath $asset -PathType Leaf)) { throw "Missing expected artifact: $asset" }
+        }
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: OpenCam-v${{ env.OPENCAM_VERSION }}-Windows-x64
+        if-no-files-found: error
+        path: |
+          installer/Output/${{ env.WINDOWS_SETUP }}
+          ${{ env.WINDOWS_PORTABLE }}
+
+  build-macos:
+    needs: verify-source
+    runs-on: macos-15
+    steps:
+    - name: Checkout Source Code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET 8
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Setup Node.js for release notice verification
+      uses: actions/setup-node@v7
+      with:
+        node-version: '22'
+
+    - name: Load canonical product version
+      run: |
+        node scripts/check-version-consistency.mjs
+        node scripts/release-artifact-names.mjs >> "$GITHUB_ENV"
+
+    - name: Build and Publish macOS
+      run: |
+        dotnet publish src/ScreenRecorder.UI/ScreenRecorder.UI.csproj -c Release -r osx-arm64 --self-contained true -p:PublishSingleFile=false -o publish/osx-arm64
+
+    - name: Build self-contained FFmpeg for Apple Silicon
+      run: |
+        chmod +x scripts/build-ffmpeg-macos-arm64.sh
+        scripts/build-ffmpeg-macos-arm64.sh publish/osx-arm64
+
+    - name: Create macOS App Bundle
+      run: |
+        chmod +x scripts/package-macos.sh scripts/verify-macos-bundle.sh
+        scripts/package-macos.sh publish/osx-arm64 OpenCam.app Release
+        node scripts/check-release-notices.mjs OpenCam.app/Contents/Resources "$GITHUB_SHA" "$OPENCAM_VERSION"
+
+    - name: Create DMG
+      run: |
+        # hdiutil can transiently report "Resource busy" on hosted runners
+        # immediately after signing a large app bundle. Retry the clean
+        # srcfolder build and verify the image before publishing it.
+        mkdir -p dmg_staging
+        cp -R OpenCam.app dmg_staging/
+        ln -s /Applications dmg_staging/Applications
+        for attempt in 1 2 3; do
+          if hdiutil create -volname "OpenCam" -srcfolder "$PWD/dmg_staging" -ov -format UDZO "$MACOS_DMG"; then
+            break
+          fi
+          if [ "$attempt" -eq 3 ]; then
+            exit 1
+          fi
+          sleep 5
+        done
+        hdiutil verify "$MACOS_DMG"
+        rm -rf dmg_staging
+
+    - name: Upload macOS DMG as Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: OpenCam-v${{ env.OPENCAM_VERSION }}-macOS-arm64
+        if-no-files-found: error
+        path: ${{ env.MACOS_DMG }}
+        
+
+
