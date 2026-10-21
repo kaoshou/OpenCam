@@ -8,12 +8,12 @@
 
 OpenCam 讓你錄影、剪輯，再繼續錄影。這款以可靠性為優先的跨平台桌面工具使用 MKV 保存原始錄影片段，透過可重開的專案保存剪輯，並在需要時輸出 MP4。
 
-## 開發分支：GIF 與單一片段匯出（尚未發布）
+## v0.3.12：GIF 與單一片段匯出
 
 - 原本影片與編輯視窗的「輸出…」選單，都在 MP4 下方提供 GIF。片段清單／時間軸右鍵的「匯出片段…」會展開 MP4、GIF 子選單，只輸出該片段的保留範圍（合併片段含全部子段，不擴展至整個群組）。
 - GIF 不包含音訊；設定可選最大寬度 480／640／960／原始大小及 10／15／20 FPS，預設 640／15，保持比例、不放大、循環播放。色彩與畫質可能不同於 MP4。
 - 不設長度上限；實際匯出範圍達五分鐘會再確認耗時／檔案大小與無音訊提示，仍可繼續。原始素材與專案內容不變；大型 GIF 需要足夠暫存磁碟空間。
-- Development branch, not yet released: both the original video's Export menu and the editor offer GIF below MP4. Hover **Export clip…** in the clip list/timeline context menu for MP4 or GIF. Export uses only that edited logical clip, including compound parts, not its group. GIF is silent, loops continuously, and offers width/FPS settings (default 640/15). At five minutes or longer, a confirmation warns about conversion time, size and missing audio without imposing a duration cap. Originals remain unchanged. Native platform acceptance is still required; see [verification notes](docs/verification/2026-10-21-gif-and-clip-export.md).
+- New in v0.3.12: both the original video's Export menu and the editor offer GIF below MP4. Hover **Export clip…** in the clip list/timeline context menu for MP4 or GIF. Export uses only that edited logical clip, including compound parts, not its group. GIF is silent, loops continuously, and offers width/FPS settings (default 640/15). At five minutes or longer, a confirmation warns about conversion time, size and missing audio without imposing a duration cap. Originals remain unchanged. Native platform acceptance is still required; see [release notes and limits](docs/releases/v0.3.12.md).
 
 ## 錄前確認與錄製提醒
 
@@ -56,7 +56,7 @@ v0.3.3 新增「輸出… → 網頁播放器」：選擇存放位置後，建�
 
 🌐 [OpenCam 官方網站](https://kaoshou.github.io/OpenCam/)（可切換繁體中文／English）
 
-目前原始碼版本為 **0.3.11**，採用 **AGPL-3.0-or-later**。Windows 原生錄影、編輯影音預覽、輸出與長時間音畫同步實機驗收仍待完成；Windows FFmpeg 完整對應原始碼核對亦尚未完成。套件未簽章，發布不代表全部驗收通過。請保留重要素材備份，已發布安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。詳見 [v0.3.11 更新與限制](docs/releases/v0.3.11.md)。
+目前原始碼版本為 **0.3.12**，採用 **AGPL-3.0-or-later**。Windows 原生錄影、編輯影音預覽、輸出與長時間音畫同步實機驗收仍待完成；Windows FFmpeg 完整對應原始碼核對亦尚未完成。套件未簽章，發布不代表全部驗收通過。請保留重要素材備份，已發布安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。詳見 [v0.3.12 更新與限制](docs/releases/v0.3.12.md)。
 
 **v0.3.3** 新增可辨識的離線網頁播放器輸出；時間軸拖曳只調整排序，不再以邊緣拖曳裁剪。明確的分割／刪除範圍與復原操作保留，右側片段操作按鈕統一排列與圖示。先前已誤裁的片段不會自動改寫。
 
@@ -261,7 +261,7 @@ OpenCam is built with .NET 8, Avalonia UI, and FFmpeg, and supports Windows and 
 
 🌐 [OpenCam official website](https://kaoshou.github.io/OpenCam/) (English / 繁體中文)
 
-The current source version is **0.3.11**, under **AGPL-3.0-or-later**. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending, as does verification of complete corresponding sources for the Windows FFmpeg build. Packages are unsigned; publication does not establish complete acceptance. Keep backups of important media. Published packages are available from [Releases](https://github.com/kaoshou/OpenCam/releases); see [v0.3.11 changes and limitations](docs/releases/v0.3.11.md).
+The current source version is **0.3.12**, under **AGPL-3.0-or-later**. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending, as does verification of complete corresponding sources for the Windows FFmpeg build. Packages are unsigned; publication does not establish complete acceptance. Keep backups of important media. Published packages are available from [Releases](https://github.com/kaoshou/OpenCam/releases); see [v0.3.12 changes and limitations](docs/releases/v0.3.12.md).
 
 **New in v0.3.11:** audio-only preflight removes screen capture and preview. A separate status area shows loading, trial startup, acknowledged five-second capture, preparing playback and formal recording preparation. Formal recording still uses the configured video/audio pipeline.
 

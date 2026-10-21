@@ -50,7 +50,7 @@ Change capture mode only while idle, not while paused. Existing audio/cursor con
 
 OpenCam lets you record, edit, and resume recording. It writes MKV sources, retains them alongside a reopenable editing project, and exports MP4 when needed. Crash Recovery can attempt to preserve successfully written recordings; project recovery drafts protect interrupted unsaved edits.
 
-> This guide covers OpenCam v0.3.11, not a claim of completed acceptance. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending. Complete corresponding-source verification for Windows FFmpeg also remains pending, and packages are unsigned. Use disposable media; see the [release notes and limitations](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.3.11.md).
+> This guide covers OpenCam v0.3.12, not a claim of completed acceptance. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending. Complete corresponding-source verification for Windows FFmpeg also remains pending, and packages are unsigned. Use disposable media; see the [release notes and limitations](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.3.12.md).
 
 v0.3.3 replaces manual export with an **Export…** menu offering MP4 video or Web player. MP4 accepts a filename; Web player creates a unique folder containing index.html, media.mp4 and opencam-player.js. Chapters follow saved clips and show start times and durations in a scrollable index. Overlay controls provide seeking, volume, speed, wide-screen and fullscreen. Move the complete folder together and use an H.264/AAC-capable browser. See [the web export format](https://github.com/kaoshou/OpenCam/blob/master/docs/WEB_PLAYER_EXPORT.md).
 
@@ -420,6 +420,12 @@ If no recoverable content appears, check the following in order:
 - Confirm that the configured output path still exists and is accessible to the current account.
 - If it points to a disconnected external drive or network location, change it to a valid local folder.
 - Check the status area and application log for the folder-opening error.
+
+## GIF and Individual Clip Export
+
+The original video's Export menu and the editor offer GIF below MP4. In the clip list or timeline context menu, hover **Export clip…** to reveal MP4 and GIF. Only that clip's retained range is exported; compound clips include their parts, not other grouped clips. MP4 retains applicable audio and effects; GIF has no audio.
+
+Choose a maximum width of 480/640/960/original and 10/15/20 FPS (default 640/15). GIF preserves aspect ratio, never upscales and loops continuously. There is no duration cap; at five minutes, an additional warning explains time, size and missing audio, and lets you continue. Long/high-resolution sources require substantial temporary disk space. Choose a new filename; existing files are not overwritten. After failure, select the format and target again from the export menu. Export does not modify originals, the project or subtitle timing, and does not burn in captions.
 
 ## 12. Safe-Use Recommendations
 
