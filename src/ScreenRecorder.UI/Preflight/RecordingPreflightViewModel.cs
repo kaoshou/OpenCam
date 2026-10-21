@@ -22,13 +22,19 @@ public sealed class RecordingPreflightViewModel(Guid operation) : ObservableObje
     private bool _busy, _connectionFailed;
     public bool ConnectionFailed { get => _connectionFailed; set { SetProperty(ref _connectionFailed, value); Changed(); } }
     public bool Busy { get => _busy; set { SetProperty(ref _busy, value); Changed(); } }
-    public bool ShowSilenceNotice => Status.Phase == PreflightPhase.Checking && (Status.Microphone.State == PreflightSourceState.Silent ||
-        Status.SystemAudio.State == PreflightSourceState.Silent ||
-        Status.Microphone.State == PreflightSourceState.Disabled && Status.SystemAudio.State == PreflightSourceState.Disabled);
-    private static bool Readable(PreflightSourceResult source) => source.State is
-        PreflightSourceState.Disabled or PreflightSourceState.Live or PreflightSourceState.Silent;
-    public bool CanStart => !Busy && !ConnectionFailed && Status.Phase == PreflightPhase.Checking && Status.AudioReady && Status.ErrorCode is null &&
-        Readable(Status.Microphone) && Readable(Status.SystemAudio);
+    public string? SilenceNoticeKey => Status.Phase != PreflightPhase.Checking ? null :
+        (Status.Microphone.State == PreflightSourceState.Silent, Status.SystemAudio.State == PreflightSourceState.Silent) switch
+        {
+            (true, true) => "PreflightBothSilent",
+            (true, false) => "PreflightMicrophoneSilent",
+            (false, true) => "PreflightSystemSilent",
+            _ => null
+        };
+    public bool ShowSilenceNotice => SilenceNoticeKey is not null;
+    // Audio checking is advisory. Ownership must still be known and shutdown
+    // confirmed by EndPreflight before the real recording is started.
+    public bool CanStart => !Busy && !ConnectionFailed &&
+        Status.Phase is PreflightPhase.Checking or PreflightPhase.Reviewing or PreflightPhase.Failed;
     public bool CanTrial => !Busy && !ConnectionFailed && Status.ErrorCode is null && !Status.Playing &&
         (Status.Microphone.State != PreflightSourceState.Disabled || Status.SystemAudio.State != PreflightSourceState.Disabled) &&
         (Status.Phase == PreflightPhase.Checking && Status.AudioReady || Status.Phase == PreflightPhase.Reviewing && Status.HasTrial);

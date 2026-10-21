@@ -9,6 +9,77 @@ namespace ScreenRecorder.Media.Tests;
 
 public class PreflightAudioCaptureTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UnavailableBestEffortMeterDoesNotPreventActualAudioTrial(bool throws)
+    {
+        var meter = new UnavailableMeter(throws);
+        await using var capture = new FFmpegPreflightAudioCapture(new ToneInput(), observer: meter);
+        using var output = new MemoryStream();
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        await capture.StartAsync(new() { AudioSource = AudioSourceType.MicrophoneOnly, MicrophoneDeviceId = "selected-device" },
+            output, deadline.Token);
+        Assert.True(capture.IsRunning);
+        Assert.Null(capture.ErrorCode);
+        Assert.Equal(PreflightSourceState.Unavailable, capture.ReadMicrophone(DateTimeOffset.UtcNow).State);
+        await Task.Delay(200, deadline.Token);
+        await capture.StopAsync(deadline.Token);
+        Assert.Null(capture.ErrorCode);
+        Assert.True(output.Length > 0);
+        Assert.True(meter.Stopped);
+    }
+
+    [Fact]
+    public async Task UnavailableMeterDoesNotHideActualCaptureStartupFailure()
+    {
+        var meter = new UnavailableMeter(false);
+        await using var capture = new FFmpegPreflightAudioCapture(new InvalidInput(), observer: meter);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        await Assert.ThrowsAsync<IOException>(() => capture.StartAsync(new()
+            { AudioSource = AudioSourceType.MicrophoneOnly, MicrophoneDeviceId = "selected-device" }, null, deadline.Token));
+        Assert.False(capture.IsRunning);
+        Assert.NotNull(capture.ErrorCode);
+        Assert.True(meter.Stopped);
+    }
+
+    [Fact]
+    public async Task UnavailableMeterStillRequiresConfirmedShutdown()
+    {
+        var meter = new UnavailableMeter(false);
+        await using var capture = new FFmpegPreflightAudioCapture(new ToneInput(), observer: meter);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        await capture.StartAsync(new() { AudioSource = AudioSourceType.MicrophoneOnly, MicrophoneDeviceId = "selected-device" }, null, deadline.Token);
+        meter.FailStop = true;
+        try { await Assert.ThrowsAsync<AggregateException>(() => capture.StopAsync(deadline.Token)); }
+        finally { meter.FailStop = false; }
+        await capture.StopAsync(deadline.Token);
+    }
+
+    private sealed class InvalidInput : IPreflightAudioPlatformProvider
+    {
+        public string BuildPreflightAudioInputArguments(RecordingConfiguration configuration, bool synthetic,
+            string? systemAudioInput, string? microphoneAudioInput) => "-f lavfi -i opencam_invalid_audio_filter";
+    }
+
+    private sealed class ToneInput : IPreflightAudioPlatformProvider
+    {
+        public string BuildPreflightAudioInputArguments(RecordingConfiguration configuration, bool synthetic,
+            string? systemAudioInput, string? microphoneAudioInput) =>
+            PreflightAudioFormat.BuildInput(configuration, true, null, null, mac: false);
+    }
+    private sealed class UnavailableMeter(bool throws) : IMicrophoneLevelObserver
+    {
+        public bool Stopped, FailStop;
+        public Task<bool> StartAsync(string deviceId, CancellationToken ct) => throws
+            ? Task.FromException<bool>(new IOException("meter initialization unavailable")) : Task.FromResult(false);
+        public AudioLevelSample? ReadLatestLevel(DateTimeOffset now) =>
+            throw new InvalidOperationException("An unavailable meter must not be read.");
+        public Task StopAsync(CancellationToken ct)
+        { Stopped = true; return FailStop ? Task.FromException(new IOException("meter shutdown unconfirmed")) : Task.CompletedTask; }
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
     [Fact]
     public async Task StartWaitsForAcknowledgement()
     {

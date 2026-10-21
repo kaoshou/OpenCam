@@ -36,7 +36,6 @@ public partial class RecordingPreflightWindow : Window
         Title = Heading.Text = Strings["PreflightTitle"];
         Privacy.Text = Strings["PreflightPrivacy"];
         MicrophoneLabel.Text = Strings["PreflightMicrophone"]; SystemLabel.Text = Strings["PreflightSystem"];
-        SilenceNotice.Text = Strings["PreflightSilenceNotice"];
         TrialButton.Content = Strings["PreflightTrial"]; ReplayButton.Content = Strings["PreflightReplay"];
         StopReplayButton.Content = Strings["PreflightStopReplay"]; RecheckButton.Content = Strings["PreflightRecheck"];
         DisableMicrophone.Content = Strings["PreflightDisableMic"]; DisableSystem.Content = Strings["PreflightDisableSystem"];
@@ -53,7 +52,7 @@ public partial class RecordingPreflightWindow : Window
     private async Task<PreflightReply> SendAsync(string command, PreflightRequest request, CancellationToken ct)
     {
         var response = await _send(command, request, ct);
-        if (!response.Success) throw new IOException("Preflight command was not acknowledged.");
+        if (!response.Success) throw new IOException($"Preflight {command} was not acknowledged: {response.ErrorMessage}");
         var reply = JsonSerializer.Deserialize<PreflightReply>(response.DataJson!) ?? throw new InvalidDataException();
         if (!_model.Apply(reply))
         {
@@ -80,6 +79,7 @@ public partial class RecordingPreflightWindow : Window
     private void Render()
     {
         var status = _model.Status;
+        SilenceNotice.Text = _model.SilenceNoticeKey is { } notice ? Strings[notice] : "";
         var microphoneEnabled = _configuration.AudioSource is AudioSourceType.MicrophoneOnly or AudioSourceType.SystemAndMicrophone;
         var systemEnabled = _configuration.AudioSource is AudioSourceType.SystemOnly or AudioSourceType.SystemAndMicrophone;
         MicrophoneLabel.Text = Strings[microphoneEnabled ? "PreflightMicrophone" : "PreflightMicrophoneDisabled"];
@@ -126,13 +126,13 @@ public partial class RecordingPreflightWindow : Window
             _pendingAction is not ("PlayPreflightTrial" or "RecordPreflightTrial");
         StatusActivity.IsVisible = !failed && !reviewing &&
             (stopping || trialStarting || status.Phase is PreflightPhase.Preparing or PreflightPhase.TrialFinalizing);
-        StatusMessage.Text = Strings[failed ? "PreflightFailed" : stopping ? "PreflightStopping" :
+        StatusMessage.Text = Strings[_model.ConnectionFailed ? "PreflightConnectionError" : failed ? "PreflightFailed" : stopping ? "PreflightStopping" :
             trialStarting ? "PreflightTrialStarting" : status.Phase == PreflightPhase.TrialFinalizing ? "PreflightTrialFinalizing" :
             trial ? "PreflightTrialRecording" : reviewing ? "PreflightTrialReady" : status.Playing ? "PreflightPlaying" :
             status.Phase == PreflightPhase.Checking ? "PreflightChecking" : "PreflightPreparing"];
         if (!failed && !stopping && status.Phase == PreflightPhase.TrialRecording)
             StatusMessage.Text = Strings.GetFormatted("PreflightTrialRecording", Math.Clamp((int)Math.Ceiling(5 - status.TrialSeconds), 0, 5));
-        StatusHint.Text = Strings[failed ? "PreflightAudioRetry" : stopping ? "PreflightStartWait" :
+        StatusHint.Text = Strings[_model.ConnectionFailed ? "PreflightStartWait" : failed ? "PreflightAudioRetry" : stopping ? "PreflightStartWait" :
             trialStarting ? "PreflightTrialStartingHint" : trial ? "PreflightAudioTrialHint" : reviewing ? "PreflightTrialReadyHint" : "PreflightAudioHint"];
     }
     private void Failure()
@@ -176,8 +176,8 @@ public partial class RecordingPreflightWindow : Window
             _pollCancellation.Dispose(); _pollCancellation = new(); ResetModel();
             _poll = PollAsync(true, _pollCancellation.Token);
         }
-        catch { Failure(); }
-        finally { _action.Release(); }
+        catch (Exception ex) { Serilog.Log.Warning(ex, "Cannot restart preflight audio check"); Failure(); }
+        finally { _model.Busy = false; _action.Release(); Render(); }
     }
     private async void OnRecheck(object? sender, RoutedEventArgs e) => await RecheckAsync();
     private async void OnDisableMicrophone(object? sender, RoutedEventArgs e)
@@ -218,8 +218,8 @@ public partial class RecordingPreflightWindow : Window
                 Close();
             }
         }
-        catch { _closing = false; Failure(); }
-        finally { _action.Release(); }
+        catch (Exception ex) { Serilog.Log.Warning(ex, "Cannot complete preflight handoff"); _closing = false; Failure(); }
+        finally { if (PreparationState is null) _model.Busy = false; _action.Release(); Render(); }
     }
     private async void OnStart(object? sender, RoutedEventArgs e) => await FinishAsync(true);
     private async void OnCancel(object? sender, RoutedEventArgs e) => await FinishAsync(false);

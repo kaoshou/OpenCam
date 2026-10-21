@@ -26,7 +26,7 @@ public sealed class FFmpegPreflightAudioCapture(
     private Task _stderr = Task.CompletedTask, _copy = Task.CompletedTask;
     private readonly TaskCompletionSource<bool> _ack = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private bool _systemSelected, _micSelected, _readLevels, _started, _disposed;
-    private bool _systemStarted, _micStarted, _observerStarted;
+    private bool _systemStarted, _micStarted, _observerStarted, _observerUnavailable;
     private volatile bool _stopping, _running;
     private string? _error;
     public string? ErrorCode => Volatile.Read(ref _error);
@@ -65,11 +65,18 @@ public sealed class FFmpegPreflightAudioCapture(
                 }
                 if (_micSelected && !synthetic && microphone is null)
                 {
-                    if (observer is null || string.IsNullOrWhiteSpace(configuration.MicrophoneDeviceId))
-                        throw new IOException("Microphone monitoring is unavailable.");
-                    _observerStarted = true;
-                    if (!await observer.StartAsync(configuration.MicrophoneDeviceId, ct))
-                        throw new IOException("Microphone monitoring did not start.");
+                    // FFmpeg owns the selected recording input. This separate
+                    // shared-mode tap supplies only the best-effort level meter.
+                    _observerUnavailable = true;
+                    if (observer is not null && !string.IsNullOrWhiteSpace(configuration.MicrophoneDeviceId))
+                    {
+                        _observerStarted = true; // also stop a partially initialized tap
+                        try { _observerUnavailable = !await observer.StartAsync(configuration.MicrophoneDeviceId, ct); }
+                        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+                        catch (Exception ex) { Log.Warning(ex, "Preflight microphone level monitoring unavailable"); }
+                    }
+                    ct.ThrowIfCancellationRequested();
+                    if (_observerUnavailable) Log.Warning("Preflight microphone meter unavailable; recording input still requires FFmpeg acknowledgement");
                 }
                 using var sysFd = InheritedAudioDescriptor.Duplicate(sys?.PcmStream);
                 using var micFd = InheritedAudioDescriptor.Duplicate(mic?.PcmStream);
@@ -98,8 +105,9 @@ public sealed class FFmpegPreflightAudioCapture(
                     throw new IOException("Audio capture did not acknowledge startup.");
                 lock (_levels) { _readLevels = true; _running = true; }
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Warning(ex, "Preflight audio initialization failed: Microphone={Microphone}, SystemAudio={SystemAudio}", _micSelected, _systemSelected);
                 Volatile.Write(ref _error, "PreflightAudioUnavailable");
                 using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(10));
                 await StopCoreAsync(cleanup.Token);
@@ -155,8 +163,13 @@ public sealed class FFmpegPreflightAudioCapture(
 
     public PreflightSourceResult ReadMicrophone(DateTimeOffset now)
     {
-        lock (_levels) return PreflightReadiness.Resolve(_micSelected,
-            _readLevels && IsRunning ? (microphone as IAudioLevelSource)?.ReadLatestLevel(now) ?? observer?.ReadLatestLevel(now) : null, now);
+        lock (_levels)
+        {
+            if (_micSelected && _readLevels && IsRunning && _observerUnavailable)
+                return new(PreflightSourceState.Unavailable);
+            return PreflightReadiness.Resolve(_micSelected,
+                _readLevels && IsRunning ? (microphone as IAudioLevelSource)?.ReadLatestLevel(now) ?? observer?.ReadLatestLevel(now) : null, now);
+        }
     }
     public PreflightSourceResult ReadSystemAudio(DateTimeOffset now)
     {

@@ -53,7 +53,9 @@ public class PreflightDiagnosticsTests
         Assert.True(ready.HasFrame);
         Assert.False(ready.AudioReady);
         model.Apply(new(server, ready with { OperationId = operation }, false, 4));
-        Assert.False(model.CanStart); // A legacy video preview cannot authorize an audio-only check.
+        Assert.True(model.CanStart); // Explicit recording does not require a successful audio check.
+        Assert.False(model.Status.AudioReady); // A video frame still does not prove audio readiness.
+        Assert.False(model.CanTrial);
     }
 
     [Fact]

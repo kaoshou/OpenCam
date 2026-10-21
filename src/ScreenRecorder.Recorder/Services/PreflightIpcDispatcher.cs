@@ -102,10 +102,15 @@ public sealed class PreflightIpcDispatcher : IAsyncDisposable
                         if (request.Confirm)
                         {
                             var status = Status();
-                            bool Readable(PreflightSourceResult source) => source.State is PreflightSourceState.Disabled or PreflightSourceState.Live or PreflightSourceState.Silent;
-                            if (status.Phase != PreflightPhase.Checking || !status.AudioReady || status.ErrorCode is not null ||
-                                !Readable(status.Microphone) || !Readable(status.SystemAudio)) throw new InvalidOperationException("Preflight must be checked again before recording.");
-                            confirmed = _stamp(_checkingConfiguration!);
+                            if (status.Phase is not (PreflightPhase.Checking or PreflightPhase.Reviewing or PreflightPhase.Failed))
+                                throw new InvalidOperationException("Preflight is busy.");
+                            try { confirmed = _stamp(_checkingConfiguration!); }
+                            catch (Exception ex)
+                            {
+                                // An unavailable endpoint prevents cached automatic resume
+                                // approval, not the user's explicit request to record.
+                                Serilog.Log.Warning(ex, "Cannot cache preflight device confirmation; explicit recording remains available");
+                            }
                         }
                         _queuedPhase = PreflightPhase.Stopping;
                         _work = ObserveAsync(async () => { using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(10));

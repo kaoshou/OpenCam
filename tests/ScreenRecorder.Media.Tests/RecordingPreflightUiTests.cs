@@ -197,10 +197,10 @@ public class RecordingPreflightUiTests
             Assert.Equal(strings["PreflightAudioReview"], window.FindControl<TextBlock>("MicrophoneStatus")!.Text);
             Assert.False(window.FindControl<ProgressBar>("MicrophoneMeter")!.IsVisible);
             Assert.True(window.FindControl<Button>("ReplayButton")!.IsEnabled);
-            Assert.False(start.IsEnabled);
+            Assert.True(start.IsEnabled);
             status = status with { Phase = PreflightPhase.Failed, ErrorCode = "InjectedFailure" };
             await Until(() => message.Text == strings["PreflightFailed"]);
-            Assert.True(placeholder.IsVisible); Assert.False(activity.IsVisible); Assert.False(start.IsEnabled);
+            Assert.True(placeholder.IsVisible); Assert.False(activity.IsVisible); Assert.True(start.IsEnabled);
         }
         finally
         {
@@ -272,7 +272,8 @@ public class RecordingPreflightUiTests
         var vm = new RecordingPreflightViewModel(id);
         vm.Apply(new(Guid.NewGuid(), PreflightStatus.Empty with { OperationId = id, ConfigurationRevision = 1,
             Phase = PreflightPhase.Checking, AudioReady = true, Microphone = new(state) }));
-        Assert.False(vm.CanStart);
+        Assert.True(vm.CanStart);
+        Assert.Equal(state, vm.Status.Microphone.State);
     }
     [Fact]
     public void SilenceShowsNoticeAndTrialCannotMasqueradeAsLiveCheck()
@@ -284,19 +285,21 @@ public class RecordingPreflightUiTests
         vm.Apply(new(server, status));
         Assert.True(vm.ShowSilenceNotice);
         Assert.True(vm.CanStart);
-        vm.Apply(new(server, status with { Phase = PreflightPhase.Reviewing, HasTrial = true }));
-        Assert.False(vm.CanStart);
+        vm.Apply(new(server, status with { Phase = PreflightPhase.Reviewing, HasTrial = true, AudioReady = false }));
+        Assert.True(vm.CanStart);
+        Assert.False(vm.Status.AudioReady);
         Assert.False(vm.Apply(new(Guid.NewGuid(), status)));
         Assert.False(vm.Apply(new(server, status with { OperationId = Guid.NewGuid() })));
-        Assert.False(vm.CanStart);
+        Assert.True(vm.CanStart);
+        Assert.Equal(PreflightPhase.Reviewing, vm.Status.Phase);
     }
     [Fact]
-    public void AllDisabledInputsShowNoticeButDoNotRequireExtraCheckbox()
+    public void AllDisabledInputsDoNotShowSilenceNoticeOrRequireExtraCheckbox()
     {
         var id = Guid.NewGuid(); var vm = new RecordingPreflightViewModel(id);
         vm.Apply(new(Guid.NewGuid(), PreflightStatus.Empty with { OperationId = id, ConfigurationRevision = 1,
             Phase = PreflightPhase.Checking, AudioReady = true }));
-        Assert.True(vm.ShowSilenceNotice);
+        Assert.False(vm.ShowSilenceNotice);
         Assert.True(vm.CanStart);
         vm.Busy = true;
         Assert.False(vm.CanStart);

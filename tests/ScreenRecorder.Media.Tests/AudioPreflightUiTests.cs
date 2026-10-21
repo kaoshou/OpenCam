@@ -25,7 +25,7 @@ public class AudioPreflightUiTests
             AudioReady = audio, HasFrame = frame,
             Microphone = new(PreflightSourceState.Silent)
         }));
-        Assert.Equal(expected, model.CanStart);
+        Assert.True(model.CanStart);
         Assert.Equal(expected, model.CanTrial);
     }
 
