@@ -19,6 +19,21 @@ namespace ScreenRecorder.Media.Tests;
 public class PreflightDiagnosticsTests
 {
     [Fact]
+    public async Task AudioIdentityChangeRecordsTheFirstFailureWithoutLoggingDeviceIds()
+    {
+        using var log = new DiagnosticCapture();
+        var identity = "private-device-before";
+        await using var session = new PreflightAudioSession(() => throw new InvalidOperationException(), _ => identity);
+        await session.StartAsync(new() { AudioSource = AudioSourceType.None }, default);
+        identity = "private-device-after";
+        for (var i = 0; i < 3; i++)
+            Assert.Equal("PreflightAudioUnavailable", session.ReadStatus(DateTimeOffset.UtcNow).ErrorCode);
+        var events = log.Events.Where(e => e.MessageTemplate.Text == "Preflight audio endpoint identity changed").ToArray();
+        Assert.Single(events);
+        Assert.DoesNotContain("private-device", events[0].RenderMessage());
+    }
+
+    [Fact]
     public async Task PollingDuringInitializationDoesNotPoisonTheLaterRealPreview()
     {
         var executable = FFmpegDiscovery.FindFFmpegExecutable()!;

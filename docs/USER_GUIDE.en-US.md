@@ -110,6 +110,7 @@ These illustrations show v0.3.5. See this guide for current features. Select an 
 2. Select the FPS, encoder, and cursor style. If needed, choose the default quality in Preferences first.
 3. Choose whether to record system audio and the microphone.
 4. Confirm that the output location has at least 1 GB of free space.
+   You can set **Export MP4 automatically after stopping** before your first recording. The choice applies to newly created recording projects; opening an existing project uses that project's saved setting.
 5. Select **Start Recording**. OpenCam immediately locks settings that must not change, including while it is preparing the recording.
 6. While recording, you can pause, resume, or stop. Pause first if you need to change the audio switches or cursor style.
 7. After **Stop Recording**, wait for the sources to be saved and, if auto-export is on, for MP4 export to finish. With auto-export off, no new MP4 is expected; manually export later.

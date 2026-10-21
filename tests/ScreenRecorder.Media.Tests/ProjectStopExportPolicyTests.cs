@@ -6,6 +6,49 @@ namespace ScreenRecorder.Media.Tests;
 
 public partial class RecordingEncoderLifecycleTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task HomeCanChooseExportBeforeFirstRecordingAndNewProjectKeepsIt(bool createFirst)
+    {
+        await using var scope = new RecordingScope();
+        var exporter = new ControlledContentExporter();
+        await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub(), exporter);
+        var dispatcher = new ProjectIpcDispatcher(coordinator);
+        var main = CreatePreflightApprovedMain();
+        main.ConfigureRecordingContent(new ScreenRecorder.UI.Projects.ProjectClient((command, request, ct) => dispatcher.DispatchAsync(new()
+            { MessageType = command, PayloadJson = System.Text.Json.JsonSerializer.Serialize(request) })), () => true, () => Task.CompletedTask);
+        main.OutputDirectory = scope.Configuration.OutputDirectory;
+        main.RequestRecordingProjectName = _ => Task.FromResult<string?>("Export preference");
+        main.RecordMicrophone = false;
+        main.RecordSystemAudio = false;
+        try
+        {
+            Assert.True(main.CanChangeProjectExportPolicy);
+            await main.SetProjectAutoExportAsync(false);
+            Assert.False(main.AutoExportRecordingOnStop);
+            Assert.Null(coordinator.Current);
+            if (createFirst)
+            {
+                await main.NewRecordingProjectAsync();
+                Assert.False(coordinator.Current!.AutoExportOnStop);
+            }
+            await main.StartRecordingAsync();
+            Assert.True(main.IsRecording);
+            Assert.False(coordinator.Current!.AutoExportOnStop);
+            Assert.False(main.CanChangeProjectExportPolicy);
+            await main.SetProjectAutoExportAsync(true);
+            Assert.False(coordinator.Current.AutoExportOnStop);
+            Assert.True((await coordinator.FinishAndExportAsync(Guid.NewGuid())).Success);
+            Assert.Equal(0, exporter.Calls);
+            var path = Path.Combine(coordinator.ProjectDirectory!, "project.opencam");
+            await coordinator.CloseAsync();
+            await coordinator.OpenAsync(path);
+            Assert.False(coordinator.Current!.AutoExportOnStop);
+        }
+        finally { main.Cleanup(); }
+    }
+
     [Fact]
     public async Task ChangingExportPolicyPreservesPendingDraftImmediately()
     {

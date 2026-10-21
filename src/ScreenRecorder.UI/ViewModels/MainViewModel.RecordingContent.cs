@@ -58,11 +58,18 @@ public partial class MainViewModel
     public Func<Task<bool?>>? RequestProjectDraftRecovery { get; set; }
     public Func<string, Task<ExistingExportDecision>>? RequestExistingProjectExport { get; set; }
     public Action<string>? OpenExistingProjectExport { get; set; }
-    public bool AutoExportRecordingOnStop => _content?.Workspace.State.AutoExportOnStop ?? true;
+    private bool _newProjectAutoExport = true;
+    public bool AutoExportRecordingOnStop => HasRecordingProject ? _content!.Workspace.State.AutoExportOnStop : _newProjectAutoExport;
     public bool CanChangeProjectExportPolicy => !IsProjectWorkspaceOpen && !IsPreparing && !IsRecovering &&
-        _content?.CanResume == true && HasRecordingProject;
+        (HasRecordingProject ? _content?.CanResume == true : _content?.CanStartNew == true);
     public bool CanExportRecordingContent => !IsProjectWorkspaceOpen && _content?.Workspace.CanExport == true;
-    public Task SetProjectAutoExportAsync(bool value) => _content?.Workspace.SetAutoExportOnStopAsync(value) ?? Task.CompletedTask;
+    public async Task SetProjectAutoExportAsync(bool value)
+    {
+        if (!CanChangeProjectExportPolicy) return;
+        if (HasRecordingProject) await _content!.Workspace.SetAutoExportOnStopAsync(value);
+        else _newProjectAutoExport = value;
+        OnPropertyChanged(nameof(AutoExportRecordingOnStop));
+    }
     public Func<string, Task<string?>>? RequestMp4Destination { get; set; }
     public Func<ProjectWorkspaceViewModel, ProjectExportFormat, Task>? RequestMediaExport { get; set; }
     public Func<Task<string?>>? RequestWebPlayerDestination { get; set; }
@@ -119,6 +126,7 @@ public partial class MainViewModel
     public async Task NewRecordingProjectAsync()
     {
         if (!CanManageRecordingProject || _content is null) return;
+        var autoExport = AutoExportRecordingOnStop;
         _openingContent = true; SyncRecordingContent();
         try
         {
@@ -126,7 +134,7 @@ public partial class MainViewModel
             var name = await AskProjectNameAsync();
             if (name is null) return;
             await _ensureContentRecorder!();
-            await _content.ReplaceProjectAsync(parent, name);
+            await _content.ReplaceProjectAsync(parent, name, autoExport);
         }
         catch (Exception ex) { _content.Workspace.Error = ex.Message; }
         finally { _openingContent = false; SyncRecordingContent(); }
@@ -182,12 +190,12 @@ public partial class MainViewModel
         ElapsedTimeText = $"{(long)sessionTime.TotalHours:00}:{sessionTime.Minutes:00}:{sessionTime.Seconds:00}";
         OnPropertyChanged(nameof(TotalRecordingTimeText));
         OnPropertyChanged(nameof(AutoExportRecordingOnStop));
-        OnPropertyChanged(nameof(CanChangeProjectExportPolicy));
         OnPropertyChanged(nameof(CanExportRecordingContent));
         OnPropertyChanged(nameof(CanAddBookmark));
         IsPreparing = _openingContent || _content.IsBusy || vm.IsBusy || vm.StatusUnconfirmed || vm.IsExporting || vm.State.Mode == ProjectMode.SavingSegment;
         IsRecording = vm.State.Mode == ProjectMode.Recording;
         IsPaused = vm.State.Mode is ProjectMode.Paused or ProjectMode.SaveFailed;
+        OnPropertyChanged(nameof(CanChangeProjectExportPolicy));
         if (vm.Error is not null) StatusMessage = vm.Error;
         else if (vm.State.Export is not null) StatusMessage = vm.ExportStatusText;
         else if (vm.State.Mode == ProjectMode.Ready && vm.State.ClipCount > 0 && !vm.State.AutoExportOnStop) StatusMessage = Strings["ProjectSavedWithoutExport"];
@@ -236,6 +244,7 @@ public partial class MainViewModel
         var vm = _content.Workspace;
         if (!(newContent ? _content.CanStartNew : _content.CanResume)) return;
         var configuration = BuildProjectConfiguration(); // Freeze before any asynchronous work.
+        var autoExport = AutoExportRecordingOnStop;
         _openingContent = true;
         SyncRecordingContent();
         try
@@ -261,7 +270,7 @@ public partial class MainViewModel
             _activeDiskWarningThresholdBytes = configuration.DiskWarningThresholdBytes;
             if (insertionTicks is { } ticks)
                 await vm.StartInsertionAsync(configuration, ticks, revision!.Value);
-            else if (newContent) await _content.StartNewAsync(configuration);
+            else if (newContent) await _content.StartNewAsync(configuration, autoExport);
             else await _content.ResumeAsync(configuration);
             if (vm.State.Mode == ProjectMode.Recording && MinimizeOnRecord)
                 RequestMinimizeWindow?.Invoke(this, EventArgs.Empty);

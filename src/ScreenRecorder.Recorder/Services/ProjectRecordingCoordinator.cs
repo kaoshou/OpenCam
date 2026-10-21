@@ -154,10 +154,11 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
         finally { _gate.Release(); }
     }
 
-    public Task<ProjectCommandResult> CreateAsync(string parent, string name, CancellationToken ct = default) => Run(async () =>
+    public Task<ProjectCommandResult> CreateAsync(string parent, string name, CancellationToken ct = default, bool autoExportOnStop = true) => Run(async () =>
     {
         RequireClosed();
         _handle = await store.CreateAsync(parent, name, ct);
+        await InitializeExportPolicyAsync(autoExportOnStop, ct);
         _history = new(_handle.Current);
         Mode = ProjectMode.Ready;
     }, null, "create", ct);
@@ -191,7 +192,7 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
     }, null, "restore", ct);
 
     public Task<ProjectCommandResult> StartNewContentAsync(RecordingConfiguration config, Guid operationId,
-        CancellationToken ct = default) => Run(async () =>
+        CancellationToken ct = default, bool autoExportOnStop = true) => Run(async () =>
     {
         RequireNoExport();
         if (!string.IsNullOrWhiteSpace(config.ProjectName))
@@ -211,10 +212,19 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
         _export?.Dispose();
         _export = null;
         _handle = await new RecordingContentFactory(store, TimeProvider.System).CreateAsync(config.OutputDirectory, ct, config.ProjectName);
+        await InitializeExportPolicyAsync(autoExportOnStop, ct);
         _history = new(_handle.Current);
         Mode = ProjectMode.Ready;
         await StartCoreAsync(config, ct);
-    }, operationId, "new-content:" + JsonSerializer.Serialize(config), ct);
+    }, operationId, $"new-content:{autoExportOnStop}:" + JsonSerializer.Serialize(config), ct);
+
+    private async Task InitializeExportPolicyAsync(bool enabled, CancellationToken ct)
+    {
+        var project = _handle!.Current;
+        if (project.AutoExportOnStop == enabled) return;
+        await _handle.SaveAsync(project with { AutoExportOnStop = enabled, Revision = checked(project.Revision + 1) },
+            project.Revision, ct);
+    }
 
     public Task<ProjectCommandResult> StartAsync(RecordingConfiguration config, Guid operationId, CancellationToken ct = default) =>
         Run(() => StartCoreAsync(config, ct), operationId, "start:" + JsonSerializer.Serialize(config), ct);

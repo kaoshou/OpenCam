@@ -138,7 +138,12 @@ public sealed class FFmpegPreflightAudioCapture(
                     line.Contains("failed", StringComparison.OrdinalIgnoreCase))
                     Log.Debug("Preflight audio FFmpeg: {Line}", line.Length > 2048 ? line[..2048] : line);
             }
-            if (!_stopping) Volatile.Write(ref _error, "PreflightAudioUnavailable");
+            if (!_stopping)
+            {
+                Log.Warning("Preflight audio FFmpeg progress ended unexpectedly: Exited={Exited}, ExitCode={ExitCode}, StartupAcknowledged={StartupAcknowledged}",
+                    process.HasExited, process.HasExited ? process.ExitCode : (int?)null, _ack.Task.IsCompletedSuccessfully && _ack.Task.Result);
+                Volatile.Write(ref _error, "PreflightAudioUnavailable");
+            }
             _ack.TrySetResult(false);
         }
         catch (Exception ex)

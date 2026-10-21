@@ -92,14 +92,14 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
         NotifyState();
     }
 
-    public Task CreateAsync(string parent, string name) => ExecuteAsync("CreateProject", new() { Path = parent, Name = name });
+    public Task CreateAsync(string parent, string name, bool autoExportOnStop = true) => ExecuteAsync("CreateProject", new() { Path = parent, Name = name, AutoExportOnStop = autoExportOnStop });
     public async Task OpenAsync(string path)
     {
         await ExecuteAsync("OpenProject", new() { Path = path });
         await ResolveRecoveredDraftAsync();
     }
     public Task StartAsync(RecordingConfiguration configuration) => ExecuteAsync("StartProjectRecording", new() { Configuration = configuration });
-    public Task StartNewContentAsync(RecordingConfiguration configuration) => ExecuteAsync("StartNewRecordingContent", new() { Configuration = configuration });
+    public Task StartNewContentAsync(RecordingConfiguration configuration, bool autoExportOnStop = true) => ExecuteAsync("StartNewRecordingContent", new() { Configuration = configuration, AutoExportOnStop = autoExportOnStop });
     public Task FinishAndExportAsync() => ExecuteAsync("FinishRecordingContent");
     public async Task StartInsertionAsync(RecordingConfiguration configuration, long confirmedTicks, long confirmedRevision)
     {

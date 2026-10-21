@@ -8,6 +8,61 @@ namespace ScreenRecorder.Media.Tests;
 
 public class PreflightAudioSessionTests
 {
+    [Theory]
+    [InlineData(AudioSourceType.MicrophoneOnly)]
+    [InlineData(AudioSourceType.SystemOnly)]
+    [InlineData(AudioSourceType.SystemAndMicrophone)]
+    public async Task StatusDuringInitialIdentityReadDoesNotLatchADeviceChange(AudioSourceType source)
+    {
+        var capture = new ControlledCapture();
+        capture.Ready.TrySetResult();
+        using var releaseIdentity = new ManualResetEventSlim();
+        var enteredIdentity = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reads = 0;
+        await using var session = new PreflightAudioSession(() => capture, _ =>
+        {
+            if (Interlocked.Increment(ref reads) == 1)
+            {
+                enteredIdentity.TrySetResult();
+                if (!releaseIdentity.Wait(TimeSpan.FromSeconds(5))) throw new TimeoutException();
+            }
+            return "unchanged-device";
+        });
+        var start = Task.Run(() => session.StartAsync(new() { AudioSource = source }, default));
+        PreflightStatus pending;
+        try
+        {
+            await enteredIdentity.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            pending = session.ReadStatus(DateTimeOffset.UtcNow);
+        }
+        finally
+        {
+            releaseIdentity.Set();
+            await start.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        Assert.Equal(PreflightPhase.Preparing, pending.Phase);
+        Assert.False(pending.AudioReady);
+        Assert.Null(pending.ErrorCode);
+        var ready = session.ReadStatus(DateTimeOffset.UtcNow);
+        Assert.Null(ready.ErrorCode);
+        Assert.True(ready.AudioReady);
+    }
+
+    [Fact]
+    public async Task DeviceChangeAfterIdentityReadButBeforeCaptureAcknowledgementIsStillDetected()
+    {
+        var capture = new ControlledCapture();
+        var identity = "first";
+        await using var session = new PreflightAudioSession(() => capture, _ => identity);
+        var start = session.StartAsync(new() { AudioSource = AudioSourceType.MicrophoneOnly }, default);
+        identity = "changed";
+        var pending = session.ReadStatus(DateTimeOffset.UtcNow);
+        capture.Ready.TrySetResult();
+        await start;
+        Assert.Equal("PreflightAudioUnavailable", pending.ErrorCode);
+        Assert.False(session.ReadStatus(DateTimeOffset.UtcNow).AudioReady);
+    }
+
     [Fact]
     public async Task DisablingLastSourceAllowsConfirmationWithoutOpeningDevicesOrTrial()
     {

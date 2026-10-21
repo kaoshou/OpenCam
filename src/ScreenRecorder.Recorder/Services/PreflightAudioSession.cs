@@ -19,6 +19,7 @@ public sealed partial class PreflightAudioSession(
     private RecordingConfiguration? _configuration;
     private IPreflightAudioCapture? _capture;
     private string? _identity, _error;
+    private volatile bool _identityInitialized;
     private volatile PreflightPhase _phase = PreflightPhase.Preparing;
     private bool _monitor;
 
@@ -29,6 +30,9 @@ public sealed partial class PreflightAudioSession(
         try
         {
             _identity = audioIdentity?.Invoke(_configuration);
+            // Status polling can run while native endpoint enumeration is in progress.
+            // Publish the baseline before allowing comparisons against it.
+            _identityInitialized = true;
             if (_configuration.AudioSource == AudioSourceType.None)
             {
                 _phase = PreflightPhase.Checking;
@@ -55,11 +59,15 @@ public sealed partial class PreflightAudioSession(
         var mic = PreflightReadiness.Resolve(config?.AudioSource is AudioSourceType.MicrophoneOnly or AudioSourceType.SystemAndMicrophone, null, now);
         var sys = PreflightReadiness.Resolve(config?.AudioSource is AudioSourceType.SystemOnly or AudioSourceType.SystemAndMicrophone, null, now);
         var ready = config?.AudioSource == AudioSourceType.None && _error is null;
-        if (config is not null && audioIdentity is not null && _phase != PreflightPhase.Closed)
+        if (_identityInitialized && config is not null && audioIdentity is not null && _phase != PreflightPhase.Closed)
         {
             try
             {
-                if (_identity != audioIdentity(config)) _error = "PreflightAudioUnavailable";
+                if (_identity != audioIdentity(config))
+                {
+                    if (_error is null) Serilog.Log.Warning("Preflight audio endpoint identity changed");
+                    _error = "PreflightAudioUnavailable";
+                }
             }
             catch (Exception ex)
             {
@@ -71,7 +79,12 @@ public sealed partial class PreflightAudioSession(
         {
             if (_monitor && _capture is { } capture)
             {
-                _error ??= capture.ErrorCode;
+                if (_error is null && capture.ErrorCode is { } error)
+                {
+                    Serilog.Log.Warning("Preflight audio capture reported failure: Phase={Phase}, ErrorCode={ErrorCode}, Running={Running}",
+                        _phase, error, capture.IsRunning);
+                    _error = error;
+                }
                 ready = capture.IsRunning && _error is null;
                 if (ready)
                 {

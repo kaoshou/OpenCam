@@ -39,10 +39,10 @@ public sealed class RecordingContentController : ObservableObject
             OnPropertyChanged(property);
     }
 
-    public Task StartNewAsync(RecordingConfiguration configuration) => !CanStartNew ? Task.CompletedTask : CaptureAsync(configuration, true);
+    public Task StartNewAsync(RecordingConfiguration configuration, bool autoExportOnStop = true) => !CanStartNew ? Task.CompletedTask : CaptureAsync(configuration, true, autoExportOnStop);
     public Task ResumeAsync(RecordingConfiguration configuration) => !CanResume ? Task.CompletedTask : CaptureAsync(configuration, false);
 
-    private Task CaptureAsync(RecordingConfiguration configuration, bool startNew)
+    private Task CaptureAsync(RecordingConfiguration configuration, bool startNew, bool autoExportOnStop = true)
     {
         // Freeze user settings at the click, not after preview shutdown or saving has awaited.
         var snapshot = JsonSerializer.Deserialize<RecordingConfiguration>(JsonSerializer.Serialize(configuration))!;
@@ -50,7 +50,7 @@ public sealed class RecordingContentController : ObservableObject
         {
             await StopPreviewAsync();
             if (!await SaveCurrentAsync()) return;
-            if (startNew) await Workspace.StartNewContentAsync(snapshot);
+            if (startNew) await Workspace.StartNewContentAsync(snapshot, autoExportOnStop);
             else await Workspace.StartAsync(snapshot);
         });
     }
@@ -63,14 +63,14 @@ public sealed class RecordingContentController : ObservableObject
     });
     public Task RefreshAsync() => IsBusy ? Task.CompletedTask : Workspace.RefreshAsync();
 
-    public Task ReplaceProjectAsync(string path, string? name = null) => !CanReplaceProject ? Task.CompletedTask : RunAsync(async () =>
+    public Task ReplaceProjectAsync(string path, string? name = null, bool autoExportOnStop = true) => !CanReplaceProject ? Task.CompletedTask : RunAsync(async () =>
     {
         await StopPreviewAsync();
         // Recovery must remain explicit; do not save over a damaged primary manifest.
         if (Workspace.State.Mode != ProjectMode.Interrupted && !await SaveCurrentAsync()) return;
         if (!await Workspace.CloseAsync()) return;
         if (name is null) await Workspace.OpenAsync(path);
-        else await Workspace.CreateAsync(path, name);
+        else await Workspace.CreateAsync(path, name, autoExportOnStop);
     });
 
     private async Task<bool> SaveCurrentAsync()
