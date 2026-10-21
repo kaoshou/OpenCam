@@ -7,6 +7,20 @@ namespace ScreenRecorder.Core.Projects;
 public static class ProjectExportFingerprint
 {
     public const string Profile = "h264-aac-v1";
+    public static string Compute(RecordingProject project, ProjectExportOptions options)
+    {
+        var selected = ProjectExportSelection.Create(project, options);
+        if (options.Format == ProjectExportFormat.Mp4 && options.Scope == ProjectExportScope.WholeProject)
+            return Compute(selected, Profile);
+        var payload = new {
+            Profile = options.Format == ProjectExportFormat.Gif ? "gif-palette-v1" : Profile,
+            options.Format, options.Scope,
+            Content = Compute(selected, Profile),
+            Gif = options.Format == ProjectExportFormat.Gif ? options.Gif ?? new GifExportOptions() : null,
+            InfiniteLoop = options.Format == ProjectExportFormat.Gif
+        };
+        return Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(payload)));
+    }
     public static string Compute(RecordingProject project, string exportProfile)
     {
         ProjectValidation.Validate(project);
