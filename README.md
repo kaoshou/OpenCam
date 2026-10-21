@@ -1,416 +1,144 @@
-# OpenCam（螢幕錄影工具）🎥
+# OpenCam（螢幕錄影工具）
 
 [![Latest Release](https://img.shields.io/github/v/release/kaoshou/OpenCam?display_name=tag&sort=semver)](https://github.com/kaoshou/OpenCam/releases/latest)
-[![Build and Release](https://img.shields.io/github/actions/workflow/status/kaoshou/OpenCam/build-and-release.yml?logo=github&label=Build%20and%20Release)](https://github.com/kaoshou/OpenCam/actions/workflows/build-and-release.yml)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-blue.svg)](LICENSE)
 
-*（English version below）*
+[English](#english) ｜ [官方網站](https://kaoshou.github.io/OpenCam/) ｜ [下載最新版](https://github.com/kaoshou/OpenCam/releases/latest) ｜ [完整使用說明](docs/USER_GUIDE.zh-TW.md)
 
-OpenCam 讓你錄影、剪輯，再繼續錄影。這款以可靠性為優先的跨平台桌面工具使用 MKV 保存原始錄影片段，透過可重開的專案保存剪輯，並在需要時輸出 MP4。
+OpenCam 是 Windows 與 macOS 桌面螢幕錄影工具，讓你錄影、剪輯，再繼續錄影。錄影片段與剪輯保存在可重開的專案中，需要時可輸出 MP4、GIF 或附帶章節與字幕的網頁播放器。
 
-## v0.3.12：GIF 與單一片段匯出
+## v0.3.12 更新重點
 
-- 原本影片與編輯視窗的「輸出…」選單，都在 MP4 下方提供 GIF。片段清單／時間軸右鍵的「匯出片段…」會展開 MP4、GIF 子選單，只輸出該片段的保留範圍（合併片段含全部子段，不擴展至整個群組）。
-- GIF 不包含音訊；設定可選最大寬度 480／640／960／原始大小及 10／15／20 FPS，預設 640／15，保持比例、不放大、循環播放。色彩與畫質可能不同於 MP4。
-- 不設長度上限；實際匯出範圍達五分鐘會再確認耗時／檔案大小與無音訊提示，仍可繼續。原始素材與專案內容不變；大型 GIF 需要足夠暫存磁碟空間。
-- New in v0.3.12: both the original video's Export menu and the editor offer GIF below MP4. Hover **Export clip…** in the clip list/timeline context menu for MP4 or GIF. Export uses only that edited logical clip, including compound parts, not its group. GIF is silent, loops continuously, and offers width/FPS settings (default 640/15). At five minutes or longer, a confirmation warns about conversion time, size and missing audio without imposing a duration cap. Originals remain unchanged. Native platform acceptance is still required; see [release notes and limits](docs/releases/v0.3.12.md).
+- 原本影片與編輯視窗的「輸出…」在 MP4 下方新增 GIF。
+- 片段清單與時間軸右鍵的「匯出片段…」可滑鼠移入展開，再選擇 MP4 或 GIF；只匯出該片段的保留範圍，合併片段包含全部子段。
+- GIF 可選寬度與 FPS，預設為 640／15 FPS，保持比例並循環播放。GIF 沒有音訊，不限制長度；達五分鐘會提醒轉換時間、檔案大小與無音訊，確認後仍可繼續。
+- 錄製前檢查改為確認系統聲音與麥克風，提供五秒聲音試錄及回放。
+- 音源卡片下方新增獨立狀態區，顯示載入、試錄啟動、收音、回放與正式錄製準備；實際啟動後才開始五秒計時。
 
-## 錄前確認與錄製提醒
+[完整更新內容](docs/releases/v0.3.12.md) ｜ [歷史版本](https://github.com/kaoshou/OpenCam/releases)
 
-- v0.3.11：錄前檢查改為純音訊，移除畫面擷取與預覽；音源卡片下方的獨立狀態區顯示載入、聲音試錄與正式錄製準備。
-- 時間軸紫色重點旗標可滑鼠停留查看完整名稱，點擊仍可跳轉。詳見 [v0.3.11 更新與限制](docs/releases/v0.3.11.md)。
-- 錄前檢查只確認系統聲音及麥克風；五秒純音訊試錄與回放不加入專案，也不驗證影片編碼器。正式錄影仍保存原設定的畫面與聲音。
-- 未勾選的音源明確標示本次不會錄製；已勾選的音源在五秒試錄期間顯示即時音量，完成後可回放確認。
-- 已移除錄製倒數：確認後直接準備錄製，以實際啟動確認為準。音源卡片下方的獨立狀態區顯示載入、試錄啟動、五秒收音、準備回放與正式錄製準備；未選音源或關閉檢查仍顯示正式準備狀態。
-- 錄影中可按「標記重點」或自訂快捷鍵（預設 Ctrl+Shift+M）；編輯器也可在目前播放位置新增、定位、改名、刪除重點。標記自動另存專案，不改寫影片、不納入片段復原／重做。
-- 麥克風連續無聲 30 秒可提醒，預設開啟、有聲後收起，提醒本身不暫停或停止錄影。Windows 浮窗須先成功設定擷取排除；macOS 目前僅程式內提示。實際浮窗排除、裝置與背景快捷鍵仍待實機驗收。詳見 [v0.3.8 更新與限制](docs/releases/v0.3.8.md)。
+## 主要功能
 
-## v0.3.6：改善未剪輯錄影的快速輸出
+- **螢幕與區域錄影**：錄製全螢幕、指定顯示器或自訂矩形區域，提供螢幕編號辨識、30／60 FPS 與游標效果。
+- **系統聲音與麥克風**：獨立開關音源，查看各自的即時音量，錄製前可試錄及回放確認聲音；可啟用麥克風連續無聲 30 秒提醒。
+- **專案與繼續錄影**：命名、儲存、重開專案，暫停後編輯，或在既有內容上追加錄影。
+- **影片剪輯**：片段排序、修剪、分割、合併、群組、刪除範圍、復原／重做與改名；可調整音量、靜音、淡入淡出、裁切、縮放及位置。
+- **預覽與重點標記**：可調整畫質與預覽大小、全螢幕播放及拖曳定位；錄影時按「標記重點」或快捷鍵（預設 Ctrl+Shift+M），稍後在編輯器定位、改名或刪除。
+- **多語字幕與搜尋**：匯入 SRT／VTT，切換字幕語言及外觀；網頁播放器提供逐字稿搜尋、關鍵字標示與點擊跳轉。
+- **多種輸出**：整個影片或單一片段可輸出 MP4／GIF；整部影片也可輸出為離線網頁播放器。可設定停止後自動輸出 MP4。
+- **錄製內容保存**：原始影片以 MKV 分段保存，剪輯不覆寫素材；提供中斷救援、磁碟空間提醒及錄影中的關閉保護。
+- **硬體編碼**：支援 NVIDIA NVENC、Intel QSV、AMD AMF 與 Apple VideoToolbox，並提供 CPU 編碼。
+- **繁體中文與英文介面**。
 
-- H.264 錄影片段缺少影格長度資訊時，若時間戳有序且尾端間隔可由幀率核對，仍可保留原影片直接封裝或串接；必要時只處理音訊。
-- 時間資訊不明確、片段不相容、裁剪或效果仍使用安全重新編碼，輸出後保留原有校驗；原始素材不變。
-- 輸出狀態明確標示直接封裝、處理音訊、重新編碼與校驗 MP4。不保證所有未剪輯素材皆能快速輸出或立即完成。詳見 [v0.3.6 更新與限制](docs/releases/v0.3.6.md)。
+## 下載與安裝
 
-## v0.3.5：拖曳預覽與範圍標記
+| 平台 | 系統需求 | 下載選項 |
+| --- | --- | --- |
+| Windows | Windows 10／11，x64 | Setup 安裝版、Portable 便攜版 |
+| macOS | macOS 13 以上，Apple Silicon／arm64 | DMG；不適用 Intel Mac |
 
-- 拖曳時間尺時保留畫面並持續更新，放開後精確定位；播放中拖曳先暫停，放開再續播。
-- 預覽控制列更緊湊，字幕語言與外觀收進字幕選單；窄視窗自動換行。
-- 起點立即顯示固定標記，設定有效終點後才選取範圍；重設起點清除舊終點，無效終點會提示。標記不裁剪影片。
-- 解碼速度依素材、磁碟及 CPU 而定，不保證拖曳幀率或實機驗收通過。詳見 [v0.3.5 更新與限制](docs/releases/v0.3.5.md)。
+到 [最新 Release](https://github.com/kaoshou/OpenCam/releases/latest) 下載。套件包含所需的 .NET Runtime 與媒體工具，無須另外安裝。
 
-## v0.3.4：多語字幕與逐字稿搜尋
+- **Windows 安裝版**：執行 `OpenCam_v0.3.12_Windows_x64_Setup.exe`。
+- **Windows 便攜版**：完整解壓 `OpenCam_v0.3.12_Windows_x64_Portable.zip`，保留同資料夾的所有檔案，再執行 `OpenCam.exe`。
+- **macOS**：打開 `OpenCam_v0.3.12_macOS_arm64.dmg`，將 OpenCam 拖入「應用程式」。首次使用時，在「系統設定 → 隱私權與安全性」允許螢幕／系統音訊錄製及麥克風權限；變更權限後可重新啟動程式。
+- 如作業系統顯示開啟提醒，請先確認檔案來自本專案的官方 Releases，再依系統提示操作。
 
-- 編輯器選取或拖放 SRT／VTT，以唯一名稱複製至專案，避免同名覆蓋。語言名稱依介面語言顯示，清單單選預設字幕。
-- 一般／全螢幕預覽可切換語言、關閉字幕、調整大小、配色、透明度及位置；預覽選擇不改專案預設，字幕不燒入 MP4。
-- 網頁 CC 選單與「章節／逐字稿」分頁提供全文搜尋、關鍵字標示、點擊跳轉及跟隨播放，清單固定高度捲動；語言選單不顯示檔名。
-- 剪輯時序變更後，網頁輸出可確認字幕同步、此次不附加或取消，不自動改寫字幕時間。
-- 改善命名按鈕置中、輸出箭頭及字幕卡片；章節列緊湊，編號框置中並填滿內容高度。
+## 開始使用
 
-**保存字幕使用格式4，v0.3.3及更舊版本不能開啟；請先備份整個專案。** 無字幕專案不因此自動升級。網頁維持三個固定檔案，不因字幕再次編碼影片。詳見 [v0.3.4 更新與限制](docs/releases/v0.3.4.md)。
+1. 選擇螢幕或錄影範圍、系統聲音與麥克風。
+2. 按「開始錄影」，建立或使用目前專案，依聲音檢查與準備狀態開始錄製。
+3. 錄影中可暫停、繼續及標記重點；暫停並保存片段後可開啟編輯器。
+4. 完成後停止錄影，可自動輸出 MP4，或稍後透過「輸出…」選擇 MP4、GIF、網頁播放器。
+5. 若只需要其中一段，在片段清單或時間軸按右鍵，移至「匯出片段…」再選擇格式。
 
-v0.3.3 新增「輸出… → 網頁播放器」：選擇存放位置後，建立獨立資料夾，內含 `index.html`、`media.mp4` 與 `opencam-player.js`。章節依剪輯後的片段名稱、順序與時間產生，合併片段保留為一個章節。整個資料夾可離線開啟或上傳網站；無需 EverCam 原有檔案或轉換步驟。影片底部提供進度、音量、倍速、寬螢幕及全螢幕控制；章節顯示起始時間與片段長度，超出時可捲動。`opencam-player.js` 使用固定識別格式，方便 Video-to-Subtitle 等工具辨識及讀取章節。詳見[網頁輸出格式](docs/WEB_PLAYER_EXPORT.md)。
+儲存專案與輸出影片是不同操作。請保留整個專案資料夾（包含錄影片段、字幕及重點資料），不要只搬移 `project.opencam`。有字幕的專案使用格式 4，v0.3.3 及以前無法開啟；字幕不燒入 MP4／GIF，也不會自動調整時間。
 
-本軟體以 .NET 8 與 Avalonia UI 打造，並使用 FFmpeg 作為核心多媒體引擎，支援 Windows 與 macOS。
+網頁輸出包含 `index.html`、`media.mp4` 與 `opencam-player.js`，請一起搬移或上傳。GIF 沒有音訊；長影片或原始解析度需要較多轉換時間與暫存磁碟空間。相容完整片段可快速輸出，裁剪與效果等操作可能需要重新轉檔。
 
-📖 [完整使用說明（繁體中文）](docs/USER_GUIDE.zh-TW.md) ｜ [English User Guide](docs/USER_GUIDE.en-US.md)
+## 介面預覽
 
-🌐 [OpenCam 官方網站](https://kaoshou.github.io/OpenCam/)（可切換繁體中文／English）
+以下為 v0.3.5 的介面示意，最新功能請參考上方介紹及使用說明。點選圖片可查看原尺寸。
 
-目前原始碼版本為 **0.3.12**，採用 **AGPL-3.0-or-later**。Windows 原生錄影、編輯影音預覽、輸出與長時間音畫同步實機驗收仍待完成；Windows FFmpeg 完整對應原始碼核對亦尚未完成。套件未簽章，發布不代表全部驗收通過。請保留重要素材備份，已發布安裝包請至 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載。詳見 [v0.3.12 更新與限制](docs/releases/v0.3.12.md)。
+[![錄影主畫面（v0.3.5）](docs/images/preview_main_zhtw.png)](docs/images/preview_main_zhtw.png)
+[![偏好設定（v0.3.5）](docs/images/preview_settings_zhtw.png)](docs/images/preview_settings_zhtw.png)
+[![錄製內容編輯器（v0.3.5）](docs/images/preview_editor_zhtw.png)](docs/images/preview_editor_zhtw.png)
+[![多語字幕管理（v0.3.5）](docs/images/preview_subtitles_zhtw.png)](docs/images/preview_subtitles_zhtw.png)
 
-**v0.3.3** 新增可辨識的離線網頁播放器輸出；時間軸拖曳只調整排序，不再以邊緣拖曳裁剪。明確的分割／刪除範圍與復原操作保留，右側片段操作按鈕統一排列與圖示。先前已誤裁的片段不會自動改寫。
+## 授權
 
-**v0.3.2** 改善全螢幕預覽進度控制、片段合併及右鍵群組操作、離開編輯器的儲存提醒與 MP4 檔名選擇；新增專案總錄影時間，允許暫停時切換自動輸出，並修正缺少封包長度的 MKV 導致停止失敗。合併片段使用 schema 3，舊版無法開啟；舊專案已保存的少算時間不會自動更正。
+OpenCam 自有原始碼採 [GNU Affero General Public License v3.0 或後續版本](LICENSE)（AGPL-3.0-or-later）。版權與原始碼資訊見 [NOTICE.md](NOTICE.md)；FFmpeg、.NET Runtime、字型及其他元件適用各自授權，詳見 [第三方聲明](THIRD-PARTY-NOTICES.md) 及套件內附文件。
 
-**v0.3.1** 增加首頁可用高度，並讓相容、未剪輯的多段錄影在音訊正規化時保留原影片編碼，只重新編碼音訊。輸出狀態會說明目前處理階段；驗證不相容時仍安全退回完整轉檔。暫時 PCM 處理需要額外磁碟空間，完成或取消後清理，不改寫原始 MKV。
-
-未開啟專案時按「開始錄影」，確認預填名稱後建立專案並開始；已有或重新開啟的專案則追加片段。主畫面可新增／開啟專案、選擇每個專案的「停止後自動輸出 MP4」（預設開啟），也可手動輸出。關閉自動輸出後，停止只保存內容，稍後仍可剪輯及輸出。錄影中禁止進入編輯器及切換專案，暫停保存後才可編輯；返回主畫面保留目前專案。
-
-Windows 測試建議使用 portable：登入 GitHub，在指定成功的 Actions 執行頁下載 Windows x64 artifact，依該次建置版本完整解壓外層附件及內層 Portable ZIP 到獨立資料夾，執行其中的 `OpenCam.exe`。保留同資料夾的相依檔案，不從 ZIP 直接執行、不覆蓋正式版本，也不使用唯一一份重要專案測試。Actions 附件有保存期限；建置成功不等於實機驗收通過。
-
-編輯器提供片段清單及時間軸拖曳排序、修剪、分割、刪除片段／範圍、復原／重做與專案改名。可調整片段音量、靜音、淡入淡出、裁切、縮放與位置，再套用屬性。預覽有聲音開關、畫質選擇、可調整預覽區與全螢幕，預覽聲音開關不改變輸出音軌。剪輯及改名不覆寫原始 MKV，也不搬移專案資料夾。
-
-「儲存專案」與復原草稿不同：修改尚未儲存時，切換／關閉流程提供儲存、捨棄或取消；異常退出後可選擇復原草稿。儲存不等於已輸出最新 MP4。再次手動輸出相同內容時，若已驗證的輸出仍存在，可開啟既有結果或重新輸出。保留整個專案資料夾，勿只搬移 `project.opencam`。
-
-完整未修改片段且串流相容時可使用快速輸出並保留原編碼影片；部分音訊仍需轉碼。修剪、效果、不相容串流或無法確認封包時序時會重新渲染，不能保證每次輸出都是即時或無損。
-
-## v0.3.5 介面預覽
-
-以下是目前 v0.3.5 UI 的離線渲染展示；編輯器使用自行製作的示範影片。展示狀態不是 Windows／macOS 真實裝置錄影或實機驗收證據。點選圖片可看原尺寸。
-
-[![OpenCam v0.3.5 錄影主畫面展示](docs/images/preview_main_zhtw.png)](docs/images/preview_main_zhtw.png)
-[![OpenCam v0.3.5 偏好設定展示](docs/images/preview_settings_zhtw.png)](docs/images/preview_settings_zhtw.png)
-[![OpenCam v0.3.5 錄製內容編輯器展示](docs/images/preview_editor_zhtw.png)](docs/images/preview_editor_zhtw.png)
-[![OpenCam v0.3.5 多語字幕與預設軌管理](docs/images/preview_subtitles_zhtw.png)](docs/images/preview_subtitles_zhtw.png)
-
-## 歷史版本與安全驗證紀錄
-
-下列段落保留各舊版當時的變更與驗證狀態；不是 v0.3.0 的發布驗收結論。
-
-## v0.2.5：Windows 新版擷取（實驗功能）
-
-v0.2.5 增加「設定 → 錄影品質與行為 → Windows 畫面擷取」測試選項，用 Desktop Duplication 嘗試改善部分電腦錄影當下的游標閃爍。**此選項仍屬實驗功能；尚未證實受影響實機的閃爍已消失。**
-
-- 原有 GDI 維持預設。選擇「新版擷取（測試）」後，請查看右側「實際擷取」：只有顯示 Desktop Duplication 才是新版路徑；GDI 會顯示回退原因。
-- 初版限只有一個硬體圖形裝置、可唯一對應的未旋轉單一螢幕／螢幕內選區；同一裝置上的多螢幕不限定兩台。多硬體 GPU（含未接螢幕的 GPU）、跨螢幕、旋轉或無法確認對應時使用 GDI，以免兩個程式的 GPU 偏好不同而錄錯螢幕。
-- 開始前可調整，錄影與暫停期間鎖定。已確認的分段不會無聲切換擷取後端；輸出或互動桌面失效時安全停止並保留工作檔。
-- 音訊與 macOS 擷取流程不更換。不保證 CPU 使用率降低；效能與游標仍需同機實測。詳見 [本次驗證紀錄](docs/verification/2026-09-30-windows-capture.md)。
-
-**New in v0.2.5 (experimental):** an opt-in Windows Desktop Duplication capture mode. GDI remains the default and fallback. Check the actual capture status; unsupported/ambiguous display layouts fall back to GDI. This is an attempt to address live cursor flicker, not a verified hardware fix or a CPU reduction guarantee. See the [English guide](docs/USER_GUIDE.en-US.md) and [release notes](docs/releases/v0.2.5.md).
-
-## v0.2.3 安全修補與驗證狀態
-
-v0.2.3 起針對本機錄影控制通訊與修復救援的檔案處理加強防護，v0.2.4 延續這些保護；這不代表所有安全問題已解決。安裝包發布與實機驗收是不同事項，下列驗證限制仍需注意。
-
-**影響範圍**：修補涵蓋 v0.2.2 的本機程序控制、救援工作階段檔案處理，以及 macOS 音訊傳輸。風險涉及同一台電腦上的其他程序或遭竄改的工作階段資料，並非已確認的遠端攻擊事件。更新前請保留尚未完成救援的原始 MKV 與工作階段資料。
-
-- **錄影程序控制**：原本僅靠 pipe 名稱區分工作階段，無法充分驗證指令來源。現在透過私有啟動通道傳遞每次啟動的金鑰，檢查通訊雙方程序身分，並對訊息加入 HMAC 驗證、重播防護、大小及認證時間限制。未取得合法 UI 啟動資訊的 daemon 不允許直接啟動。
-- **修復救援路徑**：工作階段中繼資料不再能指定其他目錄的 MKV；載入的資料綁定實際工作階段目錄，拒絕不安全路徑與已偵測到的連結檔。救援先透過檔案控制代碼建立暫存快照，再交給媒體工具處理，降低檢查後來源檔案被替換的風險。
-- **避免意外覆寫**：救援中繼資料採用原子替換，避免透過硬連結覆寫其他檔案；修復後 MP4 驗證通過才以不覆寫方式存入目的地，原始 MKV 保留。救援快照需要額外的系統暫存磁碟空間。
-- **媒體工具參數**：FFmpeg／FFprobe 改用獨立參數傳遞，並拒絕 concat 清單路徑中的換行，避免特殊檔名改變參數或清單內容的解讀。
-- **介面修正**：補齊「關於本程式」版本標籤的資料綁定，修正 OpenCam 名稱旁出現空白綠框的問題。
-- **救援目錄競態防護**：中繼資料、來源快照、救援鎖與輸出寫入綁定已開啟的目錄；Unix 使用相對目錄控制代碼操作，Windows 保持上層目錄控制代碼並禁止刪除共享。macOS 的工作階段、Sessions 與錄影根目錄替換測試均有涵蓋，Windows 實機仍待驗證。
-- **macOS 音訊傳輸**：原始 PCM 改由匿名管線傳給 FFmpeg，不再建立可由檔名開啟的音訊 FIFO。系統聲音與麥克風仍使用獨立輸入；混音及波形訊息保留。
-
-**已知限制與使用建議**：請使用自己控制的本機錄影目錄。自訂目錄或其上層為符號連結時，安全檢查可能拒絕操作；請改選實體目錄。私有暫存目錄無法隔離具有相同使用者權限的惡意程序，本次修改亦不防護程序注入、記憶體讀取或遭替換的應用程式／媒體工具。不要直接救援不明來源或可被他人修改的工作階段；這些風險說明不代表曾確認遭到利用。
-
-**驗證狀態**：已加入 IPC 認證、救援路徑／目錄替換與匿名音訊傳輸自動化測試；匿名管線亦以實際 FFmpeg 驗證雙輸入混音及非零音訊。這不等於真實裝置收音驗收。實際錄影、系統音訊、麥克風、暫停／繼續與強制中斷救援的發布驗收，以及 Windows／Linux 執行驗證仍待完成；略過不代表通過。詳見 [手動驗收表](MANUAL_TEST_CHECKLIST.md)。應用程式簽章與 macOS 公證狀態未因本次修改而改變。
-
-## v0.2.4 編碼器診斷與錄影啟動改善
-
-統一有時限的編碼器探測與快取，錄影狀態區會顯示 Recorder 真正使用的編碼器及 CPU 回退原因；「自動」不是硬體加速保證。首段成功後續錄固定同一編碼器，失敗候選使用新檔名、保留已錄內容。修正 Windows 錄影輸出參數衝突、啟動期間程序退出的狀態判斷，以及失敗候選片段誤入救援合併的問題。詳見[使用說明](docs/USER_GUIDE.zh-TW.md#編碼器)、[驗證報告](docs/verification/2026-09-29-encoder-diagnostics.md)與[本版更新說明](docs/releases/v0.2.4.md)。
-
-此階段不改 GDI 擷取、音訊格式、解析度或 FPS；Windows 實機 CPU 比較與游標閃爍驗收仍待完成，不能將自動化通過解讀為已解決所有效能問題。下載檔名新增版本、作業系統與架構資訊：Windows 為 x64，macOS 為 arm64（Apple Silicon）。
-
-## 歷史更新
-
-v0.2.2 加強錄影狀態監控、錯誤提示、版本一致性、套件安全檢查與 GitHub Actions 發布防護，並提升 macOS 新版系統的圖示封裝相容性。
-
-v0.2.1 更新了 Windows、macOS 與網站共用的扁平式圖示，並在網站導覽列加入 GitHub 專案連結。上方圖片已更新為 v0.3.0 介面展示。
-
-## v0.2.0 重點更新
-
-- 錄製指定螢幕時，點選螢幕清單旁的辨識圖示，可在所有已連接顯示器上短暫顯示編號，並標示目前選取的螢幕。
-- 自訂矩形選取框保持透明，可拖曳移動及調整大小。
-- 錄影狀態區分開顯示系統聲音與麥克風的即時音量波形，方便確認是否收到聲音；波形不是成品音軌的品質保證。
-- 錄影啟動後會鎖定不會即時生效的選項；暫停後仍可調整系統聲音、麥克風與游標樣式。
-- 錄影期間關閉視窗會先提醒並保護工作階段，避免無意中斷。
-
-v0.2.0 的完整安裝檔請至 [OpenCam v0.2.0 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.2.0) 下載。
-
-## v0.1.5 歷史更新
-
-- 修正錄影畫質、磁碟警告門檻與成功封裝後清理 MKV 等偏好設定未完整套用到 Recorder 的問題。
-- 修正錄影正常停止後，UI 可能因最後狀態訊息而誤判為中斷的問題。
-- 暫停後變更系統聲音、麥克風與游標設定時，會正確傳遞到下一個錄影片段。
-- 新增繁體中文與英文完整使用說明，涵蓋錄影模式、參數、檔案機制、設定、工作檔位置及修復救援流程。
-- 重整 Crash Recovery：支援目前的 `segment_*.mkv` 分段與舊版 `recording.mkv` 工作檔。
-- 工作階段中繼資料遺失或損壞時，可由現存 MKV 分段重建並嘗試救援。
-- 損壞或空白尾段不再阻擋整次救援；OpenCam 會保留可讀的連續內容，並清楚標示部分救回。
-- 錄影、暫停、停止及 MP4 封裝期間持續更新工作階段心跳，避免把仍在執行的錄影誤判為可救援內容。
-- 改善 MKV 寫入與 MP4 無損封裝的取消、長影片、特殊路徑及多實例安全性；所有原始 MKV 均會保留。
-- 救援期間鎖定開始錄影與相關設定，並顯示完整救回、部分救回與失敗的正確統計。
-- 錄影、暫停或初始化期間關閉程式時會顯示提醒並取消關閉，避免意外中斷錄影。
-- 官方封裝優先使用 App 內附的 FFmpeg 與 FFprobe，避免系統 PATH 中的其他版本造成相容性問題。
-- 修正 macOS 無音訊錄影時 FFmpeg 參數順序錯誤，指定螢幕與自訂區域皆可正常開始錄影。
-
-完整安裝檔請至 [OpenCam Releases](https://github.com/kaoshou/OpenCam/releases) 下載。
-
-## 🌟 核心特色
-
-- **指定螢幕與自訂區域**：可選擇要錄製的顯示器，或使用透明且可調整大小的選取框指定錄影範圍。
-- **多螢幕辨識**：可在每台已連接的顯示器上短暫顯示對應編號，辨認選中的錄影來源。
-- **系統聲音與麥克風**：可分別開啟或關閉系統聲音及麥克風，並支援四種音訊組合。
-- **分開的即時音量波形**：錄影時分別查看系統聲音與麥克風的收音狀態。
-- **實際錄影健康監控**：狀態區依工作檔、影格、編碼器與已選音訊來源的實際進度顯示警告；剛開始或資料不足時維持未知，不會把尚未觀察到的來源誤報為正常。
-- **游標效果**：可使用原始游標、光暈、光暈加點擊漣漪，或在影片中隱藏游標。
-- **防中斷安全機制（Crash Recovery）**：強制使用 MKV 作為工作檔；若錄影途中斷電或崩潰，下次啟動可嘗試恢復已寫入的內容。
-- **防誤關保護**：錄影中按 X 不會中斷錄影；只有在啟動狀態無法確認且安全停止失敗後，才提供需二次確認的強制結束選項。
-- **異常退出安全停止**：若 UI 被系統強制終止，Recorder 會停止並收尾目前工作檔後退出，不會在使用者不知情時持續背景錄影。
-- **音訊熱拔插防護（Audio Hotplug Watchdog）**：Windows 錄影途中若麥克風中斷，系統會使用虛擬靜音音軌盡可能維持錄影流程。
-- **暫停期間調整**：暫停錄影後可調整系統聲音、麥克風開關及游標樣式；錄影來源、解析度、FPS 等固定設定仍保持鎖定。
-- **硬體加速支援（Hardware Encoding）**：支援 NVIDIA NVENC、Intel QSV、AMD AMF 以及 Apple VideoToolbox，並在不可用時回退至 CPU 編碼。
-- **專案剪輯與續錄**：保存剪輯後可重新開啟並追加錄影；支援片段排序、修剪、分割與復原／重做。
-- **可選自動輸出**：停止後預設輸出 MP4，也可只保存專案。相容完整片段使用快速輸出；需要精剪或效果時重新渲染。
-- **磁碟守護機制（Disk Monitor）**：磁碟空間不足前發出警告，並在臨界點嘗試安全停止，降低檔案損毀風險。
-- **跨平台**：支援 Windows 10/11 x64，以及搭載 Apple Silicon 的 macOS 13 Ventura 或以上版本。
-
-## 🚀 系統需求與安裝
-
-### Windows 10/11（x64）
-
-- 前往 [Releases](https://github.com/kaoshou/OpenCam/releases) 頁面。
-- 下載 `OpenCam_v0.2.5_Windows_x64_Setup.exe`（安裝版）或 `OpenCam_v0.2.5_Windows_x64_Portable.zip`（免安裝版）；後續版本會使用對應版本號。
-- 執行應用程式。套件已包含所需的 .NET Runtime，無須另外安裝。
-
-### macOS 13 Ventura 或以上（Apple Silicon／arm64）
-
-> 目前尚未提供 Intel Mac（x64）版本。
-
-- 前往 [Releases](https://github.com/kaoshou/OpenCam/releases) 頁面並下載 `OpenCam_v0.2.5_macOS_arm64.dmg`；後續版本會使用對應版本號。
-- 打開 DMG，將 `OpenCam.app` 拖曳至「應用程式（Applications）」資料夾。
-- 第一次啟動時，請依 macOS 提示在「系統設定 → 隱私權與安全性」中允許 OpenCam 使用「螢幕與系統音訊錄製」及「麥克風」。變更權限後若功能尚未生效，請完全結束並重新開啟 OpenCam。
-- 若 Gatekeeper 阻擋啟動，請先在 Finder 對 `OpenCam.app` 按右鍵並選擇「打開」，或在「系統設定 → 隱私權與安全性」選擇「仍要打開」。
-- 只有在確認 DMG 是從本專案的官方 GitHub Releases 下載，而且系統仍顯示「OpenCam 已毀損，無法打開」時，才在終端機執行：
-
-  ```bash
-  xattr -cr /Applications/OpenCam.app
-  ```
-
-### macOS v0.2.0 注意事項
-
-- 系統音訊錄製需要 macOS 13 或以上版本，並使用 Apple ScreenCaptureKit。
-- 麥克風錄製使用 macOS 系統目前的預設輸入裝置。若要改用另一支麥克風，請先在 macOS 聲音設定中切換預設輸入裝置，再開始或暫停後繼續錄影。
-- 點選「開始錄影」後，錄影來源、區域、畫質、FPS 與儲存位置會鎖定；暫停時只有系統聲音、麥克風與游標樣式可調整。
-
-## 🛠️ 技術架構
-
-開發驗證請依 [測試計畫](TESTING.md) 區分邏輯、真實 I/O、效能與實機驗收；裝置測試步驟見 [手動驗收表](MANUAL_TEST_CHECKLIST.md)。
-
-- **UI 框架**：Avalonia UI、CommunityToolkit.Mvvm
-- **框架語言**：C#、.NET 8
-- **核心引擎**：FFmpeg 獨立進程；Windows 使用 gdigrab、DirectShow 與 WASAPI，macOS 使用 AVFoundation、ScreenCaptureKit 與 AVAudioEngine
-- **硬體編碼**：NVENC、QSV、AMF、VideoToolbox，並提供 libx264 回退
-- **日誌**：Serilog
-
-## ⚖️ 授權與免責聲明
-
-- **專案授權**：專案自有原始碼依 [GNU Affero General Public License v3.0 or later](LICENSE)（`AGPL-3.0-or-later`）發布；請參閱 [版權與原始碼說明](NOTICE.md)。
-- **第三方元件**：發布套件包含 FFmpeg；實際適用授權取決於各平台封裝的 FFmpeg 組態。官方發布套件使用啟用 GPL 元件的 FFmpeg，包括 libx264。請參閱 [macOS FFmpeg 建置腳本](scripts/build-ffmpeg-macos-arm64.sh)、[FFmpeg Legal](https://ffmpeg.org/legal.html) 與 [x264 原始碼](https://code.videolan.org/videolan/x264)。Avalonia UI、CommunityToolkit.Mvvm、Serilog 及其他相依套件分別適用其各自授權。
-- **完整第三方聲明**：[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) 列出元件與授權檔案；`third-party/licenses` 保留上游授權原文、原生元件聲明及 Inter 字型 OFL。封裝時加入實際 .NET Runtime 聲明與 FFmpeg 授權／建置資訊。Windows 位於安裝目錄，macOS 位於 App 的 `Contents/Resources`。Windows 第三方 FFmpeg 建置的完整對應原始碼仍需完成發布前核對；增加聲明不代表該核對已通過。
-- **免責聲明與使用條款**：本軟體按「原樣（AS IS）」提供，不帶任何明示或暗示的擔保。作者不對使用本軟體造成的資料遺失、硬體損壞或衍生性損失負責。使用者必須自行確保錄影行為遵守所在地的隱私權、機密保護與著作權法律。
+軟體依「現狀」提供。錄製時請遵守適用的隱私、保密與著作權規範。
 
 ---
 
-# OpenCam (Screen Recorder) 🎥
+## English
 
-## Preflight and recording reminders
+[Official website](https://kaoshou.github.io/OpenCam/) | [Download latest](https://github.com/kaoshou/OpenCam/releases/latest) | [User guide](docs/USER_GUIDE.en-US.md)
 
-- Preflight checks system audio and microphone only, with no screen capture or preview. The isolated five-second audio trial and replay never enter the project or validate the video encoder. Formal recording still saves the configured video and audio.
-- Unselected inputs explicitly say they will not be recorded. Selected inputs show live levels during the five-second trial; replay it afterward to verify sound.
-- The countdown is removed. A separate status area below the source cards shows loading, trial startup, five seconds of capture, preparing replay and formal recording preparation. Disabled checks or no selected inputs bypass audio checking, not preparation or actual startup acknowledgement.
-- Add bookmarks while recording using the button or a configurable shortcut (default Ctrl+Shift+M). In the editor, add bookmarks at the playhead, seek to them, rename or remove them. Bookmarks save automatically in the project, outside clip Undo/Redo, without rewriting video.
-- A default-on advisory can warn after 30 seconds of microphone silence and clears on sound. The warning never pauses or stops recording. Windows floating warnings require successful capture-exclusion setup; macOS currently uses an in-app advisory only. Physical exclusion, device and background-hotkey acceptance remain pending. See [v0.3.8 changes and limitations](docs/releases/v0.3.8.md).
+OpenCam is a desktop screen recorder for Windows and macOS. Record, edit, and continue recording in a project you can save and reopen, then export MP4, GIF, or a Web player with chapters and captions.
 
-## v0.3.6: faster export for unedited recordings
+### What's new in v0.3.12
 
-- Preserve H.264 video when packet durations are missing but ordered timestamps and a frame-rate-checked final interval provide sufficient evidence. Compatible whole segments can be remuxed or joined, processing only audio when necessary.
-- Ambiguous timing, incompatible segments, trims or effects retain verified rendering. Output verification remains in place and original media stays unchanged.
-- Clear export labels distinguish MP4 packaging, audio processing, video re-encoding and MP4 verification. Not every unedited source qualifies, and inspection/verification still take time. See [v0.3.6 changes and limitations](docs/releases/v0.3.6.md).
+- GIF is now available below MP4 in the original video's Export menu and the editor.
+- Hover **Export clip…** in clip-list or timeline context menus to select MP4 or GIF. Export respects the selected clip's retained range, including all parts of a compound clip.
+- GIF offers width and frame-rate options, defaulting to 640/15 FPS, with preserved aspect ratio and continuous looping. It has no audio or duration cap. At five minutes or longer, a confirmation explains conversion time, file size and missing audio before continuing.
+- Preflight now checks system audio and microphone through a five-second audio trial and replay.
+- A separate status area shows loading, trial startup, capture, replay and formal recording preparation. The five-second timer begins when capture actually starts.
 
-## v0.3.5: progressive scrubbing and range markers
+[Full release notes](docs/releases/v0.3.12.md) | [Previous releases](https://github.com/kaoshou/OpenCam/releases)
 
-- Keep the picture visible and update decoded frames while dragging; settle at release. Playing preview pauses once and resumes afterwards.
-- Compact wrapping preview controls; caption language and appearance share a menu.
-- Mark in immediately shows a fixed flag; valid mark out highlights the range. A new start clears the old end; invalid ends show guidance. Marking never trims media.
-- Decode speed depends on media, storage and CPU, without a scrubbing frame-rate or native acceptance guarantee. See [v0.3.5 changes and limitations](docs/releases/v0.3.5.md).
+### Features
 
-## v0.3.4: multilingual captions and transcript search
+- **Screen and region capture**: Record a whole screen, selected display or custom rectangle, with display identification, 30/60 FPS and cursor effects.
+- **System audio and microphone**: Enable each input independently, view separate live levels, and check sound through a preflight trial and replay. Optional reminders warn after 30 seconds of microphone silence.
+- **Projects and continued recording**: Name, save and reopen projects, edit after pausing, and append new recordings.
+- **Video editing**: Reorder, trim, split, merge, group, delete ranges, undo/redo and rename clips. Adjust volume, mute, fades, crop, scale and position.
+- **Preview and bookmarks**: Adjust quality/size, play fullscreen and scrub. Mark important moments while recording using the button or shortcut (default Ctrl+Shift+M), then seek, rename or delete them in the editor.
+- **Multilingual captions and search**: Import SRT/VTT, select language/appearance, and search transcripts with highlighting and click-to-seek in Web exports.
+- **Export options**: Export the whole video or a selected clip as MP4/GIF, or the whole video as an offline Web player. Optional automatic MP4 export on stop.
+- **Recording preservation**: Keep original MKV segments while editing, with interruption recovery, disk-space reminders and close protection during recording.
+- **Hardware encoding**: NVIDIA NVENC, Intel QSV, AMD AMF and Apple VideoToolbox, with CPU encoding available.
+- **Traditional Chinese and English interfaces**.
 
-Attach SRT/VTT by selection or drop, preserving unique project-owned copies. Choose the default on a subtitle card; language names follow the application locale and include codes. Preview/fullscreen captions offer language/off, size, theme, opacity and position without changing the authored default or burning captions into MP4. Web exports add searchable transcripts, safe highlighting, click-to-seek, optional follow mode and bounded scrolling. CC/transcript language menus omit filenames; chapter badges align with compact rows.
+### Download and install
 
-Timeline changes require a synchronization decision before Web export. **Saving subtitles uses project format4, incompatible with v0.3.3 and earlier: back up entire projects first.** Packages still contain three files and do not encode video again for subtitles. See [v0.3.4 changes and limitations](docs/releases/v0.3.4.md).
+| Platform | Requirements | Downloads |
+| --- | --- | --- |
+| Windows | Windows 10/11, x64 | Setup installer or Portable ZIP |
+| macOS | macOS 13+, Apple Silicon/arm64 | DMG; not for Intel Macs |
 
-OpenCam lets you record, edit, and resume recording. This reliability-first cross-platform desktop tool retains original MKV segments, saves edits in a project you can reopen, and exports MP4 when needed.
+Download from the [latest Release](https://github.com/kaoshou/OpenCam/releases/latest). Packages include the required .NET Runtime and media tools.
 
-v0.3.3 adds **Export… → Web player**. Choose a parent location to create a new folder containing `index.html`, `media.mp4`, and `opencam-player.js`. Chapters follow the edited clip names, order and timing; merged clips remain one chapter. Open the folder offline or upload it to a website, with no EverCam conversion required. An overlay provides seeking, volume, playback speed, wide-screen mode and fullscreen; scrollable chapters show start times and durations. The fixed data format supports identification and chapter extraction by Video-to-Subtitle and similar tools; see [the export format](docs/WEB_PLAYER_EXPORT.md).
+- **Windows installer**: Run `OpenCam_v0.3.12_Windows_x64_Setup.exe`.
+- **Windows portable**: Fully extract `OpenCam_v0.3.12_Windows_x64_Portable.zip`, keep all companion files together, then run `OpenCam.exe`.
+- **macOS**: Open `OpenCam_v0.3.12_macOS_arm64.dmg` and drag OpenCam into Applications. Allow screen/system-audio recording and microphone access in System Settings → Privacy & Security. Restart OpenCam after changing permissions if needed.
+- If the operating system shows an opening prompt, confirm the download came from this project's official Releases and follow the system instructions.
 
-OpenCam is built with .NET 8, Avalonia UI, and FFmpeg, and supports Windows and macOS.
+### Getting started
 
-📖 [Complete User Guide](docs/USER_GUIDE.en-US.md) | [繁體中文使用說明](docs/USER_GUIDE.zh-TW.md)
+1. Choose the recording display/region and audio inputs.
+2. Select Start Recording, create or use the current project, and follow the audio-check/preparation status.
+3. Pause, resume or add bookmarks while recording. Open the editor after pausing and saving a segment.
+4. Stop to export MP4 automatically, or use Export… later for MP4, GIF or Web player.
+5. To export one clip, right-click it in the clip list or timeline and hover Export clip… to choose a format.
 
-🌐 [OpenCam official website](https://kaoshou.github.io/OpenCam/) (English / 繁體中文)
+Saving a project does not export a video. Keep the entire project folder, including recordings, subtitles and bookmarks, rather than moving only `project.opencam`. Captioned projects use format 4, incompatible with v0.3.3 and earlier. Captions are not burned into MP4/GIF or automatically retimed.
 
-The current source version is **0.3.12**, under **AGPL-3.0-or-later**. Windows native recording, editor audiovisual preview, export, and long A/V sync acceptance remain pending, as does verification of complete corresponding sources for the Windows FFmpeg build. Packages are unsigned; publication does not establish complete acceptance. Keep backups of important media. Published packages are available from [Releases](https://github.com/kaoshou/OpenCam/releases); see [v0.3.12 changes and limitations](docs/releases/v0.3.12.md).
+Web exports contain `index.html`, `media.mp4` and `opencam-player.js`; move or upload them together. GIF has no audio, and long videos or original-resolution exports require more time and temporary disk space. Compatible complete clips can use fast export, while trims and effects may require rendering.
 
-**New in v0.3.11:** audio-only preflight removes screen capture and preview. A separate status area shows loading, trial startup, acknowledged five-second capture, preparing playback and formal recording preparation. Formal recording still uses the configured video/audio pipeline.
+### Interface preview
 
-**v0.3.3** adds identifiable offline web-player exports. Timeline dragging only reorders clips and no longer trims their edges; explicit split/range deletion and undo remain available. Inspector actions have consistent icon buttons. Existing accidentally trimmed ranges are not rewritten automatically.
+These illustrations show v0.3.5. See the current feature descriptions and user guide for the latest functionality. Select an image to view full size.
 
-**v0.3.2** improves fullscreen seeking, clip merging and context-menu grouping, exit/save prompts and MP4 filename selection. It adds project recording duration, allows toggling automatic export while paused, and fixes stopping failures with MKVs missing packet duration. Merged clips require schema 3 and cannot be opened by older versions; previously saved underestimated timings are not corrected automatically.
+[![Recording home (v0.3.5)](docs/images/preview_main_enus.png)](docs/images/preview_main_enus.png)
+[![Preferences (v0.3.5)](docs/images/preview_settings_enus.png)](docs/images/preview_settings_enus.png)
+[![Recording editor (v0.3.5)](docs/images/preview_editor_enus.png)](docs/images/preview_editor_enus.png)
+[![Multilingual subtitle manager (v0.3.5)](docs/images/preview_subtitles_enus.png)](docs/images/preview_subtitles_enus.png)
 
-**v0.3.1** adds home-window space and preserves encoded video when compatible whole, unedited recordings need audio normalization. Only audio is re-encoded; progress identifies each export phase. Verification incompatibility safely falls back to rendering. Temporary PCM staging requires additional disk space and is cleaned up on completion or cancellation, without rewriting original MKVs.
+### License
 
-Start asks for a prefilled project name when no project is open; an existing or reopened project receives appended clips. New/Open project actions live on the home screen, alongside a per-project auto-export-on-stop switch (on by default) and manual export. With auto-export off, Stop saves content for later editing and export. Recording blocks editor entry and project switching; editing is available after a pause has saved the segment. Returning home retains the project.
+OpenCam-owned source code is licensed under the [GNU Affero General Public License v3.0 or later](LICENSE) (AGPL-3.0-or-later). See [NOTICE.md](NOTICE.md) for copyright/source information and [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) plus the bundled notices for FFmpeg, .NET Runtime, fonts and other components.
 
-For Windows testing, sign in to GitHub and download the Windows x64 artifact from the specified successful Actions run. Fully extract its outer archive and versioned Portable ZIP into a separate folder and run `OpenCam.exe`. Keep its companion files, do not run from inside the ZIP or overwrite a stable installation, and test with disposable project copies. Artifacts expire; a successful build does not establish device acceptance.
-
-The editor offers drag reordering in the clip list and timeline, trimming, splitting, deleting clips/ranges, undo/redo, and project renaming. Clip properties include volume, mute, fades, crop, scale and position; apply changes to commit them to the edit recipe. Preview provides sound on/off, quality selection, a resizable area and fullscreen. Preview mute does not change exported audio. Editing and renaming never overwrite original MKVs or move the project folder.
-
-Explicit Save differs from a recovery draft: switching or closing with unsaved edits offers Save, Discard or Cancel, and interrupted edits can be restored from a draft. Saving does not export an updated MP4. When manually exporting unchanged content again, a verified existing output can be opened or exported again. Keep the whole project folder, not just `project.opencam`.
-
-Compatible complete clips may use fast export while preserving encoded video; some audio still requires conversion. Trims, effects, incompatible streams or unavailable packet timing require rendering. Export is not always instant or lossless.
-
-## v0.3.5 Interface Preview
-
-These images are offline renders of the current v0.3.5 UI with illustrative state. The editor uses an authored demonstration video. They are not evidence of Windows/macOS device capture or acceptance. Select an image for full size.
-
-[![OpenCam v0.3.5 recording home illustration](docs/images/preview_main_enus.png)](docs/images/preview_main_enus.png)
-[![OpenCam v0.3.5 preferences illustration](docs/images/preview_settings_enus.png)](docs/images/preview_settings_enus.png)
-[![OpenCam v0.3.5 recording editor illustration](docs/images/preview_editor_enus.png)](docs/images/preview_editor_enus.png)
-[![OpenCam v0.3.5 multilingual subtitle manager](docs/images/preview_subtitles_enus.png)](docs/images/preview_subtitles_enus.png)
-
-## Historical Versions and Security Validation
-
-The following sections retain earlier versions' changes and validation status; they do not establish v0.3.0 release acceptance.
-
-### v0.2.4 Encoder Diagnostics and Recording Startup Improvements
-
-This version adds bounded encoder probes and caching, actual Recorder encoder/fallback status, and encoder continuity across segments. Auto is not a hardware-encoding guarantee. Failed attempts use fresh files and retain valid recordings. It also fixes conflicting Windows recording output arguments, process-exit handling during startup, and failed candidate segments entering recovery concatenation. See the [guide](docs/USER_GUIDE.en-US.md#encoder), [verification report](docs/verification/2026-09-29-encoder-diagnostics.md), and [release notes](docs/releases/v0.2.4.md).
-
-This stage does not replace GDI capture or change audio formats, resolution, or FPS. Real Windows CPU comparisons and cursor-flicker validation remain pending; automated tests do not establish a performance or flicker fix. Download filenames now identify the version, operating system, and architecture: Windows x64 or macOS arm64 (Apple Silicon).
-
-## v0.2.3 Security Changes and Validation Status
-
-Starting with v0.2.3, local recorder control and recovery file handling are hardened; v0.2.4 retains these protections. This does not resolve every security issue. Publishing installers does not establish live acceptance; the validation limitations below still apply.
-
-**Scope**: These fixes cover v0.2.2 local process control, recovery-session file handling, and macOS audio transport. The risks involve other processes on the same computer or tampered session data; they are not confirmed remote attacks. Preserve original MKVs and session data awaiting recovery before updating.
-
-- **Recorder control**: A pipe name alone did not adequately authenticate command senders. The recorder now receives a per-launch key through a private bootstrap channel, checks both IPC peer processes, and authenticates messages with HMAC, replay protection, frame-size limits, and authentication deadlines. Direct daemon startup without a valid UI bootstrap is rejected.
-- **Recovery paths**: Session metadata cannot select MKVs outside the actual session directory. Loaded metadata is bound to that directory, and unsafe paths and detected links are rejected. Recovery snapshots source media through opened file handles before invoking media tools, reducing source-substitution risks between validation and use.
-- **Overwrite protection**: Atomic metadata replacement avoids overwriting unrelated files through hard links. Recovered MP4s are validated before publication without overwrite; original MKVs are preserved. Recovery snapshots require additional space on the system temporary volume.
-- **Media-tool arguments**: FFmpeg and FFprobe receive structured arguments, and line breaks in concat input paths are rejected to prevent special filenames from altering argument or playlist interpretation.
-- **UI fix**: Restored the About page's version bindings, fixing the empty green badge beside the OpenCam title.
-- **Recovery directory races**: Metadata, source snapshots, recovery locks and publication use pinned directories: directory-relative operations on Unix and ancestor handles denying delete-sharing on Windows. macOS tests cover replacement of the session, Sessions and recordings-root directories; Windows runtime validation is pending.
-- **macOS audio transport**: Anonymous pipes carry raw PCM to FFmpeg instead of named audio FIFOs. System audio and microphone retain separate inputs, mixing and waveform messages.
-
-**Known limitations and precautions**: Use a local recordings directory you control. Symbolic links in a custom directory or its ancestors may be rejected; select a physical directory instead. Private temporary directories do not isolate malicious processes under the same user identity. Process injection, memory access and replacement of application/media-tool binaries are outside this protection. Do not directly recover unknown or attacker-writable sessions. These precautions do not imply confirmed exploitation.
-
-**Validation**: Automated coverage includes IPC authentication, recovery path/directory substitution and anonymous audio transport. Real FFmpeg tests verify two-input mixing with nonzero audio, not actual device capture. Release acceptance for actual recording, system audio, microphone, pause/resume, and forced-interruption recovery, plus Windows/Linux runtime validation, remains pending. Skipped checks are not passes. See the [manual acceptance checklist](MANUAL_TEST_CHECKLIST.md). Application signing and macOS notarization status are unchanged.
-
-## Previous Updates
-
-v0.2.2 strengthens recording health monitoring, error reporting, version consistency, dependency security checks, and GitHub Actions release safeguards, while improving icon packaging compatibility with newer macOS versions.
-
-v0.2.1 updates the shared flat icon on Windows, macOS, and the website, and adds a GitHub project link to the site navigation. The images above now illustrate the v0.3.0 interface.
-
-## What's New in v0.2.0
-
-- In monitor mode, use the identify icon beside the monitor list to briefly show a numbered label on every connected display and highlight the selected one.
-- The custom-region frame remains transparent and can be moved and resized.
-- Separate live level waveforms for system audio and microphone help confirm input activity; they do not guarantee the quality of the finished audio track.
-- Settings that cannot take effect mid-session lock as soon as recording starts; system audio, microphone, and cursor style remain adjustable while paused.
-- Closing the window during recording shows a warning and protects the active session against accidental interruption.
-
-Download the v0.2.0 installers from the [OpenCam v0.2.0 Release](https://github.com/kaoshou/OpenCam/releases/tag/v0.2.0).
-
-## Earlier v0.1.5 Changes
-
-- Fixed preferences that were not fully propagated to the Recorder, including video quality, disk-warning thresholds, and MKV cleanup after successful remuxing.
-- Fixed a case where the UI could interpret the final status message after a normal stop as an interrupted recording.
-- Changes to system audio, microphone, and cursor settings while paused are now passed correctly to the next recording segment.
-- Added complete Traditional Chinese and English user guides covering recording modes, options, file handling, preferences, working-file locations, and Crash Recovery.
-- Reworked Crash Recovery to support current `segment_*.mkv` recordings and legacy `recording.mkv` working files.
-- Interrupted sessions can be reconstructed from surviving MKV segments when their metadata is missing or damaged.
-- A damaged or empty trailing segment no longer blocks recovery of the readable continuous content; partial results are reported explicitly.
-- Session heartbeats now remain current while recording, paused, stopping, and remuxing so active sessions are not offered for recovery.
-- Improved MKV durability and MP4 remux cancellation, long-recording, special-path, and multi-instance handling while preserving every original MKV file.
-- Recording controls are locked during recovery, with accurate counts for full, partial, and failed results.
-- Closing OpenCam while recording, paused, or initializing now shows a warning and cancels the close request to prevent accidental interruption.
-- Official packages prefer the bundled FFmpeg and FFprobe before falling back to versions found on the system PATH.
-- Fixed the FFmpeg argument order for silent macOS recordings so monitor and custom-region capture both start correctly.
-
-Download the installers from [OpenCam Releases](https://github.com/kaoshou/OpenCam/releases).
-
-## 🌟 Key Features
-
-- **Monitor and Region Capture**: Record a selected display or define an exact area with a transparent, resizable region selector.
-- **Identify Displays**: Briefly show the matching number on every connected monitor so you can choose the right capture target.
-- **System Audio and Microphone**: Enable or disable system audio and microphone recording independently, supporting all four audio combinations.
-- **Separate Live Level Waveforms**: Check system-audio and microphone activity independently while recording.
-- **Evidence-Based Recorder Health**: The status area monitors working-file growth, frames, the encoder, and selected audio sources. Insufficient startup evidence stays unknown instead of being reported as healthy.
-- **Cursor Effects**: Use the native cursor, add a halo, add a halo with click ripples, or hide the cursor from the recording.
-- **Crash Recovery**: Uses MKV as a resilient working container. After an interruption, OpenCam attempts to recover content that was already written.
-- **Close and Exit Protection**: The normal close button is blocked during active work. If the UI is terminated abnormally, the Recorder safely stops and finalizes the current working file instead of continuing unnoticed in the background.
-- **Audio Hotplug Protection**: On Windows, if a microphone disappears during recording, OpenCam uses a virtual silence track to keep the recording pipeline running whenever possible.
-- **Paused-Session Adjustments**: While paused, system audio, microphone, and cursor settings can be changed. Fixed settings such as capture source, resolution, and FPS remain locked.
-- **Hardware Acceleration**: Supports NVIDIA NVENC, Intel QSV, AMD AMF, and Apple VideoToolbox, with CPU encoding as a fallback.
-- **Project Editing and Continued Recording**: Reopen saved edits and append recordings; reorder, trim, split and undo/redo clips.
-- **Optional Automatic Export**: Stop exports MP4 by default, or can save the project only. Compatible complete clips use fast export; precision edits and effects require rendering.
-- **Disk Space Monitor**: Warns before storage is exhausted and attempts a safe stop at the critical threshold.
-- **Cross-Platform**: Supports Windows 10/11 x64 and macOS 13 Ventura or later on Apple Silicon.
-
-## 🚀 Requirements and Installation
-
-### Windows 10/11 (x64)
-
-- Go to the [Releases](https://github.com/kaoshou/OpenCam/releases) page.
-- Download `OpenCam_v0.2.5_Windows_x64_Setup.exe` (installer) or `OpenCam_v0.2.5_Windows_x64_Portable.zip` (portable); later releases use their corresponding version numbers.
-- Run OpenCam. The required .NET Runtime is included.
-
-### macOS 13 Ventura or later (Apple Silicon/arm64)
-
-> OpenCam does not currently provide an Intel Mac (x64) build.
-
-- Go to the [Releases](https://github.com/kaoshou/OpenCam/releases) page and download `OpenCam_v0.2.5_macOS_arm64.dmg`; later releases use their corresponding version numbers.
-- Mount the DMG and drag `OpenCam.app` to the Applications folder.
-- On first launch, follow the macOS prompts and allow OpenCam access to **Screen & System Audio Recording** and **Microphone** under **System Settings → Privacy & Security**. If a permission change does not take effect immediately, quit OpenCam completely and reopen it.
-- If Gatekeeper blocks the app, first Control-click `OpenCam.app` in Finder and select **Open**, or select **Open Anyway** under **System Settings → Privacy & Security**.
-- Only if the DMG came from this project's official GitHub Releases and macOS still reports that OpenCam is damaged, run:
-
-  ```bash
-  xattr -cr /Applications/OpenCam.app
-  ```
-
-### macOS v0.2.0 Notes
-
-- System-audio recording requires macOS 13 or later and uses Apple ScreenCaptureKit.
-- Microphone recording uses the current macOS default input device. To use another microphone, select it as the default input in macOS Sound settings before starting, or while the recording is paused.
-- After **Start Recording** is selected, the capture source, region, quality, FPS, and output location are locked. Only system audio, microphone, and cursor settings can be changed while paused.
-
-## 🛠️ Architecture
-
-See the [test plan](TESTING.md) for logic, real-I/O, performance and device-acceptance responsibilities, and the [manual checklist](MANUAL_TEST_CHECKLIST.md) for physical-device procedures.
-
-- **UI**: Avalonia UI and CommunityToolkit.Mvvm
-- **Language and Runtime**: C# and .NET 8
-- **Media Engine**: FFmpeg in a separate process; gdigrab, DirectShow, and WASAPI on Windows, and AVFoundation, ScreenCaptureKit, and AVAudioEngine on macOS
-- **Hardware Encoding**: NVENC, QSV, AMF, and VideoToolbox, with libx264 fallback
-- **Logging**: Serilog
-
-## ⚖️ License and Disclaimers
-
-- **Project License**: Project-owned source code is released under the [GNU Affero General Public License v3.0 or later](LICENSE) (`AGPL-3.0-or-later`). See the [copyright and source notice](NOTICE.md).
-- **Third-Party Components**: Release packages include FFmpeg. The applicable FFmpeg license depends on the bundled configuration; the official release packages use GPL-enabled FFmpeg components, including libx264. See the [macOS FFmpeg build script](scripts/build-ffmpeg-macos-arm64.sh), [FFmpeg Legal](https://ffmpeg.org/legal.html), and the [x264 source repository](https://code.videolan.org/videolan/x264). Avalonia UI, CommunityToolkit.Mvvm, Serilog, and other dependencies remain subject to their respective licenses.
-- **Full third-party notices**: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) indexes original license texts, native-component notices and the Inter font OFL in `third-party/licenses`. Packaging adds the selected .NET Runtime notices and FFmpeg license/build information. Find these in the Windows installation directory or macOS app's `Contents/Resources`. Complete corresponding-source coverage for the Windows third-party FFmpeg build still requires pre-release verification; adding notices does not establish that this check passed.
-- **Disclaimer**: This software is provided “AS IS,” without warranty of any kind. The authors are not responsible for damage or data loss. Users are responsible for complying with applicable privacy, confidentiality, and copyright laws when recording.
+The software is provided as is. Follow applicable privacy, confidentiality and copyright laws when recording.
