@@ -8,16 +8,25 @@ namespace ScreenRecorder.Infrastructure.Projects;
 
 public static class ProjectExportReceiptStore
 {
-    public static async Task WriteAsync(IProjectHandle owner, RecordingProject snapshot, string outputPath, CancellationToken ct = default)
+    public static Task WriteAsync(IProjectHandle owner, RecordingProject snapshot, string outputPath, CancellationToken ct = default)
+        => WriteCoreAsync(owner, snapshot, outputPath, null, ct);
+
+    public static Task WriteScopedAsync(IProjectHandle owner, RecordingProject snapshot, string outputPath,
+        ProjectExportOptions options, CancellationToken ct = default)
+        => WriteCoreAsync(owner, snapshot, outputPath, options, ct);
+
+    private static async Task WriteCoreAsync(IProjectHandle owner, RecordingProject snapshot, string outputPath,
+        ProjectExportOptions? options, CancellationToken ct)
     {
         var h = JsonProjectStore.Handle(owner);
         var path = Path.GetFullPath(outputPath);
-        if (!string.Equals(Path.GetExtension(path), ".mp4", StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(Path.GetExtension(path), options?.Format == ProjectExportFormat.Gif ? ".gif" : ".mp4", StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("Invalid export receipt target.");
         using var directory = BoundDirectory.Open(Path.GetDirectoryName(path)!);
         using var file = directory.Read(Path.GetFileName(path));
         if (file.Length <= 0) throw new InvalidDataException("Empty export.");
-        var receipt = new ProjectExportReceipt(ProjectExportFingerprint.Compute(snapshot, ProjectExportFingerprint.Profile),
+        var receipt = new ProjectExportReceipt(options is null ? ProjectExportFingerprint.Compute(snapshot, ProjectExportFingerprint.Profile) :
+            ProjectExportFingerprint.Compute(snapshot, options),
             path, file.Length, Convert.ToHexString(await SHA256.HashDataAsync(file, ct)));
         await h.Gate.WaitAsync(ct);
         try { h.EnsureOpen(); await h.Root.WriteTextAsync("project.export.json", JsonSerializer.Serialize(receipt), ct); }

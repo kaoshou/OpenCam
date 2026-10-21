@@ -57,7 +57,8 @@ public class Program
             IRecordingContentExporter? contentExporter = mediaBackend is not null
                 ? new ProjectFfmpegExporter(mediaBackend.CreateProcess()) : null;
             await using var projects = new ProjectRecordingCoordinator(orchestrator,
-                new ScreenRecorder.Infrastructure.Projects.JsonProjectStore(), new ProjectSourceProbe(), contentExporter);
+                new ScreenRecorder.Infrastructure.Projects.JsonProjectStore(), new ProjectSourceProbe(), contentExporter,
+                mediaBackend is null ? null : options => new ProjectGifExporter(mediaBackend.CreateProcess(), options));
             await using var projectWaveforms = mediaBackend is not null
                 ? new ProjectWaveformService(projects, mediaBackend.CreateProcess())
                 : null;

@@ -314,7 +314,7 @@ public sealed class RecordingContentExportIntegrationTests
     private sealed class InlineProgress(Action<double> report) : IProgress<double>
     { public void Report(double value) => report(value); }
 
-    private static async Task<IProjectHandle> SingleClip(string root, bool audio = false)
+    internal static async Task<IProjectHandle> SingleClip(string root, bool audio = false)
     {
         var owner = await new JsonProjectStore().CreateAsync(root, "export fixture");
         try

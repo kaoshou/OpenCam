@@ -28,7 +28,7 @@ internal sealed class RecordingContentExportJob : IRecordingExportProgress, IDis
     public RecordingContentExportJob(IRecordingContentExporter exporter, IProjectHandle owner,
         RecordingProject snapshot, string outputDirectory,
         Func<IProjectHandle, RecordingProject, string, CancellationToken, Task>? writeReceipt = null,
-        string? fileName = null, bool webPlayer = false)
+        string? fileName = null, bool webPlayer = false, ProjectExportOptions? exportOptions = null)
     {
         _status = new(Guid.NewGuid(), snapshot.Revision, RecordingExportState.Running, 0);
         Completion = Task.Run(async () =>
@@ -53,8 +53,12 @@ internal sealed class RecordingContentExportJob : IRecordingExportProgress, IDis
                     receiptDeadline.CancelAfter(TimeSpan.FromSeconds(3));
                     try
                     {
-                        await (writeReceipt ?? ScreenRecorder.Infrastructure.Projects.ProjectExportReceiptStore.WriteAsync)(
-                            owner, snapshot, result.FinalPath, receiptDeadline.Token);
+                        if (exportOptions is not null && writeReceipt is null)
+                            await ScreenRecorder.Infrastructure.Projects.ProjectExportReceiptStore.WriteScopedAsync(
+                                owner, snapshot, result.FinalPath, exportOptions, receiptDeadline.Token);
+                        else
+                            await (writeReceipt ?? ScreenRecorder.Infrastructure.Projects.ProjectExportReceiptStore.WriteAsync)(
+                                owner, snapshot, result.FinalPath, receiptDeadline.Token);
                     }
                     catch (Exception ex) { Serilog.Log.Warning(ex, "Export succeeded but its reuse receipt could not be saved"); }
                 }

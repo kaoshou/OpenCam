@@ -12,7 +12,8 @@ namespace ScreenRecorder.Recorder.Services;
 
 /// <summary>The recorder process is the single project writer and recording owner.</summary>
 public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator recorder, IProjectStore store,
-    IProjectSourceProbe probe, IRecordingContentExporter? exporter = null) : IAsyncDisposable
+    IProjectSourceProbe probe, IRecordingContentExporter? exporter = null,
+    Func<GifExportOptions, IRecordingContentExporter>? gifExporter = null) : IAsyncDisposable
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly ProjectSegmentCommitter _committer = new(probe);
@@ -325,37 +326,49 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
         BeginExport();
     }, operationId, "retry-export", ct);
 
-    private void BeginExport(string? fileName = null, bool webPlayer = false, bool omitSubtitles = false)
+    private void BeginExport(string? fileName = null, bool webPlayer = false, bool omitSubtitles = false,
+        ProjectExportOptions? exportOptions = null)
     {
         if (exporter is null) throw new InvalidOperationException("Verified content export is not available yet. Sources remain saved.");
         if (_handle is null || Current!.Clips.IsEmpty) throw new InvalidOperationException("There is no content to export.");
         if (string.IsNullOrWhiteSpace(OutputDirectory)) throw new InvalidOperationException("Select an output directory before exporting.");
         _export?.Dispose();
         var snapshot = omitSubtitles ? Current! with { Subtitles = ProjectSubtitleSettings.Empty } : Current!;
-        _export = new(exporter, _handle, snapshot, OutputDirectory, fileName: fileName, webPlayer: webPlayer);
+        var selected = exportOptions is null ? snapshot : ProjectExportSelection.Create(snapshot, exportOptions);
+        var selectedExporter = exportOptions?.Format == ProjectExportFormat.Gif
+            ? gifExporter?.Invoke(exportOptions.Gif ?? new()) ?? throw new InvalidOperationException("GIF export is not available.")
+            : exporter;
+        _export = new(selectedExporter, _handle, selected, OutputDirectory, fileName: fileName, webPlayer: webPlayer,
+            exportOptions: exportOptions);
     }
 
     public Task<ProjectCommandResult> ExportAsync(string outputDirectory, long expectedRevision, Guid operationId,
         CancellationToken ct = default, bool pathIsFile = false, bool webPlayer = false,
-        bool subtitleConfirmed = false, bool omitSubtitles = false) => Run(async () =>
+        bool subtitleConfirmed = false, bool omitSubtitles = false, ProjectExportOptions? exportOptions = null) => Run(async () =>
     {
         RequireNoExport();
         if (_handle is null || Mode is not (ProjectMode.Ready or ProjectMode.Paused))
             throw new InvalidOperationException("Pause or finish recording before exporting.");
         CheckRevision(expectedRevision);
+        if (exportOptions is not null)
+        {
+            if (webPlayer) throw new InvalidDataException("Media export options cannot be combined with web export.");
+            ProjectExportSelection.Create(Current!, exportOptions);
+        }
         if (webPlayer && SubtitlesNeedSyncConfirmation && !subtitleConfirmed && !omitSubtitles)
             throw new InvalidOperationException("Confirm subtitle timing after timeline changes before web export.");
         if (webPlayer && pathIsFile) throw new InvalidDataException("Web player export requires a parent directory.");
         if (string.IsNullOrWhiteSpace(outputDirectory) || !Path.IsPathFullyQualified(outputDirectory))
             throw new InvalidDataException("Select an absolute output directory.");
         var fileName = pathIsFile ? Path.GetFileName(outputDirectory) : null;
-        if (pathIsFile && (!string.Equals(Path.GetExtension(fileName), ".mp4", StringComparison.OrdinalIgnoreCase) ||
+        var extension = exportOptions?.Format == ProjectExportFormat.Gif ? ".gif" : ".mp4";
+        if (pathIsFile && (!string.Equals(Path.GetExtension(fileName), extension, StringComparison.OrdinalIgnoreCase) ||
             File.Exists(outputDirectory) || Directory.Exists(outputDirectory)))
-            throw new InvalidDataException("Choose a new MP4 filename / 請指定尚未存在的 MP4 檔名，既有檔案不會被覆寫。");
+            throw new InvalidDataException($"Choose a new {extension} filename / 請指定尚未存在的 {extension} 檔名，既有檔案不會被覆寫。");
         await EnsureSavedForOperationAsync(ct);
         OutputDirectory = pathIsFile ? Path.GetDirectoryName(outputDirectory)! : outputDirectory;
-        BeginExport(fileName, webPlayer, omitSubtitles);
-    }, operationId, "export:" + expectedRevision + ":" + pathIsFile + ":" + webPlayer + ":" + subtitleConfirmed + ":" + omitSubtitles + ":" + outputDirectory, ct);
+        BeginExport(fileName, webPlayer, omitSubtitles, exportOptions);
+    }, operationId, "export:" + expectedRevision + ":" + pathIsFile + ":" + webPlayer + ":" + subtitleConfirmed + ":" + omitSubtitles + ":" + outputDirectory + ":" + JsonSerializer.Serialize(exportOptions), ct);
 
     public async Task<ProjectCommandResult> CancelExportAsync(Guid exportId, CancellationToken ct = default)
     {
