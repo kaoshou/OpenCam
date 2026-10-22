@@ -9,6 +9,7 @@ internal sealed class InheritedAudioDescriptor : IDisposable
 {
     private readonly SafeFileHandle _handle;
     private InheritedAudioDescriptor(SafeFileHandle handle) => _handle = handle;
+    public string VideoInput() => $"-thread_queue_size 8 -analyzeduration 0 -probesize 32768 -f matroska -i pipe:{_handle.DangerousGetHandle().ToInt32()} ";
     public string Input(int channels) => $"-thread_queue_size 1024 -f s16le -ar 48000 -ac {channels} -i pipe:{_handle.DangerousGetHandle().ToInt32()} ";
 
     public static InheritedAudioDescriptor? Duplicate(Stream? stream)

@@ -125,17 +125,21 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
         if (!CanExport || HasPropertyDraft || State.IsDirty || Error is not null) return;
         await ExecuteAsync("ExportRecordingContent", new() { Path = path, PathIsExportFile = true });
     }
-    public async Task ExportWebPlayerAsync(string parentDirectory)
+    public async Task ExportWebPlayerAsync(string parentDirectory, Mp4ExportOptions? mp4 = null,
+        ProjectExportTarget? target = null)
     {
+        bool Current() => target is null ? CanExport && !State.IsDirty && !HasPropertyDraft : IsCurrentExportTarget(target);
+        if (target is not null && !Current()) return;
         if (!CanExport || !await ResolveUnsavedAsync()) return;
         if (!CanExport || HasPropertyDraft || State.IsDirty || Error is not null) return;
         var decision = State.SubtitlesNeedSyncConfirmation
             ? await (RequestSubtitleExportDecision?.Invoke() ?? Task.FromResult(SubtitleExportDecision.Cancel))
             : SubtitleExportDecision.Attach;
-        if (decision == SubtitleExportDecision.Cancel) return;
+        if (decision == SubtitleExportDecision.Cancel || !Current()) return;
         await ExecuteAsync("ExportRecordingContent", new() { Path = parentDirectory, ExportWebPlayer = true,
+            ExportOptions = mp4 is null ? null : new(Mp4: mp4),
             SubtitleExportConfirmed = decision == SubtitleExportDecision.Attach,
-            ExportWithoutSubtitles = decision == SubtitleExportDecision.Without });
+            ExportWithoutSubtitles = decision == SubtitleExportDecision.Without }, Current);
     }
     [RelayCommand] public Task CancelExportAsync()
     {

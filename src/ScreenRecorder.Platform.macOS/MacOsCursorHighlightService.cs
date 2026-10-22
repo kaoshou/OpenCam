@@ -47,9 +47,12 @@ public sealed class MacOsCursorHighlightService : ICursorHighlightService
         };
         startInfo.ArgumentList.Add("--mode");
         startInfo.ArgumentList.Add(
-            mode == CursorEffectMode.HaloWithClickRipple
-                ? "ripple"
-                : "halo");
+            mode switch
+            {
+                CursorEffectMode.HaloWithClickRipple => "ripple",
+                CursorEffectMode.PresentationStick => "stick",
+                _ => "halo"
+            });
 
         try
         {

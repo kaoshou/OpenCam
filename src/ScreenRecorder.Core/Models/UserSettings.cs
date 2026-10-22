@@ -1,12 +1,14 @@
 ﻿// SPDX-License-Identifier: AGPL-3.0-or-later
 using ScreenRecorder.Core.Enums;
 using ScreenRecorder.Core.Localization;
+using System.Text.Json.Serialization;
 
 namespace ScreenRecorder.Core.Models;
 
 public class UserSettings
 {
     public List<string> RecentProjectPaths { get; set; } = [];
+    public bool NativeCaptureEnabled { get; set; }
     private WindowsCaptureMode _windowsCaptureMode;
     public WindowsCaptureMode WindowsCaptureMode
     {
@@ -17,7 +19,13 @@ public class UserSettings
     public AppLanguage Language { get; set; } = AppLanguage.ZhTw;
     public HardwareEncoderType EncoderType { get; set; } = HardwareEncoderType.Auto;
     public CursorEffectMode CursorEffect { get; set; } = CursorEffectMode.Default;
-    public int Fps { get; set; } = 30;
+    private int _fps = 10;
+    public int Fps
+    {
+        get => _fps;
+        // Migrate the removed recording choice, not existing session metadata.
+        set => _fps = value == 60 ? 30 : value;
+    }
     public bool RecordSystemAudio { get; set; } = true;
     public bool RecordMicrophone { get; set; } = false;
     public string? SelectedMicrophoneId { get; set; }
@@ -29,7 +37,29 @@ public class UserSettings
     public int RegionHeight { get; set; } = 720;
     public string? CustomOutputDirectory { get; set; }
     public bool MinimizeOnRecord { get; set; } = false;
-    public bool RecordingPreflightEnabled { get; set; } = true;
+    private RecordingPreflightMode _recordingPreflightMode = RecordingPreflightMode.StartOnly;
+    private bool _hasExplicitPreflightMode;
+    public RecordingPreflightMode RecordingPreflightMode
+    {
+        get => _recordingPreflightMode;
+        set
+        {
+            _hasExplicitPreflightMode = true;
+            _recordingPreflightMode = Enum.IsDefined(value) ? value : RecordingPreflightMode.StartOnly;
+        }
+    }
+
+    // Read old settings without writing the obsolete toggle back. An explicit
+    // mode wins regardless of JSON property order; old opt-outs remain off.
+    [JsonPropertyName("RecordingPreflightEnabled")]
+    public bool LegacyRecordingPreflightEnabled
+    {
+        set
+        {
+            if (!_hasExplicitPreflightMode)
+                _recordingPreflightMode = value ? RecordingPreflightMode.StartOnly : RecordingPreflightMode.Disabled;
+        }
+    }
     public bool MicrophoneSilenceReminderEnabled { get; set; } = true;
 
     // 自訂快捷鍵 (0=None, 1=Alt, 2=Ctrl, 4=Shift, 8=Win)

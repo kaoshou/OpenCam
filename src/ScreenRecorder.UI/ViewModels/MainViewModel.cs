@@ -88,7 +88,7 @@ public partial class MainViewModel : ObservableObject
 
     public ISettingsService SettingsService => _settingsService;
     private bool _openFolderOnFinished = false;
-    private bool _recordingPreflightEnabled = true;
+    private RecordingPreflightMode _recordingPreflightMode = RecordingPreflightMode.StartOnly;
     private bool _deleteWorkingFileAfterRemux = false;
     private uint _startStopHotkeyModifiers = 0;
     private string _startStopHotkeyKey = "F9";
@@ -98,6 +98,7 @@ public partial class MainViewModel : ObservableObject
     private string _bookmarkHotkeyKey = "M";
     private string _videoQualityPreset = "Standard";
     private WindowsCaptureMode _windowsCaptureMode;
+    private bool _nativeCaptureEnabled;
     private double _diskWarningThresholdGb = 2.0;
     private double _diskCriticalThresholdMb = 500.0;
     private long _activeDiskWarningThresholdBytes = RecordingConfiguration.DefaultDiskWarningThresholdBytes;
@@ -154,16 +155,17 @@ public partial class MainViewModel : ObservableObject
     private int _regionHeight = 720;
 
     [ObservableProperty]
-    private int _selectedFps = 30;
+    private int _selectedFps = 10;
 
-    public ObservableCollection<int> FpsOptions { get; } = new() { 30, 60 };
+    public ObservableCollection<int> FpsOptions { get; } = new() { 5, 10, 20, 30, 40 };
 
     public record EncoderOption(HardwareEncoderType Type, string DisplayName);
     private EncoderSelection? _actualEncoder;
     public string ActualEncoderText => EncoderStatusFormatter.Format(_actualEncoder, LocalizationService.Instance);
     private CaptureSelection? _actualCapture;
     public string ActualCaptureText => CaptureStatusFormatter.Format(_actualCapture, LocalizationService.Instance);
-    public bool ShowCaptureStatus => OperatingSystem.IsWindows();
+    public bool ShowCaptureStatus => OperatingSystem.IsWindows() ||
+        (OperatingSystem.IsMacOS() && _nativeCaptureEnabled);
     private void SetActualCapture(CaptureSelection? value)
     {
         _actualCapture = value;
@@ -622,6 +624,7 @@ public partial class MainViewModel : ObservableObject
     {
         ProjectName = NextProjectName,
         WindowsCaptureMode = OperatingSystem.IsWindows() ? _windowsCaptureMode : WindowsCaptureMode.CompatibleGdi,
+        NativeCaptureEnabled = _nativeCaptureEnabled,
         Fps = SelectedFps,
         EncoderType = SelectedEncoder?.Type ?? HardwareEncoderType.Auto,
         CursorEffect = SelectedCursorEffect?.Mode ?? CursorEffectMode.Default,
@@ -949,7 +952,7 @@ public partial class MainViewModel : ObservableObject
         try
         {
             var s = await _settingsService.LoadSettingsAsync();
-            _recordingPreflightEnabled = s.RecordingPreflightEnabled;
+            _recordingPreflightMode = s.RecordingPreflightMode;
             RecentProjectPaths = (s.RecentProjectPaths ?? []).Where(p => !string.IsNullOrWhiteSpace(p)).Distinct().Take(20).ToList();
             SelectedFps = s.Fps;
             RecordSystemAudio = SupportsSystemAudio && s.RecordSystemAudio;
@@ -966,6 +969,8 @@ public partial class MainViewModel : ObservableObject
             _bookmarkHotkeyKey = s.BookmarkHotkeyKey;
             _videoQualityPreset = s.VideoQualityPreset;
             _windowsCaptureMode = s.WindowsCaptureMode;
+            _nativeCaptureEnabled = s.NativeCaptureEnabled;
+            OnPropertyChanged(nameof(ShowCaptureStatus));
             _openFolderOnFinished = s.OpenFolderOnFinished;
             _deleteWorkingFileAfterRemux = s.DeleteWorkingFileAfterSuccessfulRemux;
             _diskWarningThresholdGb = s.DiskWarningThresholdGb;
@@ -1031,6 +1036,7 @@ public partial class MainViewModel : ObservableObject
                 CursorEffectMode.HighlightHalo => Strings["CursorHighlight"],
                 CursorEffectMode.HaloWithClickRipple => Strings["CursorClickRipple"],
                 CursorEffectMode.Hidden => Strings["CursorHidden"],
+                CursorEffectMode.PresentationStick => Strings["CursorPresentationStick"],
                 _ => opt.DisplayName
             };
             updated.Add(new CursorEffectOption(opt.Mode, label));
@@ -1051,6 +1057,7 @@ public partial class MainViewModel : ObservableObject
         AvailableCursorEffects.Add(new CursorEffectOption(CursorEffectMode.HighlightHalo, Strings["CursorHighlight"]));
         AvailableCursorEffects.Add(new CursorEffectOption(CursorEffectMode.HaloWithClickRipple, Strings["CursorClickRipple"]));
         AvailableCursorEffects.Add(new CursorEffectOption(CursorEffectMode.Hidden, Strings["CursorHidden"]));
+        AvailableCursorEffects.Add(new CursorEffectOption(CursorEffectMode.PresentationStick, Strings["CursorPresentationStick"]));
 
         SelectedCursorEffect = AvailableCursorEffects.FirstOrDefault(c => c.Mode == preferred)
                                ?? AvailableCursorEffects.FirstOrDefault();
@@ -1146,7 +1153,7 @@ public partial class MainViewModel : ObservableObject
                 RegionHeight = RegionHeight,
                 CustomOutputDirectory = OutputDirectory,
                 MinimizeOnRecord = MinimizeOnRecord,
-                RecordingPreflightEnabled = _recordingPreflightEnabled,
+                RecordingPreflightMode = _recordingPreflightMode,
                 MicrophoneSilenceReminderEnabled = MicrophoneSilenceReminderEnabled,
                 StartStopHotkeyModifiers = _startStopHotkeyModifiers,
                 StartStopHotkeyKey = _startStopHotkeyKey,
@@ -1156,6 +1163,7 @@ public partial class MainViewModel : ObservableObject
                 BookmarkHotkeyKey = _bookmarkHotkeyKey,
                 VideoQualityPreset = _videoQualityPreset,
                 WindowsCaptureMode = _windowsCaptureMode,
+                NativeCaptureEnabled = _nativeCaptureEnabled,
                 OpenFolderOnFinished = _openFolderOnFinished,
                 DeleteWorkingFileAfterSuccessfulRemux = _deleteWorkingFileAfterRemux,
                 DiskWarningThresholdGb = _diskWarningThresholdGb,
@@ -1171,7 +1179,7 @@ public partial class MainViewModel : ObservableObject
 
     public void ApplyNewSettings(UserSettings newSettings)
     {
-        _recordingPreflightEnabled = newSettings.RecordingPreflightEnabled;
+        _recordingPreflightMode = newSettings.RecordingPreflightMode;
         _startStopHotkeyModifiers = newSettings.StartStopHotkeyModifiers;
         _startStopHotkeyKey = newSettings.StartStopHotkeyKey;
         _pauseResumeHotkeyModifiers = newSettings.PauseResumeHotkeyModifiers;
@@ -1180,6 +1188,8 @@ public partial class MainViewModel : ObservableObject
         _bookmarkHotkeyKey = newSettings.BookmarkHotkeyKey;
         _videoQualityPreset = newSettings.VideoQualityPreset;
         if (CanEditRecordingSettings) _windowsCaptureMode = newSettings.WindowsCaptureMode;
+        if (CanEditRecordingSettings) _nativeCaptureEnabled = newSettings.NativeCaptureEnabled;
+        OnPropertyChanged(nameof(ShowCaptureStatus));
         _openFolderOnFinished = newSettings.OpenFolderOnFinished;
         _deleteWorkingFileAfterRemux = newSettings.DeleteWorkingFileAfterSuccessfulRemux;
         _diskWarningThresholdGb = newSettings.DiskWarningThresholdGb;
@@ -1332,6 +1342,7 @@ public partial class MainViewModel : ObservableObject
             var config = ApplyRuntimeSettings(new RecordingConfiguration
             {
                 WindowsCaptureMode = OperatingSystem.IsWindows() ? _windowsCaptureMode : WindowsCaptureMode.CompatibleGdi,
+                NativeCaptureEnabled = _nativeCaptureEnabled,
                 Fps = SelectedFps,
                 EncoderType = SelectedEncoder?.Type ?? HardwareEncoderType.Auto,
                 CursorEffect = SelectedCursorEffect?.Mode ?? CursorEffectMode.Default,

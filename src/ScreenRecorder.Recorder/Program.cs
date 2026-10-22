@@ -58,7 +58,8 @@ public class Program
                 ? new ProjectFfmpegExporter(mediaBackend.CreateProcess()) : null;
             await using var projects = new ProjectRecordingCoordinator(orchestrator,
                 new ScreenRecorder.Infrastructure.Projects.JsonProjectStore(), new ProjectSourceProbe(), contentExporter,
-                mediaBackend is null ? null : options => new ProjectGifExporter(mediaBackend.CreateProcess(), options));
+                mediaBackend is null ? null : options => new ProjectGifExporter(mediaBackend.CreateProcess(), options),
+                mediaBackend is null ? null : options => new ProjectFfmpegExporter(mediaBackend.CreateProcess(), options));
             await using var projectWaveforms = mediaBackend is not null
                 ? new ProjectWaveformService(projects, mediaBackend.CreateProcess())
                 : null;
@@ -307,11 +308,15 @@ public class Program
             services.AddSingleton<ScreenRecorder.Platform.Windows.Capture.IDxgiOutputCatalog, ScreenRecorder.Platform.Windows.Capture.DxgiOutputCatalog>();
             services.AddSingleton<ScreenRecorder.Media.Capture.ICaptureHealthMonitor, ScreenRecorder.Platform.Windows.Capture.WindowsCaptureHealthMonitor>();
             services.AddSingleton<ScreenRecorder.Media.Capture.ICapturePlanProvider>(sp =>
+                new ScreenRecorder.Platform.Windows.Capture.WindowsGraphicsCapturePlan(
                 new ScreenRecorder.Platform.Windows.Capture.WindowsCapturePlanProvider(
                     (ScreenRecorder.Platform.Windows.WindowsFFmpegProvider)sp.GetRequiredService<IFFmpegPlatformProvider>(),
                     sp.GetRequiredService<ScreenRecorder.Platform.Windows.Capture.IDxgiOutputCatalog>(),
                     sp.GetRequiredService<IDisplayService>().GetMonitors,
                     token => new ScreenRecorder.Platform.Windows.Capture.DdagrabCapabilityProbe().IsAvailableAsync(
+                        ScreenRecorder.Media.FFmpeg.FFmpegDiscovery.FindFFmpegExecutable()
+                            ?? throw new FileNotFoundException("FFmpeg not found."), token)),
+                    token => ScreenRecorder.Platform.Windows.Capture.WindowsGraphicsCapturePlan.ProbeAsync(
                         ScreenRecorder.Media.FFmpeg.FFmpegDiscovery.FindFFmpegExecutable()
                             ?? throw new FileNotFoundException("FFmpeg not found."), token)));
             services.AddSingleton<ISystemAudioLoopbackCapture, ScreenRecorder.Platform.Windows.Audio.WindowsWasapiLoopbackCapture>();

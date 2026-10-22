@@ -67,17 +67,36 @@ public class RecordingPreparationUiTests
         Assert.False(window.IsVisible);
     }
 
-    [Avalonia.Headless.XUnit.AvaloniaFact]
-    public void KnownFailureKeepsReadableStatusAndAllowsDismissal()
+    [Avalonia.Headless.XUnit.AvaloniaTheory]
+    [InlineData(ScreenRecorder.Core.Localization.AppLanguage.ZhTw, "無法開始錄製", "關閉")]
+    [InlineData(ScreenRecorder.Core.Localization.AppLanguage.EnUs, "Unable to start recording", "Close")]
+    public void KnownFailureKeepsReadableStatusAndAllowsDismissal(
+        ScreenRecorder.Core.Localization.AppLanguage language, string title, string close)
     {
+        var previous = LanguageManager.Instance.CurrentLanguage;
+        LanguageManager.Instance.CurrentLanguage = language;
         var window = new RecordingPreflightWindow(new(), (_, _, _) =>
             throw new InvalidOperationException(), preparationOnly: true);
-        window.Show();
-        window.SetPreparationState(RecordingPreparationState.Failed);
-        Assert.True(window.IsVisible);
-        Assert.False(window.FindControl<ProgressBar>("StatusActivity")!.IsVisible);
-        Assert.True(window.FindControl<Button>("CancelButton")!.IsEnabled);
-        window.Close();
-        Assert.False(window.IsVisible);
+        try
+        {
+            window.Show();
+            window.SetPreparationState(RecordingPreparationState.Failed);
+            Assert.True(window.IsVisible);
+            Assert.Equal(title, window.Title);
+            Assert.Equal(title, window.FindControl<TextBlock>("Heading")!.Text);
+            Assert.Equal(close, window.FindControl<Button>("CancelButton")!.Content);
+            Assert.False(window.FindControl<ProgressBar>("StatusActivity")!.IsVisible);
+            Assert.False(window.FindControl<Button>("StartButton")!.IsVisible);
+            Assert.True(window.FindControl<Button>("CancelButton")!.IsEnabled);
+            Assert.Equal(LanguageManager.Instance["RecordingPreparationFailed"], window.FindControl<TextBlock>("StatusMessage")!.Text);
+            Assert.True(string.IsNullOrEmpty(window.FindControl<TextBlock>("StatusHint")!.Text));
+            window.FindControl<Button>("CancelButton")!.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+            Assert.False(window.IsVisible);
+        }
+        finally
+        {
+            window.SetPreparationState(RecordingPreparationState.Started);
+            LanguageManager.Instance.CurrentLanguage = previous;
+        }
     }
 }

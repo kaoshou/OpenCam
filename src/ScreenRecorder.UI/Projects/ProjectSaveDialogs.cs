@@ -19,11 +19,16 @@ internal static class ProjectSaveDialogs
     public static Task<ExistingExportDecision> AskExistingExportAsync(Window owner) => AskAsync(owner, "ProjectExistingExportPrompt",
         ("ProjectOpenExisting", ExistingExportDecision.OpenExisting), ("ProjectExportAgain", ExistingExportDecision.ExportAgain),
         ("Cancel", ExistingExportDecision.Cancel));
+    public static Task<bool> AskNewExportDestinationAsync(Window owner) => AskWithTitleAsync(owner,
+        "ProjectExportNewFileTitle", "ProjectExportPathExists", ("ProjectExportChooseAnotherName", true), ("Cancel", false));
 
-    private static Task<T> AskAsync<T>(Window owner, string prompt, params (string Text, T Value)[] choices)
+    private static Task<T> AskAsync<T>(Window owner, string prompt, params (string Text, T Value)[] choices) =>
+        AskWithTitleAsync(owner, "ContentEditor", prompt, choices);
+
+    private static Task<T> AskWithTitleAsync<T>(Window owner, string title, string prompt, params (string Text, T Value)[] choices)
     {
         var strings = LanguageManager.Instance;
-        var dialog = new Window { Title = strings["ContentEditor"], Width = 490, SizeToContent = SizeToContent.Height,
+        var dialog = new Window { Title = strings[title], Width = 490, SizeToContent = SizeToContent.Height,
             CanResize = false, WindowStartupLocation = WindowStartupLocation.CenterOwner };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right };
         foreach (var (text, value) in choices)

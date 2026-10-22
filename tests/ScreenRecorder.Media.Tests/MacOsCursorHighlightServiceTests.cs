@@ -32,17 +32,19 @@ public class MacOsCursorHighlightServiceTests : IDisposable
         }
     }
 
-    [MacOsOnlyFact]
-    public async Task StartRippleAndStop_ManagesNativeHelper()
+    [MacOsOnlyTheory]
+    [InlineData(CursorEffectMode.HaloWithClickRipple, "ripple")]
+    [InlineData(CursorEffectMode.PresentationStick, "stick")]
+    public async Task StartSelectedModeAndStop_ManagesNativeHelper(CursorEffectMode mode, string argument)
     {
         using var service = new MacOsCursorHighlightService(_helperPath);
 
-        service.Start(CursorEffectMode.HaloWithClickRipple);
+        service.Start(mode);
 
         await WaitForFileAsync(_helperPath + ".args");
         Assert.True(service.IsRunning);
         Assert.Equal(
-            "--mode\nripple\n",
+            $"--mode\n{argument}\n",
             await File.ReadAllTextAsync(_helperPath + ".args"));
 
         service.Stop();

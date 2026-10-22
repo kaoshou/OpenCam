@@ -170,6 +170,11 @@ public class WindowsFFmpegProvider : IFFmpegPlatformProvider, IPreflightAudioPla
             HardwareEncoderType.AmdAmf => $"-c:v h264_amf -quality speed -rc cqp -qp_p {quality} -pix_fmt yuv420p",
             _ => $"-c:v libx264 -preset veryfast -crf {quality} -pix_fmt yuv420p"
         };
+        // WGC is update-driven: a stationary desktop may supply only its first
+        // frame. NVENC's default async surface delay must not hold that frame
+        // until later desktop updates arrive. Keep standard capture unchanged.
+        if (config.NativeCaptureEnabled && encoderType == HardwareEncoderType.NvidiaNvenc)
+            vCodec += " -delay 0 -bf 0 -rc-lookahead 0 -zerolatency 1";
         if (livePreview && encoderType is not (HardwareEncoderType.NvidiaNvenc or HardwareEncoderType.IntelQsv or HardwareEncoderType.AmdAmf))
             vCodec += " -tune zerolatency -bf 0";
         var clusterMs = livePreview ? 100 : 1000;

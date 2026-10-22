@@ -12,6 +12,49 @@ namespace ScreenRecorder.Media.Tests;
 public sealed class ProjectExportMenuTests
 {
     [AvaloniaFact]
+    public void MainWindowWiresAndDetachesSharedWebQualityFlow()
+    {
+        var main = new MainViewModel(forScreenshot: true);
+        var window = new MainWindow { DataContext = main };
+        window.Show();
+        try
+        {
+            Assert.NotNull(main.RequestWebPlayerExport);
+            window.DataContext = null;
+            Assert.Null(main.RequestWebPlayerExport);
+        }
+        finally { window.Close(); main.Cleanup(); }
+    }
+
+    [AvaloniaFact]
+    public async Task OriginalVideoWebCommandUsesSharedQualityFlowBeforeDestination()
+    {
+        var client = new ProjectGifExportDialogTests.ExportClient();
+        var main = new MainViewModel(forScreenshot: true);
+        main.ConfigureRecordingContent(client, () => true, () => Task.CompletedTask);
+        try
+        {
+            await main.OpenRecordingProjectAsync("/test/project.opencam");
+            var property = typeof(MainViewModel).GetProperty("RequestWebPlayerExport");
+            Assert.NotNull(property);
+            var ordered = new List<string>();
+            var profile = new ScreenRecorder.Core.Projects.Mp4ExportOptions(
+                ScreenRecorder.Core.Projects.Mp4ExportQuality.Compact);
+            Func<ProjectWorkspaceViewModel, Task> export = model => model.RequestWebExportAsync(
+                _ => { ordered.Add("quality"); return Task.FromResult<ScreenRecorder.Core.Projects.Mp4ExportOptions?>(profile); },
+                () => { ordered.Add("folder"); return Task.FromResult<string?>("/test"); });
+            property.SetValue(main, export);
+            main.RequestWebPlayerDestination = () => throw new Exception("Legacy picker must not bypass quality settings");
+            await main.ExportWebPlayerCommand.ExecuteAsync(null);
+            Assert.Equal(new[] { "quality", "folder" }, ordered);
+            var request = Assert.Single(client.Exports);
+            Assert.True(request.ExportWebPlayer);
+            Assert.Equal(profile, request.ExportOptions!.Mp4);
+        }
+        finally { main.Cleanup(); }
+    }
+
+    [AvaloniaFact]
     public async Task OriginalVideoGifCommandExportsWholeProjectThroughSharedFlow()
     {
         var client = new ProjectGifExportDialogTests.ExportClient();

@@ -440,8 +440,8 @@ public class FoolproofUiLogicTests
         Assert.IsType<ProjectLayoutApp>(Avalonia.Application.Current);
         var vm = new MainViewModel(forScreenshot: true);
 
-        // 驗收：4 種模式皆存在且預設為 Default
-        Assert.Equal(4, vm.AvailableCursorEffects.Count);
+        // 驗收：5 種模式皆存在且預設為 Default
+        Assert.Equal(5, vm.AvailableCursorEffects.Count);
         Assert.NotNull(vm.SelectedCursorEffect);
         Assert.Equal(ScreenRecorder.Core.Enums.CursorEffectMode.Default, vm.SelectedCursorEffect.Mode);
 
@@ -449,11 +449,13 @@ public class FoolproofUiLogicTests
         vm.Strings.CurrentLanguage = ScreenRecorder.Core.Localization.AppLanguage.EnUs;
         var enHidden = vm.AvailableCursorEffects.First(e => e.Mode == ScreenRecorder.Core.Enums.CursorEffectMode.Hidden);
         Assert.Equal("Hide Cursor (Clean View)", enHidden.DisplayName);
+        Assert.Equal("Presentation pointer (stick)", vm.AvailableCursorEffects.Single(e => e.Mode == ScreenRecorder.Core.Enums.CursorEffectMode.PresentationStick).DisplayName);
 
         // 切換回繁體中文
         vm.Strings.CurrentLanguage = ScreenRecorder.Core.Localization.AppLanguage.ZhTw;
         var zhHidden = vm.AvailableCursorEffects.First(e => e.Mode == ScreenRecorder.Core.Enums.CursorEffectMode.Hidden);
         Assert.Equal("隱藏滑鼠游標 (不錄游標)", zhHidden.DisplayName);
+        Assert.Equal("虛擬教鞭（細長棒）", vm.AvailableCursorEffects.Single(e => e.Mode == ScreenRecorder.Core.Enums.CursorEffectMode.PresentationStick).DisplayName);
     }
 
     [Fact]

@@ -31,11 +31,15 @@ public sealed partial class ProjectMediaJob
     }
 
     /// <summary>One clip, exact globally allocated frames. Output is an independently decodable H.264 stream.</summary>
-    public static ProjectMediaJob EncodeClipVideo(ProjectRenderPlan plan, int index, long skipFrames = 0)
-        => ComposeClipVideo(plan, index, skipFrames, false);
+    public static ProjectMediaJob EncodeClipVideo(ProjectRenderPlan plan, int index, long skipFrames = 0,
+        Mp4ExportOptions? options = null)
+    {
+        options?.Validate();
+        return ComposeClipVideo(plan, index, skipFrames, false, videoCrf: options?.VideoCrf ?? 18);
+    }
 
     private static ProjectMediaJob ComposeClipVideo(ProjectRenderPlan plan, int index, long skipFrames, bool preview,
-        GifExportOptions? gif = null)
+        GifExportOptions? gif = null, int videoCrf = 18)
     {
         var part = plan.Clips[index];
         var canvas = plan.Canvas;
@@ -105,7 +109,7 @@ public sealed partial class ProjectMediaJob
         }
         job._exportArguments = [..job.InputArguments(), "-filter_complex_threads", "1", "-filter_complex", filter,
             "-map", "[out]", "-an", "-sn", "-dn",
-            "-frames:v", count.ToString(CultureInfo.InvariantCulture), "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
+            "-frames:v", count.ToString(CultureInfo.InvariantCulture), "-c:v", "libx264", "-preset", "veryfast", "-crf", videoCrf.ToString(CultureInfo.InvariantCulture),
             "-bf", "0", "-pix_fmt", "yuv420p", "-threads", "2", "-f", "h264", "pipe:1"];
         return job;
     }

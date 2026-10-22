@@ -13,7 +13,8 @@ namespace ScreenRecorder.Recorder.Services;
 /// <summary>The recorder process is the single project writer and recording owner.</summary>
 public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator recorder, IProjectStore store,
     IProjectSourceProbe probe, IRecordingContentExporter? exporter = null,
-    Func<GifExportOptions, IRecordingContentExporter>? gifExporter = null) : IAsyncDisposable
+    Func<GifExportOptions, IRecordingContentExporter>? gifExporter = null,
+    Func<Mp4ExportOptions, IRecordingContentExporter>? mp4Exporter = null) : IAsyncDisposable
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly ProjectSegmentCommitter _committer = new(probe);
@@ -349,6 +350,8 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
         var selected = exportOptions is null ? snapshot : ProjectExportSelection.Create(snapshot, exportOptions);
         var selectedExporter = exportOptions?.Format == ProjectExportFormat.Gif
             ? gifExporter?.Invoke(exportOptions.Gif ?? new()) ?? throw new InvalidOperationException("GIF export is not available.")
+            : exportOptions?.Mp4 is { IsOriginal: false } profile
+            ? mp4Exporter?.Invoke(profile) ?? throw new InvalidOperationException("Configured MP4 export is not available.")
             : exporter;
         _export = new(selectedExporter, _handle, selected, OutputDirectory, fileName: fileName, webPlayer: webPlayer,
             exportOptions: exportOptions);
@@ -364,7 +367,9 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
         CheckRevision(expectedRevision);
         if (exportOptions is not null)
         {
-            if (webPlayer) throw new InvalidDataException("Media export options cannot be combined with web export.");
+            if (webPlayer && (exportOptions.Format != ProjectExportFormat.Mp4 ||
+                exportOptions.Scope != ProjectExportScope.WholeProject))
+                throw new InvalidDataException("Web export requires whole-project MP4 settings.");
             ProjectExportSelection.Create(Current!, exportOptions);
         }
         if (webPlayer && SubtitlesNeedSyncConfirmation && !subtitleConfirmed && !omitSubtitles)

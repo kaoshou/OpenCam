@@ -1181,7 +1181,7 @@ public class RecordingOrchestrator : IAsyncDisposable
                     continue;
                 }
 
-                if (session.CaptureSelection?.Backend == CaptureBackend.DesktopDuplication &&
+                if (session.CaptureSelection?.Backend is CaptureBackend.DesktopDuplication or CaptureBackend.WindowsGraphicsCapture &&
                     _captureHealthMonitor != null && !_captureHealthMonitor.Check(session.CaptureSelection))
                 {
                     // Do not await stop from this watchdog: stop joins the watchdog.

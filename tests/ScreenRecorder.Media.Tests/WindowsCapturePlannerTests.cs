@@ -45,7 +45,7 @@ public class WindowsCapturePlannerTests
             ? [.. Outputs, new(8, 0, "OTHER", new(3840, 0, 1920, 1080), true, true, false)]
             : Outputs;
         var eligible = DxgiOutputCatalog.ValidateAdapterIdentity(outputs, [new(7, false), new(8, false)]);
-        Assert.Equal(CaptureFallbackReason.UnsupportedTopology,
+        Assert.Equal(CaptureFallbackReason.AdapterIdentityUncertain,
             WindowsCapturePlanner.Select(Config, Left, Monitors, eligible, true).FallbackReason);
         Assert.All(eligible, o => Assert.False(o.IsDefaultAdapter));
     }

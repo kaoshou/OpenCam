@@ -41,6 +41,7 @@ public partial class MainWindow : Window
                 _identificationViewModel.RequestMp4Destination = null;
                 _identificationViewModel.RequestMediaExport = null;
                 _identificationViewModel.RequestWebPlayerDestination = null;
+                _identificationViewModel.RequestWebPlayerExport = null;
             }
             _displayIdentification.Close();
             _microphoneWarning.Update(false);
@@ -84,6 +85,7 @@ public partial class MainWindow : Window
                 vm.RequestMp4Destination = name => ScreenRecorder.UI.Projects.ProjectExportFileDialog.ChooseAsync(this, name);
                 vm.RequestMediaExport = (workspace, format) => ScreenRecorder.UI.Projects.ProjectExportFileDialog.ExportAsync(this, workspace, format);
                 vm.RequestWebPlayerDestination = () => ScreenRecorder.UI.Projects.ProjectExportFileDialog.ChooseWebParentAsync(this);
+                vm.RequestWebPlayerExport = workspace => ScreenRecorder.UI.Projects.ProjectExportFileDialog.ExportWebAsync(this, workspace);
                 vm.RequestUnsavedProjectDecision = () => ScreenRecorder.UI.Projects.ProjectSaveDialogs.AskUnsavedAsync(
                     _projectWindow?.IsVisible == true ? _projectWindow : this);
                 vm.RequestSubtitleExportDecision = () => ScreenRecorder.UI.Projects.ProjectSaveDialogs.AskSubtitleExportAsync(

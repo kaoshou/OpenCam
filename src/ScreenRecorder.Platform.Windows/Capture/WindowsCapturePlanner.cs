@@ -24,8 +24,9 @@ public static class WindowsCapturePlanner
             && o.Bounds == monitor.Bounds).ToArray();
         if (matches.Length != 1) return Gdi(CaptureFallbackReason.MappingUncertain);
         var output = matches[0];
-        if (!output.Attached || !output.IdentityRotation || !output.IsDefaultAdapter || output.OutputIndex < 0)
+        if (!output.Attached || !output.IdentityRotation || output.OutputIndex < 0)
             return Gdi(CaptureFallbackReason.UnsupportedTopology);
+        if (!output.IsDefaultAdapter) return Gdi(CaptureFallbackReason.AdapterIdentityUncertain);
         return new(CaptureBackend.DesktopDuplication, CaptureFallbackReason.None, output.DeviceName,
             output.AdapterLuid, output.OutputIndex, normalizedBounds) { OutputBounds = output.Bounds };
     }

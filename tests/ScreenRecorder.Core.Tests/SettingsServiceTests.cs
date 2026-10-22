@@ -24,19 +24,26 @@ public class SettingsServiceTests : IDisposable
         }
     }
 
-    [Fact]
-    public async Task PreflightPreferenceDefaultsOnForOldSettingsAndPersistsExplicitOptOut()
+    [Theory]
+    [InlineData("{\"Fps\":60}", 1)]
+    [InlineData("{\"RecordingPreflightEnabled\":true}", 1)]
+    [InlineData("{\"RecordingPreflightEnabled\":false}", 0)]
+    [InlineData("{\"RecordingPreflightMode\":0}", 0)]
+    [InlineData("{\"RecordingPreflightMode\":1}", 1)]
+    [InlineData("{\"RecordingPreflightMode\":2}", 2)]
+    [InlineData("{\"RecordingPreflightMode\":999}", 1)]
+    [InlineData("{\"RecordingPreflightEnabled\":false,\"RecordingPreflightMode\":2}", 2)]
+    [InlineData("{\"RecordingPreflightMode\":2,\"RecordingPreflightEnabled\":false}", 2)]
+    public async Task PreflightModeMigratesOldSettingsAndPersistsExplicitChoice(string json, int expected)
     {
         var service = new SettingsService(_tempFile);
-        await File.WriteAllTextAsync(_tempFile, "{\"Fps\":60}");
-        var oldSettings = await service.LoadSettingsAsync();
-        var defaults = System.Text.Json.JsonSerializer.SerializeToElement(oldSettings);
-        Assert.True(defaults.TryGetProperty("RecordingPreflightEnabled", out var enabled), "Old settings must default to preflight on.");
-        Assert.True(enabled.GetBoolean());
-        var optedOut = System.Text.Json.JsonSerializer.Deserialize<UserSettings>("{\"RecordingPreflightEnabled\":false}")!;
-        await service.SaveSettingsAsync(optedOut);
+        await File.WriteAllTextAsync(_tempFile, json);
+        var settings = await service.LoadSettingsAsync();
+        await service.SaveSettingsAsync(settings);
         var reloaded = System.Text.Json.JsonSerializer.SerializeToElement(await service.LoadSettingsAsync());
-        Assert.False(reloaded.GetProperty("RecordingPreflightEnabled").GetBoolean());
+        Assert.Equal(expected, reloaded.GetProperty("RecordingPreflightMode").GetInt32());
+        Assert.False(reloaded.TryGetProperty("RecordingPreflightEnabled", out _));
+        if (json.Contains("Fps")) Assert.Equal(30, reloaded.GetProperty("Fps").GetInt32());
     }
 
     [Fact]
@@ -46,7 +53,7 @@ public class SettingsServiceTests : IDisposable
         var settings = await service.LoadSettingsAsync();
 
         Assert.NotNull(settings);
-        Assert.Equal(30, settings.Fps);
+        Assert.Equal(10, settings.Fps);
         Assert.Equal(AppLanguage.ZhTw, settings.Language);
         Assert.Equal(HardwareEncoderType.Auto, settings.EncoderType);
         Assert.Equal(CursorEffectMode.Default, settings.CursorEffect);
@@ -60,7 +67,7 @@ public class SettingsServiceTests : IDisposable
         var service = new SettingsService(_tempFile);
         var original = new UserSettings
         {
-            Fps = 60,
+            Fps = 40,
             Language = AppLanguage.EnUs,
             EncoderType = HardwareEncoderType.NvidiaNvenc,
             CursorEffect = CursorEffectMode.HighlightHalo,
@@ -80,7 +87,7 @@ public class SettingsServiceTests : IDisposable
         var loaded = await service.LoadSettingsAsync();
 
         Assert.NotNull(loaded);
-        Assert.Equal(60, loaded.Fps);
+        Assert.Equal(40, loaded.Fps);
         Assert.Equal(AppLanguage.EnUs, loaded.Language);
         Assert.Equal(HardwareEncoderType.NvidiaNvenc, loaded.EncoderType);
         Assert.Equal(CursorEffectMode.HighlightHalo, loaded.CursorEffect);
@@ -96,6 +103,26 @@ public class SettingsServiceTests : IDisposable
         Assert.True(loaded.MinimizeOnRecord);
     }
 
+    [Theory]
+    [InlineData(5, 5)]
+    [InlineData(10, 10)]
+    [InlineData(20, 20)]
+    [InlineData(30, 30)]
+    [InlineData(40, 40)]
+    [InlineData(60, 30)]
+    public async Task RemovedSixtyFpsPreferenceMigratesWithoutChangingOtherFrameRates(int oldFps, int expected)
+    {
+        await File.WriteAllTextAsync(_tempFile, $"{{\"Fps\":{oldFps}}}");
+        var service = new SettingsService(_tempFile);
+        var loaded = await service.LoadSettingsAsync();
+        Assert.Equal(expected, loaded.Fps);
+        await service.SaveSettingsAsync(loaded);
+        Assert.Equal(expected, (await service.LoadSettingsAsync()).Fps);
+        // Existing projects/sessions retain their original timing metadata.
+        var recording = System.Text.Json.JsonSerializer.Deserialize<RecordingConfiguration>("{\"Fps\":60}");
+        Assert.Equal(60, recording!.Fps);
+    }
+
     [Fact]
     public async Task LoadSettings_WhenFileCorrupted_ShouldFallbackToDefaults()
     {
@@ -104,7 +131,7 @@ public class SettingsServiceTests : IDisposable
         var loaded = await service.LoadSettingsAsync();
 
         Assert.NotNull(loaded);
-        Assert.Equal(30, loaded.Fps);
+        Assert.Equal(10, loaded.Fps);
         Assert.Equal(AppLanguage.ZhTw, loaded.Language);
     }
 }

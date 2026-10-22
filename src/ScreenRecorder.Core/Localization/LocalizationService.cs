@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 namespace ScreenRecorder.Core.Localization;
 
-public class LocalizationService : ILocalizationService
+public partial class LocalizationService : ILocalizationService
 {
     private static readonly Lazy<LocalizationService> _instance = new(() => new LocalizationService());
     public static LocalizationService Instance => _instance.Value;
@@ -27,7 +27,12 @@ public class LocalizationService : ILocalizationService
 
     public string GetString(string key)
     {
-        var dict = _currentLanguage == AppLanguage.ZhTw ? ZhTwDictionary : EnUsDictionary;
+        var dict = _currentLanguage switch
+        {
+            AppLanguage.ZhTw => ZhTwDictionary,
+            AppLanguage.JaJp => JaJpDictionary,
+            _ => EnUsDictionary
+        };
         if (dict.TryGetValue(key, out var val))
         {
             return val;
@@ -57,6 +62,19 @@ public class LocalizationService : ILocalizationService
 
     public static readonly Dictionary<string, string> ZhTwDictionary = new()
     {
+        ["LanguageOptionJaJp"] = "日本語 (Japanese)",
+        ["Mp4ExportSettings"] = "MP4 匯出設定",
+        ["Mp4ExportQuality"] = "匯出品質",
+        ["Mp4QualityOriginal"] = "維持原有設定（預設）",
+        ["Mp4QualityStandard"] = "標準壓縮",
+        ["Mp4QualityCompact"] = "小檔案",
+        ["Mp4ExportResolution"] = "輸出解析度",
+        ["Mp4ResolutionOriginal"] = "原尺寸",
+        ["Mp4Resolution1080"] = "最高 1080p",
+        ["Mp4Resolution720"] = "最高 720p",
+        ["Mp4ExportNotice"] = "壓縮或縮小解析度需要較長時間，不影響原始影片。畫面內容會影響檔案大小。",
+        ["Mp4WebNotice"] = "此設定適用於網頁播放器內的影片。",
+        ["Mp4ExportNext"] = "下一步：選擇儲存位置",
         ["BookmarkHotkey"] = "標記重點快捷鍵",
         ["BookmarkAdd"] = "標記重點",
         ["BookmarkAdded"] = "重點已保存",
@@ -80,6 +98,7 @@ public class LocalizationService : ILocalizationService
         ["RecordingPreparing"] = "正在準備錄製，請稍候…",
         ["RecordingConfirming"] = "正在確認錄製狀態，請稍候…",
         ["RecordingPreparationFailed"] = "未能開始錄製，請查看主畫面的錯誤訊息。",
+        ["RecordingPreparationFailedTitle"] = "無法開始錄製",
         ["RecordingUnconfirmedHint"] = "尚未確認是否開始，請勿重複啟動。仍可使用主畫面的停止及安全處理控制。",
         ["PreflightDisplay"] = "錄影範圍",
         ["PreflightMicrophone"] = "麥克風 · 請說幾句話",
@@ -192,15 +211,13 @@ public class LocalizationService : ILocalizationService
         ["PreviewFullscreen"] = "全螢幕 / 返回（Esc）",
         ["PreviewSoundOn"] = "預覽聲音：開",
         ["PreviewSoundOff"] = "預覽聲音：關",
-        ["PreviewSoundFailed"] = "無法確認预覽聲音設定，請停止後重試。",
+        ["PreviewSoundFailed"] = "無法確認預覽聲音設定，請停止後重試。",
         ["PreviewResize"] = "拖曳調整預覽與時間軸大小",
         ["ProjectFrameEmpty"] = "開啟有片段的專案以預覽",
         ["ProjectFrameUnavailable"] = "此位置無可用影格",
         ["ProjectStillPreview"] = "原始影格 · 尚不含效果／播放聲音",
         ["ProjectProperties"] = "片段屬性",
         ["ProjectTimeline"] = "時間軸",
-        ["ProjectPreviewPending"] = "影片預覽尚未接線。目前可錄製、保存專案、重新開啟與續錄；這裡不顯示示範影片。",
-        ["ProjectTimelinePending"] = "時間軸、縮圖與聲音波形尚未接線。原始素材會完整保留。",
         ["ProjectEntryHint"] = "保存素材，下次可接著錄；不必先輸出 MP4",
         ["ProjectNew"] = "新建專案",
         ["ProjectOpen"] = "開啟專案",
@@ -327,6 +344,10 @@ public class LocalizationService : ILocalizationService
         ["ProjectExistingExportPrompt"] = "相同內容已有完整的 MP4，可開啟既有檔案，或另行輸出新檔。",
         ["ProjectOpenExisting"] = "開啟既有檔案",
         ["ProjectExportAgain"] = "另行輸出",
+        ["ProjectExportSaveTitle"] = "輸出 {0}（請使用新檔名）",
+        ["ProjectExportNewFileTitle"] = "請選擇新檔名",
+        ["ProjectExportPathExists"] = "選擇的位置已有檔案或資料夾。請更換檔名或儲存位置，既有內容會保留。",
+        ["ProjectExportChooseAnotherName"] = "更換檔名",
         ["ProjectUnconfirmed"] = "錄影狀態尚未確認；請重新查詢，勿重複操作",
         ["ProjectFinishBeforeClose"] = "請先暫停或結束本次錄製並保存，再關閉專案。錄影不會因此中斷。",
         ["ProjectChooseFolder"] = "選擇專案存放資料夾",
@@ -390,7 +411,7 @@ public class LocalizationService : ILocalizationService
         ["FpsTitle"] = "幀率 (FPS):",
         ["AudioTitle"] = "音訊設定",
         ["AudioSystem"] = "錄製系統聲音",
-        ["AudioSystemUnsupportedMac"] = "macOS 系統聲音（此版本尚未支援）",
+        ["AudioSystemUnsupportedMac"] = "系統聲音（目前環境不支援）",
         ["AudioMic"] = "錄製麥克風 (Microphone)",
         ["MicDevice"] = "麥克風設備:",
         ["StorageTitle"] = "儲存位置",
@@ -501,8 +522,11 @@ public class LocalizationService : ILocalizationService
 
         // 系統托盤與偏好設定
         ["MinimizeOnRecord"] = "開始錄影時自動最小化視窗",
-        ["RecordingPreflightSetting"] = "錄製前確認聲音（建議開啟）",
-        ["RecordingPreflightSettingHelp"] = "預設開啟。關閉或未選音源時，開始、續錄或插入錄製將略過音訊確認，仍顯示錄製準備狀態。必要的權限與錄影安全檢查仍會執行。",
+        ["RecordingPreflightSetting"] = "錄製前確認聲音",
+        ["RecordingPreflightOff"] = "關閉",
+        ["RecordingPreflightStartOnly"] = "僅開始錄影時（預設）",
+        ["RecordingPreflightStartAndResume"] = "開始錄影及暫停恢復時",
+        ["RecordingPreflightSettingHelp"] = "選擇何時確認聲音。略過聲音檢查時仍會顯示錄製準備，並執行必要的權限、專案與輸出檢查。",
         ["MicrophoneSilenceReminderSetting"] = "麥克風持續無聲時提醒（預設開啟）",
         ["MicrophoneSilenceReminderHelp"] = "已開啟麥克風錄製且連續 30 秒無聲時提示；不會暫停或停止錄影。有聲後自動收起。無法排除擷取時僅在程式內顯示。",
         ["MicrophoneSilenceReminderTitle"] = "麥克風持續無聲",
@@ -515,27 +539,31 @@ public class LocalizationService : ILocalizationService
         // 視訊編碼器與硬體加速
         ["EncoderTitle"] = "視訊編碼器:",
         ["EncoderAuto"] = "自動選擇 (優先硬體加速)",
-        ["ActualEncoderPending"] = "實際編碼器：尚未決定",
-        ["ActualCapturePending"] = "實際擷取：尚未決定",
+        ["ActualEncoderPending"] = "實際編碼器：開始錄影後顯示",
+        ["ActualCapturePending"] = "實際擷取：開始錄影後顯示",
         ["ActualCaptureFormat"] = "實際擷取：{0}",
         ["CaptureModeLabel"] = "Windows 畫面擷取",
+        ["NativeCaptureLabel"] = "高效能擷取",
+        ["NativeCaptureNotice"] = "錄製影片、動畫或遊戲，且一般擷取不夠順暢時可開啟；一般操作與簡報可維持關閉。Windows 使用 WGC，優先於上方 GDI／桌面擷取選單；Mac 使用 ScreenCaptureKit，請選自動或 Apple 硬體編碼。並非畫質加強或保證 FPS；若無法啟動或較卡，關閉改用一般擷取。",
         ["CaptureModeGdi"] = "相容擷取（GDI）",
-        ["CaptureModeModern"] = "新版擷取（測試）",
-        ["CaptureModeNotice"] = "嘗試改善部分電腦錄影時的游標閃爍；尚未保證修復。不支援的螢幕配置會使用 GDI，請查看實際擷取狀態。",
+        ["CaptureModeModern"] = "桌面擷取（Desktop Duplication）",
+        ["CaptureModeNotice"] = "桌面擷取不適用時會自動使用 GDI；開始錄影後可查看實際擷取方式。開啟「高效能擷取」時，會優先使用 Windows Graphics Capture。",
         ["CaptureFallbackFilter"] = "FFmpeg 未提供所需擷取能力",
         ["CaptureFallbackMapping"] = "無法安全對應螢幕",
         ["CaptureFallbackTopology"] = "此螢幕配置使用相容模式",
-        ["CaptureFallbackStartup"] = "新版擷取啟動失敗，使用 GDI",
+        ["CaptureFallbackStartup"] = "桌面擷取無法啟動，使用 GDI",
+        ["CaptureFallbackAdapter"] = "無法確認顯卡對應（含多顯卡配置），使用 GDI",
+        ["CursorPresentationStick"] = "虛擬教鞭（細長棒）",
         ["ActualEncoderFormat"] = "實際編碼器：{0}",
-        ["EncoderFallbackNoHardware"] = "未驗證到可用硬體",
+        ["EncoderFallbackNoHardware"] = "沒有可用的硬體編碼器，使用 CPU",
         ["EncoderFallbackRequested"] = "指定硬體暫不可用",
         ["EncoderFallbackStartup"] = "硬體啟動失敗，使用 CPU",
         ["EncoderCpu"] = "CPU 軟體編碼 (libx264 相容穩定)",
         ["EncoderNvenc"] = "NVIDIA NVENC (硬體加速)",
         ["EncoderQsv"] = "Intel Quick Sync (QSV 硬體加速)",
         ["EncoderAmf"] = "AMD AMF (硬體加速)",
-        ["DisplayChangedNotice"] = "偵測到螢幕解析度或顯示設定變更，已安全收斂停止並保存當前錄影。",
-        ["WatchdogWarningNotice"] = "錄影寫入或影音管線出現遲滯，看門狗正全力維護錄影資料安全。",
+        ["DisplayChangedNotice"] = "螢幕解析度或顯示設定已變更，錄影已停止並保存。",
+        ["WatchdogWarningNotice"] = "錄影處理或儲存速度較慢，請留意磁碟空間與電腦負載。",
 
         // 滑鼠游標效果
         ["CursorTitle"] = "游標樣式:",
@@ -592,6 +620,19 @@ public class LocalizationService : ILocalizationService
 
     public static readonly Dictionary<string, string> EnUsDictionary = new()
     {
+        ["LanguageOptionJaJp"] = "日本語 (Japanese)",
+        ["Mp4ExportSettings"] = "MP4 export settings",
+        ["Mp4ExportQuality"] = "Export quality",
+        ["Mp4QualityOriginal"] = "Keep current settings (default)",
+        ["Mp4QualityStandard"] = "Standard compression",
+        ["Mp4QualityCompact"] = "Smaller file",
+        ["Mp4ExportResolution"] = "Output resolution",
+        ["Mp4ResolutionOriginal"] = "Original size",
+        ["Mp4Resolution1080"] = "Up to 1080p",
+        ["Mp4Resolution720"] = "Up to 720p",
+        ["Mp4ExportNotice"] = "Compression or resizing takes longer and does not change originals. File size depends on content.",
+        ["Mp4WebNotice"] = "These settings apply to the video inside the Web player.",
+        ["Mp4ExportNext"] = "Next: choose destination",
         ["BookmarkHotkey"] = "Bookmark shortcut",
         ["BookmarkAdd"] = "Add bookmark",
         ["BookmarkAdded"] = "Bookmark saved",
@@ -615,6 +656,7 @@ public class LocalizationService : ILocalizationService
         ["RecordingPreparing"] = "Preparing to record…",
         ["RecordingConfirming"] = "Confirming recording status…",
         ["RecordingPreparationFailed"] = "Recording could not start. Check the error on the main window.",
+        ["RecordingPreparationFailedTitle"] = "Unable to start recording",
         ["RecordingUnconfirmedHint"] = "Startup is not yet confirmed. Do not start again. Stop and safety controls remain available on the main window.",
         ["PreflightDisplay"] = "Recording area",
         ["PreflightMicrophone"] = "Microphone · Say a few words",
@@ -734,8 +776,6 @@ public class LocalizationService : ILocalizationService
         ["ProjectStillPreview"] = "Source frame · No effects / audio playback",
         ["ProjectProperties"] = "Clip properties",
         ["ProjectTimeline"] = "Timeline",
-        ["ProjectPreviewPending"] = "Video preview is not connected yet. Recording, saving, reopening and resuming are available. No demo footage is shown.",
-        ["ProjectTimelinePending"] = "Timeline, thumbnails and audio waveforms are not connected yet. Original sources are retained.",
         ["ProjectEntryHint"] = "Save sources and continue later; MP4 export is optional",
         ["ProjectNew"] = "New project",
         ["ProjectOpen"] = "Open project",
@@ -862,6 +902,10 @@ public class LocalizationService : ILocalizationService
         ["ProjectExistingExportPrompt"] = "A verified MP4 already contains these edits. Open it or export another copy?",
         ["ProjectOpenExisting"] = "Open existing file",
         ["ProjectExportAgain"] = "Export again",
+        ["ProjectExportSaveTitle"] = "Export {0} (use a new filename)",
+        ["ProjectExportNewFileTitle"] = "Choose a new filename",
+        ["ProjectExportPathExists"] = "A file or folder already exists at this location. Choose another filename or location. The existing content will be kept.",
+        ["ProjectExportChooseAnotherName"] = "Choose another name",
         ["ProjectUnconfirmed"] = "Recorder status is unconfirmed; refresh before continuing.",
         ["ProjectFinishBeforeClose"] = "Finish and save the recording before closing the project. Recording will not be interrupted.",
         ["ProjectChooseFolder"] = "Choose the project location",
@@ -925,7 +969,7 @@ public class LocalizationService : ILocalizationService
         ["FpsTitle"] = "Frame Rate (FPS):",
         ["AudioTitle"] = "Audio Settings",
         ["AudioSystem"] = "Record System Audio",
-        ["AudioSystemUnsupportedMac"] = "macOS system audio (not supported in this version)",
+        ["AudioSystemUnsupportedMac"] = "System audio (unavailable on this system)",
         ["AudioMic"] = "Record Microphone",
         ["MicDevice"] = "Microphone Device:",
         ["StorageTitle"] = "Output Location",
@@ -1036,8 +1080,11 @@ public class LocalizationService : ILocalizationService
 
         // 系統托盤與偏好設定
         ["MinimizeOnRecord"] = "Minimize window when recording starts",
-        ["RecordingPreflightSetting"] = "Check audio before recording (recommended)",
-        ["RecordingPreflightSettingHelp"] = "On by default. When off or no inputs are selected, starting, resuming or inserting skips the audio check but still shows recording preparation. Required permissions and recording safety checks still apply.",
+        ["RecordingPreflightSetting"] = "Check audio before recording",
+        ["RecordingPreflightOff"] = "Off",
+        ["RecordingPreflightStartOnly"] = "At recording start only (default)",
+        ["RecordingPreflightStartAndResume"] = "At recording start and resume",
+        ["RecordingPreflightSettingHelp"] = "Choose when to check audio. Skipping the audio check still shows recording preparation and keeps required permission, project and output checks.",
         ["MicrophoneSilenceReminderSetting"] = "Warn when the microphone stays silent (on by default)",
         ["MicrophoneSilenceReminderHelp"] = "Warn after 30 seconds of silence while recording the microphone. Recording continues; the warning clears when sound returns. If capture exclusion is unavailable, show only in the app.",
         ["MicrophoneSilenceReminderTitle"] = "Microphone has been silent",
@@ -1050,19 +1097,23 @@ public class LocalizationService : ILocalizationService
         // 視訊編碼器與硬體加速
         ["EncoderTitle"] = "Video Encoder:",
         ["EncoderAuto"] = "Auto (Hardware Accelerated)",
-        ["ActualEncoderPending"] = "Actual encoder: pending",
-        ["ActualCapturePending"] = "Actual capture: pending",
+        ["ActualEncoderPending"] = "Actual encoder: shown after recording starts",
+        ["ActualCapturePending"] = "Actual capture: shown after recording starts",
         ["ActualCaptureFormat"] = "Actual capture: {0}",
         ["CaptureModeLabel"] = "Windows screen capture",
+        ["NativeCaptureLabel"] = "High-performance capture",
+        ["NativeCaptureNotice"] = "Try for video, animation or games when standard capture is not smooth; leave off for everyday tasks and slides. Windows uses WGC instead of the GDI/Desktop Duplication selection above. Mac uses ScreenCaptureKit; select Auto or Apple hardware encoding. This does not enhance quality or guarantee FPS. Turn off if capture fails or is less smooth.",
         ["CaptureModeGdi"] = "Compatible capture (GDI)",
-        ["CaptureModeModern"] = "Modern capture (experimental)",
-        ["CaptureModeNotice"] = "May help cursor flicker on some PCs; not a confirmed fix. Unsupported display configurations use GDI. Check the actual capture status.",
+        ["CaptureModeModern"] = "Desktop capture (Desktop Duplication)",
+        ["CaptureModeNotice"] = "Uses GDI when desktop capture is unavailable. Check the actual capture method after recording starts. High-performance capture takes priority and uses Windows Graphics Capture.",
         ["CaptureFallbackFilter"] = "Required FFmpeg capture capability unavailable",
         ["CaptureFallbackMapping"] = "Display cannot be safely mapped",
         ["CaptureFallbackTopology"] = "Display configuration requires compatible capture",
-        ["CaptureFallbackStartup"] = "Modern capture startup failed; using GDI",
+        ["CaptureFallbackStartup"] = "Desktop capture could not start; using GDI",
+        ["CaptureFallbackAdapter"] = "GPU mapping cannot be confirmed (including multi-GPU configurations); using GDI",
+        ["CursorPresentationStick"] = "Presentation pointer (stick)",
         ["ActualEncoderFormat"] = "Actual encoder: {0}",
-        ["EncoderFallbackNoHardware"] = "No validated hardware encoder",
+        ["EncoderFallbackNoHardware"] = "No hardware encoder available; using CPU",
         ["EncoderFallbackRequested"] = "Requested hardware unavailable",
         ["EncoderFallbackStartup"] = "Hardware startup failed; using CPU",
         ["EncoderCpu"] = "CPU Software (libx264 Compatible)",
@@ -1070,7 +1121,7 @@ public class LocalizationService : ILocalizationService
         ["EncoderQsv"] = "Intel Quick Sync (QSV Hardware)",
         ["EncoderAmf"] = "AMD AMF (Hardware)",
         ["DisplayChangedNotice"] = "Display settings changed. Current recording safely finalized and saved.",
-        ["WatchdogWarningNotice"] = "Recording write latency detected. Watchdog is safeguarding stream data.",
+        ["WatchdogWarningNotice"] = "Recording processing or storage is slow. Check free disk space and system load.",
 
         // 滑鼠游標效果
         ["CursorTitle"] = "Mouse Cursor:",

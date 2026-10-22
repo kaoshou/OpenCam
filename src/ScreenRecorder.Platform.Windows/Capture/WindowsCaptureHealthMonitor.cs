@@ -12,10 +12,16 @@ public sealed class WindowsCaptureHealthMonitor(IDxgiOutputCatalog catalog, Func
 {
     public bool Check(CaptureSelection selection)
     {
-        if (selection.Backend != CaptureBackend.DesktopDuplication) return true;
+        if (selection.Backend is not (CaptureBackend.DesktopDuplication or CaptureBackend.WindowsGraphicsCapture)) return true;
         try
         {
             if (!(desktopAvailable ?? IsInputDesktopAvailable)()) return false;
+            if (selection.Backend == CaptureBackend.WindowsGraphicsCapture)
+            {
+                var monitor = WindowsGraphicsCapturePlan.Resolve(selection.Bounds);
+                return monitor is not null && monitor.DeviceName == selection.DeviceName &&
+                    monitor.Bounds == selection.OutputBounds;
+            }
             var matches = catalog.GetOutputs().Where(o => o.AdapterLuid == selection.AdapterLuid
                 && o.OutputIndex == selection.OutputIndex && o.DeviceName == selection.DeviceName
                 && o.Attached && o.IdentityRotation && o.IsDefaultAdapter
@@ -25,7 +31,7 @@ public sealed class WindowsCaptureHealthMonitor(IDxgiOutputCatalog catalog, Func
         }
         catch (Exception ex)
         {
-            Log.Warning(ex, "Desktop Duplication output health check failed.");
+            Log.Warning(ex, "Native capture output health check failed.");
             return false;
         }
     }

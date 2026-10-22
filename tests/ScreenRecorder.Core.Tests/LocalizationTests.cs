@@ -6,6 +6,33 @@ namespace ScreenRecorder.Core.Tests;
 
 public class LocalizationTests
 {
+    [Fact]
+    public void JapaneseSelection_ReturnsJapaneseAndFormatsErrors()
+    {
+        var service = new LocalizationService { CurrentLanguage = AppLanguage.JaJp };
+        Assert.Equal("録画開始", service["StartRecording"]);
+        Assert.Equal("開始できませんでした: Disk full", service.GetFormatted("StatusFailed", "Disk full"));
+    }
+
+    [Fact]
+    public void JapaneseCatalog_CoversEveryUiKeyWithMatchingFormatArguments()
+    {
+        Assert.Equal(LocalizationService.ZhTwDictionary.Keys.OrderBy(key => key),
+            LocalizationService.JaJpDictionary.Keys.OrderBy(key => key));
+        foreach (var (key, template) in LocalizationService.ZhTwDictionary)
+        {
+            var japanese = LocalizationService.JaJpDictionary[key];
+            Assert.False(string.IsNullOrWhiteSpace(japanese), key);
+            var arguments = System.Text.RegularExpressions.Regex.Matches(template, @"\{\d+(?:[^}]*)\}")
+                .Select(match => match.Value).OrderBy(value => value);
+            var translatedArguments = System.Text.RegularExpressions.Regex.Matches(japanese, @"\{\d+(?:[^}]*)\}")
+                .Select(match => match.Value).OrderBy(value => value);
+            Assert.Equal(arguments, translatedArguments);
+            Assert.Equal(System.Text.CompositeFormat.Parse(template).MinimumArgumentCount,
+                System.Text.CompositeFormat.Parse(japanese).MinimumArgumentCount);
+        }
+    }
+
     [Theory]
     [InlineData("ActualEncoderPending")]
     [InlineData("ActualEncoderFormat")]

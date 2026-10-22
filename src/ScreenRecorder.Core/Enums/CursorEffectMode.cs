@@ -24,5 +24,8 @@ public enum CursorEffectMode
     /// <summary>
     /// 隱藏滑鼠游標 (完全不錄製游標)
     /// </summary>
-    Hidden
+    Hidden,
+
+    /// <summary>細長虛擬教鞭，尖端跟隨滑鼠。</summary>
+    PresentationStick
 }

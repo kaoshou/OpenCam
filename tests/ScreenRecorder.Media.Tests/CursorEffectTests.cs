@@ -8,6 +8,19 @@ namespace ScreenRecorder.Media.Tests;
 
 public class CursorEffectTests
 {
+    [Avalonia.Headless.XUnit.AvaloniaFact]
+    public void PresentationStickCanBeSelectedAndPassedToRecording()
+    {
+        var main = new ScreenRecorder.UI.ViewModels.MainViewModel(forScreenshot: true);
+        try
+        {
+            var stick = Assert.Single(main.AvailableCursorEffects, o => o.Mode == CursorEffectMode.PresentationStick);
+            main.SelectedCursorEffect = stick;
+            Assert.Equal(CursorEffectMode.PresentationStick, main.BuildProjectConfiguration().CursorEffect);
+        }
+        finally { main.Cleanup(); }
+    }
+
     [Fact]
     public void BuildFFmpegArguments_WhenCursorHidden_ShouldIncludeDrawMouseZero()
     {

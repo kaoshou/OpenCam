@@ -30,7 +30,7 @@ public sealed class ProjectTimelineControl : Control
     public ProjectTimelineControl()
     {
         Focusable = true;
-        ContextRequested += OnExportContextRequested;
+        ContextRequested += OnClipContextRequested;
         ClipToBounds = true;
         ToolTip.SetPlacement(this, PlacementMode.Pointer);
         DataContextChanged += (_, _) => Bind();
@@ -38,7 +38,7 @@ public sealed class ProjectTimelineControl : Control
         DetachedFromVisualTree += (_, _) => { CancelGesture(); if (_model is not null) _model.PropertyChanged -= Changed; _model = null; };
     }
     public event Func<ProjectExportFormat, Guid?, Task>? ExportRequested;
-    private void OnExportContextRequested(object? sender, ContextRequestedEventArgs e)
+    private void OnClipContextRequested(object? sender, ContextRequestedEventArgs e)
     {
         ContextMenu?.Close(); ContextMenu = null; e.Handled = true;
         if (_model is not { CanEditTimeline: true } vm) return;
@@ -51,9 +51,28 @@ public sealed class ProjectTimelineControl : Control
         }
         else id = vm.SelectedClip?.Id;
         if (id is not Guid clipId || vm.Clips.FirstOrDefault(c => c.Id == clipId) is not { } clip) return;
-        CancelGesture(); vm.SelectedClip = clip;
-        ContextMenu = new ContextMenu { Items = { ProjectClipExportMenu.Create(vm, clipId,
-            (format, selected) => ExportRequested?.Invoke(format, selected) ?? Task.CompletedTask) } };
+        CancelGesture();
+        var target = new ProjectClipContextTarget(vm.State.ProjectId, vm.State.ServerInstanceId, vm.State.Revision, clipId);
+        bool Valid() => ReferenceEquals(_model, vm) && vm.CanUseClipContext(target);
+        MenuItem Item(string key, Func<Task> action)
+        {
+            var item = new MenuItem { Header = vm.Strings[key] };
+            item.Click += async (_, args) => { args.Handled = true; if (Valid()) await action(); };
+            return item;
+        }
+        var menu = new ContextMenu();
+        menu.Items.Add(Item("ClipRenameAction", async () =>
+        {
+            if (TopLevel.GetTopLevel(this) is not Window owner) return;
+            var name = await new ProjectNameDialog(clip.Name, rename: true, clip: true).ShowDialog<string?>(owner);
+            if (name is not null && Valid()) await vm.RenameClipFromContextAsync(target, name);
+        }));
+        menu.Items.Add(new Separator());
+        menu.Items.Add(ProjectClipExportMenu.Create(vm, clipId,
+            (format, selected) => Valid() ? ExportRequested?.Invoke(format, selected) ?? Task.CompletedTask : Task.CompletedTask));
+        menu.Items.Add(new Separator());
+        menu.Items.Add(Item("ProjectDeleteClip", () => vm.DeleteClipFromContextAsync(target)));
+        ContextMenu = menu;
         ContextMenu.Open(this);
     }
     private void Bind()

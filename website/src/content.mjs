@@ -26,7 +26,7 @@ export const content = {
     settingsAlt: `OpenCam ${mainScreenshotVersion} macOS 繁體中文偏好設定視窗`,
     mainCaption: `錄影中與收音波形 · macOS ${mainScreenshotVersion}`, settingsCaption: `偏好設定 · macOS ${mainScreenshotVersion}`,
     editorTitle: '錄好的內容，輕鬆剪輯。',
-    editorText: '上方預覽、下方時間軸，搭配縮圖與波形定位。分割、裁剪或刪除不需要的部分，也能拖曳左側片段清單調整順序。儲存專案不必立即輸出 MP4，下次可從首頁開啟並追加錄製。',
+    editorText: '上方預覽、下方時間軸，搭配縮圖與波形定位。分割、裁剪或刪除不需要的部分，也能拖曳左側片段清單調整順序。時間軸片段右鍵可更改名稱、刪除或匯出 MP4／GIF。程式介面支援繁體中文、英文及日文。',
     editorAlt: `OpenCam ${mainScreenshotVersion} 繁體中文剪輯器，顯示教學簡報影片、片段縮圖、音訊波形與時間軸`,
     editorCaption: `編輯錄製內容 · ${mainScreenshotVersion} · 自製教學影片`,
     editorPoints: ['拖曳時間尺持續預覽，放開後精確定位', '固定起點／終點旗標，標記本身不裁剪影片', '緊湊控制列與字幕選單；儲存、輸出分開操作'],
@@ -47,7 +47,8 @@ export const content = {
       ['08', '逐字稿搜尋', '搜尋已附加字幕，標示關鍵字並跳到該時間；可跟隨播放或自由閱讀，清單限高捲動。'],
       ['09', '錄前聲音確認', '確認已選的系統聲音與麥克風，提供五秒聲音試錄與回放。獨立狀態區清楚顯示載入、試錄與正式錄製準備。'],
       ['10', '快捷鍵標記重點', '錄影時按按鈕或自訂快捷鍵；編輯器可定位、改名與刪除，滑鼠停在紫色旗標可查看完整名稱，不改寫原始影片。'],
-      ['11', 'GIF 與單一片段匯出', '整部影片或單一片段可匯出 MP4／GIF。GIF 可選大小與 FPS、沒有音訊；達五分鐘會提示轉換時間與檔案大小，確認後仍可繼續。']
+      ['11', 'MP4 品質與 GIF 匯出', '整部影片、單一片段及網頁播放器的 MP4 可設定壓縮品質、原始／最高 1080p／最高 720p，保持比例、不放大並記住選擇。壓縮需重新編碼，檔案大小依內容而異。GIF 可選大小與 FPS、沒有音訊；達五分鐘會提醒並可繼續。'],
+      ['12', '依內容選擇擷取方式', '影片、動畫或遊戲的一般擷取不夠順暢時，可嘗試高效能擷取；一般操作與簡報可維持關閉。Windows 使用 WGC，優先於 GDI／桌面擷取選單；Mac 使用 ScreenCaptureKit，搭配自動或 Apple 硬體編碼。不提高畫質或保證 FPS，若無法啟動或較卡，可關閉比較。錄製提供 5／10／20／30／40 FPS，預設 10。']
     ],
     processEyebrow: '錄影與輸出', processTitle: '保留原始錄影，自由選擇輸出。',
     processText: '錄影片段以 MKV 保存在專案內，剪輯不覆寫原始素材。隨時儲存、重開及追加錄影，再依需求輸出 MP4、GIF 或網頁播放器。相容的完整片段可快速輸出；修剪與效果會依內容進行轉換，介面會顯示目前進度。',
@@ -70,7 +71,7 @@ export const content = {
     settingsAlt: `OpenCam ${mainScreenshotVersion} macOS English preferences window`,
     mainCaption: `Recording with audio waveforms · macOS ${mainScreenshotVersion}`, settingsCaption: `Preferences · macOS ${mainScreenshotVersion}`,
     editorTitle: 'Turn your recording into a clearer story.',
-    editorText: 'Preview above, timeline below. Use thumbnails and waveforms to find the right moment, split and trim clips, remove a range, or drag the clip list to reorder. Save the project without exporting, then reopen it from home to append another recording.',
+    editorText: 'Preview above, timeline below. Use thumbnails and waveforms to split, trim or remove clips, and drag the clip list to reorder. Right-click timeline clips to rename, delete or export MP4/GIF. The application interface supports Traditional Chinese, English and Japanese.',
     editorAlt: `OpenCam ${mainScreenshotVersion} English editor with an authored tutorial video, clip thumbnails, audio waveforms and timeline`,
     editorCaption: `Edit recording · ${mainScreenshotVersion} · Authored tutorial video`,
     editorPoints: ['Progressive ruler scrubbing; settle on release', 'Fixed IN/OUT flags; marking never trims media', 'Compact controls and caption menu; save and export separately'],
@@ -91,7 +92,8 @@ export const content = {
       ['08', 'Transcript search', 'Search attached captions, highlight matches and jump to their timestamps. Follow playback or read freely in a bounded scrolling list.'],
       ['09', 'Audio preflight', 'Check selected system-audio and microphone inputs with a five-second audio trial and replay. A separate status area shows loading, trials and recording preparation.'],
       ['10', 'Bookmark with a shortcut', 'Add bookmarks with a button or configurable shortcut; seek, rename or remove them in the editor. Hover over purple timeline flags for full names without rewriting video.'],
-      ['11', 'GIF and individual clip export', 'Export a whole video or one clip as MP4/GIF. Choose GIF size and FPS; GIF has no audio. Exports of five minutes or longer show a confirmation about time and file size, with the option to continue.']
+      ['11', 'MP4 quality and GIF export', 'Choose MP4 compression and original/up to 1080p/up to 720p resolution for whole videos, individual clips or Web players. Choices are remembered, aspect ratio preserved and videos never upscaled. Compression re-encodes; size depends on content. GIF offers size/FPS options without audio, with confirmation at five minutes.'],
+      ['12', 'Choose capture for your content', 'Try high-performance capture when standard capture is not smooth for video, animation or games; leave it off for everyday tasks and slides. Windows uses WGC instead of the GDI/Desktop Duplication selector. Mac uses ScreenCaptureKit with Auto or Apple hardware encoding. It does not enhance quality or guarantee FPS; turn off to compare if startup fails or motion is worse. Recording offers 5/10/20/30/40 FPS, default 10.']
     ],
     processEyebrow: 'Recording and export', processTitle: 'Keep originals. Choose how to share.',
     processText: 'MKV recordings stay in your project while edits preserve the original media. Save, reopen and append recordings, then export MP4, GIF or a Web player. Compatible whole clips support fast export; trims and effects are converted as needed, with progress shown in the interface.',

@@ -13,6 +13,8 @@ internal static class CaptureStatusFormatter
         {
             CaptureBackend.Gdi => "GDI",
             CaptureBackend.DesktopDuplication => "Desktop Duplication",
+            CaptureBackend.WindowsGraphicsCapture => "Windows Graphics Capture",
+            CaptureBackend.ScreenCaptureKit => "ScreenCaptureKit",
             _ => null
         };
         if (name == null) return strings["ActualCapturePending"];
@@ -22,6 +24,7 @@ internal static class CaptureStatusFormatter
             CaptureFallbackReason.MappingUncertain => "CaptureFallbackMapping",
             CaptureFallbackReason.UnsupportedTopology => "CaptureFallbackTopology",
             CaptureFallbackReason.StartupFailed => "CaptureFallbackStartup",
+            CaptureFallbackReason.AdapterIdentityUncertain => "CaptureFallbackAdapter",
             _ => null
         };
         return strings.GetFormatted("ActualCaptureFormat", name) +

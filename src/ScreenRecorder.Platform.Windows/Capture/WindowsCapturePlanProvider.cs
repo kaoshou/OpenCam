@@ -39,6 +39,9 @@ public sealed class WindowsCapturePlanProvider(WindowsFFmpegProvider provider, I
                 CaptureSource = CaptureSourceType.CustomRegion };
         }
         var selection = WindowsCapturePlanner.Select(selectionConfig, bounds, currentMonitors, outputs, available);
+        Log.Information("Capture selection: requested={Requested}, actual={Actual}, fallback={Fallback}, filterAvailable={FilterAvailable}, monitors={Monitors}, outputs={Outputs}, unattestedOutputs={Unattested}",
+            config.WindowsCaptureMode, selection.Backend, selection.FallbackReason, available,
+            currentMonitors.Count, outputs.Count, outputs.Count(o => !o.IsDefaultAdapter));
         if (pinned != null && (selection.Backend != pinned.Backend || selection.DeviceName != pinned.DeviceName
                 || selection.AdapterLuid != pinned.AdapterLuid || selection.OutputBounds != pinned.OutputBounds))
             throw new InvalidOperationException("The original capture output is no longer available.");

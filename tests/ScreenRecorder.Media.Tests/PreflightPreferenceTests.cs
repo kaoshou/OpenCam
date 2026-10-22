@@ -17,7 +17,7 @@ public sealed class PreflightPreferenceUiTests
     [Avalonia.Headless.XUnit.AvaloniaTheory]
     [InlineData(AppLanguage.ZhTw)]
     [InlineData(AppLanguage.EnUs)]
-    public async Task SettingsToggleLoadsSavesAndResetsPreflightPreference(AppLanguage language)
+    public async Task SettingsDropdownLoadsSavesAndResetsPreflightMode(AppLanguage language)
     {
         var strings = ScreenRecorder.UI.Localization.LanguageManager.Instance;
         var originalLanguage = strings.CurrentLanguage;
@@ -32,21 +32,26 @@ public sealed class PreflightPreferenceUiTests
         try
         {
             window.Show();
-            var toggle = window.FindControl<CheckBox>("RecordingPreflightToggle");
-            Assert.NotNull(toggle);
-            Assert.False(toggle.IsChecked);
-            var label = Assert.IsType<TextBlock>(toggle.Content).Text;
-            Assert.False(string.IsNullOrWhiteSpace(label));
-            Assert.NotEqual("RecordingPreflightSetting", label);
-            Assert.Equal(language == AppLanguage.ZhTw ? "錄製前確認聲音（建議開啟）" : "Check audio before recording (recommended)", label);
-            toggle.IsChecked = true;
+            var dropdown = window.FindControl<ComboBox>("RecordingPreflightModePicker");
+            Assert.NotNull(dropdown);
+            Assert.Equal(3, dropdown.ItemCount);
+            Assert.Equal(0, dropdown.SelectedIndex);
+            Assert.Equal(language == AppLanguage.ZhTw ? "錄製前確認聲音" : "Check audio before recording",
+                window.FindControl<TextBlock>("RecordingPreflightLabel")!.Text);
+            dropdown.SelectedIndex = 2;
             await vm.SaveAsync();
-            Assert.True(JsonSerializer.SerializeToElement(store.CurrentSettings).GetProperty("RecordingPreflightEnabled").GetBoolean());
-            toggle.IsChecked = false;
+            Assert.Equal(2, JsonSerializer.SerializeToElement(store.CurrentSettings).GetProperty("RecordingPreflightMode").GetInt32());
+            strings.CurrentLanguage = language == AppLanguage.ZhTw ? AppLanguage.EnUs : AppLanguage.ZhTw;
+            Assert.Equal(2, dropdown.SelectedIndex);
+            strings.CurrentLanguage = language;
+            Assert.Equal(2, dropdown.SelectedIndex);
+            dropdown.SelectedIndex = 0;
             await vm.SaveAsync();
-            Assert.False(JsonSerializer.SerializeToElement(store.CurrentSettings).GetProperty("RecordingPreflightEnabled").GetBoolean());
+            Assert.Equal(0, JsonSerializer.SerializeToElement(store.CurrentSettings).GetProperty("RecordingPreflightMode").GetInt32());
             vm.ResetToDefaults();
-            Assert.True(toggle.IsChecked);
+            Assert.Equal(1, dropdown.SelectedIndex);
+            await vm.SaveAsync();
+            Assert.Equal(1, JsonSerializer.SerializeToElement(store.CurrentSettings).GetProperty("RecordingPreflightMode").GetInt32());
         }
         finally { window.Close(); strings.CurrentLanguage = originalLanguage; }
     }
@@ -55,11 +60,16 @@ public sealed class PreflightPreferenceUiTests
 public partial class RecordingEncoderLifecycleTests
 {
     [Theory]
-    [InlineData(false, true, false)]
-    [InlineData(true, true, false)]
-    [InlineData(true, false, false)]
-    [InlineData(true, true, true)]
-    public async Task PreflightPreferenceAppliesToNewRecordingResumeAndInsertAndAlwaysShowsPreparation(bool enabled, bool selected, bool insert)
+    [InlineData(0, true, false, 0, 0, 0)]
+    [InlineData(1, true, false, 1, 1, 1)]
+    [InlineData(2, true, false, 1, 2, 3)]
+    [InlineData(0, true, true, 0, 0, 0)]
+    [InlineData(1, true, true, 1, 2, 2)]
+    [InlineData(2, true, true, 1, 2, 3)]
+    [InlineData(1, false, false, 0, 0, 0)]
+    [InlineData(2, false, false, 0, 0, 0)]
+    public async Task PreflightModeAppliesToNewRecordingResumeAndInsertAndAlwaysShowsPreparation(
+        int mode, bool selected, bool insert, int startChecks, int totalChecks, int repeatedResumeChecks)
     {
         await using var scope = new RecordingScope();
         await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
@@ -69,7 +79,7 @@ public partial class RecordingEncoderLifecycleTests
             { MessageType = command, PayloadJson = JsonSerializer.Serialize(request) })), () => true, () => Task.CompletedTask);
         main.OutputDirectory = scope.Configuration.OutputDirectory;
         main.RequestRecordingProjectName = _ => Task.FromResult<string?>("Preflight preference");
-        main.ApplyNewSettings(JsonSerializer.Deserialize<UserSettings>($"{{\"RecordingPreflightEnabled\":{(enabled ? "true" : "false")}}}")!);
+        main.ApplyNewSettings(JsonSerializer.Deserialize<UserSettings>($"{{\"RecordingPreflightMode\":{mode}}}")!);
         main.RecordMicrophone = selected;
         main.RecordSystemAudio = false;
         var preparation = new List<ScreenRecorder.UI.Preflight.RecordingPreparationState>();
@@ -78,12 +88,12 @@ public partial class RecordingEncoderLifecycleTests
         main.RequestRecordingPreflight = (configuration, _) =>
         {
             checks++;
-            return Task.FromResult<RecordingConfiguration?>(enabled ? configuration : null);
+            return Task.FromResult<RecordingConfiguration?>(configuration);
         };
         try
         {
             await main.StartRecordingAsync();
-            Assert.Equal(enabled && selected ? 1 : 0, checks);
+            Assert.Equal(startChecks, checks);
             Assert.Contains(ScreenRecorder.UI.Preflight.RecordingPreparationState.Preparing, preparation);
             Assert.Equal(ScreenRecorder.UI.Preflight.RecordingPreparationState.Started, preparation.Last());
             Assert.True(main.IsRecording);
@@ -91,10 +101,16 @@ public partial class RecordingEncoderLifecycleTests
             await main.TogglePauseResumeAsync();
             if (insert) await main.StartEditorRecordingAsync(0, coordinator.Current!.Revision);
             else await main.TogglePauseResumeAsync();
-            Assert.Equal(enabled && selected ? 2 : 0, checks);
+            Assert.Equal(totalChecks, checks);
             Assert.Equal(2, preparation.Count(s => s == ScreenRecorder.UI.Preflight.RecordingPreparationState.Started));
             Assert.True(main.IsRecording);
             Assert.Equal(2, scope.Factory.Paths.Count);
+            await main.TogglePauseResumeAsync();
+            await main.TogglePauseResumeAsync();
+            Assert.Equal(repeatedResumeChecks, checks);
+            Assert.True(main.IsRecording);
+            Assert.Equal(3, scope.Factory.Paths.Count);
+            Assert.Equal(3, preparation.Count(s => s == ScreenRecorder.UI.Preflight.RecordingPreparationState.Started));
             Assert.True((await coordinator.FinishAsync(Guid.NewGuid())).Success);
         }
         finally { main.Cleanup(); }
@@ -123,7 +139,7 @@ public partial class RecordingEncoderLifecycleTests
             await main.StartRecordingAsync();
             Assert.True(main.IsRecording);
             await main.TogglePauseResumeAsync();
-            main.ApplyNewSettings(new UserSettings()); // Default-on settings take effect immediately.
+            main.ApplyNewSettings(JsonSerializer.Deserialize<UserSettings>("{\"RecordingPreflightMode\":2}")!);
             main.RecordMicrophone = true;
             main.RequestRecordingPreflight = (_, _) => Task.FromResult<RecordingConfiguration?>(null);
             await main.TogglePauseResumeAsync();

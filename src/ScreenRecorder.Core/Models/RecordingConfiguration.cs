@@ -10,6 +10,7 @@ namespace ScreenRecorder.Core.Models;
 public class RecordingConfiguration
 {
     public string? ProjectName { get; set; }
+    public bool NativeCaptureEnabled { get; set; }
     private WindowsCaptureMode _windowsCaptureMode;
     public WindowsCaptureMode WindowsCaptureMode
     {
@@ -28,7 +29,7 @@ public class RecordingConfiguration
 
     public CaptureRegion Region { get; set; } = CaptureRegion.Empty;
 
-    public int Fps { get; set; } = 30;
+    public int Fps { get; set; } = 10;
 
     public AudioSourceType AudioSource { get; set; } = AudioSourceType.SystemAndMicrophone;
 

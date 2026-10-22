@@ -2,7 +2,13 @@
 
 ## v0.3.11: audio-only preflight
 
-Preflight remains enabled by default in Settings, but now checks audio only, without screen capture or preview. Disabled checks or no selected inputs bypass audio checking while retaining formal preparation, permissions, project/output validation and actual start acknowledgement. Formal video encoding and audio recording pipelines are unchanged.
+Settings → Video Quality & Actions → **Check audio before recording** offers:
+
+- **Off**: Skip audio confirmation at both recording start and resume.
+- **At recording start only (default)**: Check audio when starting a recording; resume from pause without an audio check.
+- **At recording start and resume**: Check audio before starting and before every resume from pause.
+
+Adding or inserting a recording counts as a new start. Audio confirmation does not capture or preview video. Turning it off, or selecting no audio inputs, still shows recording preparation and keeps required permission, project and output checks.
 
 Hover over a purple timeline bookmark flag to see its full name. Moving away hides it, while clicking still seeks to the bookmark. Source video remains unchanged.
 
@@ -28,9 +34,9 @@ New recordings, appended recordings and editor insertions first resolve the proj
 
 Live checking activates selected audio inputs without saving a file. A five-second trial shows startup first, counts only after audio acknowledgement, then prepares and verifies playback. Its private temporary PCM-audio MKV contains no video track and never enters the project. It does not validate screen capture or the video encoder. Replay uses the final five seconds after startup, with input monitoring stopped so replay cannot validate its own input. Listening to the mixed track does not replace independent meters. After replay, start recording directly or optionally select **Check again**.
 
-Confirmation first stops audio checking and releases devices. The same window becomes a compact formal-preparation area until actual recording acknowledgement. Unknown startup remains protected against duplicate starts or false cancellation, while the main window's Stop/safety controls remain accessible. A confirmed failure can be dismissed; inspect the error on the main window.
+After confirmation, the window shows recording preparation and closes automatically when recording starts. Wait for preparation to finish and avoid repeated starts. To end preparation, use the main window's Stop or safe-stop controls. If the window says **Unable to start recording**, select **Close**, then follow the error message on the main window.
 
-Cancel/close stops audio capture/playback and cleans the trial. Wait for capture and replay to stop before formal recording. An unchanged paused recording can resume directly; changed configuration or display/audio devices require another check. Monitor audio levels and status messages if devices or permissions change during recording.
+Cancel/close stops audio capture/playback and cleans the trial. Wait for capture and replay to stop before formal recording. The **Check audio before recording** option determines whether an audio check appears on resume; the default resumes directly. Monitor audio levels and status messages if devices or permissions change during recording.
 
 ## Released features
 
@@ -40,17 +46,29 @@ v0.3.5: drag the ruler for progressive preview, settling at release. Playing pre
 
 v0.3.5 multilingual captions: attach SRT/VTT by selection or drop; unique project-owned copies avoid collisions. Language names follow the application language and include codes. Select the default on a subtitle card, apply, then save explicitly. Preview/fullscreen and Web CC controls offer language, size, theme, opacity and position; no MP4 burn-in. The Web sidebar offers searchable transcripts, highlighting, seek preserving play/pause, optional follow mode and bounded scrolling. Timeline edits require synchronization confirmation. **Subtitle projects use format4; released0.3.3 cannot open them. Back up first.** See [subtitle limits](https://github.com/kaoshou/OpenCam/blob/master/docs/WEB_PLAYER_EXPORT.md).
 
-## New in v0.2.5: experimental Windows capture
+## High-performance capture
 
-Starting with v0.2.5, Settings → Video Quality & Actions → Windows screen capture offers Compatible capture (GDI), the unchanged default, and Modern capture (experimental).
+While idle, enable **High-performance capture** in Settings → Video Quality & Actions. Windows uses Windows Graphics Capture; macOS uses ScreenCaptureKit with Apple VideoToolbox. This option is off by default and overrides the standard capture selection when enabled. Check **Actual capture** after startup to see the active method.
 
-If the live pointer flickers while the resulting MP4 looks normal, try the experimental mode and compare both the physical screen and the recording. The status panel must say **Desktop Duplication** to confirm it is active; GDI status includes a fallback reason. Initial support requires exactly one hardware graphics adapter with uniquely mapped, unrotated outputs and regions contained in one output. Multiple monitors on that adapter are supported, not limited to two. Multiple hardware GPUs (including headless GPUs), cross-monitor regions, rotated outputs, ambiguous mappings, and missing FFmpeg capabilities use GDI. This avoids selecting the wrong screen when Recorder and FFmpeg have different per-executable GPU preferences.
+Capture one display or a rectangle within it. On Mac, select Auto or Apple hardware encoding and grant screen-recording permission. If recording cannot start, turn this option off to use standard capture.
+
+**When should I enable it?** Try it for video, animation or games when standard capture is not smooth. Leave it off for everyday tasks, slides, or recordings that are already smooth. Compare the same region at 30 FPS and Standard quality before changing resolution or FPS. This changes capture technology, not picture quality, and does not guarantee the requested FPS. OpenCam still records the selected screen area; this is not a dedicated game-hook recording mode.
+
+On Windows, enabling it uses WGC instead of the GDI/Desktop Duplication selection; disabling it restores that selection. On Mac, standard capture uses the existing FFmpeg/AVFoundation path, while high-performance capture uses ScreenCaptureKit with Apple hardware encoding. The Windows capture selector does not apply to Mac. If startup fails, the picture is black or playback is less smooth, stop and turn it off to compare.
+
+For moving content, start with 30 FPS and adjust for your computer's performance. Higher frame rates, full Retina resolution and simultaneous high-resolution playback increase GPU load. High-performance capture uses SDR H.264; HDR colours may differ. Stop recording before changing display configuration.
+
+## Windows screen capture
+
+Settings → Video Quality & Actions → Windows screen capture offers **Compatible capture (GDI)** and **Desktop capture (Desktop Duplication)**. GDI is the default. Choose a method for your computer and display setup. When enabled, **High-performance capture** takes priority and uses Windows Graphics Capture.
+
+After recording starts, **Actual capture** shows GDI, Desktop Duplication or Windows Graphics Capture. Desktop capture supports unrotated displays on a single hardware graphics adapter, recording one display or a region within it at a time. Multiple GPUs, cross-display regions, rotated displays or uncertain GPU mapping use GDI and show the reason.
 
 Change capture mode only while idle, not while paused. Audio/cursor controls remain available during pause. Recording keeps the same capture method and encoder after it starts. If a display or desktop change prevents capture, recording stops and preserves working files for recovery.
 
 OpenCam lets you record, edit, and resume recording. It writes MKV sources, retains them alongside a reopenable editing project, and exports MP4 when needed. Crash Recovery can attempt to preserve successfully written recordings; project recovery drafts protect interrupted unsaved edits.
 
-> This guide covers OpenCam v0.3.12: recording, editing, audio trials and MP4/GIF/Web export. See [what changed in this version](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.3.12.md).
+> This guide covers OpenCam v0.4.0: recording, editing, audio trials and MP4/GIF/Web export. See [what changed in this version](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.4.0.md).
 
 v0.3.3 replaces manual export with an **Export…** menu offering MP4 video or Web player. MP4 accepts a filename; Web player creates a unique folder containing index.html, media.mp4 and opencam-player.js. Chapters follow saved clips and show start times and durations in a scrollable index. Overlay controls provide seeking, volume, speed, wide-screen and fullscreen. Move the complete folder together and use an H.264/AAC-capable browser. See [the web export format](https://github.com/kaoshou/OpenCam/blob/master/docs/WEB_PLAYER_EXPORT.md).
 
@@ -90,14 +108,14 @@ These illustrations show v0.3.5. See this guide for current features. Select an 
 
 - Windows 10 or Windows 11, x64.
 - Both the installer and portable package include the required runtime components.
-- Download `OpenCam_v0.3.12_Windows_x64_Setup.exe` or `OpenCam_v0.3.12_Windows_x64_Portable.zip` from [Releases](https://github.com/kaoshou/OpenCam/releases). Filenames identify the version, Windows platform, and x64 architecture.
+- Download `OpenCam_v0.4.0_Windows_x64_Setup.exe` or `OpenCam_v0.4.0_Windows_x64_Portable.zip` from [Releases](https://github.com/kaoshou/OpenCam/releases). Filenames identify the version, Windows platform, and x64 architecture.
 - System audio uses Windows loopback capture. A microphone can be selected in OpenCam.
 
 ### macOS
 
 - macOS 13 Ventura or later.
 - The official build currently supports Apple Silicon (arm64). An Intel Mac (x64) build is not currently provided.
-- Download `OpenCam_v0.3.12_macOS_arm64.dmg` from [Releases](https://github.com/kaoshou/OpenCam/releases); arm64 identifies Apple Silicon.
+- Download `OpenCam_v0.4.0_macOS_arm64.dmg` from [Releases](https://github.com/kaoshou/OpenCam/releases); arm64 identifies Apple Silicon.
 - After first launch, open **System Settings → Privacy & Security** and allow OpenCam to use:
   - Screen & System Audio Recording
   - Microphone, when microphone recording is needed
@@ -107,7 +125,7 @@ These illustrations show v0.3.5. See this guide for current features. Select an 
 ## 2. Quick Start
 
 1. Under **Capture Range**, select **Monitor** or **Custom Rectangle**.
-2. Select the FPS, encoder, and cursor style. If needed, choose the default quality in Preferences first.
+2. Select the FPS (5, 10, 20, 30 or 40; default 10), encoder, and cursor style. If needed, choose the default quality in Preferences first.
 3. Choose whether to record system audio and the microphone.
 4. Confirm that the output location has at least 1 GB of free space.
    You can set **Export MP4 automatically after stopping** before your first recording. The choice applies to newly created recording projects; opening an existing project uses that project's saved setting.
@@ -146,8 +164,11 @@ OpenCam converts the region to physical screen pixels and, when necessary, adjus
 
 ### FPS
 
+- **5/10 FPS**: Suitable for slides, step-by-step instructions and screens with little motion. The default is 10 FPS.
 - **30 FPS**: Recommended for tutorials, presentations, meetings, and long recordings. It uses fewer resources and produces smaller files.
-- **60 FPS**: Suitable for fast motion, animation, or content that benefits from smoother movement, but increases CPU/GPU load and file size.
+- **20/40 FPS**: Adjust for the content and system load. 40 FPS requires more processing and is not guaranteed to be smoother than 30 FPS.
+
+The recording selector no longer offers 60 FPS. An old 60 FPS preference migrates to 30 FPS; existing project and video timing metadata is not rewritten.
 
 ### Encoder
 
@@ -155,15 +176,14 @@ OpenCam converts the region to physical screen pixels and, when necessary, adjus
 - **CPU (libx264)**: Highly compatible, but generally uses more CPU.
 - **Hardware encoding**: Depending on the platform and hardware, OpenCam may use NVIDIA NVENC, Intel QSV, AMD AMF, or Apple VideoToolbox.
 
-The following encoder diagnostics are available starting with v0.2.4:
+The recording status panel shows the encoder in use:
 
 - **Auto does not guarantee hardware encoding.** Windows validates NVENC → QSV → AMF; macOS validates VideoToolbox. The first successful candidate is selected. An unavailable explicitly requested encoder falls back to CPU, not another hardware vendor.
-- Look for **Actual encoder** below the audio meters in the right-hand status panel. It is pending before startup; after startup it reports the Recorder's actual libx264 (CPU), NVENC, QSV, AMF, or VideoToolbox selection, including the CPU fallback reason. The user's Auto preference is not replaced.
-- Each probe has a 3-second limit, within a 9-second overall work budget, with up to 2 additional seconds for required cleanup. Successful results are cached for 10 minutes; failures cool down for 30 seconds. An FFmpeg file change or hardware startup failure invalidates relevant successful results. Cancellation does not permanently mark hardware unavailable.
+- Look for **Actual encoder** below the audio meters. Before startup it says the encoder will be shown after recording starts; afterwards it displays libx264 (CPU), NVENC, QSV, AMF or VideoToolbox, including the reason when CPU encoding is used.
 - A failed hardware start permits **one CPU retry only before the first successful segment**. After that, the session keeps its actual encoder, including after paused audio/cursor changes. A failed resume retains valid segments and the paused state: retry or Stop to finalize them. Use recovery after an interruption. Failed candidates never overwrite existing files or enter the normal concatenation list.
-- [Application logs](#settings-file-and-application-logs) distinguish successful probes, nonzero exits, timeouts, cancellation, and failure to launch, as well as cache/fallback decisions. A failed or timed-out probe does **not establish that integrated graphics lack support**. Check paths and device details before sharing logs.
+- If recording cannot start, check the [application logs](#settings-file-and-application-logs). Review paths and device details before sharing logs.
 
-Real Windows CPU comparisons and recording-time cursor flicker remain unverified on affected hardware. This stage does not replace GDI capture or claim a flicker fix or measured performance gain. It does not silently reduce resolution, FPS, or quality.
+Encoder fallback preserves the selected recording resolution, FPS and quality.
 
 After successful process cleanup, unconfirmed failed attempts are retained in the same session directory as `failed_attempt_*.mkv` for diagnosis or expert manual inspection, not automatic concatenation into normal or recovered output. Cleanup or quarantine failure blocks another launch. Confirmed segments and unknown crash-time working files retain the existing recovery behavior.
 
@@ -182,6 +202,7 @@ Encoders use different quality-control methods, so the same preset does not guar
 - **Yellow halo**: Adds a visible halo around the pointer.
 - **Halo and click ripple**: Adds both the halo and visual click feedback.
 - **Hidden cursor**: Omits the pointer from the video.
+- **Presentation pointer (stick)**: A red tip follows the pointer, with an outlined white shaft extending down-right for presentations and demonstrations. Mouse interaction stays the same.
 
 ### System Audio and Microphone
 
@@ -261,7 +282,7 @@ Original project MKVs must be retained for reopening, editing and continued reco
 
 ### General and Language
 
-- **Language**: Traditional Chinese or English (US).
+- **Language**: Traditional Chinese, English (US) or Japanese for the application interface.
 - **Open output folder when recording finishes**: Opens the output location after an MP4 is created successfully.
 - **Minimize when recording starts**: The same option shown on the main window.
 
@@ -424,9 +445,22 @@ If no recoverable content appears, check the following in order:
 
 ## GIF and Individual Clip Export
 
+### MP4 export quality
+
+After choosing **Export… → MP4**, or **Export clip… → MP4**, select quality before choosing a filename. Web player export shows the same settings before the destination folder; they apply to its `media.mp4`.
+
+- Quality: Keep current settings (default), Standard compression or Smaller file.
+- Resolution: Original, Up to 1080p or Up to 720p. Aspect ratio is preserved without upscaling; portrait videos use portrait dimensions.
+- The last accepted choice is remembered. Keep current settings retains the existing export strategy. Compression or resizing re-encodes, may take longer and may soften text/details. Actual size depends on the video content.
+- Export settings do not modify sources, project canvas, frame rate or captions. Automatic MP4 export on stop retains its existing settings.
+
+Right-click a video or audio clip in the timeline to Rename, Delete clip, or expand **Export clip… → MP4/GIF**. Deleting removes the timeline clip, not its original media, and can be undone.
+
 The original video's Export menu and the editor offer GIF below MP4. In the clip list or timeline context menu, hover **Export clip…** to reveal MP4 and GIF. Only that clip's retained range is exported; compound clips include their parts, not other grouped clips. MP4 retains applicable audio and effects; GIF has no audio.
 
-Choose a maximum width of 480/640/960/original and 10/15/20 FPS (default 640/15). GIF preserves aspect ratio, never upscales and loops continuously. There is no duration cap; at five minutes, an additional warning explains time, size and missing audio, and lets you continue. Long/high-resolution sources require substantial temporary disk space. Choose a new filename; existing files are not overwritten. After failure, select the format and target again from the export menu. Export does not modify originals, the project or subtitle timing, and does not burn in captions.
+Choose a maximum width of 480/640/960/original and 10/15/20 FPS (default 640/15). GIF preserves aspect ratio, never upscales and loops continuously. There is no duration cap; at five minutes, an additional warning explains time, size and missing audio, and lets you continue. Long/high-resolution sources require substantial temporary disk space. Export does not modify originals, the project or subtitle timing, and does not burn in captions.
+
+MP4 and GIF exports require a new filename. If a file or folder already exists at the selected location, choose **Choose another name** to return to the save dialog, or **Cancel**. Export starts only after a new destination is selected; existing content is kept. If export fails after starting, select the format and target again from the export menu.
 
 ## 12. Safe-Use Recommendations
 

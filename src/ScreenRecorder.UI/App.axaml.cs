@@ -34,6 +34,10 @@ public partial class App : Application
                         {
                             ScreenRecorder.UI.Localization.LanguageManager.Instance.CurrentLanguage = ScreenRecorder.Core.Localization.AppLanguage.ZhTw;
                         }
+                        else if (langCode.Equals("ja", StringComparison.OrdinalIgnoreCase) || langCode.Equals("ja-JP", StringComparison.OrdinalIgnoreCase))
+                        {
+                            ScreenRecorder.UI.Localization.LanguageManager.Instance.CurrentLanguage = ScreenRecorder.Core.Localization.AppLanguage.JaJp;
+                        }
                         break;
                     }
                 }
@@ -76,6 +80,8 @@ public partial class App : Application
                             overrideLang = ScreenRecorder.Core.Localization.AppLanguage.EnUs;
                         else if (desktop.Args[i + 1].Equals("zh", StringComparison.OrdinalIgnoreCase))
                             overrideLang = ScreenRecorder.Core.Localization.AppLanguage.ZhTw;
+                        else if (desktop.Args[i + 1].Equals("ja", StringComparison.OrdinalIgnoreCase) || desktop.Args[i + 1].Equals("ja-JP", StringComparison.OrdinalIgnoreCase))
+                            overrideLang = ScreenRecorder.Core.Localization.AppLanguage.JaJp;
                     }
                     else if (desktop.Args[i].Equals("--state", StringComparison.OrdinalIgnoreCase))
                     {

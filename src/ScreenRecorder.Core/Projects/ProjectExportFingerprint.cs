@@ -10,8 +10,15 @@ public static class ProjectExportFingerprint
     public static string Compute(RecordingProject project, ProjectExportOptions options)
     {
         var selected = ProjectExportSelection.Create(project, options);
-        if (options.Format == ProjectExportFormat.Mp4 && options.Scope == ProjectExportScope.WholeProject)
+        if (options.Format == ProjectExportFormat.Mp4 && options.Scope == ProjectExportScope.WholeProject &&
+            options.Mp4 is not { IsOriginal: false })
             return Compute(selected, Profile);
+        if (options.Mp4 is { IsOriginal: false } profile)
+        {
+            var compressed = new { Profile = "h264-aac-options-v1", options.Format, options.Scope,
+                Content = Compute(selected, Profile), Mp4 = profile };
+            return Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(compressed)));
+        }
         var payload = new {
             Profile = options.Format == ProjectExportFormat.Gif ? "gif-palette-v1" : Profile,
             options.Format, options.Scope,

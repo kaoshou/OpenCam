@@ -9,9 +9,11 @@ public static class ProjectExportSelection
         ProjectValidation.Validate(snapshot);
         if (!Enum.IsDefined(options.Format) || !Enum.IsDefined(options.Scope) ||
             (options.Format == ProjectExportFormat.Mp4 && options.Gif is not null) ||
+            (options.Format == ProjectExportFormat.Gif && options.Mp4 is not null) ||
             (options.Gif is { } gif && (gif.MaximumWidth is not (null or 480 or 640 or 960) ||
                 gif.FramesPerSecond is not (10 or 15 or 20))))
             throw new InvalidDataException("Invalid export format or GIF settings.");
+        options.Mp4?.Validate();
         if (options.Scope == ProjectExportScope.WholeProject)
         {
             if (options.ClipId is not null) throw new InvalidDataException("Whole export cannot specify a clip.");

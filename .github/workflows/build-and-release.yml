@@ -138,6 +138,8 @@ jobs:
         node --test tests/web-player/player.test.mjs
     - name: Test native system-audio helper
       run: bash tests/native/OpenCamSystemAudioTests.sh
+    - name: Compile and validate ScreenCaptureKit helper arguments
+      run: bash tests/native/OpenCamScreenCaptureTests.sh
 
   build-windows:
     needs: [verify-portable, verify-windows]

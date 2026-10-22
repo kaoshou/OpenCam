@@ -111,8 +111,8 @@ public partial class RecordingPreflightWindow : Window
             StatusMessage.Text = Strings[preparation == RecordingPreparationState.Failed ? "RecordingPreparationFailed" :
                 preparation is RecordingPreparationState.Confirming or RecordingPreparationState.Unconfirmed
                     ? "RecordingConfirming" : "RecordingPreparing"];
-            StatusHint.Text = Strings[preparation == RecordingPreparationState.Unconfirmed
-                ? "RecordingUnconfirmedHint" : "PreflightStartWait"];
+            StatusHint.Text = preparation == RecordingPreparationState.Failed ? "" : Strings[
+                preparation == RecordingPreparationState.Unconfirmed ? "RecordingUnconfirmedHint" : "PreflightStartWait"];
             StatusActivity.IsVisible = preparation != RecordingPreparationState.Failed;
             return;
         }
@@ -242,7 +242,9 @@ public partial class RecordingPreflightWindow : Window
         SilenceArea.IsVisible = false;
         TrialProgress.IsVisible = ErrorLabel.IsVisible = false;
         CancelButton.IsEnabled = state == RecordingPreparationState.Failed;
-        Heading.Text = Title = Strings["RecordingPreparing"];
+        CancelButton.Content = Strings[state == RecordingPreparationState.Failed ? "Close" : "Cancel"];
+        Heading.Text = Title = Strings[state == RecordingPreparationState.Failed
+            ? "RecordingPreparationFailedTitle" : "RecordingPreparing"];
         Privacy.IsVisible = false;
         MinHeight = 240; Height = 280;
         RenderPlaceholder();

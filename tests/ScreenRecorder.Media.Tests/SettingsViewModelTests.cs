@@ -27,6 +27,26 @@ public class MockSettingsService : ISettingsService
 
 public class SettingsViewModelTests
 {
+    [Avalonia.Headless.XUnit.AvaloniaFact]
+    public async Task JapaneseLanguage_CanBeSelectedSavedAndReloaded()
+    {
+        var service = new MockSettingsService();
+        var vm = new SettingsViewModel(service);
+        var original = vm.Strings.CurrentLanguage;
+        try
+        {
+            await vm.LoadSettingsAsync();
+            vm.SelectedLanguage = Assert.Single(vm.AvailableLanguages, option => option.Language == AppLanguage.JaJp);
+            await vm.SaveCommand.ExecuteAsync(null);
+            Assert.Equal(AppLanguage.JaJp, service.CurrentSettings.Language);
+            Assert.Equal("設定を保存", vm.Strings["SaveSettings"]);
+            var reloaded = new SettingsViewModel(service);
+            await reloaded.LoadSettingsAsync();
+            Assert.Equal(AppLanguage.JaJp, reloaded.SelectedLanguage?.Language);
+        }
+        finally { vm.Strings.CurrentLanguage = original; }
+    }
+
     [Fact]
     public void AboutVersionBindingsResolveToNonEmptyVersion()
     {

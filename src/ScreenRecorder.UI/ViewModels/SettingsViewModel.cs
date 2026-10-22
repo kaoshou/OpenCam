@@ -30,7 +30,12 @@ public partial class SettingsViewModel : ObservableObject
     public record QualityOption(string PresetKey, string DisplayName);
     public record DiskThresholdOption(double Value, string DisplayName);
     public record CaptureModeOption(WindowsCaptureMode Mode, string DisplayName);
+    public record PreflightModeOption(RecordingPreflightMode Mode, string DisplayName);
+    public ObservableCollection<PreflightModeOption> AvailablePreflightModes { get; } = new();
+    [ObservableProperty] private PreflightModeOption? _selectedPreflightMode;
     public bool SupportsWindowsCapture { get; }
+    public bool SupportsNativeCapture => SupportsWindowsCapture || OperatingSystem.IsMacOS();
+    [ObservableProperty] private bool _nativeCaptureEnabled;
     public ObservableCollection<CaptureModeOption> AvailableCaptureModes { get; } = new();
     [ObservableProperty] private CaptureModeOption? _selectedCaptureMode;
     [ObservableProperty] private bool _canEditCaptureMode = true;
@@ -78,7 +83,6 @@ public partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _minimizeOnRecord;
-    [ObservableProperty] private bool _recordingPreflightEnabled = true;
     [ObservableProperty] private bool _microphoneSilenceReminderEnabled = true;
 
     [ObservableProperty]
@@ -141,6 +145,7 @@ public partial class SettingsViewModel : ObservableObject
     private void InitializeOptions()
     {
         RefreshCaptureModes();
+        RefreshPreflightModes();
         // 1. 修飾鍵清單 (0=None, 1=Alt, 2=Ctrl, 4=Shift, 3=Ctrl+Alt, 6=Ctrl+Shift, 5=Alt+Shift)
         AvailableModifiers.Clear();
         AvailableModifiers.Add(new ModifierOption(0, "None"));
@@ -169,6 +174,7 @@ public partial class SettingsViewModel : ObservableObject
         AvailableLanguages.Clear();
         AvailableLanguages.Add(new LanguageOption(AppLanguage.ZhTw, Strings["LanguageOptionZhTw"]));
         AvailableLanguages.Add(new LanguageOption(AppLanguage.EnUs, Strings["LanguageOptionEnUs"]));
+        AvailableLanguages.Add(new LanguageOption(AppLanguage.JaJp, Strings["LanguageOptionJaJp"]));
 
         // 4. 畫質品質清單
         AvailableQualities.Clear();
@@ -201,11 +207,13 @@ public partial class SettingsViewModel : ObservableObject
     private void RefreshOptionLabels()
     {
         RefreshCaptureModes();
+        RefreshPreflightModes();
         OnPropertyChanged(nameof(VersionLabelText));
         var lang = SelectedLanguage?.Language ?? AppLanguage.ZhTw;
         AvailableLanguages.Clear();
         AvailableLanguages.Add(new LanguageOption(AppLanguage.ZhTw, Strings["LanguageOptionZhTw"]));
         AvailableLanguages.Add(new LanguageOption(AppLanguage.EnUs, Strings["LanguageOptionEnUs"]));
+        AvailableLanguages.Add(new LanguageOption(AppLanguage.JaJp, Strings["LanguageOptionJaJp"]));
         SelectedLanguage = AvailableLanguages.FirstOrDefault(l => l.Language == lang) ?? AvailableLanguages[0];
 
         var quality = SelectedQuality?.PresetKey ?? "Standard";
@@ -221,6 +229,7 @@ public partial class SettingsViewModel : ObservableObject
     public async Task LoadSettingsAsync()
     {
         _currentSettings = await _settingsService.LoadSettingsAsync();
+        NativeCaptureEnabled = _currentSettings.NativeCaptureEnabled;
         SelectedBookmarkModifier = AvailableModifiers.FirstOrDefault(m => m.Value == _currentSettings.BookmarkHotkeyModifiers) ?? AvailableModifiers.Single(m => m.Value == 6);
         SelectedBookmarkKey = AvailableKeys.FirstOrDefault(k => k.KeyName == _currentSettings.BookmarkHotkeyKey) ?? AvailableKeys.Single(k => k.KeyName == "M");
         SelectedCaptureMode = AvailableCaptureModes.Single(o => o.Mode == _currentSettings.WindowsCaptureMode);
@@ -250,7 +259,7 @@ public partial class SettingsViewModel : ObservableObject
         OpenFolderOnFinished = _currentSettings.OpenFolderOnFinished;
         DeleteWorkingFileAfterRemux = _currentSettings.DeleteWorkingFileAfterSuccessfulRemux;
         MinimizeOnRecord = _currentSettings.MinimizeOnRecord;
-        RecordingPreflightEnabled = _currentSettings.RecordingPreflightEnabled;
+        SelectedPreflightMode = AvailablePreflightModes.Single(o => o.Mode == _currentSettings.RecordingPreflightMode);
         MicrophoneSilenceReminderEnabled = _currentSettings.MicrophoneSilenceReminderEnabled;
 
         ErrorMessage = null;
@@ -294,12 +303,14 @@ public partial class SettingsViewModel : ObservableObject
         _currentSettings.VideoQualityPreset = SelectedQuality?.PresetKey ?? "Standard";
         if (SupportsWindowsCapture && CanEditCaptureMode)
             _currentSettings.WindowsCaptureMode = SelectedCaptureMode?.Mode ?? WindowsCaptureMode.CompatibleGdi;
+        if (SupportsNativeCapture && CanEditCaptureMode)
+            _currentSettings.NativeCaptureEnabled = NativeCaptureEnabled;
         _currentSettings.DiskWarningThresholdGb = SelectedWarningThreshold?.Value ?? 2.0;
         _currentSettings.DiskCriticalThresholdMb = SelectedCriticalThreshold?.Value ?? 500.0;
         _currentSettings.OpenFolderOnFinished = OpenFolderOnFinished;
         _currentSettings.DeleteWorkingFileAfterSuccessfulRemux = DeleteWorkingFileAfterRemux;
         _currentSettings.MinimizeOnRecord = MinimizeOnRecord;
-        _currentSettings.RecordingPreflightEnabled = RecordingPreflightEnabled;
+        _currentSettings.RecordingPreflightMode = SelectedPreflightMode?.Mode ?? RecordingPreflightMode.StartOnly;
         _currentSettings.MicrophoneSilenceReminderEnabled = MicrophoneSilenceReminderEnabled;
 
         // 3. 即時套用語言
@@ -334,6 +345,7 @@ public partial class SettingsViewModel : ObservableObject
         SelectedBookmarkModifier = AvailableModifiers.Single(m => m.Value == 6);
         SelectedBookmarkKey = AvailableKeys.Single(k => k.KeyName == "M");
         if (CanEditCaptureMode) SelectedCaptureMode = AvailableCaptureModes[0];
+        if (CanEditCaptureMode) NativeCaptureEnabled = false;
         SelectedStartStopModifier = AvailableModifiers[0]; // None
         SelectedStartStopKey = AvailableKeys.FirstOrDefault(k => k.KeyName == "F9");
 
@@ -348,7 +360,7 @@ public partial class SettingsViewModel : ObservableObject
         OpenFolderOnFinished = false;
         DeleteWorkingFileAfterRemux = false;
         MinimizeOnRecord = false;
-        RecordingPreflightEnabled = true;
+        SelectedPreflightMode = AvailablePreflightModes.Single(o => o.Mode == RecordingPreflightMode.StartOnly);
         MicrophoneSilenceReminderEnabled = true;
 
         ErrorMessage = null;
@@ -368,5 +380,15 @@ public partial class SettingsViewModel : ObservableObject
         AvailableCaptureModes.Add(new(WindowsCaptureMode.CompatibleGdi, Strings["CaptureModeGdi"]));
         AvailableCaptureModes.Add(new(WindowsCaptureMode.ModernExperimental, Strings["CaptureModeModern"]));
         SelectedCaptureMode = AvailableCaptureModes.Single(o => o.Mode == selected);
+    }
+
+    private void RefreshPreflightModes()
+    {
+        var selected = SelectedPreflightMode?.Mode ?? RecordingPreflightMode.StartOnly;
+        AvailablePreflightModes.Clear();
+        AvailablePreflightModes.Add(new(RecordingPreflightMode.Disabled, Strings["RecordingPreflightOff"]));
+        AvailablePreflightModes.Add(new(RecordingPreflightMode.StartOnly, Strings["RecordingPreflightStartOnly"]));
+        AvailablePreflightModes.Add(new(RecordingPreflightMode.StartAndResume, Strings["RecordingPreflightStartAndResume"]));
+        SelectedPreflightMode = AvailablePreflightModes.Single(o => o.Mode == selected);
     }
 }

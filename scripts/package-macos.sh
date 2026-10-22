@@ -43,11 +43,13 @@ source_file="$repo_root/src/ScreenRecorder.Platform.macOS/Native/OpenCamSystemAu
 microphone_source="$repo_root/src/ScreenRecorder.Platform.macOS/Native/OpenCamMicrophone/main.swift"
 cursor_source="$repo_root/src/ScreenRecorder.Platform.macOS/Native/OpenCamCursorOverlay/main.swift"
 preview_audio_source="$repo_root/src/ScreenRecorder.Platform.macOS/Native/OpenCamProjectAudio/main.swift"
+screen_capture_source="$repo_root/src/ScreenRecorder.Platform.macOS/Native/OpenCamScreenCapture/main.swift"
 icon_source="$repo_root/src/ScreenRecorder.UI/Assets/app_icon.png"
 [[ -f "$source_file" ]] || fail "missing system audio helper source"
 [[ -f "$microphone_source" ]] || fail "missing microphone helper source"
 [[ -f "$cursor_source" ]] || fail "missing cursor overlay helper source"
 [[ -f "$preview_audio_source" ]] || fail "missing project preview audio helper source"
+[[ -f "$screen_capture_source" ]] || fail "missing screen capture helper source"
 [[ -f "$icon_source" ]] || fail "missing app icon source"
 [[ -f "$repo_root/LICENSE" ]] || fail "missing project license"
 [[ -f "$repo_root/NOTICE.md" ]] || fail "missing project notice"
@@ -99,6 +101,11 @@ xcrun swiftc "$cursor_source" \
 preview_audio_helper="$app_path/Contents/MacOS/OpenCam.ProjectAudio"
 xcrun swiftc "$preview_audio_source" -O -target arm64-apple-macos13.0 -framework AVFoundation -o "$preview_audio_helper"
 
+screen_capture_helper="$app_path/Contents/MacOS/OpenCam.ScreenCapture"
+xcrun swiftc "$screen_capture_source" -parse-as-library -O -target arm64-apple-macos13.0 \
+  -framework ScreenCaptureKit -framework VideoToolbox -framework CoreMedia -framework CoreGraphics \
+  -o "$screen_capture_helper"
+
 chmod +x \
   "$app_path/Contents/MacOS/OpenCam" \
   "$app_path/Contents/MacOS/ffmpeg" \
@@ -106,7 +113,8 @@ chmod +x \
   "$helper" \
   "$microphone_helper" \
   "$cursor_helper" \
-  "$preview_audio_helper"
+  "$preview_audio_helper" \
+  "$screen_capture_helper"
 
 plist="$app_path/Contents/Info.plist"
 plutil -create xml1 "$plist"

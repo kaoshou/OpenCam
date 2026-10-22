@@ -5,7 +5,7 @@ using ScreenRecorder.Core.Models;
 
 namespace ScreenRecorder.Platform.macOS;
 
-public class MacOsFFmpegProvider : IFFmpegPlatformProvider, IPreflightAudioPlatformProvider
+public class MacOsFFmpegProvider : IFFmpegPlatformProvider, IPreflightAudioPlatformProvider, ScreenRecorder.Media.Capture.INativeVideoPlatformProvider
 {
     public string BuildPreflightAudioInputArguments(RecordingConfiguration configuration, bool synthetic,
         string? systemAudioInput, string? microphoneAudioInput) =>
@@ -13,6 +13,20 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider, IPreflightAudioPlatf
             systemAudioInput, microphoneAudioInput, mac: true);
 
     private readonly IDisplayService _displayService;
+
+    public Task<ScreenRecorder.Media.Capture.INativeVideoCapture> PrepareNativeVideoAsync(RecordingConfiguration config,
+        CaptureRegion bounds, CaptureSelection? pinned, CancellationToken token) =>
+        MacOsNativeVideoCapture.PrepareAsync(config, bounds, pinned, token);
+
+    public string BuildNativeInput(RecordingConfiguration config, string videoInput, bool directMic,
+        string? systemAudio, string? microphoneAudio) =>
+        BuildInputArgumentsCore(config, 0, 0, 0, 0, false, directMic, systemAudio, microphoneAudio,
+            false, out _, videoInput);
+
+    public string BuildNativeOutput(RecordingConfiguration config, string outputPath) =>
+        "-c:v copy " + (config.AudioSource != AudioSourceType.None || config.MaintainSegmentAudioTrack
+            ? $"-c:a aac -ar 48000 -ac 2 -b:a {config.AudioBitrateKbps}k " : "") +
+        $"-shortest -flush_packets 1 -cluster_time_limit 1000 -f matroska \"{outputPath}\"";
 
     public MacOsFFmpegProvider()
         : this(new MacOsDisplayService())
@@ -59,7 +73,7 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider, IPreflightAudioPlatf
 
     private string BuildInputArgumentsCore(RecordingConfiguration config, int x, int y, int width, int height,
         bool useSynthetic, bool hasDirectShowMic, string? systemAudioPipeArg, string? microphoneAudioPipeArg,
-        bool directPreview, out string videoFilter)
+        bool directPreview, out string videoFilter, string? nativeVideoInput = null)
     {
         videoFilter = "";
         var includeAudioTrack =
@@ -87,7 +101,7 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider, IPreflightAudioPlatf
             $"-framerate {config.Fps}"
         };
 
-        var monitors = _displayService.GetMonitors();
+        var monitors = nativeVideoInput is null ? _displayService.GetMonitors() : Array.Empty<MonitorInfo>();
         var display = monitors.FirstOrDefault(monitor => monitor.Index == config.MonitorIndex) ??
                       monitors.FirstOrDefault(monitor => monitor.IsPrimary) ??
                       monitors.FirstOrDefault();
@@ -111,6 +125,11 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider, IPreflightAudioPlatf
             !string.IsNullOrWhiteSpace(systemAudioPipeArg);
 
         args.Add($"-i \"{videoInput}:none\"");
+        if (nativeVideoInput is not null)
+        {
+            args.Clear();
+            args.Add(nativeVideoInput);
+        }
 
         var nextInputIndex = 1;
         int? microphoneInputIndex = null;
@@ -180,8 +199,11 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider, IPreflightAudioPlatf
             }
         }
 
-        videoFilter = VideoFilter(config, display, x, y, width, height);
-        if (!directPreview) args.Add($"-filter:v \"{videoFilter}\"");
+        if (nativeVideoInput is null)
+        {
+            videoFilter = VideoFilter(config, display, x, y, width, height);
+            if (!directPreview) args.Add($"-filter:v \"{videoFilter}\"");
+        }
 
         return string.Join(" ", args);
     }

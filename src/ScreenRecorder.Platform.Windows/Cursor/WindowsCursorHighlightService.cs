@@ -239,6 +239,11 @@ public class WindowsCursorHighlightService : ICursorHighlightService
         bool wasLeftDown = false;
         int rippleFrame = 0;
         const int rippleTotalFrames = 18; // 約 300ms 動畫
+        if (_currentMode == CursorEffectMode.PresentationStick)
+        {
+            RenderStick(pixelBuffer);
+            Marshal.Copy(pixelBuffer, 0, pBits, pixelBuffer.Length);
+        }
 
         try
         {
@@ -265,8 +270,11 @@ public class WindowsCursorHighlightService : ICursorHighlightService
                 wasLeftDown = isLeftDown;
 
                 // 繪製光圈與波紋到緩衝區
-                RenderCircle(pixelBuffer, rippleFrame, rippleTotalFrames);
-                Marshal.Copy(pixelBuffer, 0, pBits, pixelBuffer.Length);
+                if (_currentMode != CursorEffectMode.PresentationStick)
+                {
+                    RenderCircle(pixelBuffer, rippleFrame, rippleTotalFrames);
+                    Marshal.Copy(pixelBuffer, 0, pBits, pixelBuffer.Length);
+                }
 
                 // 更新視窗位置與內容
                 var wndPoint = new POINT { X = pt.X - HalfSize, Y = pt.Y - HalfSize };
@@ -294,6 +302,27 @@ public class WindowsCursorHighlightService : ICursorHighlightService
             DeleteDC(memDc);
             ReleaseDC(IntPtr.Zero, screenDc);
             DestroyWindow(hwnd);
+        }
+    }
+
+    private static void RenderStick(byte[] buffer)
+    {
+        Array.Clear(buffer);
+        // The red tip marks the pointer hotspot; the outlined shaft extends down-right.
+        const double length = 46;
+        for (var y = 0; y < OverlaySize; y++)
+        for (var x = 0; x < OverlaySize; x++)
+        {
+            var dx = x - HalfSize;
+            var dy = y - HalfSize;
+            var t = Math.Clamp((dx + dy) / (2 * length), 0, 1);
+            var distance = Math.Sqrt(Math.Pow(dx - t * length, 2) + Math.Pow(dy - t * length, 2));
+            if (distance > 3.5) continue;
+            var i = (y * OverlaySize + x) * 4;
+            var tip = dx * dx + dy * dy <= 20;
+            var color = tip ? (R: 239, G: 68, B: 68) : distance > 2 ? (R: 30, G: 41, B: 59) : (R: 241, G: 245, B: 249);
+            buffer[i] = (byte)color.B; buffer[i + 1] = (byte)color.G;
+            buffer[i + 2] = (byte)color.R; buffer[i + 3] = 255;
         }
     }
 

@@ -141,8 +141,7 @@ public partial class ProjectWorkspaceView : Window
     {
         if (!Model.CanExport) return;
         Model.RequestSubtitleExportDecision ??= () => ProjectSaveDialogs.AskSubtitleExportAsync(this);
-        if (await ProjectExportFileDialog.ChooseWebParentAsync(this) is { } path)
-            await Model.ExportWebPlayerAsync(path);
+        await ProjectExportFileDialog.ExportWebAsync(this, Model);
     }
 
     private async void OnCaptureSettings(object? sender, RoutedEventArgs e)

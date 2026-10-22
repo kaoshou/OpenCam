@@ -207,6 +207,12 @@
                                 </Grid>
                                 <TextBlock Text="{Binding Strings[CaptureModeNotice]}" FontSize="11" Foreground="#64748B" TextWrapping="Wrap" />
                             </StackPanel>
+                            <StackPanel IsVisible="{Binding SupportsNativeCapture}" Spacing="4">
+                                <CheckBox IsChecked="{Binding NativeCaptureEnabled}" IsEnabled="{Binding CanEditCaptureMode}">
+                                    <TextBlock Text="{Binding Strings[NativeCaptureLabel]}" FontSize="12" TextWrapping="Wrap" />
+                                </CheckBox>
+                                <TextBlock Text="{Binding Strings[NativeCaptureNotice]}" FontSize="11" Foreground="#64748B" TextWrapping="Wrap" />
+                            </StackPanel>
                             <CheckBox IsChecked="{Binding OpenFolderOnFinished}" Margin="0,2">
                                 <TextBlock Text="{Binding Strings[OpenFolderOnFinishedLabel]}" FontSize="12" Foreground="#334155" TextWrapping="Wrap" />
                             </CheckBox>
@@ -227,10 +233,17 @@
                             <CheckBox IsChecked="{Binding MinimizeOnRecord}" Margin="0,2">
                                 <TextBlock Text="{Binding Strings[MinimizeOnRecord]}" FontSize="12" Foreground="#334155" TextWrapping="Wrap" />
                             </CheckBox>
-                            <CheckBox x:Name="RecordingPreflightToggle" IsChecked="{Binding RecordingPreflightEnabled}" Margin="0,2">
-                                <TextBlock Text="{Binding Strings[RecordingPreflightSetting]}" FontSize="12" Foreground="#334155" TextWrapping="Wrap" />
-                            </CheckBox>
-                            <TextBlock Text="{Binding Strings[RecordingPreflightSettingHelp]}" Margin="24,0,0,0"
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                                <TextBlock x:Name="RecordingPreflightLabel" Text="{Binding Strings[RecordingPreflightSetting]}"
+                                           FontSize="12" Foreground="#334155" VerticalAlignment="Center" TextWrapping="Wrap" />
+                                <ComboBox x:Name="RecordingPreflightModePicker" Grid.Column="1" Width="275" FontSize="11.5"
+                                          ItemsSource="{Binding AvailablePreflightModes}" SelectedItem="{Binding SelectedPreflightMode}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate><TextBlock Text="{Binding DisplayName}" /></DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </Grid>
+                            <TextBlock Text="{Binding Strings[RecordingPreflightSettingHelp]}"
                                        FontSize="11" Foreground="#64748B" TextWrapping="Wrap" />
                             <CheckBox IsChecked="{Binding MicrophoneSilenceReminderEnabled}" Margin="0,2">
                                 <TextBlock Text="{Binding Strings[MicrophoneSilenceReminderSetting]}" FontSize="12" Foreground="#334155" TextWrapping="Wrap" />

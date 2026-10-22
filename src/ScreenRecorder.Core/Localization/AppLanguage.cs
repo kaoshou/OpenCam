@@ -14,5 +14,10 @@ public enum AppLanguage
     /// <summary>
     /// 英文 (English - United States)
     /// </summary>
-    EnUs
+    EnUs,
+
+    /// <summary>
+    /// 日本語 (Japanese - Japan)
+    /// </summary>
+    JaJp
 }

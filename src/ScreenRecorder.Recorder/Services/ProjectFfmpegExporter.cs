@@ -9,7 +9,7 @@ using Serilog;
 namespace ScreenRecorder.Recorder.Services;
 
 /// <summary>Render a fixed revision into a new verified MP4. All media access stays bound to handles.</summary>
-public sealed partial class ProjectFfmpegExporter(IProjectMediaProcess process) : IRecordingContentExporter
+public sealed partial class ProjectFfmpegExporter(IProjectMediaProcess process, Mp4ExportOptions? options = null) : IRecordingContentExporter
 {
     public async Task<RecordingExportResult> ExportAsync(IProjectHandle owner, RecordingProject snapshot,
         string outputDirectory, Guid exportId, IProgress<double> progress, CancellationToken ct)
@@ -17,7 +17,11 @@ public sealed partial class ProjectFfmpegExporter(IProjectMediaProcess process) 
         ct.ThrowIfCancellationRequested();
         if (exportId == Guid.Empty || owner.Current.ProjectId != snapshot.ProjectId || owner.Current.Revision != snapshot.Revision)
             throw new InvalidOperationException("Export must use the owned, saved revision.");
-        var plan = ProjectRenderPlan.Create(snapshot);
+        ProjectValidation.Validate(snapshot);
+        var profile = options ?? new Mp4ExportOptions();
+        profile.Validate();
+        // This is an export-only view of the canvas; never save it to the project.
+        var plan = ProjectRenderPlan.Create(snapshot with { Canvas = profile.OutputCanvas(snapshot.Canvas) });
         if (plan.FrameCount == 0) throw new InvalidOperationException("No retained video frames to export.");
         using var directory = BoundDirectory.Open(outputDirectory);
         var prefix = $".opencam-export-{Guid.NewGuid():N}";
@@ -35,7 +39,9 @@ public sealed partial class ProjectFfmpegExporter(IProjectMediaProcess process) 
         try
         {
             ReportPhase(progress, RecordingExportPhase.Inspecting);
-            var fast = await TryFastExportAsync(owner, snapshot, plan, directory, temporary, exportId, Create, owned, progress, ct);
+            var fast = profile.IsOriginal
+                ? await TryFastExportAsync(owner, snapshot, plan, directory, temporary, exportId, Create, owned, progress, ct)
+                : null;
             if (fast is not null) return fast;
             ReportPhase(progress, RecordingExportPhase.Rendering);
             var drive = new DriveInfo(directory.CurrentPath);
@@ -59,7 +65,8 @@ public sealed partial class ProjectFfmpegExporter(IProjectMediaProcess process) 
                         directory.DeleteOwnedFile(partName);
                         owned.Remove(partName);
                     }
-                    if (clip.EndFrame > clip.StartFrame) await Append(ProjectMediaJob.EncodeClipVideo(plan, index), video);
+                    if (clip.EndFrame > clip.StartFrame) await Append(ProjectMediaJob.EncodeClipVideo(plan, index,
+                        options: profile), video);
                     if (clip.EndAudioSample > clip.StartAudioSample) await Append(ProjectMediaJob.RenderClipAudio(plan, index), audio);
                     progress.Report(0.8 * (index + 1) / plan.Clips.Length);
                 }

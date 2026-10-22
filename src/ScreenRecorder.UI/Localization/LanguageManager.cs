@@ -26,6 +26,7 @@ public class LanguageManager : INotifyPropertyChanged
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentLanguage)));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsZhTw)));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsEnUs)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsJaJp)));
         };
     }
 
@@ -43,9 +44,15 @@ public class LanguageManager : INotifyPropertyChanged
 
     public bool IsZhTw => CurrentLanguage == AppLanguage.ZhTw;
     public bool IsEnUs => CurrentLanguage == AppLanguage.EnUs;
+    public bool IsJaJp => CurrentLanguage == AppLanguage.JaJp;
 
     public void ToggleLanguage()
     {
-        CurrentLanguage = CurrentLanguage == AppLanguage.ZhTw ? AppLanguage.EnUs : AppLanguage.ZhTw;
+        CurrentLanguage = CurrentLanguage switch
+        {
+            AppLanguage.ZhTw => AppLanguage.EnUs,
+            AppLanguage.EnUs => AppLanguage.JaJp,
+            _ => AppLanguage.ZhTw
+        };
     }
 }

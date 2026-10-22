@@ -4,6 +4,7 @@ import AppKit
 private enum OverlayMode: String {
     case halo
     case ripple
+    case stick
 }
 
 private func parseMode() -> OverlayMode? {
@@ -30,6 +31,21 @@ private final class CursorOverlayView: NSView {
         super.draw(dirtyRect)
 
         let center = NSPoint(x: bounds.midX, y: bounds.midY)
+        if mode == .stick {
+            let shaft = NSBezierPath()
+            shaft.move(to: center)
+            shaft.line(to: NSPoint(x: center.x + 46, y: center.y - 46))
+            shaft.lineCapStyle = .round
+            NSColor(calibratedRed: 30/255, green: 41/255, blue: 59/255, alpha: 1).setStroke()
+            shaft.lineWidth = 7
+            shaft.stroke()
+            NSColor(calibratedRed: 241/255, green: 245/255, blue: 249/255, alpha: 1).setStroke()
+            shaft.lineWidth = 4
+            shaft.stroke()
+            NSColor(calibratedRed: 239/255, green: 68/255, blue: 68/255, alpha: 1).setFill()
+            NSBezierPath(ovalIn: NSRect(x: center.x - 3.5, y: center.y - 3.5, width: 7, height: 7)).fill()
+            return
+        }
         let haloRect = NSRect(
             x: center.x - 21,
             y: center.y - 21,
@@ -134,7 +150,7 @@ private final class CursorOverlayController: NSObject, NSApplicationDelegate {
 
 guard let mode = parseMode() else {
     FileHandle.standardError.write(
-        Data("usage: OpenCam.CursorOverlay --mode halo|ripple\n".utf8))
+        Data("usage: OpenCam.CursorOverlay --mode halo|ripple|stick\n".utf8))
     exit(2)
 }
 

@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -48,6 +49,10 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
     public bool UsesDirectPreview => _livePreviewOutput;
     public Stream? OutputStream { get; set; }
     private Task? _outputCopyTask;
+    private RecordingPerformance _performance = new();
+    private object? _performanceContext;
+    private long _performanceStarted;
+    private double _lastPerformanceSeconds;
     private Stream? _systemPcm;
     private Stream? _microphonePcm;
     private readonly IFFmpegPlatformProvider _ffmpegPlatformProvider;
@@ -63,6 +68,20 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
     private readonly CaptureSelection? _pinnedCapture;
     private readonly ICapturePlanProvider? _capturePlanProvider;
     private CaptureLaunchPlan? _capturePlan;
+    private INativeVideoCapture? _nativeVideo;
+    private void OnNativeCaptureFailed(object? sender, string error)
+    {
+        // A video-pipe EOF alone would allow the muxer to keep recording audio.
+        // Fail closed and retain the already-written recovery MKV instead.
+        lock (_lock)
+        {
+            _startupError = error;
+            _startupSignal?.TrySetResult(false);
+            try { if (_process is { HasExited: false } process) process.Kill(true); }
+            catch (Exception ex) { Log.Error(ex, "Cannot terminate muxer after native video failure"); }
+        }
+        EngineErrorOccurred?.Invoke(this, error);
+    }
     private string _startupError = "";
     public CaptureSelection? ActiveCapture { get; private set; }
     private Process? _process;
@@ -226,7 +245,10 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
         if (OutputStream is null && (Path.Exists(workingFilePath) || new FileInfo(workingFilePath).LinkTarget != null))
             throw new IOException("Recording output already exists; refusing to overwrite it.");
         // Select before opening native PCM producers: probing must not fill their pipes.
-        var targetEncoder = _pinnedEncoder ?? (await _encoderSelectionService.SelectAsync(config.EncoderType, cancellationToken)).Encoder;
+        var nativeProvider = !_livePreviewOutput && !UseSyntheticCaptureSource && config.NativeCaptureEnabled
+            ? _ffmpegPlatformProvider as INativeVideoPlatformProvider : null;
+        var targetEncoder = nativeProvider is not null ? HardwareEncoderType.AppleVideoToolbox
+            : _pinnedEncoder ?? (await _encoderSelectionService.SelectAsync(config.EncoderType, cancellationToken)).Encoder;
         cancellationToken.ThrowIfCancellationRequested();
 
         ActiveCapture = null;
@@ -235,6 +257,30 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
             ? await _capturePlanProvider.PrepareAsync(config,
                 new(actualBounds.X, actualBounds.Y, width, height), _pinnedCapture, cancellationToken)
             : null;
+        // Prepare native video before starting PCM producers: permissions/encoder setup
+        // must not add seconds of buffered audio before the first video frame.
+        if (nativeProvider is not null)
+        {
+            if (_pinnedEncoder is not null && _pinnedEncoder != HardwareEncoderType.AppleVideoToolbox)
+                throw new InvalidOperationException("Native capture cannot change the pinned encoder.");
+            _nativeVideo = await nativeProvider.PrepareNativeVideoAsync(config,
+                new(actualBounds.X, actualBounds.Y, width, height), _pinnedCapture, cancellationToken);
+            _nativeVideo.CaptureFailed += OnNativeCaptureFailed;
+        }
+        _performance = new();
+        _performanceStarted = 0;
+        _lastPerformanceSeconds = 0;
+        _performanceContext = new
+        {
+            MeasurementId = Guid.NewGuid(),
+            RequestedCapture = config.WindowsCaptureMode.ToString(),
+            ActualCapture = _nativeVideo is not null
+                ? "ScreenCaptureKit" : _capturePlan?.Selection.Backend.ToString() ?? "PlatformDefault",
+            Fallback = _capturePlan?.Selection.FallbackReason.ToString() ?? "None",
+            RequestedFps = config.Fps, Width = width, Height = height,
+            Encoder = targetEncoder.ToString(), BoundOutput = OutputStream is not null,
+            Synthetic = UseSyntheticCaptureSource
+        };
 
         var requestsMicrophone =
             config.AudioSource == AudioSourceType.MicrophoneOnly ||
@@ -339,6 +385,8 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
 
         if (!launched)
         {
+            if (config.NativeCaptureEnabled && !UseSyntheticCaptureSource)
+                throw new InvalidOperationException("Native capture could not start; select compatible capture or inspect recording diagnostics.");
             if (_capturePlan?.Selection.Backend == CaptureBackend.DesktopDuplication)
             {
                 // Only identified DDA initialization failures may change capture backend.
@@ -364,8 +412,8 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
             throw new EncoderStartupException("FFmpeg 錄影引擎初始化失敗，無法啟動錄影進程。請檢查視訊/音訊設備與輸出路徑權限。");
         }
 
-        ActiveEncoder = targetEncoder;
-        ActiveCapture = _capturePlan?.Selection;
+        ActiveEncoder = _nativeVideo is not null ? HardwareEncoderType.AppleVideoToolbox : targetEncoder;
+        ActiveCapture = _nativeVideo?.Selection ?? _capturePlan?.Selection;
         if (hasDirectShowMic && _microphoneLevelObserver != null &&
             !string.IsNullOrWhiteSpace(config.MicrophoneDeviceId))
         {
@@ -402,9 +450,15 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
 
             using var systemDescriptor = InheritedAudioDescriptor.Duplicate(_systemPcm);
             using var microphoneDescriptor = InheritedAudioDescriptor.Duplicate(_microphonePcm);
+            var nativeProvider = !_livePreviewOutput && !UseSyntheticCaptureSource && config.NativeCaptureEnabled
+                ? _ffmpegPlatformProvider as INativeVideoPlatformProvider : null;
+            using var videoDescriptor = InheritedAudioDescriptor.Duplicate(_nativeVideo?.Output);
             systemAudioPipeArg = systemDescriptor?.Input(2) ?? systemAudioPipeArg;
             microphoneAudioPipeArg = microphoneDescriptor?.Input(1) ?? microphoneAudioPipeArg;
-            var inputArgs = _livePreviewOutput
+            var inputArgs = nativeProvider is not null
+                ? nativeProvider.BuildNativeInput(config, videoDescriptor!.VideoInput(), hasDirectShowMic,
+                    systemAudioPipeArg, microphoneAudioPipeArg)
+                : _livePreviewOutput
                 ? _ffmpegPlatformProvider.BuildDirectPreviewArguments(config, x, y, width, height,
                     UseSyntheticCaptureSource, hasDirectShowMic, systemAudioPipeArg, microphoneAudioPipeArg,
                     _capturePlan?.VideoInputArguments)
@@ -421,7 +475,8 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
                 systemAudioPipeArg,
                 microphoneAudioPipeArg);
             var outputPath = OutputStream is null ? workingFilePath : "pipe:1";
-            var outputArgs = _livePreviewOutput ? "" : _ffmpegPlatformProvider.BuildOutputArguments(config, encoderType, outputPath);
+            var outputArgs = nativeProvider is not null ? nativeProvider.BuildNativeOutput(config, outputPath)
+                : _livePreviewOutput ? "" : _ffmpegPlatformProvider.BuildOutputArguments(config, encoderType, outputPath);
             // Each attempt has its own fresh path. Refuse overwrite even if a
             // file appears after the caller's existence check.
             // FFmpeg's interactive stats use carriage-return updates on some
@@ -444,11 +499,14 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
             };
 
             var proc = new Process { StartInfo = startInfo };
+            _performanceStarted = Stopwatch.GetTimestamp();
+            LogPerformance("Starting");
             proc.Start();
             if (OutputStream is not null)
                 _outputCopyTask = CopyOutputAsync(proc, OutputStream);
             systemDescriptor?.Dispose();
             microphoneDescriptor?.Dispose();
+            videoDescriptor?.Dispose();
 
             lock (_lock)
             {
@@ -461,6 +519,7 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
             // Begin draining immediately: scheduling a blocking pipe reader on
             // the pool can let the startup deadline win before progress is read.
             _stderrReadingTask = ReadStderrLoop(proc, proc.StandardError, cancellationToken);
+            if (_nativeVideo is not null) await _nativeVideo.BeginAsync(cancellationToken);
 
             var exitTask = proc.WaitForExitAsync(cancellationToken);
             var startupTimeout = OperatingSystem.IsMacOS() &&
@@ -599,6 +658,8 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
                 // empty. ReadLineAsync already reports EOF with null.
                 var line = await stderr.ReadLineAsync(cancellationToken).ConfigureAwait(false);
                 if (line == null) break;
+                _performance.ReadLine(line);
+                if (line.StartsWith("progress=", StringComparison.Ordinal)) LogPerformance("Progress");
 
                 lock (_lock)
                 {
@@ -666,10 +727,25 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
             _startupSignal?.TrySetException(ex);
             EngineErrorOccurred?.Invoke(this, ex.Message);
         }
+        finally
+        {
+            // Normal stop detaches this field before joining stderr. On any
+            // other EOF/cancellation, do not leave ScreenCaptureKit capturing
+            // into an abandoned pipe, even if the muxer exited with code zero.
+            var native = _nativeVideo;
+            if (native is not null)
+            {
+                try { await native.StopAsync().ConfigureAwait(false); }
+                catch (Exception ex) { Log.Error(ex, "Native video cleanup after muxer exit failed"); }
+                if (!cancellationToken.IsCancellationRequested)
+                    EngineErrorOccurred?.Invoke(this, "Native video muxer ended before recording was stopped.");
+            }
+        }
     }
 
     public async Task StopRecordingAsync(CancellationToken cancellationToken = default)
     {
+        Exception? nativeShutdownError = null;
         _systemLevelActive = false;
         _microphoneLevelActive = false;
         if (_microphoneLevelObserver is not null)
@@ -705,6 +781,19 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
 
         try
         {
+            if (_nativeVideo is not null)
+            {
+                var video = _nativeVideo;
+                _nativeVideo = null;
+                video.CaptureFailed -= OnNativeCaptureFailed;
+                try { await video.StopAsync(); }
+                catch (Exception ex)
+                {
+                    nativeShutdownError = ex;
+                    Log.Error(ex, "Native video producer did not stop cleanly");
+                    EngineErrorOccurred?.Invoke(this, "Native capture shutdown failed: " + ex.Message);
+                }
+            }
             if (proc != null && !proc.HasExited)
             {
                 try
@@ -748,16 +837,27 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
             }
             finally
             {
+                LogPerformance("Stopped");
+                _performanceStarted = 0;
                 lock (_lock) { _process?.Dispose(); _process = null; }
             }
         }
+        if (nativeShutdownError is not null)
+            throw new IOException("Native video shutdown was not clean; retain the recording for recovery.", nativeShutdownError);
     }
 
     private async Task CopyOutputAsync(Process process, Stream destination)
     {
         try
         {
-            await process.StandardOutput.BaseStream.CopyToAsync(destination);
+            var buffer = new byte[81920];
+            int count;
+            while ((count = await process.StandardOutput.BaseStream.ReadAsync(buffer).ConfigureAwait(false)) > 0)
+            {
+                var started = Stopwatch.GetTimestamp();
+                await destination.WriteAsync(buffer.AsMemory(0, count)).ConfigureAwait(false);
+                _performance.NoteWrite(count, Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+            }
             await destination.FlushAsync();
         }
         catch (Exception ex)
@@ -765,6 +865,29 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
             try { if (!process.HasExited) process.Kill(true); } catch { }
             EngineErrorOccurred?.Invoke(this, "Recording destination write failed: " + ex.Message);
             throw;
+        }
+    }
+
+    private void LogPerformance(string phase)
+    {
+        if (_livePreviewOutput || _performanceStarted == 0) return;
+        var elapsed = Stopwatch.GetElapsedTime(_performanceStarted).TotalSeconds;
+        if (phase == "Progress" && elapsed - _lastPerformanceSeconds < 5) return;
+        _lastPerformanceSeconds = elapsed;
+        try
+        {
+            var snapshot = _performance.Snapshot(elapsed);
+            if (OutputStream is null)
+                snapshot = snapshot with { OutputBytes = null, WriteWaitMs = null, MaxWriteWaitMs = null };
+            var measurement = JsonSerializer.Serialize(new
+            {
+                Phase = phase, Context = _performanceContext, Metrics = snapshot
+            });
+            Log.Information("Recording performance: {Measurement:l}", measurement);
+        }
+        catch (Exception ex)
+        {
+            Log.Debug("Cannot serialize recording performance: {ErrorType}", ex.GetType().Name);
         }
     }
 

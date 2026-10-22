@@ -7,6 +7,23 @@ namespace ScreenRecorder.Media.Tests;
 
 public sealed class ProjectMainEntryTests
 {
+    [Fact]
+    public void RecordingFrameRateMenuOmitsSixtyAndPassesRemainingChoicesToRecorder()
+    {
+        var vm = new MainViewModel(forScreenshot: true);
+        try
+        {
+            Assert.Equal(10, vm.SelectedFps);
+            Assert.Equal(new[] { 5, 10, 20, 30, 40 }, vm.FpsOptions);
+            foreach (var fps in vm.FpsOptions)
+            {
+                vm.SelectedFps = fps;
+                Assert.Equal(fps, vm.BuildProjectConfiguration().Fps);
+            }
+        }
+        finally { vm.Cleanup(); }
+    }
+
     [Theory]
     [InlineData(AppLanguage.ZhTw, "編輯錄製內容")]
     [InlineData(AppLanguage.EnUs, "Edit Recording")]

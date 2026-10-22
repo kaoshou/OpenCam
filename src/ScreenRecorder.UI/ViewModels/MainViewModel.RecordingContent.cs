@@ -25,7 +25,9 @@ public partial class MainViewModel
     {
         // Skip only the optional UI check. Permission, recorder ownership, output
         // validation and the actual start acknowledgement remain on the normal path.
-        var accepted = !_recordingPreflightEnabled || configuration.AudioSource == ScreenRecorder.Core.Enums.AudioSourceType.None
+        var shouldCheck = _recordingPreflightMode == ScreenRecorder.Core.Enums.RecordingPreflightMode.StartAndResume ||
+            (_recordingPreflightMode == ScreenRecorder.Core.Enums.RecordingPreflightMode.StartOnly && !resuming);
+        var accepted = !shouldCheck || configuration.AudioSource == ScreenRecorder.Core.Enums.AudioSourceType.None
             ? configuration : RequestRecordingPreflight is { } check ? await check(configuration, resuming) : null;
         if (accepted is not null)
         {
@@ -73,8 +75,11 @@ public partial class MainViewModel
     public Func<string, Task<string?>>? RequestMp4Destination { get; set; }
     public Func<ProjectWorkspaceViewModel, ProjectExportFormat, Task>? RequestMediaExport { get; set; }
     public Func<Task<string?>>? RequestWebPlayerDestination { get; set; }
+    public Func<ProjectWorkspaceViewModel, Task>? RequestWebPlayerExport { get; set; }
     [RelayCommand] public async Task ExportWebPlayerAsync()
     {
+        if (CanExportRecordingContent && RequestWebPlayerExport is { } export)
+        { await export(_content!.Workspace); return; }
         if (!CanExportRecordingContent || RequestWebPlayerDestination is null) return;
         var path = await RequestWebPlayerDestination();
         if (path is not null && CanExportRecordingContent) await _content!.Workspace.ExportWebPlayerAsync(path);

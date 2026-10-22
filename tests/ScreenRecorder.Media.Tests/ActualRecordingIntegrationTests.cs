@@ -66,6 +66,37 @@ public class ActualRecordingIntegrationTests : IDisposable
         var media = await new MediaFileProbe().ProbeAsync(Assert.IsType<string>(path));
         Assert.True(media.IsValid);
         Assert.InRange(media.Duration.TotalSeconds, .1, elapsed.Elapsed.TotalSeconds + 2);
+        var measurements = _diagnostics.Entries.Where(e => e.Contains("Recording performance: "))
+            .Select(e => System.Text.Json.JsonDocument.Parse(e[(e.IndexOf("Recording performance: ", StringComparison.Ordinal) + 23)..])).ToArray();
+        try
+        {
+            var stoppedMeasurement = Assert.Single(measurements, m => m.RootElement.GetProperty("Phase").GetString() == "Stopped");
+            var metrics = stoppedMeasurement.RootElement.GetProperty("Metrics");
+            Assert.True(metrics.GetProperty("Frames").GetInt64() > 0);
+            Assert.Equal(System.Text.Json.JsonValueKind.Null, metrics.GetProperty("OutputBytes").ValueKind);
+            Assert.False(stoppedMeasurement.RootElement.GetProperty("Context").GetProperty("BoundOutput").GetBoolean());
+            Assert.True(stoppedMeasurement.RootElement.GetProperty("Context").GetProperty("Synthetic").GetBoolean());
+        }
+        finally { foreach (var measurement in measurements) measurement.Dispose(); }
+    }
+
+    [Fact]
+    public async Task BoundSyntheticOutputRetainsAllBytesWhileMeasuringWrites()
+    {
+        using var output = new MemoryStream();
+        await using var engine = new FFmpegScreenRecorderEngine(new ScreenRecorder.Platform.Windows.WindowsFFmpegProvider(),
+            ffmpegPath: FFmpegDiscovery.FindFFmpegExecutable()) { UseSyntheticCaptureSource = true, OutputStream = output };
+        await engine.StartRecordingAsync(Path.Combine(_tempDir, "bound.mkv"), new()
+            { Fps = 60, AudioSource = AudioSourceType.None, EncoderType = HardwareEncoderType.SoftwareCpu }, new(0, 0, 320, 240));
+        await Task.Delay(300);
+        await engine.StopRecordingAsync();
+        Assert.True(output.Length > 0);
+        Assert.Equal(new byte[] { 0x1a, 0x45, 0xdf, 0xa3 }, output.ToArray()[..4]);
+        var entry = Assert.Single(_diagnostics.Entries, e => e.Contains("Recording performance: ") && e.Contains("\"Phase\":\"Stopped\""));
+        using var json = System.Text.Json.JsonDocument.Parse(entry[(entry.IndexOf("Recording performance: ", StringComparison.Ordinal) + 23)..]);
+        Assert.Equal(output.Length, json.RootElement.GetProperty("Metrics").GetProperty("OutputBytes").GetInt64());
+        Assert.True(json.RootElement.GetProperty("Context").GetProperty("BoundOutput").GetBoolean());
+        Assert.Equal(60, json.RootElement.GetProperty("Context").GetProperty("RequestedFps").GetInt32());
     }
 
     [Fact]

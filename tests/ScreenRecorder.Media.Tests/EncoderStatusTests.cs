@@ -11,8 +11,8 @@ namespace ScreenRecorder.Media.Tests;
 public class EncoderStatusTests
 {
     [Theory]
-    [InlineData(AppLanguage.ZhTw, "實際編碼器：尚未決定")]
-    [InlineData(AppLanguage.EnUs, "Actual encoder: pending")]
+    [InlineData(AppLanguage.ZhTw, "實際編碼器：開始錄影後顯示")]
+    [InlineData(AppLanguage.EnUs, "Actual encoder: shown after recording starts")]
     public void NullSelection_IsPendingInBothLanguages(AppLanguage language, string expected)
     {
         var strings = new LocalizationService { CurrentLanguage = language };
@@ -35,7 +35,7 @@ public class EncoderStatusTests
     }
 
     [Theory]
-    [InlineData(EncoderFallbackReason.NoValidatedHardware, "未驗證到可用硬體", "No validated hardware encoder")]
+    [InlineData(EncoderFallbackReason.NoValidatedHardware, "沒有可用的硬體編碼器，使用 CPU", "No hardware encoder available; using CPU")]
     [InlineData(EncoderFallbackReason.RequestedHardwareUnavailable, "指定硬體暫不可用", "Requested hardware unavailable")]
     [InlineData(EncoderFallbackReason.HardwareStartupFailed, "硬體啟動失敗，使用 CPU", "Hardware startup failed; using CPU")]
     public void FallbackReason_IsLocalized(EncoderFallbackReason reason, string zh, string en)

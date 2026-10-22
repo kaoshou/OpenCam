@@ -22,6 +22,8 @@ public class CaptureStatusTests
         Assert.Contains(strings["CaptureFallbackStartup"], text);
         Assert.DoesNotContain("Desktop Duplication", text);
         Assert.Contains("Desktop Duplication", CaptureStatusFormatter.Format(selection with { Backend = CaptureBackend.DesktopDuplication, FallbackReason = CaptureFallbackReason.None }, strings));
+        Assert.Contains("Windows Graphics Capture", CaptureStatusFormatter.Format(selection with { Backend = CaptureBackend.WindowsGraphicsCapture, FallbackReason = CaptureFallbackReason.None }, strings));
+        Assert.Contains("ScreenCaptureKit", CaptureStatusFormatter.Format(selection with { Backend = CaptureBackend.ScreenCaptureKit, FallbackReason = CaptureFallbackReason.None }, strings));
     }
 
     [Fact]
