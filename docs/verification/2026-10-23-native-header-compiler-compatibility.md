@@ -44,9 +44,13 @@ Reproduced locally before fixing with PATH=/usr/bin:/bin:/usr/sbin:/sbin,
 running the real existing helper compile/argument command: exit127 in
 native-portable-path-red.log. Replace only rg -q with the system grep -q,
 keeping the exact anchored invalid-argument output check. The same no-ripgrep
-PATH command then passes (native-portable-path-green.log), as does the complete
---synthetic command with only the FFmpeg test tool directory added
-(native-portable-synthetic-green.log). No assertion, compiler flag or workflow
+PATH command then passes (native-portable-path-green.log). Initial synthetic
+fixture attempts also excluded Node, which CI explicitly installs, and failed
+with node: command not found; these remain failed in native-portable-synthetic
+logs, not GREEN evidence. The corrected isolated PATH adds only a symlink to the
+actual /usr/local/bin/node plus the FFmpeg tool directory, explicitly checks
+that rg is still absent, and passes the complete --synthetic command with exit0
+(native-no-rg-with-node-green.log). No assertion, compiler flag or workflow
 gate is removed, and no new application/CI utility dependency is installed.
 
 The earlier aa4d4a4 Windows run also failed one legacy video trial case:
