@@ -31,3 +31,34 @@ retain all existing notices/PENDING records. Public release notes remain the
 same feature-only bilingual text. Use the new CI revision's original artifacts
 and verify complete assets in a draft before publication. No schedule or extra
 review agents are introduced.
+
+## Follow-up: test runner utility portability
+
+Run39834632086 on c46d49a passed the native Swift compile after the TrackEntry
+change, then failed at tests/native/OpenCamScreenCaptureTests.sh15 with
+`rg: command not found` / exit127. The complete job120019575097 log is retained
+as macos-second-failed.log in the same release staging directory. This is a test
+script utility dependency, not another compiler or application capture failure.
+
+Reproduced locally before fixing with PATH=/usr/bin:/bin:/usr/sbin:/sbin,
+running the real existing helper compile/argument command: exit127 in
+native-portable-path-red.log. Replace only rg -q with the system grep -q,
+keeping the exact anchored invalid-argument output check. The same no-ripgrep
+PATH command then passes (native-portable-path-green.log), as does the complete
+--synthetic command with only the FFmpeg test tool directory added
+(native-portable-synthetic-green.log). No assertion, compiler flag or workflow
+gate is removed, and no new application/CI utility dependency is installed.
+
+The earlier aa4d4a4 Windows run also failed one legacy video trial case:
+PreflightTrialTests.TrialUsesCurrentEngineSamplesOnlyForSelectedInputs,
+SystemAndMicrophone. Before-cleanup evidence: elapsed21254.5ms, checkingReady
+4669.6ms, last20ms poll13685.3ms, TrialStarting, reads0, runningtrue, frames134,
+seconds13.199. Both full managed-stack chunks and observer records were read.
+The stack tool finished18:44:54, while continuation was observed18:45:05;
+workers/idle threads do not establish thread-pool exhaustion or another root
+cause. No Windows timing/MinThreads/threshold/assertion change is made or claimed
+fixed by these Mac-only fixes. Core281pass3skip; Media1013pass82skip1fail.
+Original evidence artifact12449908329 (445133 bytes) SHA256
+5c1e3f0fe17bae7d14dfdfff47ff3e38488facdd2f9f664f2aaa8b923aa6c3e3
+matches its API digest and aa4d4a4 source. Complete log, TRX/environment and
+headless trace are retained in the release staging directory.

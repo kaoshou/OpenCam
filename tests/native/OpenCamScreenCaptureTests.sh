@@ -12,7 +12,7 @@ if "$test_dir/capture" 2> "$test_dir/invalid.log"; then
   echo 'Invalid helper arguments unexpectedly succeeded' >&2
   exit 1
 fi
-rg -q '^ERROR Invalid arguments$' "$test_dir/invalid.log"
+grep -q '^ERROR Invalid arguments$' "$test_dir/invalid.log"
 if [[ "${1:-}" == '--synthetic' ]]; then
   "$test_dir/capture" --synthetic-test > "$test_dir/video.mkv"
   ffprobe -v error -show_entries stream=codec_name,width,height -show_entries packet=pts_time -of json \
