@@ -7,15 +7,14 @@
 
 OpenCam 是 Windows 與 macOS 桌面螢幕錄影工具，讓你錄影、剪輯，再繼續錄影。錄影片段與剪輯保存在可重開的專案中，需要時可輸出 MP4、GIF 或附帶章節與字幕的網頁播放器。
 
-## v0.4.0 更新重點
+## v0.4.1 更新重點
 
-- MP4 與網頁播放器新增匯出品質、原始／最高 1080p／最高 720p 設定，並記住上次選擇；單一片段也適用。
-- 時間軸片段右鍵新增更改名稱、刪除片段，保留 MP4／GIF 匯出子選單。
-- 新增日文程式介面。
-- 聲音確認可選關閉、僅開始錄影時（預設），或開始及暫停恢復時；首次錄影前即可設定停止後自動輸出 MP4。
-- 新增 Windows WGC／Mac ScreenCaptureKit 高效能擷取選項、細長教鞭游標樣式；幀率提供 5／10／20／30／40 FPS，預設 10。
+- 網頁播放器新增閱讀設定浮層：字級、行距、深色高對比與暖白背景，預設關閉，不擠壓逐字稿閱讀空間。
+- 可下載所選語言的完整閱讀版 HTML 或純文字 TXT，支援離線閱讀、列印及選擇是否包含時間標記。
+- 改善播放器鍵盤操作、焦點提示、字幕設定關閉操作，以及手機、平板橫直向版面。
+- 官方網站與使用說明改善鍵盤導覽、文字對比及窄螢幕排版。
 
-[完整更新內容](docs/releases/v0.4.0.md) ｜ [歷史版本](https://github.com/kaoshou/OpenCam/releases)
+[完整更新內容](docs/releases/v0.4.1.md) ｜ [歷史版本](https://github.com/kaoshou/OpenCam/releases)
 
 ## 主要功能
 
@@ -41,9 +40,9 @@ OpenCam 是 Windows 與 macOS 桌面螢幕錄影工具，讓你錄影、剪輯�
 
 到 [最新 Release](https://github.com/kaoshou/OpenCam/releases/latest) 下載。套件包含所需的 .NET Runtime 與媒體工具，無須另外安裝。
 
-- **Windows 安裝版**：執行 `OpenCam_v0.4.0_Windows_x64_Setup.exe`。
-- **Windows 便攜版**：完整解壓 `OpenCam_v0.4.0_Windows_x64_Portable.zip`，保留同資料夾的所有檔案，再執行 `OpenCam.exe`。
-- **macOS**：打開 `OpenCam_v0.4.0_macOS_arm64.dmg`，將 OpenCam 拖入「應用程式」。首次使用時，在「系統設定 → 隱私權與安全性」允許螢幕／系統音訊錄製及麥克風權限；變更權限後可重新啟動程式。
+- **Windows 安裝版**：執行 `OpenCam_v0.4.1_Windows_x64_Setup.exe`。
+- **Windows 便攜版**：完整解壓 `OpenCam_v0.4.1_Windows_x64_Portable.zip`，保留同資料夾的所有檔案，再執行 `OpenCam.exe`。
+- **macOS**：打開 `OpenCam_v0.4.1_macOS_arm64.dmg`，將 OpenCam 拖入「應用程式」。首次使用時，在「系統設定 → 隱私權與安全性」允許螢幕／系統音訊錄製及麥克風權限；變更權限後可重新啟動程式。
 - 如作業系統顯示開啟提醒，請先確認檔案來自本專案的官方 Releases，再依系統提示操作。
 
 ## 開始使用
@@ -81,15 +80,14 @@ OpenCam 自有原始碼採 [GNU Affero General Public License v3.0 或後續版�
 
 OpenCam is a desktop screen recorder for Windows and macOS. Record, edit, and continue recording in a project you can save and reopen, then export MP4, GIF, or a Web player with chapters and captions.
 
-### What's new in v0.4.0
+### What's new in v0.4.1
 
-- MP4 and Web player exports offer remembered quality and original/up to 1080p/up to 720p settings, including individual clip exports.
-- Timeline clip context menus add Rename and Delete, retaining the nested MP4/GIF export menu.
-- Japanese application interface added.
-- Audio confirmation can be off, at recording start only (default), or at both start and resume. Automatic MP4 export can be configured before the first recording.
-- Optional Windows WGC/Mac ScreenCaptureKit high-performance capture and a slim presentation-stick cursor. Frame rates are 5/10/20/30/40 FPS, default 10.
+- A closed-by-default reading settings overlay adds text size, spacing, dark contrast and warm backgrounds without shrinking the transcript.
+- Download the complete selected-language transcript as standalone HTML or plain TXT for offline reading and printing, with optional timestamps.
+- Improved player keyboard navigation, focus indicators, caption-menu dismissal and phone/tablet portrait and landscape layouts.
+- Improved keyboard navigation, text contrast and narrow-screen layout on the website and user guides.
 
-[Full release notes](docs/releases/v0.4.0.md) | [Previous releases](https://github.com/kaoshou/OpenCam/releases)
+[Full release notes](docs/releases/v0.4.1.md) | [Previous releases](https://github.com/kaoshou/OpenCam/releases)
 
 ### Features
 
@@ -115,9 +113,9 @@ OpenCam is a desktop screen recorder for Windows and macOS. Record, edit, and co
 
 Download from the [latest Release](https://github.com/kaoshou/OpenCam/releases/latest). Packages include the required .NET Runtime and media tools.
 
-- **Windows installer**: Run `OpenCam_v0.4.0_Windows_x64_Setup.exe`.
-- **Windows portable**: Fully extract `OpenCam_v0.4.0_Windows_x64_Portable.zip`, keep all companion files together, then run `OpenCam.exe`.
-- **macOS**: Open `OpenCam_v0.4.0_macOS_arm64.dmg` and drag OpenCam into Applications. Allow screen/system-audio recording and microphone access in System Settings → Privacy & Security. Restart OpenCam after changing permissions if needed.
+- **Windows installer**: Run `OpenCam_v0.4.1_Windows_x64_Setup.exe`.
+- **Windows portable**: Fully extract `OpenCam_v0.4.1_Windows_x64_Portable.zip`, keep all companion files together, then run `OpenCam.exe`.
+- **macOS**: Open `OpenCam_v0.4.1_macOS_arm64.dmg` and drag OpenCam into Applications. Allow screen/system-audio recording and microphone access in System Settings → Privacy & Security. Restart OpenCam after changing permissions if needed.
 - If the operating system shows an opening prompt, confirm the download came from this project's official Releases and follow the system instructions.
 
 ### Getting started

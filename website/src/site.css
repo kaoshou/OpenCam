@@ -35,7 +35,7 @@ a { color: inherit; }
 .button-primary { color: white; background: #137a57; box-shadow: 0 10px 20px #137a5730; }
 .button-primary:hover { background: #0b5b40; }
 .button-secondary { background: white; border: 1px solid #c9dbcf; }
-.hero-meta, .visual-caption, .preview-note { color: #6b8072; font-size: .78rem; }
+.hero-meta, .visual-caption, .preview-note { color: #53665b; font-size: .78rem; }
 .hero-meta { margin: 17px 0 0; }
 .release-license-note { max-width: 520px; margin: 9px 0 0; color: #53665b; font-size: .78rem; line-height: 1.55; }
 .hero-visual { position: relative; width: min(100%, 840px); justify-self: end; }
@@ -76,7 +76,7 @@ a { color: inherit; }
 .features-section { background: #f2f8f3; }
 .feature-grid { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 0; padding: 0; }
 .feature-card { min-height: 215px; padding: 28px; border: 1px solid #dce9df; border-radius: 18px; background: white; }
-.feature-number { color: #1c9a6b; font-size: .76rem; font-weight: 850; letter-spacing: .13em; }
+.feature-number { color: #137a57; font-size: .76rem; font-weight: 850; letter-spacing: .13em; }
 .feature-card h3 { margin: 27px 0 8px; font-size: 1.13rem; }
 .feature-card p { margin: 0; color: #56695d; font-size: .91rem; }
 .process-section { background: #143829; color: #f6fff8; }
@@ -133,3 +133,16 @@ a { color: inherit; }
 .guide-article blockquote { margin: 20px 0; padding: 8px 20px; border-left: 4px solid #279c6d; background: #edf7ef; }
 @media (max-width: 900px) { .guide-shell { grid-template-columns: 1fr; gap: 25px; padding-block: 35px 75px; } .guide-sidebar { position: static; max-height: none; } .guide-toc ol { columns: 2; } }
 @media (max-width: 650px) { .guide-toc ol { columns: 1; max-height: 215px; overflow-y: auto; border-top: 1px solid #dce9df; padding-top: 8px; } .guide-article h2 { margin-top: 40px; } }
+/* Progressive accessibility: same default palette/layout, readable under zoom. */
+:focus-visible { outline-color: #0a6748; }
+.site-footer :focus-visible,.process-section :focus-visible { outline-color: #b9efd0; }
+.nav-wrap,.nav-links { flex-wrap: wrap; }
+.nav-wrap { padding-block: 10px; }
+.nav-links a { min-height: 32px; display: inline-flex; align-items: center; }
+.container,.nav-wrap,.guide-article,.hero-copy { overflow-wrap: anywhere; }
+.hero-line { max-width: 100%; white-space: normal; }
+.guide-article a[data-lightbox] { display: inline-block; max-width: 100%; }
+.guide-toc a:focus-visible { outline-offset: -2px; }
+.language-switch:lang(zh-TW) { word-break: keep-all; }
+@media (max-width: 650px) { .nav-wrap { row-gap: 8px; }.nav-links { gap: 8px; } }
+@media (forced-colors: active) { :focus-visible { outline: 3px solid Highlight; }.button,.github-link,.language-switch { border: 1px solid ButtonText; }.window-halo { display: none; } }

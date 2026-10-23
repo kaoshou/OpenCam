@@ -1,5 +1,15 @@
 # OpenCam Complete User Guide (English)
 
+## Web player: reading preferences and transcript downloads
+
+The exported player keeps its existing layout and CC appearance controls. Transcript initially shows language and search; use **Reading settings** at the top right to open an overlay for follow playback, 100–200% reading text, spacing, dark contrast/warm backgrounds, reset and full transcript downloads. The overlay does not shrink the transcript; close it with its close button, Escape or an outside click. On phones and tablets its contents scroll within the viewport. It starts closed on every page load. These settings affect only the reading list, not video or source captions. Preferences are remembered when browser storage is available and can be reset.
+
+Download the complete selected language as a self-contained HTML reading document or UTF-8 TXT. Search filters and the currently loaded rows do not limit downloads. Timestamps are optional and off by default. HTML includes chapter headings, paragraphs and a language attribute, supports browser zoom/printing, and opens offline without the video. Downloads are disabled when no captions are attached. Check the audience before sharing transcripts containing private information.
+
+Use Tab/Shift+Tab to navigate and Enter to activate buttons. In the video area, Space plays/pauses, arrows seek 5 seconds, and F toggles fullscreen. Index tabs support arrows and Home/End. Esc or Close settings closes CC settings and restores button focus. Search input does not trigger playback shortcuts; follow playback does not replace or scroll the focused transcript row. Keyboard help is below the player.
+
+Following the [W3C transcript guidance](https://www.w3.org/WAI/media/av/transcripts/), authors should check speaker identification, meaningful sounds, on-screen text and necessary visual descriptions. Caption-derived downloads cannot invent missing information; authors can supplement the downloaded document. Reading controls alone do not establish that every lesson meets all accessibility requirements.
+
 ## v0.3.11: audio-only preflight
 
 Settings → Video Quality & Actions → **Check audio before recording** offers:
@@ -68,7 +78,7 @@ Change capture mode only while idle, not while paused. Audio/cursor controls rem
 
 OpenCam lets you record, edit, and resume recording. It writes MKV sources, retains them alongside a reopenable editing project, and exports MP4 when needed. Crash Recovery can attempt to preserve successfully written recordings; project recovery drafts protect interrupted unsaved edits.
 
-> This guide covers OpenCam v0.4.0: recording, editing, audio trials and MP4/GIF/Web export. See [what changed in this version](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.4.0.md).
+> This guide covers OpenCam v0.4.1: recording, editing, audio trials and MP4/GIF/Web export. See [what changed in this version](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.4.1.md).
 
 v0.3.3 replaces manual export with an **Export…** menu offering MP4 video or Web player. MP4 accepts a filename; Web player creates a unique folder containing index.html, media.mp4 and opencam-player.js. Chapters follow saved clips and show start times and durations in a scrollable index. Overlay controls provide seeking, volume, speed, wide-screen and fullscreen. Move the complete folder together and use an H.264/AAC-capable browser. See [the web export format](https://github.com/kaoshou/OpenCam/blob/master/docs/WEB_PLAYER_EXPORT.md).
 
@@ -108,14 +118,14 @@ These illustrations show v0.3.5. See this guide for current features. Select an 
 
 - Windows 10 or Windows 11, x64.
 - Both the installer and portable package include the required runtime components.
-- Download `OpenCam_v0.4.0_Windows_x64_Setup.exe` or `OpenCam_v0.4.0_Windows_x64_Portable.zip` from [Releases](https://github.com/kaoshou/OpenCam/releases). Filenames identify the version, Windows platform, and x64 architecture.
+- Download `OpenCam_v0.4.1_Windows_x64_Setup.exe` or `OpenCam_v0.4.1_Windows_x64_Portable.zip` from [Releases](https://github.com/kaoshou/OpenCam/releases). Filenames identify the version, Windows platform, and x64 architecture.
 - System audio uses Windows loopback capture. A microphone can be selected in OpenCam.
 
 ### macOS
 
 - macOS 13 Ventura or later.
 - The official build currently supports Apple Silicon (arm64). An Intel Mac (x64) build is not currently provided.
-- Download `OpenCam_v0.4.0_macOS_arm64.dmg` from [Releases](https://github.com/kaoshou/OpenCam/releases); arm64 identifies Apple Silicon.
+- Download `OpenCam_v0.4.1_macOS_arm64.dmg` from [Releases](https://github.com/kaoshou/OpenCam/releases); arm64 identifies Apple Silicon.
 - After first launch, open **System Settings → Privacy & Security** and allow OpenCam to use:
   - Screen & System Audio Recording
   - Microphone, when microphone recording is needed

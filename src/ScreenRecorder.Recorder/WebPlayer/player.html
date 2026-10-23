@@ -27,11 +27,26 @@ footer{margin-top:24px;padding:18px;border-top:1px solid #e2e8f0;text-align:cent
 .layout{align-items:start}.chapters{height:clamp(320px,70vh,720px);overflow:hidden}.index-panel{overflow:hidden}.transcript-tools{flex-shrink:0}.list{overflow-y:auto;flex:1;min-height:0;height:0}
 @media(max-width:960px){.layout{grid-template-columns:1fr}main{padding:24px 16px}header{padding:16px;gap:12px}}
 @media(max-width:480px){main{padding:16px 10px}header{padding:16px 14px}.details{padding:12px 14px}.player,.chapters{border-radius:10px}.subtitle{font-size:11px}footer{margin-top:20px}.controls{padding:28px 8px 8px}.control-row{gap:3px;flex-wrap:wrap}.volume{width:42px}.time-display{font-size:10px}.control-button{width:30px;height:30px}.controls select{max-width:58px;font-size:11px}}
+.skip-link{position:absolute;top:8px;left:12px;z-index:10;padding:10px 16px;background:#fff;color:#1d4ed8;transform:translateY(-160%);border-radius:8px}.skip-link:focus{transform:none}
+input:focus-visible,summary:focus-visible,.list:focus-visible,.stage:focus-visible{outline:3px solid #2563eb;outline-offset:-3px}.controls:focus-within{opacity:1!important;pointer-events:auto!important}.stage:focus-within{cursor:auto}
+.reading-options{position:fixed;z-index:20;width:360px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);max-height:calc(100dvh - 16px);overflow:auto;overscroll-behavior:contain;padding:16px;background:white;border:1px solid #cbd5e1;border-radius:12px;box-shadow:0 12px 36px #0f172a26;font-size:12px}.reading-fields,.advanced-fields{display:grid;gap:8px}.reading-options label{color:#475569;flex-wrap:wrap}.reading-options input[type=range]{width:100%;accent-color:#2563eb}.reading-options select{width:100%;font-size:12px}.reading-options output{margin-left:auto;font-variant-numeric:tabular-nums}.reading-options .advanced-fields{padding:8px 0}.reading-toolbar,.reading-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}.reading-heading{margin-bottom:12px}.reading-heading h3{font-size:14px;margin:0}.reading-toolbar{justify-content:flex-end}.reading-toggle,.reading-close{font:inherit;font-size:12px;min-height:36px;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;background:#eff6ff;color:#1d4ed8;cursor:pointer}.reading-download-heading{margin:8px 0 0;padding-top:12px;border-top:1px solid #e2e8f0;font-size:13px}
+.reading-actions{display:flex;flex-wrap:wrap;gap:6px}.reading-actions button{font:inherit;font-size:12px;border:1px solid #cbd5e1;border-radius:7px;padding:7px 9px;background:#f8fafc;color:#1d4ed8;cursor:pointer;min-height:32px}.reading-actions button:disabled{color:#64748b;cursor:default}.reading-note{margin:4px 0;color:#475569;font-size:11px;line-height:1.6}
+.transcript-tools{max-height:min(65%,calc(100% - 124px));min-height:0;overflow-y:auto}.transcript-copy{font-size:.8125em;line-height:inherit}.transcript-row{line-height:inherit}.transcript-time{color:inherit;opacity:.85}.transcript-row:focus-visible{outline-offset:-3px}#transcript-list{line-height:1.5;min-height:80px}#transcript-list[data-theme=dark]{background:#101827;color:#f8fafc}#transcript-list[data-theme=warm]{background:#fff6e6;color:#3f3020}#transcript-list[data-theme=dark] .transcript-row{color:#f8fafc}#transcript-list[data-theme=dark] .transcript-row:hover,#transcript-list[data-theme=dark] .transcript-row[aria-current=true]{background:#253652}#transcript-list[data-theme=warm] .transcript-row{color:#3f3020}#transcript-list[data-theme=warm] .transcript-row:hover,#transcript-list[data-theme=warm] .transcript-row[aria-current=true]{background:#f1e2c5}#transcript-list[data-theme=dark] :focus-visible{outline-color:#93c5fd}
+.keyboard-help{margin-top:14px;color:#475569;font-size:12px}.keyboard-help summary{cursor:pointer;width:fit-content}.keyboard-help p{max-width:85ch}.keyboard-help kbd{font:inherit;background:white;border:1px solid #cbd5e1;border-radius:4px;padding:1px 4px}
+footer{color:#536174}
+.number{color:#536174}.chapter[aria-current=true] .times{color:#fff}
+/* Reserve the reading area before laying out the optional controls. */
+#transcript-panel{display:grid;grid-template-rows:minmax(0,max-content) minmax(var(--transcript-min-height,160px),1fr) auto}
+#transcript-panel .transcript-tools{max-height:none;min-height:0;align-content:start}
+#transcript-list{height:auto;min-height:0}
+@media(max-width:480px){.caption-menu{position:fixed;inset:auto 10px 12px;width:auto;max-width:none;max-height:80vh}.time-display{font-size:11px}.control-button{min-width:32px;min-height:32px}}
+@media(forced-colors:active){button,select,input,summary{border:1px solid ButtonText!important}.caption-text{forced-color-adjust:none}.transcript-row[aria-current=true],.chapter[aria-current=true]{outline:2px solid Highlight}.controls{background:Canvas;color:CanvasText}}
 </style>
 <script src="opencam-player.js" defer></script>
 </head>
 <body>
-<main>
+<a class="skip-link" id="skip-transcript" href="#transcript-tab">跳至逐字稿 / Skip to transcript</a>
+<main id="main">
 <header><span class="mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="26" height="20" rx="4"/><path d="M13 10l8 4-8 4z" fill="currentColor" stroke="none"/><path d="M11 29h10"/></svg></span><div class="heading"><h1 id="title">%%TITLE%%</h1><div class="subtitle" id="summary">OpenCam · 網頁播放器 / Web player</div></div></header>
 <div class="layout" id="layout">
 <section class="player" id="player" aria-label="影片播放器 / Video player">
@@ -59,6 +74,7 @@ footer{margin-top:24px;padding:18px;border-top:1px solid #e2e8f0;text-align:cent
 <label for="caption-opacity">背景不透明度 / Background opacity</label><input id="caption-opacity" type="range" min="0" max="1" step="0.05" value="0.78">
 <label for="caption-position">位置 / Position</label><select id="caption-position"><option value="bottom">下方 / Bottom</option><option value="middle">中間 / Middle</option><option value="top">上方 / Top</option></select>
 <button id="caption-reset" type="button">重設外觀 / Reset appearance</button>
+<button id="caption-close" type="button">關閉設定 / Close settings</button>
 </div></div></div>
 <div class="details"><div class="current"><span class="caption">目前章節 / NOW PLAYING</span><span class="now" id="now">準備播放 / Ready</span></div></div>
 <div class="error" id="error" role="status" hidden></div>
@@ -67,10 +83,24 @@ footer{margin-top:24px;padding:18px;border-top:1px solid #e2e8f0;text-align:cent
 <div class="index-tabs" role="tablist" aria-label="教材索引 / Lesson index"><button id="chapter-tab" role="tab" aria-selected="true" aria-controls="chapter-panel">章節 / Chapters</button><button id="transcript-tab" role="tab" aria-selected="false" aria-controls="transcript-panel">逐字稿 / Transcript</button></div>
 <div class="index-panel" id="chapter-panel" role="tabpanel" aria-labelledby="chapter-tab"><nav class="list" id="chapters" aria-label="影片章節 / Video chapters"></nav></div>
 <div class="index-panel" id="transcript-panel" role="tabpanel" aria-labelledby="transcript-tab" hidden>
-<div class="transcript-tools"><label for="transcript-language">逐字稿語言 / Language</label><select id="transcript-language"></select><input id="transcript-search" type="search" maxlength="200" placeholder="搜尋字幕文字… / Search" aria-label="搜尋逐字稿 / Search transcript"><label class="follow"><input id="transcript-follow" type="checkbox" checked>跟隨播放 / Follow playback</label><div id="transcript-status" role="status" aria-live="polite"></div></div>
-<div class="list" id="transcript-list" aria-label="逐字稿內容 / Transcript entries"></div><button id="transcript-more" class="transcript-more" hidden>載入更多 / Load more</button>
+<div class="transcript-tools"><div class="reading-toolbar"><button id="reading-button" class="reading-toggle" type="button" aria-expanded="false" aria-controls="reading-menu" aria-haspopup="dialog">閱讀設定 / Reading settings</button></div>
+<div id="reading-menu" class="reading-options" role="dialog" aria-labelledby="reading-heading" hidden><div class="reading-heading"><h3 id="reading-heading">閱讀設定 / Reading settings</h3><button id="reading-close" class="reading-close" type="button" aria-label="關閉閱讀設定 / Close reading settings">✕</button></div><div class="reading-fields">
+<label class="follow"><input id="transcript-follow" type="checkbox" checked>跟隨播放 / Follow playback</label>
+<label for="reading-size">閱讀字級 / Text size <output id="reading-size-value">100%</output></label><input id="reading-size" type="range" min="100" max="200" step="25" value="100">
+<div class="advanced-fields">
+<label for="reading-spacing">行距 / Line spacing</label><select id="reading-spacing"><option value="1.5">標準 / Standard</option><option value="1.8">寬鬆 / Relaxed</option><option value="2">加寬 / Spacious</option></select>
+<label for="reading-theme">閱讀背景 / Reading background</label><select id="reading-theme"><option value="default">原有配色 / Default</option><option value="dark">深色高對比 / Dark contrast</option><option value="warm">暖白背景 / Warm paper</option></select>
+<div class="reading-actions"><button id="reading-reset" type="button">重設閱讀 / Reset</button></div>
+ </div><h4 class="reading-download-heading">下載完整逐字稿 / Download full transcript</h4>
+<label><input id="reading-timestamps" type="checkbox">下載含時間標記 / Include timestamps</label>
+<div class="reading-actions"><button id="download-html" type="button">閱讀版 HTML / Download</button><button id="download-txt" type="button">TXT / Download</button></div>
+<p class="reading-note">下載所選語言的完整逐字稿，不受搜尋影響。 / Download the full selected language, independent of search.</p>
+<div id="download-status" role="status" aria-live="polite"></div>
+</div></div><label for="transcript-language">逐字稿語言 / Language</label><select id="transcript-language"></select><input id="transcript-search" type="search" maxlength="200" placeholder="搜尋字幕文字… / Search" aria-label="搜尋逐字稿 / Search transcript"><div id="transcript-status" role="status" aria-live="polite"></div></div>
+<div class="list" id="transcript-list" role="region" tabindex="0" aria-label="逐字稿內容 / Transcript entries"></div><button id="transcript-more" class="transcript-more" hidden>載入更多 / Load more</button>
 </div></aside>
 </div>
+<details class="keyboard-help"><summary>鍵盤操作說明 / Keyboard help</summary><p>以 <kbd>Tab</kbd> 移動，<kbd>Enter</kbd> 操作按鈕。影片區：<kbd>空白鍵 / Space</kbd> 播放／暫停，<kbd>←</kbd> <kbd>→</kbd> 前後 5 秒，<kbd>F</kbd> 全螢幕。章節／逐字稿分頁：左右鍵切換，Home／End 跳至首／末分頁。<kbd>Esc</kbd> 關閉字幕設定。 / In the video area: Space plays/pauses, arrows seek 5 seconds, F toggles fullscreen. Use arrows or Home/End on index tabs; Esc closes subtitle settings.</p></details>
 <footer>以 <a href="https://github.com/kaoshou/OpenCam" target="_blank" rel="noopener noreferrer">OpenCam</a> 製作 · Created with OpenCam</footer>
 <noscript>請啟用 JavaScript 以使用章節跳播。影片仍可使用上方控制列播放。</noscript>
 </main>
@@ -136,7 +166,10 @@ window.addEventListener('DOMContentLoaded',()=>{
   const sidebar=document.getElementById('sidebar'),playerPane=document.getElementById('player');
   const syncSidebarHeight=()=>{
     const height=playerPane.getBoundingClientRect().height;
-    if(height>0)sidebar.style.height=Math.round(Math.max(320,Math.min(height,window.innerHeight*.8)))+'px';
+    if(height>0){
+      const size=Math.round(Math.max(320,Math.min(height,window.innerHeight*.8)));
+      sidebar.style.height=size+'px';sidebar.style.setProperty('--transcript-min-height',Math.ceil(size/2)+'px');
+    }
   };
   syncSidebarHeight();window.addEventListener('resize',syncSidebarHeight);
   if(window.ResizeObserver)new window.ResizeObserver(syncSidebarHeight).observe(playerPane);
@@ -146,6 +179,23 @@ window.addEventListener('DOMContentLoaded',()=>{
     transcriptMore=document.getElementById('transcript-more'),transcriptFollow=document.getElementById('transcript-follow');
   let transcriptCues=[],transcriptMatches=[],transcriptRows=[],transcriptStart=0,transcriptLimit=100,searchTimer,lastFollow=-1;
   transcriptFollow.checked=true;
+  const readingButton=document.getElementById('reading-button'),readingMenu=document.getElementById('reading-menu');
+  const closeReading=(restore=false)=>{readingMenu.hidden=true;readingButton.setAttribute('aria-expanded','false');if(restore)readingButton.focus()};
+  const positionReading=()=>{
+    if(readingMenu.hidden)return;
+    const anchor=readingButton.getBoundingClientRect(),box=readingMenu.getBoundingClientRect();
+    readingMenu.style.left=Math.max(8,Math.min(anchor.right-box.width,window.innerWidth-box.width-8))+'px';
+    readingMenu.style.top=Math.max(8,Math.min(anchor.bottom+8,window.innerHeight-box.height-8))+'px';
+  };
+  readingButton.addEventListener('click',()=>{
+    if(!readingMenu.hidden){closeReading(true);return}
+    readingMenu.hidden=false;readingButton.setAttribute('aria-expanded','true');positionReading();document.getElementById('reading-close').focus();
+  });
+  document.getElementById('reading-close').addEventListener('click',()=>closeReading(true));
+  document.addEventListener('click',e=>{if(e.isTrusted&&!readingMenu.hidden&&!readingMenu.contains(e.target)&&!readingButton.contains(e.target))closeReading()});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!readingMenu.hidden){e.preventDefault();closeReading(true)}});
+  document.addEventListener('focusin',e=>{if(!readingMenu.hidden&&!readingMenu.contains(e.target)&&e.target!==readingButton)closeReading()});
+  window.addEventListener('resize',positionReading);window.addEventListener('scroll',positionReading,true);
   const highlightText=(element,text,query)=>{
     if(!query){element.textContent=text;return;}
     const lower=text.toLowerCase();let offset=0,index;
@@ -181,34 +231,82 @@ window.addEventListener('DOMContentLoaded',()=>{
     let low=0,high=transcriptCues.length;
     while(low<high){const middle=(low+high)>>1;if(transcriptCues[middle].start<=position)low=middle+1;else high=middle;}
     const active=low-1;
-    if(transcriptFollow.checked&&!transcriptSearch.value.trim()&&!document.getElementById('transcript-panel').hidden&&active>=0&&active!==lastFollow){
+    if(transcriptFollow.checked&&!transcriptList.contains(document.activeElement)&&!transcriptSearch.value.trim()&&!document.getElementById('transcript-panel').hidden&&active>=0&&active!==lastFollow){
       if(active<transcriptStart||active>=transcriptStart+transcriptLimit){transcriptStart=Math.floor(active/100)*100;transcriptLimit=100;drawTranscript();}
-      transcriptRows.find(r=>r.cue===transcriptCues[active])?.row.scrollIntoView?.({block:'nearest',behavior:'auto'});lastFollow=active;
+      const row=transcriptRows.find(r=>r.cue===transcriptCues[active])?.row;
+      if(row&&Number.isFinite(row.offsetTop)){const top=row.offsetTop-transcriptList.offsetTop;if(top<transcriptList.scrollTop)transcriptList.scrollTop=top;else if(top+row.offsetHeight>transcriptList.scrollTop+transcriptList.clientHeight)transcriptList.scrollTop=top+row.offsetHeight-transcriptList.clientHeight;}
+      else row?.scrollIntoView?.({block:'nearest',behavior:'auto'});lastFollow=active;
     }
     transcriptRows.forEach(({row,cue})=>row.setAttribute('aria-current',String(!video.ended&&position>=cue.start&&position<cue.end)));
   };
   const setTranscriptLanguage=()=>{
     window.clearTimeout(searchTimer);
     transcriptCues=[...(subtitleTracks.find(t=>t.id===transcriptLanguage.value)?.cues||[])].sort((a,b)=>a.start-b.start);
+    transcriptList.setAttribute('lang',transcriptLanguage.value?subtitleTracks.find(t=>t.id===transcriptLanguage.value)?.language||'und':'und');
+    transcriptList.setAttribute('dir','auto');
     searchTranscript();
   };
   subtitleTracks.forEach(t=>{const option=document.createElement('option');option.value=t.id;option.textContent=subtitleLanguageLabel(t);transcriptLanguage.append(option)});
   transcriptLanguage.value=defaultTrack?.id||'';transcriptLanguage.disabled=transcriptSearch.disabled=transcriptFollow.disabled=!subtitleTracks.length;
   const showIndex=transcript=>{
+    closeReading();
     syncSidebarHeight();
     document.getElementById('chapter-panel').hidden=transcript;document.getElementById('transcript-panel').hidden=!transcript;
     chapterTab.setAttribute('aria-selected',String(!transcript));transcriptTab.setAttribute('aria-selected',String(transcript));
     chapterTab.tabIndex=transcript?-1:0;transcriptTab.tabIndex=transcript?0:-1;lastFollow=-1;syncTranscript();
   };
   chapterTab.addEventListener('click',()=>showIndex(false));transcriptTab.addEventListener('click',()=>showIndex(true));
+  document.getElementById('skip-transcript').addEventListener('click',e=>{e.preventDefault();document.getElementById('layout').classList.remove('wide');wide.setAttribute('aria-pressed','false');showIndex(true);transcriptTab.focus?.()});
   [chapterTab,transcriptTab].forEach(tab=>tab.addEventListener('keydown',e=>{
-    if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();const next=tab===chapterTab;showIndex(next);(next?transcriptTab:chapterTab).focus?.();}
+    if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();const next=e.key==='End'||(e.key!=='Home'&&tab===chapterTab);showIndex(next);(next?transcriptTab:chapterTab).focus?.();}
   }));
   transcriptLanguage.addEventListener('change',setTranscriptLanguage);
   transcriptSearch.addEventListener('input',()=>{window.clearTimeout(searchTimer);searchTimer=window.setTimeout(searchTranscript,120)});
   transcriptMore.addEventListener('click',()=>{transcriptLimit+=100;drawTranscript();syncTranscript()});
   transcriptFollow.addEventListener('change',()=>{lastFollow=-1;syncTranscript()});
   ['timeupdate','seeked','loadedmetadata','ended'].forEach(event=>video.addEventListener(event,syncTranscript));
+  const readingSize=document.getElementById('reading-size'),readingSpacing=document.getElementById('reading-spacing'),readingTheme=document.getElementById('reading-theme');
+  let reading={size:100,spacing:1.5,theme:'default'};
+  try{const saved=JSON.parse(readPref('opencam.readingAppearance')||'null');if(saved){
+    if([100,125,150,175,200].includes(saved.size))reading.size=saved.size;
+    if([1.5,1.8,2].includes(saved.spacing))reading.spacing=saved.spacing;
+    if(['default','dark','warm'].includes(saved.theme))reading.theme=saved.theme;
+  }}catch{}
+  const applyReading=()=>{
+    readingSize.value=String(reading.size);readingSpacing.value=String(reading.spacing);readingTheme.value=reading.theme;
+    document.getElementById('reading-size-value').textContent=reading.size+'%';
+    transcriptList.style.fontSize=reading.size+'%';transcriptList.style.lineHeight=String(reading.spacing);transcriptList.dataset.theme=reading.theme;
+    writePref('opencam.readingAppearance',JSON.stringify(reading));
+  };
+  readingSize.addEventListener('input',()=>{const n=Number(readingSize.value);reading.size=[100,125,150,175,200].includes(n)?n:100;applyReading()});
+  readingSpacing.addEventListener('change',()=>{const n=Number(readingSpacing.value);reading.spacing=[1.5,1.8,2].includes(n)?n:1.5;applyReading()});
+  readingTheme.addEventListener('change',()=>{reading.theme=['default','dark','warm'].includes(readingTheme.value)?readingTheme.value:'default';applyReading()});
+  document.getElementById('reading-reset').addEventListener('click',()=>{reading={size:100,spacing:1.5,theme:'default'};applyReading()});applyReading();
+  const escapeHtml=text=>String(text).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const downloadTranscript=format=>{
+    const track=subtitleTracks.find(t=>t.id===transcriptLanguage.value);if(!track)return;
+    const cues=[...track.cues].sort((a,b)=>a.start-b.start),stamps=document.getElementById('reading-timestamps').checked;
+    const lang=/^[a-zA-Z]{2,8}(?:-[a-zA-Z0-9]{1,8})*$/.test(track.language)?track.language:'und';
+    const note='此逐字稿來自附加字幕；必要的說話者、聲音與畫面描述須由作者核對補充。 / Derived from attached captions; authors must check speaker, sound and visual descriptions.';
+    const text=[data.title,subtitleLanguageLabel(track),'',note,''];let body='',chapter=-1;
+    for(const cue of cues){
+      let next=-1;data.chapters.forEach((c,i)=>{if(cue.start>=c.start)next=i});
+      if(next!==chapter){chapter=next;const title=data.chapters[chapter]?.title;if(title){text.push('',title,'');body+='<h2>'+escapeHtml(title)+'</h2>';}}
+      text.push((stamps?'['+time(cue.start)+'] ':'')+cue.text,'');
+      body+='<p dir="auto">'+(stamps?'<span class="timestamp">'+time(cue.start)+'</span> ':'')+escapeHtml(cue.text)+'</p>';
+    }
+    const html='<!doctype html><html lang="'+lang+'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+escapeHtml(data.title)+' — 逐字稿 / Transcript</title><style>body{margin:0;background:#fafafa;color:#17202a;font:1.125rem/1.85 system-ui,sans-serif}main{max-width:72ch;margin:auto;padding:clamp(20px,5vw,64px)}h1{line-height:1.35}h1,h2,p{overflow-wrap:anywhere}h2{margin-top:2em}p{white-space:pre-line}.meta,.note,.timestamp{color:#475569}.note{font-size:.875rem;border-left:3px solid #64748b;padding-left:1em}.timestamp{font-size:.875em;font-variant-numeric:tabular-nums}@media print{body{background:white;color:black}main{max-width:none;padding:0}h2{break-after:avoid}p{orphans:3;widows:3}}</style></head><body><main><h1>'+escapeHtml(data.title)+'</h1><p class="meta">'+escapeHtml(subtitleLanguageLabel(track))+'</p><p class="note">'+escapeHtml(note)+'</p>'+body+'</main></body></html>';
+    let url;
+    try{
+      const blob=new Blob([format==='html'?html:'\ufeff'+text.join('\n')],{type:format==='html'?'text/html;charset=utf-8':'text/plain;charset=utf-8'});
+      url=window.URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;
+      const stem=String(data.title).replace(/[<>:"/\\|?*\u0000-\u001f\u007f]/g,'_').slice(0,80).replace(/[. ]+$/,'')||'OpenCam';
+      link.download=stem+'_'+lang+'_transcript.'+format;document.body.append(link);link.click();link.remove();
+      document.getElementById('download-status').textContent='已準備完整逐字稿 / Full transcript prepared';
+    }catch{document.getElementById('download-status').textContent='下載無法建立，請使用支援下載的瀏覽器。 / Download unavailable in this browser.';}
+    finally{if(url)window.setTimeout(()=>window.URL.revokeObjectURL(url),60000);}
+  };
+  for(const format of ['html','txt']){const button=document.getElementById('download-'+format);button.disabled=!subtitleTracks.length;button.addEventListener('click',()=>downloadTranscript(format));}
   const preference=readPref(choiceKey);
   let subtitleId=preference==='off'||subtitleTracks.some(t=>t.id===preference)?preference:defaultTrack?.id||'off';
   let appearance={size:100,theme:0,opacity:.78,position:'bottom'},captionFrame=null,captionFrameNative=false;
@@ -245,6 +343,8 @@ window.addEventListener('DOMContentLoaded',()=>{
     captionOverlay.dataset.position=appearance.position;writePref('opencam.captionAppearance',JSON.stringify(appearance));showControls();
   };
   const closeCaptionMenu=()=>{captionMenu.hidden=true;captionButton.setAttribute('aria-expanded','false');showControls()};
+  document.getElementById('caption-close').addEventListener('click',()=>{closeCaptionMenu();captionButton.focus?.()});
+  document.addEventListener('focusin',e=>{if(!captionMenu.hidden&&!captionMenu.contains(e.target)&&e.target!==captionButton)closeCaptionMenu()});
   if(subtitleTracks.length){
     captionButton.hidden=false;
     const off=document.createElement('option');off.value='off';off.textContent='關閉字幕 / Off';captionLanguage.append(off);

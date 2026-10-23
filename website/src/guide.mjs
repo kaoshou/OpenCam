@@ -57,6 +57,11 @@ export function renderGuide(source, language) {
           }
           child.attrSet('src', rewriteGuideHref(source, language));
           child.attrSet('loading', 'lazy');
+          // Reserve the real preview dimensions before lazy loading, so image
+          // links remain useful keyboard/touch targets and do not shift content.
+          const kind=source.match(/preview_(main|settings|editor|subtitles)_/)[1];
+          const [width,height]={main:[840,820],settings:[650,820],editor:[1440,900],subtitles:[780,620]}[kind];
+          child.attrSet('width',String(width));child.attrSet('height',String(height));
           if (!insideLink) {
             const open = new child.constructor('link_open', 'a', 1);
             open.attrSet('href', child.attrGet('src'));

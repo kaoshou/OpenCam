@@ -68,6 +68,14 @@ window.OpenCamPlayerData = {
 
 ## English
 
+### 閱讀與下載 / Reading and download
+
+逐字稿區預設保留語言與搜尋；按右上角「閱讀設定」開啟單層設定浮層，包含跟隨播放、閱讀字級、行距、背景對比、重設與下載。浮層不擠壓逐字稿，可按關閉、Esc 或點外側關閉；窄螢幕內部捲動。CC 字幕外觀仍獨立設定，不改影片區版面。下載按鈕產生所選語系的**完整** HTML／UTF-8 TXT，與搜尋及100列批次無關；時間標記選填，章節依最終影片時間排序。HTML 只含安全編碼後的文字與內嵌排版，不含影片、腳本或外部資源，可離線閱讀／列印。瀏覽器不支援下載時顯示提示；不回退到執行匯入的 HTML。
+
+Playback follow pauses DOM paging/scrolling while a transcript row or its list owns keyboard focus. CC has an explicit close button, Escape focus return, and closes when keyboard focus leaves it. Tabs support arrows/Home/End; typing in form fields never triggers video shortcuts. The website/guide support skip-to-main focus and responsive navigation without replacing the established design.
+
+依 [W3C 逐字稿指引](https://www.w3.org/WAI/media/av/transcripts/)，可由字幕製作逐字稿，但必要的說話者、非語音聲音與視覺資訊仍需作者核對補充。程式不推測或自動宣稱內容等價。介面以 WCAG 2.2 AA 為檢查目標；自動檢查不取代螢幕閱讀器、實際使用者與內容審查，也不等於正式無障礙認證。
+
 Both export menus offer **MP4 video** and **Web player**. MP4 retains the file picker. Web player asks for a parent location and creates a unique folder with the three fixed filenames above. Automatic export on recording stop continues to produce MP4.
 
 Move the entire folder or upload it to a static site. Playback uses local files and requires an H.264/AAC-capable browser. Chapters follow the final saved logical clip order, names and retained durations. Merged clips form one chapter; grouped but unmerged clips remain separate chapters.

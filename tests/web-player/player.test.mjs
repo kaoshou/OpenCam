@@ -6,7 +6,7 @@ import vm from 'node:vm';
 const html = readFileSync(new URL('../../src/ScreenRecorder.Recorder/WebPlayer/player.html', import.meta.url), 'utf8');
 const runtime = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].at(-1)[1];
 class Element {
-  style={};dataset={};
+  style={setProperty(name,value){this[name]=value}};dataset={};
   children=[]; listeners={}; attributes={}; textContent=''; hidden=true;
   value=''; classList={values:new Set(),add(name){this.values.add(name)},remove(name){this.values.delete(name)},
     contains(name){return this.values.has(name)},toggle(name,force){const next=force??!this.values.has(name);if(next)this.values.add(name);else this.values.delete(name);return next}};
@@ -20,12 +20,13 @@ class Element {
   set innerHTML(value){throw new Error('Player content must not inject HTML')}
 }
 function setup(data = {format:'opencam.web-player',schemaVersion:1,title:'教材 <img onerror=alert(1)>',
-  chapters:[{title:'介紹',start:0,end:4},{title:'示範 </script>',start:4,end:8},{title:'整理',start:8,end:12}]}){
+  chapters:[{title:'介紹',start:0,end:4},{title:'示範 </script>',start:4,end:8},{title:'整理',start:8,end:12}]},saved={}){
   const ids = Object.fromEntries(['video','error','title','summary','chapters','now','speed','stage','layout','controls',
     'seek','play','mute','volume','current-time','total-time','wide','fullscreen',
     'caption-button','caption-menu','caption-language','caption-overlay','caption-text','caption-size','caption-size-value',
     'caption-theme','caption-opacity','caption-position','caption-reset','chapter-tab','transcript-tab','chapter-panel',
-    'transcript-panel','transcript-language','transcript-search','transcript-list','transcript-status','transcript-more','transcript-follow','sidebar','player'].map(id=>[id,new Element()]));
+    'transcript-panel','transcript-language','transcript-search','transcript-list','transcript-status','transcript-more','transcript-follow','sidebar','player',
+    'reading-button','reading-menu','reading-close','reading-size','reading-size-value','reading-spacing','reading-theme','reading-reset','reading-timestamps','download-html','download-txt','download-status','caption-close','skip-transcript'].map(id=>[id,new Element()]));
   ids.player.getBoundingClientRect=()=>({height:480});
   Object.assign(ids.video,{controls:true,readyState:1,currentTime:0,duration:12,playbackRate:1,paused:true,ended:false,volume:1,muted:false,
     play(){this.playCalled=true;this.paused=false;this.dispatch('play');return Promise.resolve()},
@@ -36,11 +37,15 @@ function setup(data = {format:'opencam.web-player',schemaVersion:1,title:'教材
   const document={getElementById:id=>ids[id],createElement:()=>new Element(),body:new Element(),listeners:{},activeElement:null,fullscreenElement:null,
     addEventListener(name,handler){(this.listeners[name]??=[]).push(handler)},dispatch(name,event={}){this.listeners[name]?.forEach(handler=>handler(event))},
     exitFullscreen(){this.fullscreenElement=null;this.dispatch('fullscreenchange');return Promise.resolve()}};
+  for(const el of Object.values(ids))el.focus=()=>{document.activeElement=el};
+  ids.downloads=[];
+  document.createElement=()=>{const el=new Element();el.click=()=>ids.downloads.push({name:el.download,blob:ids.blob});el.remove=()=>{};return el};
   ids.stage.requestFullscreen=()=>{document.fullscreenElement=ids.stage;document.dispatch('fullscreenchange');return Promise.resolve()};
   const timers=new Map();let timerId=0;
   ids.runTimers=()=>{const pending=[...timers.values()];timers.clear();pending.forEach(fn=>fn())};ids.document=document;
   let ready;
-  const context={window:{innerHeight:800,OpenCamPlayerData:data,addEventListener(name,handler){if(name==='DOMContentLoaded')ready=handler},
+  const context={Blob,window:{innerHeight:800,OpenCamPlayerData:data,URL:{createObjectURL(blob){ids.blob=blob;return 'blob:test'},revokeObjectURL(){}},
+    localStorage:{getItem:k=>saved[k]??null,setItem(k,v){saved[k]=v}},addEventListener(name,handler){if(name==='DOMContentLoaded')ready=handler},
     setTimeout(fn){timers.set(++timerId,fn);return timerId},clearTimeout(id){timers.delete(id)}},document};
   vm.runInNewContext(runtime,context);ready();return ids;
 }
@@ -49,6 +54,59 @@ const subtitleLesson=()=>({format:'opencam.web-player',schemaVersion:1,title:'Su
     {id:'tw',language:'zh-TW',label:'繁體中文',cues:[{start:0,end:2,text:'教材 <img onerror=alert(1)>'},{start:1,end:3,text:'重疊'}]},
     {id:'en',language:'en',label:'English',cues:[{start:0,end:3,text:'Lesson'}]}
   ]}});
+test('reading preferences affect only transcript text and reject malformed stored values',()=>{
+  const data=subtitleLesson(),saved={'opencam.readingAppearance':'{"size":999,"spacing":0,"theme":"url(evil)"}'};
+  const ids=setup(data,saved);
+  assert.equal(ids['transcript-list'].style.fontSize,'100%');
+  ids['reading-size'].value='175';ids['reading-size'].dispatch('input');
+  ids['reading-spacing'].value='2';ids['reading-spacing'].dispatch('change');
+  ids['reading-theme'].value='dark';ids['reading-theme'].dispatch('change');
+  assert.equal(ids['transcript-list'].style.fontSize,'175%');assert.equal(ids['transcript-list'].style.lineHeight,'2');
+  assert.equal(ids['transcript-list'].dataset.theme,'dark');assert.equal(ids['caption-text'].style.fontSize,'100%');
+  const again=setup(data,saved);assert.equal(again['reading-size'].value,'175');
+  ids['reading-reset'].dispatch('click');assert.equal(ids['transcript-list'].style.fontSize,'100%');
+  assert.equal(ids['transcript-list'].dataset.theme,'default');
+});
+test('downloads contain the whole selected language despite search and paging and never execute imported HTML',async()=>{
+  const data=subtitleLesson();data.title='教材 </title><script>bad()</script>';
+  data.subtitles.tracks[0].cues=Array.from({length:1005},(_,i)=>({start:i,end:i+1,text:i===0?'講者：<img onerror=bad()>':'段落 '+i}));
+  const ids=setup(data);ids['transcript-search'].value='段落 999';ids['transcript-search'].dispatch('input');ids.runTimers();
+  assert.equal(ids['transcript-list'].children.length,1);
+  ids['download-html'].dispatch('click');const html=await ids.downloads[0].blob.text();
+  assert.ok(html.includes('段落 1004'));assert.ok(html.includes('&lt;img onerror=bad()&gt;'));
+  assert.ok(html.includes('lang="zh-TW"'));assert.ok(html.includes('<h2>Lesson</h2>'));
+  assert.ok(!html.includes('<script>'));assert.ok(!html.includes('class="timestamp"'));
+  ids['reading-timestamps'].checked=true;ids['download-txt'].dispatch('click');
+  const txt=await ids.downloads[1].blob.text();assert.ok(txt.includes('[16:44]'));assert.ok(txt.includes('段落 1004'));
+  ids['transcript-language'].value='en';ids['transcript-language'].dispatch('change');ids['download-txt'].dispatch('click');
+  const english=await ids.downloads[2].blob.text();assert.ok(english.includes('Lesson'));assert.ok(!english.includes('段落 1004'));
+  assert.ok(ids.downloads.every(d=>!/[<>/\\]/.test(d.name)));
+});
+test('missing captions disable downloads rather than producing an empty transcript',()=>{
+  const ids=setup();assert.equal(ids['download-html'].disabled,true);assert.equal(ids['download-txt'].disabled,true);
+});
+test('playback never replaces or scrolls focused transcript rows',()=>{
+  const data=subtitleLesson();data.subtitles.tracks[0].cues=Array.from({length:1000},(_,i)=>({start:i,end:i+1,text:'Cue '+i}));
+  const ids=setup(data);ids['transcript-tab'].dispatch('click');const row=ids['transcript-list'].children[0];
+  ids.document.activeElement=row;ids.video.currentTime=555;ids.video.dispatch('timeupdate');
+  assert.equal(ids['transcript-list'].children[0],row);assert.equal(row.scrolled,true); // initial follow only
+  ids.document.activeElement=null;ids.video.currentTime=556;ids.video.dispatch('timeupdate');
+  assert.equal(ids['transcript-list'].children[0].children[1].textContent,'Cue 500');
+});
+test('caption close returns keyboard focus and tab navigation supports Home and End',()=>{
+  const ids=setup(subtitleLesson());ids['caption-button'].dispatch('click');ids['caption-close'].dispatch('click');
+  assert.equal(ids['caption-menu'].hidden,true);assert.equal(ids.document.activeElement,ids['caption-button']);
+  ids['chapter-tab'].dispatch('keydown',{key:'End',preventDefault(){}});
+  assert.equal(ids.document.activeElement,ids['transcript-tab']);
+  ids['transcript-tab'].dispatch('keydown',{key:'Home',preventDefault(){}});
+  assert.equal(ids.document.activeElement,ids['chapter-tab']);
+});
+test('skip transcript opens its panel even from wide mode and transfers focus',()=>{
+  const ids=setup(subtitleLesson());ids.layout.classList.add('wide');
+  ids['skip-transcript'].dispatch('click',{preventDefault(){}});
+  assert.equal(ids.layout.classList.contains('wide'),false);
+  assert.equal(ids['transcript-panel'].hidden,false);assert.equal(ids.document.activeElement,ids['transcript-tab']);
+});
 test('summary contains duration and chapter count without repeating product branding',()=>{
   assert.equal(setup().summary.textContent,'影片總長度 0:12 · 3 章節');
 });
@@ -97,6 +155,11 @@ test('transcript sidebar keeps the same bounded height when switching tabs and l
   ids['transcript-tab'].dispatch('click');ids['transcript-more'].dispatch('click');
   assert.equal(ids.sidebar.style.height,'480px');
   ids['chapter-tab'].dispatch('click');assert.equal(ids.sidebar.style.height,'480px');
+});
+test('transcript reserves at least half the sidebar height without growing the player',()=>{
+  const ids=setup(subtitleLesson());assert.equal(ids.sidebar.style['--transcript-min-height'],'240px');
+  ids.player.getBoundingClientRect=()=>({height:650});ids['transcript-tab'].dispatch('click');
+  assert.equal(ids.sidebar.style.height,'640px');assert.equal(ids.sidebar.style['--transcript-min-height'],'320px');
 });
 test('web subtitle menus show language and code without imported filenames',()=>{
   const data=subtitleLesson();data.subtitles.tracks[0].label='1. my-teaching-video.srt · zh-TW';

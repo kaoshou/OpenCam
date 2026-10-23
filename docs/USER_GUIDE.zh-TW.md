@@ -1,5 +1,15 @@
 # OpenCam 完整使用說明（繁體中文）
 
+## 網頁播放器：閱讀設定與逐字稿下載
+
+輸出的網頁播放器保留原有版面與 CC 字幕設定。切換右側「逐字稿」，預設保留語言與搜尋，按右上角「閱讀設定」才開啟設定浮層，調整跟隨播放、閱讀字級（100–200%）、行距、深色高對比／暖白背景，或下載完整逐字稿。浮層不占用逐字稿高度，可按關閉、Esc 或點外側關閉；手機和平板上可在浮層內捲動。重新開啟網頁時預設關閉。這些設定只影響閱讀清單，不改影片或字幕原檔；瀏覽器允許時會記住偏好，也可重設。
+
+選擇逐字稿語言後，可下載完整的閱讀版 HTML 或 UTF-8 TXT；搜尋及清單目前載入的段數不影響下載內容。「下載含時間標記」預設關閉。HTML 保留章節、段落與語言，可離線閱讀、放大或列印；不需要影片檔也可開啟。沒有附加字幕時不會產生空白逐字稿。下載檔若含私人內容，請自行確認分享對象。
+
+鍵盤可使用 Tab／Shift+Tab 移動、Enter 操作按鈕；影片區的空白鍵播放／暫停，左右鍵跳轉5秒，F 切換全螢幕。章節／逐字稿分頁支援左右鍵及 Home／End。Esc 或「關閉設定」關閉 CC 選單並返回按鈕。輸入搜尋時不觸發播放快捷鍵；正在操作逐字稿列時，跟隨播放不會替換該列或搶走焦點。播放器下方有鍵盤說明。
+
+依 [W3C 逐字稿指引](https://www.w3.org/WAI/media/av/transcripts/)，字幕轉出的文字仍需作者確認說話者、重要非語音聲音、畫面文字與必要視覺描述；程式不會自行補寫或推測。可在下載後補充。閱讀與鍵盤功能不等於每一份教材已自動符合所有無障礙要求。
+
 ## v0.3.11：純音訊錄前檢查
 
 「設定 → 錄影品質與行為 → 錄製前確認聲音」可選擇：
@@ -48,7 +58,7 @@ v0.3.5 多語字幕：編輯器的「附加影片字幕」可選取或拖放 SRT
 
 OpenCam 讓你錄影、剪輯，再繼續錄影。錄影期間先寫入 MKV，剪輯以專案保存並保留原始素材，可稍後重新開啟、追加錄影及輸出 MP4。若遇到中斷，「修復救援」可嘗試保留已成功寫入的錄影；未儲存剪輯則使用專案復原草稿。
 
-> 本說明適用於 OpenCam v0.4.0，介紹錄影、剪輯、聲音試錄及 MP4／GIF／網頁輸出。詳見 [本版更新內容](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.4.0.md)。
+> 本說明適用於 OpenCam v0.4.1，介紹錄影、剪輯、聲音試錄及 MP4／GIF／網頁輸出。詳見 [本版更新內容](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.4.1.md)。
 
 v0.3.3 將手動輸出改為「輸出…」選單，可選 MP4 影片或網頁播放器。MP4 可指定檔名；網頁選擇存放位置後建立含 index.html、media.mp4、opencam-player.js 的獨立資料夾，章節依保存的片段生成。影片內提供進度、音量、速度、寬螢幕及全螢幕，章節顯示起始時間及長度並可捲動。請整個資料夾一起搬移，使用支援 H.264／AAC 的瀏覽器。詳見 [網頁輸出格式](https://github.com/kaoshou/OpenCam/blob/master/docs/WEB_PLAYER_EXPORT.md)。
 
@@ -108,14 +118,14 @@ Windows 開啟後不使用 GDI／桌面擷取選單，而是使用 WGC；關閉�
 
 - Windows 10 或 Windows 11，x64。
 - 安裝版與免安裝版都已包含執行所需元件。
-- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v0.4.0_Windows_x64_Setup.exe` 或 `OpenCam_v0.4.0_Windows_x64_Portable.zip`。檔名會標示版本、Windows 及 x64 架構。
+- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v0.4.1_Windows_x64_Setup.exe` 或 `OpenCam_v0.4.1_Windows_x64_Portable.zip`。檔名會標示版本、Windows 及 x64 架構。
 - 系統音訊使用 Windows 音訊回送擷取；麥克風可在 OpenCam 中選擇。
 
 ### macOS
 
 - macOS 13 Ventura 或以上。
 - 官方版本目前支援 Apple Silicon（arm64）；尚未提供 Intel Mac（x64）版本。
-- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v0.4.0_macOS_arm64.dmg`；檔名中的 arm64 表示 Apple Silicon。
+- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v0.4.1_macOS_arm64.dmg`；檔名中的 arm64 表示 Apple Silicon。
 - 第一次啟動後，請到「系統設定 → 隱私權與安全性」允許 OpenCam 使用：
   - 螢幕與系統音訊錄製
   - 麥克風（需要錄製麥克風時）

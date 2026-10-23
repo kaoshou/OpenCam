@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node accessibility.mjs" },
+  "devDependencies": { "playwright": "1.64.0", "axe-core": "4.14.0" }
+}
