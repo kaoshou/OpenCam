@@ -41,7 +41,16 @@ const server=createServer(async(req,res)=>{
  try{const url=new URL(req.url,'http://localhost');let path=resolve(out,'.'+decodeURIComponent(url.pathname));
  if(!path.startsWith(out+sep))throw Error('outside');if((await stat(path)).isDirectory())path=join(path,'index.html');
  res.setHeader('Content-Type',({'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css','.mp4':'video/mp4','.png':'image/png','.txt':'text/plain; charset=utf-8'})[extname(path)]||'application/octet-stream');
- res.end(await readFile(path));}catch{res.writeHead(404);res.end();}
+ const body=await readFile(path);
+ // Serve actual media byte ranges: ignoring Range makes Chromium seek back to 0.
+ if(extname(path)==='.mp4'){
+  res.setHeader('Accept-Ranges','bytes');const range=/^bytes=(\d+)-(\d*)$/.exec(req.headers.range||'');
+  if(range){const start=Number(range[1]),end=range[2]?Math.min(Number(range[2]),body.length-1):body.length-1;
+   if(start>end||start>=body.length){res.writeHead(416,{'Content-Range':'bytes */'+body.length});res.end();return;}
+   res.writeHead(206,{'Content-Range':`bytes ${start}-${end}/${body.length}`,'Content-Length':end-start+1});res.end(body.subarray(start,end+1));return;
+  }
+ }
+ res.setHeader('Content-Length',body.length);res.end(body);}catch{res.writeHead(404);res.end();}
 });
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;
 const checks=[];
@@ -52,6 +61,47 @@ async function goto(path){await page.goto(base+path);await page.waitForTimeout(1
 async function axe(){await page.addScriptTag({path:axePath});return page.evaluate(async()=>{const r=await axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}});return r.violations.map(v=>({id:v.id,impact:v.impact,nodes:v.nodes.map(n=>n.target)}));});}
 async function noOverflow(){assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);}
 try{
+ await check('keyboard destinations restore panels and preserve native control keys',async()=>{
+  await goto('/player/');
+  assert.equal(await page.locator('#skip-player').count(),1,'a keyboard entrance to the video is available');
+  assert.equal(await page.locator('#skip-chapters').count(),1,'a keyboard entrance to chapters is available');
+  for(const [link,target] of [['skip-player','stage'],['skip-chapters','chapter-tab'],['skip-transcript','transcript-tab']]){
+   await page.locator('#wide').click();await page.locator('#'+link).focus();await page.keyboard.press('Enter');
+   assert.equal(await page.evaluate(()=>document.activeElement.id),target);
+   if(target!=='stage')assert.equal(await page.locator('#sidebar').isVisible(),true);
+   if(await page.locator('#wide').getAttribute('aria-pressed')==='true')await page.locator('#wide').click();
+  }
+  await page.locator('#stage').focus();await page.keyboard.press('Control+f');
+  assert.equal(await page.locator('#fullscreen').getAttribute('aria-pressed'),'false','browser modifiers must not trigger player shortcuts');
+  await page.waitForFunction(()=>document.querySelector('#video').readyState>=1);
+  await page.locator('#stage').press('ArrowRight');await page.waitForFunction(()=>document.querySelector('#video').currentTime===5);
+  await page.locator('#volume').focus();await page.keyboard.press('ArrowLeft');
+  assert.equal(await page.locator('#video').evaluate(v=>v.currentTime),5,'volume keys do not seek');
+  await page.locator('#transcript-search').fill('f');await page.locator('#transcript-search').press('Space');
+  assert.equal(await page.locator('#transcript-search').inputValue(),'f ');
+  assert.equal(await page.locator('#video').evaluate(v=>v.paused),true);
+  await page.locator('.keyboard-help summary').click();
+  await page.locator('.keyboard-jumps [data-jump="chapters"]').focus();await page.keyboard.press('Enter');
+  assert.equal(await page.evaluate(()=>document.activeElement.id),'chapter-tab','help links move actual keyboard focus');
+  const data=structuredClone(lesson);data.subtitles.tracks=[];
+  await page.route('**/opencam-player.js',r=>r.fulfill({body:safeData(data),contentType:'text/javascript'}));
+  await goto('/player/');await page.locator('#skip-transcript').focus();await page.keyboard.press('Enter');
+  assert.equal(await page.evaluate(()=>document.activeElement.id),'transcript-tab');
+  assert(await page.locator('#transcript-status').isVisible());assert(await page.locator('#transcript-search').isDisabled());
+ });
+ await check('compact reading disclosure and grouped keyboard help reflow',async()=>{
+  for(const width of [1440,768,390,320]){
+   await page.setViewportSize({width,height:900});await goto('/player/');await page.locator('#transcript-tab').click();
+   const metrics=await page.locator('#reading-button').evaluate(b=>({height:b.getBoundingClientRect().height,background:getComputedStyle(b).backgroundColor}));
+   assert(metrics.height>=24&&metrics.height<=32,'reading text button remains compact with a usable target');
+   assert.equal(metrics.background,'rgba(0, 0, 0, 0)');
+   assert(await page.locator('#transcript-search').evaluate(el=>{const r=el.getBoundingClientRect(),parent=el.closest('.transcript-tools').getBoundingClientRect();return r.top>=parent.top&&r.bottom<=parent.bottom+1;}),'language and search are visible without scrolling the compact toolbar');
+   await page.locator('.keyboard-help summary').click();
+   assert(await page.locator('.keyboard-help h3').count()>=3,'help is grouped by focus context');
+   await noOverflow();await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:join(out,'screens/keyboard-reading-'+width+'.png'),fullPage:true});
+  }
+  await page.setViewportSize({width:1440,height:1000});
+ });
  await check('reading overlay is dismissible and usable on phones tablets and desktop',async()=>{
   for(const [width,height] of [[1440,1000],[768,1024],[1024,768],[390,844],[844,390],[320,568],[320,225]]){
    await page.setViewportSize({width,height});await goto('/player/');await page.locator('#transcript-tab').click();

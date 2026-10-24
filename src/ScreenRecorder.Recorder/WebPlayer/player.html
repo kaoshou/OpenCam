@@ -27,12 +27,13 @@ footer{margin-top:24px;padding:18px;border-top:1px solid #e2e8f0;text-align:cent
 .layout{align-items:start}.chapters{height:clamp(320px,70vh,720px);overflow:hidden}.index-panel{overflow:hidden}.transcript-tools{flex-shrink:0}.list{overflow-y:auto;flex:1;min-height:0;height:0}
 @media(max-width:960px){.layout{grid-template-columns:1fr}main{padding:24px 16px}header{padding:16px;gap:12px}}
 @media(max-width:480px){main{padding:16px 10px}header{padding:16px 14px}.details{padding:12px 14px}.player,.chapters{border-radius:10px}.subtitle{font-size:11px}footer{margin-top:20px}.controls{padding:28px 8px 8px}.control-row{gap:3px;flex-wrap:wrap}.volume{width:42px}.time-display{font-size:10px}.control-button{width:30px;height:30px}.controls select{max-width:58px;font-size:11px}}
-.skip-link{position:absolute;top:8px;left:12px;z-index:10;padding:10px 16px;background:#fff;color:#1d4ed8;transform:translateY(-160%);border-radius:8px}.skip-link:focus{transform:none}
+.skip-link{position:fixed;top:8px;left:12px;z-index:1100;padding:10px 16px;background:#fff;color:#1d4ed8;transform:translateY(-160%);border-radius:8px;max-width:calc(100vw - 24px)}.skip-link:focus{transform:none}
 input:focus-visible,summary:focus-visible,.list:focus-visible,.stage:focus-visible{outline:3px solid #2563eb;outline-offset:-3px}.controls:focus-within{opacity:1!important;pointer-events:auto!important}.stage:focus-within{cursor:auto}
 .reading-options{position:fixed;z-index:20;width:360px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);max-height:calc(100dvh - 16px);overflow:auto;overscroll-behavior:contain;padding:16px;background:white;border:1px solid #cbd5e1;border-radius:12px;box-shadow:0 12px 36px #0f172a26;font-size:12px}.reading-fields,.advanced-fields{display:grid;gap:8px}.reading-options label{color:#475569;flex-wrap:wrap}.reading-options input[type=range]{width:100%;accent-color:#2563eb}.reading-options select{width:100%;font-size:12px}.reading-options output{margin-left:auto;font-variant-numeric:tabular-nums}.reading-options .advanced-fields{padding:8px 0}.reading-toolbar,.reading-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}.reading-heading{margin-bottom:12px}.reading-heading h3{font-size:14px;margin:0}.reading-toolbar{justify-content:flex-end}.reading-toggle,.reading-close{font:inherit;font-size:12px;min-height:36px;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;background:#eff6ff;color:#1d4ed8;cursor:pointer}.reading-download-heading{margin:8px 0 0;padding-top:12px;border-top:1px solid #e2e8f0;font-size:13px}
 .reading-actions{display:flex;flex-wrap:wrap;gap:6px}.reading-actions button{font:inherit;font-size:12px;border:1px solid #cbd5e1;border-radius:7px;padding:7px 9px;background:#f8fafc;color:#1d4ed8;cursor:pointer;min-height:32px}.reading-actions button:disabled{color:#64748b;cursor:default}.reading-note{margin:4px 0;color:#475569;font-size:11px;line-height:1.6}
 .transcript-tools{max-height:min(65%,calc(100% - 124px));min-height:0;overflow-y:auto}.transcript-copy{font-size:.8125em;line-height:inherit}.transcript-row{line-height:inherit}.transcript-time{color:inherit;opacity:.85}.transcript-row:focus-visible{outline-offset:-3px}#transcript-list{line-height:1.5;min-height:80px}#transcript-list[data-theme=dark]{background:#101827;color:#f8fafc}#transcript-list[data-theme=warm]{background:#fff6e6;color:#3f3020}#transcript-list[data-theme=dark] .transcript-row{color:#f8fafc}#transcript-list[data-theme=dark] .transcript-row:hover,#transcript-list[data-theme=dark] .transcript-row[aria-current=true]{background:#253652}#transcript-list[data-theme=warm] .transcript-row{color:#3f3020}#transcript-list[data-theme=warm] .transcript-row:hover,#transcript-list[data-theme=warm] .transcript-row[aria-current=true]{background:#f1e2c5}#transcript-list[data-theme=dark] :focus-visible{outline-color:#93c5fd}
-.keyboard-help{margin-top:14px;color:#475569;font-size:12px}.keyboard-help summary{cursor:pointer;width:fit-content}.keyboard-help p{max-width:85ch}.keyboard-help kbd{font:inherit;background:white;border:1px solid #cbd5e1;border-radius:4px;padding:1px 4px}
+.keyboard-help{margin-top:14px;color:#475569;font-size:13px}.keyboard-help summary{cursor:pointer;width:fit-content;padding:6px 0}.keyboard-help p{max-width:85ch}.keyboard-help kbd{font:inherit;white-space:nowrap;background:white;border:1px solid #cbd5e1;border-radius:4px;padding:1px 4px}.keyboard-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px;margin-top:12px}.keyboard-group{padding:14px;background:white;border:1px solid #e2e8f0;border-radius:10px;min-width:0}.keyboard-group h3{margin:0 0 8px;font-size:14px;color:#334155}.keyboard-group dl{margin:0}.keyboard-group dt{margin-top:12px;font-weight:600}.keyboard-group dd{margin:4px 0 0;overflow-wrap:anywhere}.keyboard-group p{margin:6px 0}.keyboard-jumps{display:flex;flex-wrap:wrap;gap:6px 16px}.keyboard-jumps a{padding:4px 0}
+.reading-toggle{min-height:28px;padding:3px 5px;border:0;border-radius:4px;background:transparent;font-size:12px;font-weight:500}.reading-toggle:hover,.reading-toggle[aria-expanded=true]{background:#eff6ff}.reading-toggle .reading-arrow{display:inline-block;margin-right:4px;font-size:10px}.reading-toggle[aria-expanded=true] .reading-arrow{transform:rotate(90deg)}
 footer{color:#536174}
 .number{color:#536174}.chapter[aria-current=true] .times{color:#fff}
 /* Reserve the reading area before laying out the optional controls. */
@@ -45,7 +46,7 @@ footer{color:#536174}
 <script src="opencam-player.js" defer></script>
 </head>
 <body>
-<a class="skip-link" id="skip-transcript" href="#transcript-tab">跳至逐字稿 / Skip to transcript</a>
+<nav aria-label="快速導覽 / Quick navigation"><a class="skip-link" id="skip-player" href="#stage" data-jump="player">跳至播放器 / Skip to player</a><a class="skip-link" id="skip-chapters" href="#chapter-tab" data-jump="chapters">跳至章節 / Skip to chapters</a><a class="skip-link" id="skip-transcript" href="#transcript-tab" data-jump="transcript">跳至逐字稿 / Skip to transcript</a></nav>
 <main id="main">
 <header><span class="mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="26" height="20" rx="4"/><path d="M13 10l8 4-8 4z" fill="currentColor" stroke="none"/><path d="M11 29h10"/></svg></span><div class="heading"><h1 id="title">%%TITLE%%</h1><div class="subtitle" id="summary">OpenCam · 網頁播放器 / Web player</div></div></header>
 <div class="layout" id="layout">
@@ -83,7 +84,7 @@ footer{color:#536174}
 <div class="index-tabs" role="tablist" aria-label="教材索引 / Lesson index"><button id="chapter-tab" role="tab" aria-selected="true" aria-controls="chapter-panel">章節 / Chapters</button><button id="transcript-tab" role="tab" aria-selected="false" aria-controls="transcript-panel">逐字稿 / Transcript</button></div>
 <div class="index-panel" id="chapter-panel" role="tabpanel" aria-labelledby="chapter-tab"><nav class="list" id="chapters" aria-label="影片章節 / Video chapters"></nav></div>
 <div class="index-panel" id="transcript-panel" role="tabpanel" aria-labelledby="transcript-tab" hidden>
-<div class="transcript-tools"><div class="reading-toolbar"><button id="reading-button" class="reading-toggle" type="button" aria-expanded="false" aria-controls="reading-menu" aria-haspopup="dialog">閱讀設定 / Reading settings</button></div>
+<div class="transcript-tools"><div class="reading-toolbar"><button id="reading-button" class="reading-toggle" type="button" aria-expanded="false" aria-controls="reading-menu" aria-haspopup="dialog"><span class="reading-arrow" aria-hidden="true">▶</span>閱讀設定 / Reading settings</button></div>
 <div id="reading-menu" class="reading-options" role="dialog" aria-labelledby="reading-heading" hidden><div class="reading-heading"><h3 id="reading-heading">閱讀設定 / Reading settings</h3><button id="reading-close" class="reading-close" type="button" aria-label="關閉閱讀設定 / Close reading settings">✕</button></div><div class="reading-fields">
 <label class="follow"><input id="transcript-follow" type="checkbox" checked>跟隨播放 / Follow playback</label>
 <label for="reading-size">閱讀字級 / Text size <output id="reading-size-value">100%</output></label><input id="reading-size" type="range" min="100" max="200" step="25" value="100">
@@ -100,7 +101,14 @@ footer{color:#536174}
 <div class="list" id="transcript-list" role="region" tabindex="0" aria-label="逐字稿內容 / Transcript entries"></div><button id="transcript-more" class="transcript-more" hidden>載入更多 / Load more</button>
 </div></aside>
 </div>
-<details class="keyboard-help"><summary>鍵盤操作說明 / Keyboard help</summary><p>以 <kbd>Tab</kbd> 移動，<kbd>Enter</kbd> 操作按鈕。影片區：<kbd>空白鍵 / Space</kbd> 播放／暫停，<kbd>←</kbd> <kbd>→</kbd> 前後 5 秒，<kbd>F</kbd> 全螢幕。章節／逐字稿分頁：左右鍵切換，Home／End 跳至首／末分頁。<kbd>Esc</kbd> 關閉字幕設定。 / In the video area: Space plays/pauses, arrows seek 5 seconds, F toggles fullscreen. Use arrows or Home/End on index tabs; Esc closes subtitle settings.</p></details>
+<details class="keyboard-help"><summary>鍵盤操作說明 / Keyboard help</summary>
+<nav class="keyboard-jumps" aria-label="移至操作區 / Go to controls"><a href="#stage" data-jump="player">播放器 / Player</a><a href="#chapter-tab" data-jump="chapters">章節 / Chapters</a><a href="#transcript-tab" data-jump="transcript">逐字稿 / Transcript</a></nav>
+<div class="keyboard-groups">
+<section class="keyboard-group"><h3>頁面導覽 / Navigation</h3><dl><dt><kbd>Tab</kbd> / <kbd>Shift + Tab</kbd></dt><dd>下一項／上一項控制。頁首先提供三個快速入口。<br>Next / previous control. Three skip links appear first.</dd><dt><kbd>Enter</kbd></dt><dd>啟動目前的連結或按鈕。<br>Activate the focused link or button.</dd></dl></section>
+<section class="keyboard-group"><h3>影片區 / Video area</h3><p>先用上方「播放器」連結移入影片區，看到焦點框後操作。<br>Use the Player link above to focus the video area first.</p><dl><dt><kbd>Space</kbd></dt><dd>播放／暫停 · Play / pause</dd><dt><kbd>←</kbd> / <kbd>→</kbd></dt><dd>後退／前進 5 秒 · Seek back / forward 5 seconds</dd><dt><kbd>F</kbd></dt><dd>切換全螢幕 · Toggle fullscreen</dd></dl></section>
+<section class="keyboard-group"><h3>章節與逐字稿 / Lesson index</h3><dl><dt>分頁上 / On tabs: <kbd>←</kbd> <kbd>→</kbd></dt><dd>切換章節／逐字稿。<br>Switch Chapters / Transcript.</dd><dt><kbd>Home</kbd> / <kbd>End</kbd></dt><dd>選擇第一／最後分頁。<br>Select the first / last tab.</dd><dt>項目上 / On an entry: <kbd>Enter</kbd></dt><dd>章節：跳轉並播放。逐字稿：跳轉並保留播放／暫停狀態。<br>Chapter: seek and play. Transcript: seek, keeping play / pause state.</dd></dl></section>
+<section class="keyboard-group"><h3>設定與控制 / Settings and controls</h3><dl><dt><kbd>Esc</kbd></dt><dd>關閉閱讀／字幕設定並回到開啟按鈕；全螢幕時離開全螢幕。<br>Close settings and return focus; exit fullscreen when no settings are open.</dd><dt>滑桿／選單上 / On sliders or lists: <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd></dt><dd>調整該項數值；搜尋框正常輸入，不觸發影片快捷鍵。<br>Adjust that control. Typing in search does not trigger video shortcuts.</dd></dl></section>
+</div></details>
 <footer>以 <a href="https://github.com/kaoshou/OpenCam" target="_blank" rel="noopener noreferrer">OpenCam</a> 製作 · Created with OpenCam</footer>
 <noscript>請啟用 JavaScript 以使用章節跳播。影片仍可使用上方控制列播放。</noscript>
 </main>
@@ -167,7 +175,12 @@ window.addEventListener('DOMContentLoaded',()=>{
   const syncSidebarHeight=()=>{
     const height=playerPane.getBoundingClientRect().height;
     if(height>0){
-      const size=Math.round(Math.max(320,Math.min(height,window.innerHeight*.8)));
+      const panel=document.getElementById('transcript-panel');
+      const tools=document.getElementById('transcript-search').parentElement;
+      const tabs=document.getElementById('chapter-tab').parentElement;
+      // Keep the compact controls visible while reserving half the sidebar for reading.
+      const controlsHeight=!panel.hidden&&tools&&tabs?2*(tools.scrollHeight+tabs.getBoundingClientRect().height+4):0;
+      const size=Math.round(Math.max(320,Math.min(Math.max(height,controlsHeight),window.innerHeight*.8)));
       sidebar.style.height=size+'px';sidebar.style.setProperty('--transcript-min-height',Math.ceil(size/2)+'px');
     }
   };
@@ -250,13 +263,19 @@ window.addEventListener('DOMContentLoaded',()=>{
   transcriptLanguage.value=defaultTrack?.id||'';transcriptLanguage.disabled=transcriptSearch.disabled=transcriptFollow.disabled=!subtitleTracks.length;
   const showIndex=transcript=>{
     closeReading();
-    syncSidebarHeight();
     document.getElementById('chapter-panel').hidden=transcript;document.getElementById('transcript-panel').hidden=!transcript;
+    syncSidebarHeight();
     chapterTab.setAttribute('aria-selected',String(!transcript));transcriptTab.setAttribute('aria-selected',String(transcript));
     chapterTab.tabIndex=transcript?-1:0;transcriptTab.tabIndex=transcript?0:-1;lastFollow=-1;syncTranscript();
   };
   chapterTab.addEventListener('click',()=>showIndex(false));transcriptTab.addEventListener('click',()=>showIndex(true));
-  document.getElementById('skip-transcript').addEventListener('click',e=>{e.preventDefault();document.getElementById('layout').classList.remove('wide');wide.setAttribute('aria-pressed','false');showIndex(true);transcriptTab.focus?.()});
+  document.querySelectorAll('[data-jump]').forEach(link=>link.addEventListener('click',async e=>{
+    e.preventDefault();closeReading();
+    if(link.dataset.jump==='player'){stage.focus();return;}
+    if(document.fullscreenElement===stage)try{await document.exitFullscreen();}catch{return;}
+    exitFrame();document.getElementById('layout').classList.remove('wide');wide.setAttribute('aria-pressed','false');wide.title='寬螢幕 / Wide screen';
+    const transcript=link.dataset.jump==='transcript';showIndex(transcript);(transcript?transcriptTab:chapterTab).focus();
+  }));
   [chapterTab,transcriptTab].forEach(tab=>tab.addEventListener('keydown',e=>{
     if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();const next=e.key==='End'||(e.key!=='Home'&&tab===chapterTab);showIndex(next);(next?transcriptTab:chapterTab).focus?.();}
   }));
@@ -397,6 +416,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   fullscreen.addEventListener('click',toggleFullscreen);document.addEventListener('fullscreenchange',syncFullscreen);
   document.addEventListener('keydown',e=>{if(!e.defaultPrevented&&e.key==='Escape'&&stage.classList.contains('frame-fullscreen'))exitFrame()});
   stage.addEventListener('keydown',e=>{
+    if(e.defaultPrevented||e.isComposing||e.ctrlKey||e.altKey||e.metaKey)return;
     if(e.target!==stage&&e.target!==video)return;
     if(e.key===' '){e.preventDefault();togglePlay();}
     else if((e.key==='ArrowLeft'||e.key==='ArrowRight')&&validDuration()){e.preventDefault();video.currentTime=Math.max(0,Math.min(video.duration,video.currentTime+(e.key==='ArrowLeft'?-5:5)));syncTime();update();}

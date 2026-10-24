@@ -26,7 +26,7 @@ function setup(data = {format:'opencam.web-player',schemaVersion:1,title:'教材
     'caption-button','caption-menu','caption-language','caption-overlay','caption-text','caption-size','caption-size-value',
     'caption-theme','caption-opacity','caption-position','caption-reset','chapter-tab','transcript-tab','chapter-panel',
     'transcript-panel','transcript-language','transcript-search','transcript-list','transcript-status','transcript-more','transcript-follow','sidebar','player',
-    'reading-button','reading-menu','reading-close','reading-size','reading-size-value','reading-spacing','reading-theme','reading-reset','reading-timestamps','download-html','download-txt','download-status','caption-close','skip-transcript'].map(id=>[id,new Element()]));
+    'reading-button','reading-menu','reading-close','reading-size','reading-size-value','reading-spacing','reading-theme','reading-reset','reading-timestamps','download-html','download-txt','download-status','caption-close','skip-transcript','skip-player','skip-chapters'].map(id=>[id,new Element()]));
   ids.player.getBoundingClientRect=()=>({height:480});
   Object.assign(ids.video,{controls:true,readyState:1,currentTime:0,duration:12,playbackRate:1,paused:true,ended:false,volume:1,muted:false,
     play(){this.playCalled=true;this.paused=false;this.dispatch('play');return Promise.resolve()},
@@ -37,6 +37,10 @@ function setup(data = {format:'opencam.web-player',schemaVersion:1,title:'教材
   const document={getElementById:id=>ids[id],createElement:()=>new Element(),body:new Element(),listeners:{},activeElement:null,fullscreenElement:null,
     addEventListener(name,handler){(this.listeners[name]??=[]).push(handler)},dispatch(name,event={}){this.listeners[name]?.forEach(handler=>handler(event))},
     exitFullscreen(){this.fullscreenElement=null;this.dispatch('fullscreenchange');return Promise.resolve()}};
+  const jumpLinks=[...html.matchAll(/<a\b([^>]*\bdata-jump="([^"]+)"[^>]*)>/g)].map(([,attributes,jump])=>{
+    const id=/\bid="([^"]+)"/.exec(attributes)?.[1],el=ids[id]||new Element();el.dataset.jump=jump;return el;
+  });
+  document.querySelectorAll=selector=>{assert.equal(selector,'[data-jump]');return jumpLinks;};
   for(const el of Object.values(ids))el.focus=()=>{document.activeElement=el};
   ids.downloads=[];
   document.createElement=()=>{const el=new Element();el.click=()=>ids.downloads.push({name:el.download,blob:ids.blob});el.remove=()=>{};return el};

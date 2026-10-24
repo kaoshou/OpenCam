@@ -70,6 +70,12 @@ window.OpenCamPlayerData = {
 
 ### 閱讀與下載 / Reading and download
 
+「閱讀設定」使用小型箭頭文字按鈕，展開時箭頭向下。頁首按 Tab 可依序前往播放器、章節、逐字稿；頁面下方「鍵盤操作說明」也提供這三個入口。跳到章節或逐字稿會還原被寬螢幕隱藏的側欄並將焦點移到對應分頁。沒有字幕仍可到逐字稿區閱讀說明。
+
+播放快捷鍵僅在影片區取得焦點時生效：Space 播放／暫停、左右鍵跳轉5秒、F 切換全螢幕；搜尋、滑桿與選單保留原生鍵盤操作，Ctrl／Alt／Command 組合鍵不觸發影片快捷鍵。章節列啟動後跳轉並播放；逐字稿列保留目前播放／暫停狀態。鍵盤說明依適用位置分組，手機直向排列。
+
+The compact Reading settings text button indicates its expanded state with an arrow. Three keyboard skip links and the links inside Keyboard help focus the player, Chapters or Transcript; sidebar destinations restore wide-screen layout. Playback shortcuts work only on the focused video area. Form controls and browser modifier shortcuts keep their normal behavior. Help groups identify where each key applies and stack on small screens.
+
 逐字稿區預設保留語言與搜尋；按右上角「閱讀設定」開啟單層設定浮層，包含跟隨播放、閱讀字級、行距、背景對比、重設與下載。浮層不擠壓逐字稿，可按關閉、Esc 或點外側關閉；窄螢幕內部捲動。CC 字幕外觀仍獨立設定，不改影片區版面。下載按鈕產生所選語系的**完整** HTML／UTF-8 TXT，與搜尋及100列批次無關；時間標記選填，章節依最終影片時間排序。HTML 只含安全編碼後的文字與內嵌排版，不含影片、腳本或外部資源，可離線閱讀／列印。瀏覽器不支援下載時顯示提示；不回退到執行匯入的 HTML。
 
 Playback follow pauses DOM paging/scrolling while a transcript row or its list owns keyboard focus. CC has an explicit close button, Escape focus return, and closes when keyboard focus leaves it. Tabs support arrows/Home/End; typing in form fields never triggers video shortcuts. The website/guide support skip-to-main focus and responsive navigation without replacing the established design.
