@@ -55,10 +55,17 @@ public sealed class ObsWindowsCaptureIntegrationTests
     [InlineData("win-x64", WindowsCaptureMode.ModernExperimental, false)]
     [InlineData("win-x64", WindowsCaptureMode.CompatibleGdi, false)]
     [InlineData("win-x64", (WindowsCaptureMode)2, true)]
-    [InlineData("osx-arm64", WindowsCaptureMode.ModernExperimental, true)]
     public void ExplicitManualCaptureChoicesRetainExistingEngine(string platform, WindowsCaptureMode mode, bool eligible)
     {
         Assert.Equal(eligible, ObsRecordingEngineRouter.SupportsCaptureMode(new() { WindowsCaptureMode = mode }, platform));
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    public void MacExplicitStandardAndNativePreferencesArePreserved(bool nativeCapture, bool eligible)
+    {
+        Assert.Equal(eligible, ObsRecordingEngineRouter.SupportsCaptureMode(new() { NativeCaptureEnabled = nativeCapture }, "osx-arm64"));
     }
 
     private sealed class UnusedCatalog : IDxgiOutputCatalog

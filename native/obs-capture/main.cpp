@@ -278,11 +278,14 @@ static int run(int argc,char **argv) {
         // OBS33 labels its Metal renderer alpha-quality. Prefer its established
         // compositor backend; ScreenCaptureKit still supplies GPU surfaces.
         auto graphics=root/"Contents"/"Frameworks"/"libobs-opengl.dylib";
-        obs_add_data_path((root/"Contents"/"Frameworks"/"libobs.framework"/"Resources").c_str());
+        auto dataPrefix=(root/"Contents"/"Frameworks"/"libobs.framework"/"Resources").generic_u8string()+"/";
 #else
         auto graphics=root/"bin"/"64bit"/"libobs-d3d11.dll";
-        obs_add_data_path((root/"data"/"libobs").u8string().c_str());
+        auto dataPrefix=(root/"data"/"libobs").generic_u8string()+"/";
 #endif
+        // The pinned libobs data search concatenates its prefix and filename
+        // verbatim; a missing separator becomes "libobsdefault.effect".
+        obs_add_data_path(dataPrefix.c_str());
         std::string graphicsPath=graphics.u8string();
         obs_video_info vi{}; vi.graphics_module=graphicsPath.c_str(); vi.fps_num=r.fps; vi.fps_den=1;
         vi.base_width=vi.output_width=r.width; vi.base_height=vi.output_height=r.height;

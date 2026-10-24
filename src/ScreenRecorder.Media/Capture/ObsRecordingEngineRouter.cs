@@ -142,6 +142,11 @@ public sealed class ObsRecordingEngineRouter : IScreenRecorderEngine, IBoundReco
     }
 
     internal static bool SupportsCaptureMode(RecordingConfiguration config, string platform) =>
-        // Only Automatic delegates Windows capture to a validated native runtime. Manual choices retain their implementations.
-        platform != "win-x64" || config.WindowsCaptureMode == WindowsCaptureMode.Automatic;
+        // Manual Windows and macOS standard choices retain their existing implementations.
+        platform switch
+        {
+            "win-x64" => config.WindowsCaptureMode == WindowsCaptureMode.Automatic,
+            "osx-arm64" => config.NativeCaptureEnabled,
+            _ => false
+        };
 }

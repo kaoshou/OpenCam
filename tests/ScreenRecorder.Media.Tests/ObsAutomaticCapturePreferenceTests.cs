@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+using Avalonia.Headless.XUnit;
 using ScreenRecorder.Core.Enums;
 using ScreenRecorder.Core.Interfaces;
 using ScreenRecorder.Core.Localization;
@@ -31,7 +32,7 @@ public sealed class ObsAutomaticCapturePreferenceTests
         Assert.DoesNotContain("ddagrab", direct);
     }
 
-    [Theory]
+    [AvaloniaTheory]
     [InlineData(AppLanguage.ZhTw, "自動（建議）")]
     [InlineData(AppLanguage.EnUs, "Automatic (recommended)")]
     [InlineData(AppLanguage.JaJp, "自動（推奨）")]

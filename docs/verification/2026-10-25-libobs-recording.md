@@ -26,6 +26,10 @@ The first complete solution run was **not green**: Core356 passed; Media1300 pas
 
 ## Outstanding acceptance boundaries
 
-Windows native compilation/packaging is being verified independently; no physical Windows success is claimed. macOS host has no active display link, so physical ScreenCaptureKit, microphone/system-device timing, permissions, mixed DPI/GPU, display unplug, lock/sleep, disk-full and multi-hour resource/sync behavior are not established by these tests. Original user media was not provided, so the exact offset in the old recording is not reconstructed or retrospectively corrected.
+Independent development run40133441548 at a1a51a21b8fa3c3f95ecde05a14e5e5e76d3e424 proved Windows native compilation and503-file disabled runtime assembly. Endpoint identity passed; packaging30 passed/3 platform-specific skips. Windows native synthetic acceptance did **not** pass:8 cases failed at `graphics_startup` before media output. Complete individual job logs/artifacts were read; the next diagnostic run must establish the actual cause. Portable Ubuntu/macOS jobs each lacked the normal FFmpeg prerequisite and failed2 factory constructor tests; dependencies are being added without weakening assertions.
+
+The latest local broad Media run after later changes also did **not** pass:1325 passed,21 skipped,1 UI-scope failure before its body (`ProjectWaveformLayoutTests`,height144, `/tmp/opencam-obs-automatic-media-full-green.log`). That filename is not a success claim. Its font-service teardown error remains under lifecycle investigation. Final macOS manual-Standard eligibility correction and its tests are also pending.
+
+No physical Windows success is claimed. macOS host has no active display link, so physical ScreenCaptureKit, microphone/system-device timing, permissions, mixed DPI/GPU, display unplug, lock/sleep, disk-full and multi-hour resource/sync behavior are not established by these tests. Original user media was not provided, so the exact offset in the old recording is not reconstructed or retrospectively corrected.
 
 The recording runtime must remain disabled for general distribution until those relevant acceptance gates are evidenced. Existing released packages, media and user settings are not overwritten.

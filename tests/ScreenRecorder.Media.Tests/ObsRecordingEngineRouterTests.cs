@@ -44,6 +44,36 @@ public sealed class ObsRecordingEngineRouterTests : IDisposable
     }
 
     [MacOsOnlyFact]
+    public async Task ExplicitMacStandardUsesLegacyEvenWhenValidatedNativeRuntimeIsAvailable()
+    {
+        var runtime = WriteRuntime();
+        using var output = new MemoryStream();
+        await using var engine = Router(runtime);
+        engine.OutputStream = output;
+        var config = Config();
+        config.NativeCaptureEnabled = false;
+        await engine.StartRecordingAsync("unused", config, Display.Bounds);
+        Assert.Equal("ffmpeg", engine.ActiveCapture?.RecordingCore);
+        Assert.Equal("legacy", Encoding.ASCII.GetString(output.ToArray()));
+    }
+
+    [MacOsOnlyFact]
+    public async Task PinnedNativeSessionRejectsMacStandardPreferenceWithoutWritingOrSwitchingCore()
+    {
+        var runtime = WriteRuntime();
+        var pinned = new CaptureSelection(CaptureBackend.ScreenCaptureKit, CaptureFallbackReason.None,
+            NativeId, null, null, Display.Bounds) { RecordingCore = "libobs-v1", OutputBounds = Display.Bounds };
+        using var output = new MemoryStream();
+        await using var engine = Router(runtime, pinned);
+        engine.OutputStream = output;
+        var config = Config();
+        config.NativeCaptureEnabled = false;
+        await Assert.ThrowsAsync<IOException>(() => engine.StartRecordingAsync("unused", config, Display.Bounds));
+        Assert.Equal(0, output.Length);
+        Assert.Null(engine.ActiveCapture);
+    }
+
+    [MacOsOnlyFact]
     public async Task SelectsValidatedCapableRuntimeAndForwardsOutputAndMetrics()
     {
         var runtime = WriteRuntime();
@@ -152,7 +182,7 @@ public sealed class ObsRecordingEngineRouterTests : IDisposable
         () => new LegacyEngine(), (config, bounds, capture) => ObsRecordingEngineRouter.ResolveMonitor(config, bounds, capture,
             [Display], _ => NativeId), HardwareEncoderType.SoftwareCpu, pinned);
 
-    private static RecordingConfiguration Config() => new() { MonitorIndex = 4, Fps = 30, AudioSource = AudioSourceType.SystemOnly };
+    private static RecordingConfiguration Config() => new() { MonitorIndex = 4, Fps = 30, AudioSource = AudioSourceType.SystemOnly, NativeCaptureEnabled = true };
 
     private ObsRuntime WriteRuntime(string[]? audio = null, bool fail = false)
     {
