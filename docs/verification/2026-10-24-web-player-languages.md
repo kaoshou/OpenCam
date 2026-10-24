@@ -29,8 +29,6 @@ Traditional Chinese, English and Japanese control text, document language, dynam
 
 Browser fixture video is synthetic. Screenshots contain no personal desktop recording. Automated axe and Chromium emulation do not certify complete accessibility conformance or replace physical device testing.
 
-## Manual checks
-
 ## Independent review
 
 Fresh read-only whole-branch review of d7b01e9..6db535f found no Critical/Important issues. Reviewer independently ran 35 Node tests and checked identical 106-key catalogs.
