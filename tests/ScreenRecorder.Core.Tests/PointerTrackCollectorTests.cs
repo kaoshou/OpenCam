@@ -18,6 +18,7 @@ public sealed class PointerTrackCollectorTests : IDisposable
         Assert.True(collector.TryAppend(new(null,new NativeFrameClock(0,100,100,1))));
         Assert.True(await collector.CompleteAsync(_source));
         Assert.False(collector.TryAppend(new(new PointerSample(101,4,5,true,0),null)));
+        await collector.DisposeAsync(); // Production releases the write handle before opening the sealed track.
         using var read=PointerTrackReader.Open(dir,"track",_header,_source);
         Assert.Equal(2,read.ReadNext()!.Value.Pointer!.Value.X);
         Assert.NotNull(read.ReadNext()!.Value.Frame);
@@ -35,6 +36,7 @@ public sealed class PointerTrackCollectorTests : IDisposable
         if(invalid) collector.TryAppend(new(new PointerSample(99,2,3,true,0),null));
         else collector.MarkIncomplete();
         Assert.False(await collector.CompleteAsync(_source));
+        await collector.DisposeAsync();
         using var read=PointerTrackReader.Open(dir,"track",_header,_source,true);
         while(read.ReadNext()!=null) { }
         Assert.False(read.Complete);

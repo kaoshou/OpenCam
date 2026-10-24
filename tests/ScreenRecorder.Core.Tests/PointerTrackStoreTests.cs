@@ -85,7 +85,10 @@ public sealed class PointerTrackStoreTests : IDisposable
         Assert.Throws<IOException>(() => PointerTrackWriter.Create(directory, "segment.pointer", _header));
         Assert.Throws<InvalidDataException>(() => PointerTrackWriter.Create(directory, "../escape.pointer", _header));
         File.CreateSymbolicLink(Path.Combine(_root, "linked.pointer"), Path.Combine(_root, "segment.pointer"));
-        Assert.ThrowsAny<IOException>(() => PointerTrackReader.Open(directory, "linked.pointer", _header, Source));
+        if(OperatingSystem.IsWindows())
+            Assert.Throws<InvalidDataException>(() => PointerTrackReader.Open(directory, "linked.pointer", _header, Source));
+        else
+            Assert.ThrowsAny<IOException>(() => PointerTrackReader.Open(directory, "linked.pointer", _header, Source));
     }
 
     [Fact]

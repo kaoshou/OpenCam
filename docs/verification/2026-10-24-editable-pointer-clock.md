@@ -87,8 +87,6 @@ The earlier `tests/diagnostics/capture-clock-probe.mjs` experiment remains relev
 
 The roughly 500-ms change in inferred origin came only from observation delay. It demonstrates why progress receipt cannot recover a removed acquisition origin; it does not measure Windows latency or explain the user's physical stutter. Upstream master references inspected at that stage were [gfxcapture](https://raw.githubusercontent.com/FFmpeg/FFmpeg/master/libavfilter/vsrc_gfxcapture_winrt.cpp), [ddagrab](https://raw.githubusercontent.com/FFmpeg/FFmpeg/master/libavfilter/vsrc_ddagrab.c) and [gdigrab](https://raw.githubusercontent.com/FFmpeg/FFmpeg/master/libavdevice/gdigrab.c), not an attestation of the exact shipped FFmpeg source revision.
 
-## Earlier player evidence
-
 ## Integrated local verification (2026-10-24)
 
 The completed integration passed the fresh Release solution run with SDK8.0.425 and FFmpeg7.1.2: Core336 passed; Media1183 passed,21 platform/manual cases skipped,0 failures (`/private/tmp/opencam-pointer-integrated-full.log`). The refreshed cross-platform export matrix passed9/9 (`/private/tmp/opencam-pointer-export-final.log`): MP4/GIF/web MP4 visible/hidden/damaged-sidecar paths, real decoded pixels and unchanged source hashes. No desktop/audio was captured.
@@ -97,4 +95,14 @@ Fresh browser19 groups, Node36 and website41 tests/build passed. Native macOS sy
 
 A final regression reproduces an internal frame-clock probe cancellation escaping segment promotion despite an uncancelled caller. Promotion now records an incomplete pointer receipt on this internal deadline, preserving the sealed video; explicit caller cancellation still propagates. The initial faulty fixture was corrected before the genuine RED was observed. The post-fix full suite is tracked separately in `/private/tmp/opencam-pointer-deadline-full.log`.
 
-The prior player work recorded 19 passing browser groups across desktop/tablet/phone widths, touch, local-file export, keyboard navigation, dialogs, reflow and axe checks (`/private/tmp/opencam-pointer-final.log` and `screens/`). Node/player/CI passed 36/36 and embedded `WebPlayerExportTests` passed 6/6. These are earlier targeted results, not fresh runs for this native integration or certification of Taiwan accessibility conformance/physical assistive-technology behavior. Native composition was outside that review.
+## Independent whole-branch review and Windows integration
+
+Fresh read-only review of `c1fd395..515eaec` found no Critical or Minor findings and one Important issue: destination-write failure could leave the pointer video encoder waiting for blocked sibling tasks. A generated-noise/disk-full regression and bounded worker/process cleanup are required before handoff. This is not a second review or a claim of physical validation.
+
+Windows run40074334873 compiled the native helper and passed its protocol/package fixtures. Core reported330passed,3skipped,5failed. Complete failure evidence is `/private/tmp/opencam-pointer-windows-515eaec-failed.log`. Three collector cases attempted to reopen a file before releasing its write handle; production already disposes the collector before promotion. The replacement test attempted rename while its verified reader was still Windows-locked; the fixture now closes the reader to target the intended verification/reopen window. The symlink rejection test expected the Unix IOException rather than Windows InvalidDataException; platform-specific exact expectations preserve rejection. Storage guards are unchanged; the current Windows rerun must pass before package handoff.
+
+Review limitations retained: real Windows capture/mixed DPI/secure desktop, real macOS permissions/Retina/click alignment, long-duration resource use, and actual screen readers/touch devices need manual acceptance. No physical results are invented from synthetic tests. macOS app-controlled cursor auto-hiding remains outside the user-approved ordinary-desktop scope; editor Hidden remains available.
+
+## Earlier player evidence
+
+The prior player work recorded 19 passing browser groups across desktop/tablet/phone widths, touch, local-file export, keyboard navigation, dialogs, reflow and axe checks (`/private/tmp/opencam-pointer-final.log` and `screens/`). Node/player/CI passed36/36 and embedded WebPlayerExportTests passed6/6. These are earlier targeted results, not certification of Taiwan accessibility conformance/physical assistive-technology behavior.

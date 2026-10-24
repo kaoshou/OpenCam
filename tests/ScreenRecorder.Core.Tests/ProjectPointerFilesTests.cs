@@ -66,6 +66,7 @@ public sealed class ProjectPointerFilesTests : IDisposable
         await Assert.ThrowsAsync<InvalidDataException>(()=>ProjectPointerFiles.PromoteAsync(owner,source,reader=>
         {
             while(reader.ReadNext()!=null) { }
+            reader.Dispose(); // Simulate replacement in the post-verification reopen window, not a locked Windows handle.
             Write("replacement",1);
             File.Move(Path.Combine(owner.ProjectDirectory,"sources","replacement"),
                 Path.Combine(owner.ProjectDirectory,"sources","video.mkv.pointer"),true);

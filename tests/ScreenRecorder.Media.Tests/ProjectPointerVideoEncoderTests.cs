@@ -36,6 +36,38 @@ public sealed class ProjectPointerVideoEncoderTests
         Assert.True(output.CanWrite);
     }
     [Fact]
+    public async Task OutputFailureCancelsAndJoinsProducerWithoutCallerCancellation()
+    {
+        using var output=new FailingOutput();
+        using var cleanup=new CancellationTokenSource();
+        var producerStopped=false;
+        var work=new ProjectPointerVideoEncoder().EncodeAsync(new(512,512,new(30,1)),18,10000,output,
+            async(input,ct)=>
+            {
+                var frame=new byte[512*512*4];
+                new Random(42).NextBytes(frame);
+                try { for(var i=0;i<10000;i++) await input.WriteAsync(frame,ct); }
+                finally { producerStopped=true; }
+            },cleanup.Token);
+        try
+        {
+            var failure=await Assert.ThrowsAsync<IOException>(()=>work.WaitAsync(TimeSpan.FromSeconds(10)));
+            Assert.Equal("Simulated full disk",failure.Message);
+            Assert.True(producerStopped);
+            Assert.True(output.CanWrite);
+        }
+        finally
+        {
+            cleanup.Cancel();
+            try { await work.WaitAsync(TimeSpan.FromSeconds(5)); } catch(Exception) when(work.IsCompleted) { }
+        }
+    }
+    private sealed class FailingOutput:MemoryStream
+    {
+        public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer,CancellationToken ct=default)
+            =>ValueTask.FromException(new IOException("Simulated full disk"));
+    }
+    [Fact]
     public async Task CancelledWorkDoesNotConsumeProducerOrCloseOutput()
     {
         using var output=new MemoryStream();

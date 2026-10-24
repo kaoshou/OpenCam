@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 using System.Diagnostics;
 using System.Globalization;
+using System.Runtime.ExceptionServices;
 using ScreenRecorder.Core.Projects;
 using ScreenRecorder.Media.FFmpeg;
 
@@ -31,10 +32,14 @@ public sealed class ProjectPointerVideoEncoder
         using var lifetime=CancellationTokenSource.CreateLinkedTokenSource(ct);
         var token=lifetime.Token;
         using var process=Process.Start(start) ?? throw new IOException("Cannot start pointer video encoder.");
-        var work=Task.WhenAll(Feed(),Copy(),Drain(),process.WaitForExitAsync(token));
+        var failed=new TaskCompletionSource<Exception>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var work=Task.WhenAll(Guard(Feed),Guard(Copy),Guard(Drain),Guard(()=>process.WaitForExitAsync(token)));
         try
         {
-            await work.WaitAsync(token);
+            await Task.WhenAny(work,failed.Task);
+            // A failed reader/writer must not wait for its siblings blocked on full pipes.
+            if(failed.Task.IsCompleted) ExceptionDispatchInfo.Capture(await failed.Task).Throw();
+            await work;
             if(process.ExitCode!=0) throw new InvalidDataException("Pointer video encode failed.");
         }
         finally
@@ -43,6 +48,11 @@ public sealed class ProjectPointerVideoEncoder
             lifetime.Cancel();
             try { await work.WaitAsync(TimeSpan.FromSeconds(5)); }
             catch(Exception) when(work.IsCompleted) { _=work.Exception; }
+        }
+        async Task Guard(Func<Task> action)
+        {
+            try { await action(); }
+            catch(Exception error) { failed.TrySetResult(error); throw; }
         }
         async Task Feed()
         {
