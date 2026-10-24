@@ -19,7 +19,7 @@ public sealed class ObsRuntimeTests : IDisposable
         WriteManifest();
         var runtime = ObsRuntime.TryLoad(_root, Platform);
         Assert.NotNull(runtime);
-        Assert.Equal(Path.Combine(_root, Helper), runtime.HelperPath);
+        Assert.Equal(Path.Combine(_root, "Contents", "MacOS", "OpenCam.ObsCapture"), runtime.HelperPath);
         Assert.Contains("sck", runtime.Backends);
         File.AppendAllText(Path.Combine(_root, Helper), "changed");
         Assert.Null(ObsRuntime.TryLoad(_root, Platform));
