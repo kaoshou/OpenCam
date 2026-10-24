@@ -169,7 +169,7 @@ public class NativeCaptureTests
 
     [Theory]
     [InlineData(CursorEffectMode.Hidden, 0)]
-    [InlineData(CursorEffectMode.PresentationStick, 1)]
+    [InlineData(CursorEffectMode.PresentationStick, 0)]
     public void WgcUsesExactMonitorAndRelativeCrop(CursorEffectMode cursor, int shown)
     {
         var bounds = new CaptureRegion(-1800, 100, 640, 480);
@@ -214,7 +214,7 @@ public class NativeCaptureTests
     }
 
     [Fact]
-    public async Task NativePreferenceRoundTripsAndCannotChangeWhileLocked()
+    public async Task LegacyNativePreferenceDeserializesButCannotEnableWindowsWgc()
     {
         Assert.False(new UserSettings().NativeCaptureEnabled);
         var config = JsonSerializer.Deserialize<RecordingConfiguration>(JsonSerializer.Serialize(
@@ -225,10 +225,10 @@ public class NativeCaptureTests
         await vm.LoadSettingsAsync();
         vm.NativeCaptureEnabled = true;
         await vm.SaveAsync();
-        Assert.True(settings.CurrentSettings.NativeCaptureEnabled);
+        Assert.False(settings.CurrentSettings.NativeCaptureEnabled);
         vm.CanEditCaptureMode = false;
         vm.NativeCaptureEnabled = false;
         await vm.SaveAsync();
-        Assert.True(settings.CurrentSettings.NativeCaptureEnabled);
+        Assert.False(settings.CurrentSettings.NativeCaptureEnabled);
     }
 }

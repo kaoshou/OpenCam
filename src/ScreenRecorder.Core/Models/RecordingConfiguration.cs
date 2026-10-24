@@ -12,7 +12,7 @@ public class RecordingConfiguration
     public string? ProjectName { get; set; }
     public bool NativeCaptureEnabled { get; set; }
     public bool EditablePointerEnabled { get; set; }
-    private WindowsCaptureMode _windowsCaptureMode;
+    private WindowsCaptureMode _windowsCaptureMode = WindowsCaptureMode.Automatic;
     public WindowsCaptureMode WindowsCaptureMode
     {
         get => _windowsCaptureMode;
@@ -43,6 +43,12 @@ public class RecordingConfiguration
     public string EncoderName { get; set; } = "libx264";
     public HardwareEncoderType EncoderType { get; set; } = HardwareEncoderType.Auto;
     public CursorEffectMode CursorEffect { get; set; } = CursorEffectMode.Default;
+    private TeachingPointerOptions _presentationPointer = TeachingPointerOptions.Default;
+    public TeachingPointerOptions PresentationPointer
+    {
+        get => _presentationPointer;
+        set => _presentationPointer = TeachingPointerOptions.Normalize(value);
+    }
 
     public string VideoQualityPreset
     {
@@ -102,6 +108,7 @@ public class RecordingConfiguration
         SystemAudioDeviceId = updates.SystemAudioDeviceId;
         MicrophoneDeviceId = updates.MicrophoneDeviceId;
         CursorEffect = updates.CursorEffect;
+        PresentationPointer = updates.PresentationPointer;
         IsRecoverySilenceMode = false;
     }
 }

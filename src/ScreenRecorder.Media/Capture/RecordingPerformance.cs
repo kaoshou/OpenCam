@@ -4,7 +4,8 @@ namespace ScreenRecorder.Media.Capture;
 
 internal sealed record RecordingPerformanceSnapshot(double ElapsedSeconds, long? Frames, double? OutputFps,
     double? FfmpegFps, double? Speed, double? MediaSeconds, long? DuplicatedFrames, long? DroppedFrames,
-    long? OutputBytes, double? WriteWaitMs, double? MaxWriteWaitMs);
+    long? OutputBytes, double? WriteWaitMs, double? MaxWriteWaitMs,
+    double? RecentOutputFps=null, double? RecentSeconds=null);
 
 internal sealed class RecordingPerformance
 {
@@ -13,6 +14,18 @@ internal sealed class RecordingPerformance
     private double? _fps, _speed, _mediaSeconds;
     private long _bytes;
     private double _writeMs, _maxWriteMs;
+    private long? _sampleFrames;
+    private double? _sampleSeconds;
+
+    public void ReadNativeProgress(long frames, long mediaUs)
+    {
+        if (frames < 0 || mediaUs < 0) throw new ArgumentOutOfRangeException(nameof(frames));
+        lock (_gate)
+        {
+            _frames = frames;
+            _mediaSeconds = mediaUs / 1_000_000d;
+        }
+    }
 
     public void ReadLine(string line)
     {
@@ -53,7 +66,17 @@ internal sealed class RecordingPerformance
 
     public RecordingPerformanceSnapshot Snapshot(double elapsedSeconds)
     {
-        lock (_gate) return new(elapsedSeconds, _frames, elapsedSeconds > 0 && _frames is { } frames ? frames / elapsedSeconds : null,
-            _fps, _speed, _mediaSeconds, _duplicates, _drops, _bytes, _writeMs, _maxWriteMs);
+        lock (_gate)
+        {
+            double? recent=null,seconds=null;
+            if (_frames is { } current && _sampleFrames is { } previous && _sampleSeconds is { } time &&
+                elapsedSeconds>time && current>=previous)
+            {seconds=elapsedSeconds-time;recent=(current-previous)/seconds;}
+            if (_frames is not null && double.IsFinite(elapsedSeconds) &&
+                (_sampleSeconds is null || elapsedSeconds>_sampleSeconds))
+            {_sampleSeconds=elapsedSeconds;_sampleFrames=_frames;}
+            return new(elapsedSeconds, _frames, elapsedSeconds > 0 && _frames is { } frames ? frames / elapsedSeconds : null,
+                _fps, _speed, _mediaSeconds, _duplicates, _drops, _bytes, _writeMs, _maxWriteMs,recent,seconds);
+        }
     }
 }

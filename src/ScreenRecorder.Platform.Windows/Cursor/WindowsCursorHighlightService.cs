@@ -1,13 +1,16 @@
 ﻿// SPDX-License-Identifier: AGPL-3.0-or-later
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using System.ComponentModel;
+using Serilog;
 using ScreenRecorder.Core.Enums;
 using ScreenRecorder.Core.Interfaces;
+using ScreenRecorder.Core.Models;
 
 namespace ScreenRecorder.Platform.Windows.Cursor;
 
 [SupportedOSPlatform("windows")]
-public class WindowsCursorHighlightService : ICursorHighlightService
+public class WindowsCursorHighlightService : ICursorHighlightService, IPresentationPointerOverlay
 {
     private const int WS_EX_TOPMOST = 0x00000008;
     private const int WS_EX_TRANSPARENT = 0x00000020;
@@ -110,7 +113,10 @@ public class WindowsCursorHighlightService : ICursorHighlightService
     private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
 
     [DllImport("user32.dll")]
-    private static extern bool GetCursorPos(out POINT lpPoint);
+    private static extern bool GetPhysicalCursorPos(out POINT lpPoint);
+
+    [DllImport("user32.dll", ExactSpelling = true, SetLastError = true)]
+    private static extern nint SetThreadDpiAwarenessContext(nint context);
 
     [DllImport("user32.dll")]
     private static extern short GetAsyncKeyState(int vKey);
@@ -160,27 +166,57 @@ public class WindowsCursorHighlightService : ICursorHighlightService
     private volatile bool _isRunning;
     private CursorEffectMode _currentMode = CursorEffectMode.Default;
     private readonly object _stateLock = new();
+    private TaskCompletionSource<bool>? _presentationReady;
+    private int _overlayFailureReported;
+    private bool _disposed;
+    private TeachingPointerOptions _presentationPointer = TeachingPointerOptions.Default;
+    public event EventHandler? OverlayFailed;
 
     public bool IsRunning => _isRunning;
+
+    public async Task<bool> StartPresentationAsync(TeachingPointerOptions options, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!OperatingSystem.IsWindows() || _disposed) return false;
+        Stop();
+        _presentationPointer = TeachingPointerOptions.Normalize(options);
+        Start(CursorEffectMode.PresentationStick);
+        var ready = _currentMode == CursorEffectMode.PresentationStick ? _presentationReady : null;
+        if (ready is null) return false;
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(TimeSpan.FromSeconds(2));
+        try { return await ready.Task.WaitAsync(deadline.Token).ConfigureAwait(false); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { Stop(); throw; }
+        catch (OperationCanceledException) { Stop(); return false; }
+    }
 
     public void Start(CursorEffectMode mode)
     {
         lock (_stateLock)
         {
-            if (_isRunning || mode == CursorEffectMode.Default || mode == CursorEffectMode.Hidden)
+            if (_disposed || !OperatingSystem.IsWindows() || _isRunning || _workerThread?.IsAlive == true ||
+                mode == CursorEffectMode.Default || mode == CursorEffectMode.Hidden)
             {
                 return;
             }
 
             _currentMode = mode;
             _isRunning = true;
+            _overlayFailureReported = 0;
+            _presentationReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             _workerThread = new Thread(WorkerLoop)
             {
                 IsBackground = true,
                 Name = "CursorHighlightOverlayThread"
             };
-            _workerThread.Start();
+            try { _workerThread.Start(); }
+            catch (Exception error)
+            {
+                _isRunning = false;
+                _presentationReady.TrySetResult(false);
+                Log.Warning("Cursor decoration thread unavailable: {ErrorType}", error.GetType().Name);
+            }
         }
     }
 
@@ -188,68 +224,91 @@ public class WindowsCursorHighlightService : ICursorHighlightService
     {
         lock (_stateLock)
         {
-            if (!_isRunning) return;
             _isRunning = false;
+            _presentationReady?.TrySetResult(false);
         }
 
         if (_workerThread != null && _workerThread.IsAlive)
         {
-            _workerThread.Join(1000);
-            _workerThread = null;
+            if (_workerThread.Join(1000)) _workerThread = null;
+            else Log.Warning("Cursor overlay thread shutdown unconfirmed; no duplicate will be started.");
         }
     }
 
     private void WorkerLoop()
     {
-        EnsureClassRegistered();
-
-        var hInstance = GetModuleHandle(null);
-        var hwnd = CreateWindowEx(
-            WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW,
-            "OpenCamCursorHighlightClass",
-            "OpenCamCursorHighlight",
-            WS_POPUP,
-            -1000, -1000, OverlaySize, OverlaySize,
-            IntPtr.Zero, IntPtr.Zero, hInstance, IntPtr.Zero);
-
-        if (hwnd == IntPtr.Zero)
-        {
-            _isRunning = false;
-            return;
-        }
-
-        var screenDc = GetDC(IntPtr.Zero);
-        var memDc = CreateCompatibleDC(screenDc);
-
-        var bmi = new BITMAPINFO();
-        bmi.bmiHeader.biSize = Marshal.SizeOf<BITMAPINFOHEADER>();
-        bmi.bmiHeader.biWidth = OverlaySize;
-        bmi.bmiHeader.biHeight = -OverlaySize; // top-down
-        bmi.bmiHeader.biPlanes = 1;
-        bmi.bmiHeader.biBitCount = 32;
-        bmi.bmiHeader.biCompression = 0; // BI_RGB
-
-        var hBitmap = CreateDIBSection(memDc, ref bmi, 0, out var pBits, IntPtr.Zero, 0);
-        var oldBmp = SelectObject(memDc, hBitmap);
-
-        ShowWindow(hwnd, SWP_SHOWWINDOW);
-
-        var pixelBuffer = new byte[OverlaySize * OverlaySize * 4];
-
-        bool wasLeftDown = false;
-        int rippleFrame = 0;
-        const int rippleTotalFrames = 18; // 約 300ms 動畫
-        if (_currentMode == CursorEffectMode.PresentationStick)
-        {
-            RenderStick(pixelBuffer);
-            Marshal.Copy(pixelBuffer, 0, pBits, pixelBuffer.Length);
-        }
-
+        nint previousDpi = 0;
         try
         {
+            previousDpi = SetThreadDpiAwarenessContext(-4);
+            if (previousDpi == 0) throw new Win32Exception(Marshal.GetLastWin32Error());
+            RunWorkerLoop();
+        }
+        catch (Exception error)
+        {
+            _presentationReady?.TrySetResult(false);
+            Log.Warning("Optional cursor overlay failed: {ErrorType}, nativeError={NativeError}",
+                error.GetType().Name, error is Win32Exception win32 ? win32.NativeErrorCode : (int?)null);
+            if (Interlocked.Exchange(ref _overlayFailureReported, 1) == 0)
+            {
+                try { OverlayFailed?.Invoke(this, EventArgs.Empty); }
+                catch (Exception subscriberError) { Log.Warning("Cursor warning subscriber failed: {ErrorType}", subscriberError.GetType().Name); }
+            }
+        }
+        finally
+        {
+            _isRunning = false;
+            _presentationReady?.TrySetResult(false);
+            if (previousDpi != 0) SetThreadDpiAwarenessContext(previousDpi);
+        }
+    }
+
+    private void RunWorkerLoop()
+    {
+        using var frameWaiter=OverlayFrameWaiter.CreateWindows();
+        var frameClock=new OverlayFrameClock(System.Diagnostics.Stopwatch.Frequency,
+            System.Diagnostics.Stopwatch.GetTimestamp,frameWaiter.Wait);
+        var artwork = _currentMode == CursorEffectMode.PresentationStick ? TeachingPointerArtwork.Get(_presentationPointer) : null;
+        var width = artwork?.Width ?? OverlaySize;
+        var height = artwork?.Height ?? OverlaySize;
+        var hotspotX = (int)Math.Round(artwork?.HotspotX ?? HalfSize);
+        var hotspotY = (int)Math.Round(artwork?.HotspotY ?? HalfSize);
+        EnsureClassRegistered();
+        nint hwnd = 0, screenDc = 0, memDc = 0, hBitmap = 0, oldBmp = 0;
+        try
+        {
+            hwnd = CreateWindowEx(
+                WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW,
+                "OpenCamCursorHighlightClass", "OpenCamCursorHighlight", WS_POPUP,
+                -1000, -1000, width, height, 0, 0, GetModuleHandle(null), 0);
+            if (hwnd == 0) throw new Win32Exception(Marshal.GetLastWin32Error());
+            screenDc = GetDC(0);
+            memDc = CreateCompatibleDC(screenDc);
+            if (screenDc == 0 || memDc == 0) throw new Win32Exception(Marshal.GetLastWin32Error());
+            var bmi = new BITMAPINFO();
+            bmi.bmiHeader.biSize = Marshal.SizeOf<BITMAPINFOHEADER>();
+            bmi.bmiHeader.biWidth = width;
+            bmi.bmiHeader.biHeight = -height;
+            bmi.bmiHeader.biPlanes = 1;
+            bmi.bmiHeader.biBitCount = 32;
+            hBitmap = CreateDIBSection(memDc, ref bmi, 0, out var pBits, 0, 0);
+            if (hBitmap == 0 || pBits == 0) throw new Win32Exception(Marshal.GetLastWin32Error());
+            oldBmp = SelectObject(memDc, hBitmap);
+            if (oldBmp == 0 || oldBmp == new nint(-1)) throw new Win32Exception(Marshal.GetLastWin32Error());
+            var pixelBuffer = new byte[width * height * 4];
+            bool wasLeftDown = false;
+            int rippleFrame = 0;
+            const int rippleTotalFrames = 18;
+            bool firstUpdate=true;
+            int lastX=0,lastY=0;
+            if (_currentMode == CursorEffectMode.PresentationStick)
+            {
+                RenderStick(pixelBuffer, _presentationPointer);
+                Marshal.Copy(pixelBuffer, 0, pBits, pixelBuffer.Length);
+            }
             while (_isRunning)
             {
-                GetCursorPos(out var pt);
+                if (!GetPhysicalCursorPos(out var pt)) throw new Win32Exception(Marshal.GetLastWin32Error());
 
                 bool isLeftDown = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
                 if (_currentMode == CursorEffectMode.HaloWithClickRipple)
@@ -277,9 +336,9 @@ public class WindowsCursorHighlightService : ICursorHighlightService
                 }
 
                 // 更新視窗位置與內容
-                var wndPoint = new POINT { X = pt.X - HalfSize, Y = pt.Y - HalfSize };
+                var wndPoint = new POINT { X = pt.X - hotspotX, Y = pt.Y - hotspotY };
                 var srcPoint = new POINT { X = 0, Y = 0 };
-                var wndSize = new SIZE { cx = OverlaySize, cy = OverlaySize };
+                var wndSize = new SIZE { cx = width, cy = height };
                 var blend = new BLENDFUNCTION
                 {
                     BlendOp = AC_SRC_OVER,
@@ -288,41 +347,52 @@ public class WindowsCursorHighlightService : ICursorHighlightService
                     AlphaFormat = AC_SRC_ALPHA
                 };
 
-                UpdateLayeredWindow(hwnd, screenDc, ref wndPoint, ref wndSize, memDc, ref srcPoint, 0, ref blend, ULW_ALPHA);
-                SetWindowPos(hwnd, HWND_TOPMOST, wndPoint.X, wndPoint.Y, OverlaySize, OverlaySize, SWP_NOACTIVATE | SWP_NOSIZE | SWP_SHOWWINDOW);
-
-                Thread.Sleep(16); // ~60 FPS
+                var moved=firstUpdate||wndPoint.X!=lastX||wndPoint.Y!=lastY;
+                // Stick pixels are immutable: upload once, then move the existing
+                // surface. Animated halos/ripples still upload their current pixels.
+                if ((firstUpdate||_currentMode!=CursorEffectMode.PresentationStick) &&
+                    !UpdateLayeredWindow(hwnd, screenDc, ref wndPoint, ref wndSize, memDc, ref srcPoint, 0, ref blend, ULW_ALPHA))
+                    throw new Win32Exception(Marshal.GetLastWin32Error());
+                if ((moved||_currentMode!=CursorEffectMode.PresentationStick) &&
+                    !SetWindowPos(hwnd, HWND_TOPMOST, wndPoint.X, wndPoint.Y, width, height, SWP_NOACTIVATE | SWP_NOSIZE | SWP_SHOWWINDOW))
+                    throw new Win32Exception(Marshal.GetLastWin32Error());
+                firstUpdate=false;lastX=wndPoint.X;lastY=wndPoint.Y;
+                _presentationReady?.TrySetResult(true);
+                frameClock.NoteUpdate(moved);
+                frameClock.WaitNext();
             }
         }
         finally
         {
-            ShowWindow(hwnd, SW_HIDE);
-            SelectObject(memDc, oldBmp);
-            DeleteObject(hBitmap);
-            DeleteDC(memDc);
-            ReleaseDC(IntPtr.Zero, screenDc);
-            DestroyWindow(hwnd);
+            if (hwnd != 0) ShowWindow(hwnd, SW_HIDE);
+            if (oldBmp != 0 && oldBmp != new nint(-1) && memDc != 0) SelectObject(memDc, oldBmp);
+            if (hBitmap != 0) DeleteObject(hBitmap);
+            if (memDc != 0) DeleteDC(memDc);
+            if (screenDc != 0) ReleaseDC(0, screenDc);
+            if (hwnd != 0) DestroyWindow(hwnd);
+            try
+            {
+                Log.Information("Cursor overlay pacing: {Measurement:l}",System.Text.Json.JsonSerializer.Serialize(
+                    new{Mode=_currentMode.ToString(),Style=_presentationPointer.Style.ToString(),
+                        Size=_presentationPointer.Size.ToString(),Timer=frameWaiter.Mode,Metrics=frameClock.Snapshot()}));
+            }
+            catch(Exception error) when(error is not OutOfMemoryException)
+            {Log.Debug("Cannot report optional overlay timing: {ErrorType}",error.GetType().Name);}
         }
     }
 
-    private static void RenderStick(byte[] buffer)
+    private static void RenderStick(byte[] buffer, TeachingPointerOptions options)
     {
-        Array.Clear(buffer);
-        // The red tip marks the pointer hotspot; the outlined shaft extends down-right.
-        const double length = 46;
-        for (var y = 0; y < OverlaySize; y++)
-        for (var x = 0; x < OverlaySize; x++)
+        var artwork = TeachingPointerArtwork.Get(options);
+        if (buffer.Length != artwork.Pixels.Length) throw new ArgumentException("Invalid teaching pointer buffer.");
+        artwork.Pixels.Span.CopyTo(buffer);
+        // UpdateLayeredWindow consumes premultiplied BGRA, not straight RGBA.
+        for (var i = 0; i < buffer.Length; i += 4)
         {
-            var dx = x - HalfSize;
-            var dy = y - HalfSize;
-            var t = Math.Clamp((dx + dy) / (2 * length), 0, 1);
-            var distance = Math.Sqrt(Math.Pow(dx - t * length, 2) + Math.Pow(dy - t * length, 2));
-            if (distance > 3.5) continue;
-            var i = (y * OverlaySize + x) * 4;
-            var tip = dx * dx + dy * dy <= 20;
-            var color = tip ? (R: 239, G: 68, B: 68) : distance > 2 ? (R: 30, G: 41, B: 59) : (R: 241, G: 245, B: 249);
-            buffer[i] = (byte)color.B; buffer[i + 1] = (byte)color.G;
-            buffer[i + 2] = (byte)color.R; buffer[i + 3] = 255;
+            var red = buffer[i]; var blue = buffer[i + 2]; var alpha = buffer[i + 3];
+            buffer[i] = (byte)((blue * alpha + 127) / 255);
+            buffer[i + 1] = (byte)((buffer[i + 1] * alpha + 127) / 255);
+            buffer[i + 2] = (byte)((red * alpha + 127) / 255);
         }
     }
 
@@ -451,13 +521,15 @@ public class WindowsCursorHighlightService : ICursorHighlightService
                 hIconSm = IntPtr.Zero
             };
 
-            RegisterClassEx(ref wcx);
+            if (RegisterClassEx(ref wcx) == 0 && Marshal.GetLastWin32Error() != 1410)
+                throw new Win32Exception(Marshal.GetLastWin32Error());
             s_classRegistered = true;
         }
     }
 
     public void Dispose()
     {
+        _disposed = true;
         Stop();
         GC.SuppressFinalize(this);
     }

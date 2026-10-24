@@ -17,8 +17,13 @@ namespace ScreenRecorder.Media.Tests;
 public sealed class ProjectLayoutApp : Application
 {
     public override void Initialize() => Styles.Add(new FluentTheme());
-    public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<ProjectLayoutApp>()
-        .UseHeadless(new AvaloniaHeadlessPlatformOptions());
+    public static AppBuilder BuildAvaloniaApp()
+    {
+        var realRendering=Environment.GetEnvironmentVariable("OPENCAM_REAL_UI_RENDER")=="1";
+        var builder=AppBuilder.Configure<ProjectLayoutApp>();
+        if(realRendering) builder=builder.UseSkia();
+        return builder.UseHeadless(new AvaloniaHeadlessPlatformOptions{UseHeadlessDrawing=!realRendering});
+    }
 }
 
 public sealed class ProjectWorkspaceLayoutTests

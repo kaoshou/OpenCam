@@ -16,11 +16,25 @@ public sealed class RecordingEngineFactory(
     ISystemAudioLoopbackCapture? systemAudioLoopbackCapture = null,
     IMicrophoneCapture? microphoneCapture = null,
     IMicrophoneLevelObserver? microphoneLevelObserver = null,
-    ICapturePlanProvider? capturePlanProvider = null) : IRecordingEngineFactory
+    ICapturePlanProvider? capturePlanProvider = null,
+    IDisplayService? displayService = null,
+    Func<MonitorInfo, string?>? nativeIdentity = null) : IRecordingEngineFactory
 {
-    public IScreenRecorderEngine Create(HardwareEncoderType? pinnedEncoder, CaptureSelection? pinnedCapture = null) => new FFmpegScreenRecorderEngine(
-        provider, systemAudioLoopbackCapture, microphoneCapture: microphoneCapture,
-        microphoneLevelObserver: microphoneLevelObserver,
-        encoderSelectionService: encoderSelectionService, pinnedEncoder: pinnedEncoder,
-        capturePlanProvider: capturePlanProvider, pinnedCapture: pinnedCapture);
+    public IScreenRecorderEngine Create(HardwareEncoderType? pinnedEncoder, CaptureSelection? pinnedCapture = null)
+    {
+        var runtime = ObsRuntime.TryLoad(Path.Combine(AppContext.BaseDirectory, "obs-runtime"));
+        return new ObsRecordingEngineRouter(runtime, () => new FFmpegScreenRecorderEngine(
+            provider, systemAudioLoopbackCapture, microphoneCapture: microphoneCapture,
+            microphoneLevelObserver: microphoneLevelObserver,
+            encoderSelectionService: encoderSelectionService, pinnedEncoder: pinnedEncoder,
+            capturePlanProvider: capturePlanProvider,
+            pinnedCapture: pinnedCapture is { RecordingCore: "ffmpeg" } ? pinnedCapture with { RecordingCore = null } : pinnedCapture),
+            (config, bounds, capture) => displayService is null ? null : ObsRecordingEngineRouter.ResolveMonitor(config,
+                bounds, capture, displayService.GetMonitors(), nativeIdentity ?? ResolveIdentity),
+            pinnedEncoder ?? HardwareEncoderType.SoftwareCpu, pinnedCapture);
+    }
+
+    private string? ResolveIdentity(MonitorInfo monitor) => displayService is IRecordingDisplayIdentityService native
+        ? native.GetRecordingDisplayIdentity(monitor)
+        : null;
 }

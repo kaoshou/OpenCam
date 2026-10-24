@@ -84,7 +84,8 @@ public sealed class ProjectPreviewCoordinator : IAsyncDisposable
                     {
                         lock (_sync) if (!life.IsCancellationRequested && _state.Generation == generation)
                             _frame = new(revision, frame.TimelineTicks, ProjectClipProjection.LogicalId(project, frame.ClipId), frame.Rgba)
-                                { PixelWidth = settings.Size.Width, PixelHeight = settings.Size.Height };
+                                { PixelWidth = settings.Size.Width, PixelHeight = settings.Size.Height,
+                                  PointerUnavailable = frame.PointerUnavailable };
                         return Task.CompletedTask;
                     }, position =>
                     {

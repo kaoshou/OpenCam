@@ -6,6 +6,49 @@ namespace ScreenRecorder.Media.Tests;
 public class RecordingPerformanceTests
 {
     [Fact]
+    public void NativeProgressPreservesCadenceAndOwnedWriteMetricsWithoutInventingFfmpegValues()
+    {
+        var metrics = new RecordingPerformance();
+        metrics.ReadNativeProgress(30, 1_000_000);
+        metrics.NoteWrite(4096, 2);
+        metrics.Snapshot(1);
+        metrics.ReadNativeProgress(150, 5_000_000);
+        var report = metrics.Snapshot(5);
+        Assert.Equal(150, report.Frames);
+        Assert.Equal(30, report.OutputFps);
+        Assert.Equal(30, report.RecentOutputFps);
+        Assert.Equal(5, report.MediaSeconds);
+        Assert.Equal(4096, report.OutputBytes);
+        Assert.Equal(2, report.WriteWaitMs);
+        Assert.Null(report.FfmpegFps);
+        Assert.Null(report.Speed);
+        Assert.Null(report.DuplicatedFrames);
+        Assert.Null(report.DroppedFrames);
+    }
+
+    [Theory]
+    [InlineData(-1, 0)]
+    [InlineData(0, -1)]
+    public void NativeProgressRejectsInvalidCounters(long frames, long mediaUs)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new RecordingPerformance().ReadNativeProgress(frames, mediaUs));
+    }
+    [Fact]
+    public void RecentRateExposesSlowMotionWithoutStartupAveraging()
+    {
+        var metrics=new RecordingPerformance();
+        metrics.ReadLine("frame=30");metrics.Snapshot(5);
+        metrics.ReadLine("frame=50");var report=metrics.Snapshot(10);
+        var recent=report.GetType().GetProperty("RecentOutputFps");
+        Assert.NotNull(recent);
+        Assert.Equal(4d,recent.GetValue(report));
+        Assert.Equal(5d,report.GetType().GetProperty("RecentSeconds")!.GetValue(report));
+        Assert.Equal(5d,report.OutputFps);
+        Assert.Null(metrics.Snapshot(10).GetType().GetProperty("RecentOutputFps")!.GetValue(metrics.Snapshot(10)));
+        metrics.ReadLine("frame=2");
+        Assert.Null(recent.GetValue(metrics.Snapshot(11)));
+    }
+    [Fact]
     public void ReportsOutputCadenceAndWriteWaitWithoutInventingCaptureDrops()
     {
         var metrics = new RecordingPerformance();

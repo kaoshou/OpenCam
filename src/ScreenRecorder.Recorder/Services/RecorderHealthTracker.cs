@@ -30,6 +30,7 @@ public sealed class RecorderHealthTracker
     private TimeSpan _lastRecordedTime;
     private long _lastPositiveFileSize;
     private int _unchangedFileSizeObservations;
+    private int _unchangedFrameObservations;
     private bool? _videoHealthy;
     private bool? _encoderHealthy;
     private bool _audioDeviceLost;
@@ -52,6 +53,7 @@ public sealed class RecorderHealthTracker
         _lastRecordedTime = TimeSpan.Zero;
         _lastPositiveFileSize = 0;
         _unchangedFileSizeObservations = 0;
+        _unchangedFrameObservations = 0;
         _videoHealthy = null;
         _encoderHealthy = _fatalWarning is null ? null : false;
         _progressWarning = null;
@@ -67,8 +69,14 @@ public sealed class RecorderHealthTracker
             return;
         }
 
-        var hasValidProgress = observation.Frames > 0 ||
-                               observation.RecordedTime > TimeSpan.Zero;
+        // Muxed time and bytes can advance from audio alone. Only encoded
+        // video frames establish video health (not whether their pixels are black).
+        var hasValidProgress = observation.Frames > 0;
+
+        if (_hasProgress && observation.Frames <= _lastFrames)
+            _unchangedFrameObservations++;
+        else
+            _unchangedFrameObservations = 0;
 
         if (hasValidProgress)
         {
@@ -100,6 +108,11 @@ public sealed class RecorderHealthTracker
             _videoHealthy = false;
             _encoderHealthy = false;
             _progressWarning = "Recording output has stopped growing.";
+        }
+        if (_unchangedFrameObservations >= 3)
+        {
+            _videoHealthy = false;
+            _progressWarning = "Video frames have stopped advancing; audio or output bytes alone do not confirm video capture.";
         }
 
         _lastFrames = Math.Max(_lastFrames, observation.Frames);

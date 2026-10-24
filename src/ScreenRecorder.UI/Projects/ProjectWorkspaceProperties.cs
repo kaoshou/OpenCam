@@ -7,6 +7,8 @@ namespace ScreenRecorder.UI.Projects;
 
 public sealed partial class ProjectWorkspaceViewModel
 {
+    private bool _resettingProperties;
+    private CancellationTokenSource? _propertyApplyDelay;
     private static object Effects(ProjectClip c) => (c.Volume, c.Muted, c.FadeInTicks, c.FadeOutTicks, c.Scale, c.Crop, c.PositionX, c.PositionY);
     public bool HasMixedProperties => SelectedClip is { Parts.IsEmpty: false } c && c.Parts.Select(Effects).Distinct().Skip(1).Any();
     private ProjectClip? DisplayProperties
@@ -49,11 +51,45 @@ public sealed partial class ProjectWorkspaceViewModel
     {
         OnPropertyChanged(nameof(HasPropertyDraft));
         NotifyState();
+        if (_resettingProperties) return;
+        CancelPropertyApplyDelay();
+        if (!HasPropertyDraft || !CanEditSelection) return;
+        var delay = new CancellationTokenSource();
+        _propertyApplyDelay = delay;
+        _ = AutoApplyPropertiesAsync(delay, State.ProjectId, SelectedClip!.Id);
+    }
+
+    private void CancelPropertyApplyDelay()
+    {
+        _propertyApplyDelay?.Cancel();
+        _propertyApplyDelay = null;
+    }
+
+    private async Task AutoApplyPropertiesAsync(CancellationTokenSource delay, Guid? project, Guid clip)
+    {
+        try
+        {
+            // Coalesce typing/slider events so one gesture does not flood IPC and undo history.
+            await Task.Delay(250, delay.Token);
+            if (State.ProjectId == project && SelectedClip?.Id == clip && HasPropertyDraft && CanEditSelection)
+                await ApplyPropertiesAsync();
+        }
+        catch (OperationCanceledException) when (delay.IsCancellationRequested) { }
+        catch (Exception ex) { Error = ex.Message; }
+        finally
+        {
+            if (ReferenceEquals(_propertyApplyDelay, delay)) _propertyApplyDelay = null;
+            delay.Dispose();
+        }
     }
 
     [RelayCommand]
     public void ResetProperties()
     {
+        CancelPropertyApplyDelay();
+        _resettingProperties = true;
+        try
+        {
         OnPropertyChanged(nameof(HasMixedProperties));
         var clip = DisplayProperties;
         ClipName = clip?.Name ?? "";
@@ -65,14 +101,19 @@ public sealed partial class ProjectWorkspaceViewModel
         ClipCropPercent = clip?.Crop ?? 0;
         ClipPositionX = clip?.PositionX ?? 0;
         ClipPositionY = clip?.PositionY ?? 0;
+        }
+        finally { _resettingProperties = false; }
         NotifyPropertyDraft();
     }
 
     [RelayCommand]
     public Task ApplyPropertiesAsync()
     {
-        if (!CanEditSelection) return Task.CompletedTask;
+        CancelPropertyApplyDelay();
+        if (!CanEditSelection || !HasPropertyDraft) return Task.CompletedTask;
         var clip = SelectedClip!;
+        var project = State.ProjectId;
+        var revision = State.Revision;
         if (!clip.Parts.IsEmpty && !HasEffectDraft)
             return RenameAsync(clip.Id, ClipName);
         var span = TimelineClips.FirstOrDefault(c => c.ClipId == clip.Id);
@@ -92,7 +133,8 @@ public sealed partial class ProjectWorkspaceViewModel
             clip.Id, ClipName, ClipVolumePercent / 100, ClipMuted,
             checked((long)(fadeIn * TimeSpan.TicksPerSecond)),
             checked((long)(fadeOut * TimeSpan.TicksPerSecond)),
-            ClipScalePercent / 100, ClipCropPercent, ClipPositionX, ClipPositionY) });
+            ClipScalePercent / 100, ClipCropPercent, ClipPositionX, ClipPositionY) },
+            () => CanEditSelection && State.ProjectId == project && State.Revision == revision && SelectedClip?.Id == clip.Id);
     }
 
     private static bool Within(double value, double min, double max) =>

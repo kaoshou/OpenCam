@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import AppKit
 
+private var presentationImage: NSImage?
+private var pointerStyle = "WarmIvory"
+private var pointerSize = "Standard"
+private var pointerScale: CGFloat {
+    pointerSize == "Small" ? 0.82 : pointerSize == "Large" ? 1.23 : 1
+}
+
 private enum OverlayMode: String {
     case halo
     case ripple
@@ -9,16 +16,23 @@ private enum OverlayMode: String {
 
 private func parseMode() -> OverlayMode? {
     let arguments = CommandLine.arguments
-    guard arguments.count == 3,
-          arguments[1] == "--mode" else {
+    guard arguments.count >= 3, arguments[1] == "--mode",
+          let mode = OverlayMode(rawValue: arguments[2]) else {
         return nil
     }
-    return OverlayMode(rawValue: arguments[2])
+    if arguments.count == 3 { return mode }
+    guard mode == .stick, arguments.count == 7,
+          arguments[3] == "--stick-style", arguments[5] == "--stick-size",
+          ["WarmIvory","TealSilver","RoundShort","HighContrast"].contains(arguments[4]),
+          ["Small","Standard","Large"].contains(arguments[6]) else { return nil }
+    pointerStyle = arguments[4]; pointerSize = arguments[6]
+    return mode
 }
 
 private final class CursorOverlayView: NSView {
     var mode: OverlayMode = .halo
     private var rippleStartedAt: TimeInterval?
+    private var readinessSent = false
 
     override var isOpaque: Bool { false }
 
@@ -32,18 +46,14 @@ private final class CursorOverlayView: NSView {
 
         let center = NSPoint(x: bounds.midX, y: bounds.midY)
         if mode == .stick {
-            let shaft = NSBezierPath()
-            shaft.move(to: center)
-            shaft.line(to: NSPoint(x: center.x + 46, y: center.y - 46))
-            shaft.lineCapStyle = .round
-            NSColor(calibratedRed: 30/255, green: 41/255, blue: 59/255, alpha: 1).setStroke()
-            shaft.lineWidth = 7
-            shaft.stroke()
-            NSColor(calibratedRed: 241/255, green: 245/255, blue: 249/255, alpha: 1).setStroke()
-            shaft.lineWidth = 4
-            shaft.stroke()
-            NSColor(calibratedRed: 239/255, green: 68/255, blue: 68/255, alpha: 1).setFill()
-            NSBezierPath(ovalIn: NSRect(x: center.x - 3.5, y: center.y - 3.5, width: 7, height: 7)).fill()
+            // Same checked-in PNG and logical geometry as the shared Windows renderer.
+            NSGraphicsContext.current?.imageInterpolation = .high
+            presentationImage?.draw(in: bounds,
+                from: .zero, operation: .sourceOver, fraction: 1)
+            if !readinessSent && presentationImage != nil {
+                readinessSent = true
+                FileHandle.standardOutput.write(Data("READY stick-v2 \(pointerStyle) \(pointerSize)\n".utf8))
+            }
             return
         }
         let haloRect = NSRect(
@@ -87,7 +97,9 @@ private final class CursorOverlayView: NSView {
 
 private final class CursorOverlayController: NSObject, NSApplicationDelegate {
     private let mode: OverlayMode
-    private let overlaySize = NSSize(width: 124, height: 124)
+    private var overlaySize: NSSize {
+        mode == .stick ? NSSize(width:140 * pointerScale, height:120 * pointerScale) : NSSize(width:124,height:124)
+    }
     private var window: NSWindow?
     private var overlayView: CursorOverlayView?
     private var timer: Timer?
@@ -98,6 +110,25 @@ private final class CursorOverlayController: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Ownership is the recorder's stdin pipe. EOF also handles a crashed owner.
+        DispatchQueue.global(qos: .utility).async {
+            while let command = readLine() {
+                if command == "stop" { break }
+            }
+            DispatchQueue.main.async { NSApp.terminate(nil) }
+        }
+        if mode == .stick {
+            let url = URL(fileURLWithPath:CommandLine.arguments[0]).deletingLastPathComponent()
+                .appendingPathComponent("TeachingPointers").appendingPathComponent(pointerStyle + ".png")
+            presentationImage = NSImage(contentsOf:url)
+            guard let image = presentationImage, image.isValid,
+                  image.representations.first?.pixelsWide == 280,
+                  image.representations.first?.pixelsHigh == 240 else {
+                FileHandle.standardError.write(Data("Teaching pointer image unavailable.\n".utf8))
+                NSApp.terminate(nil)
+                return
+            }
+        }
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: overlaySize),
             styleMask: [.borderless],
@@ -123,6 +154,7 @@ private final class CursorOverlayController: NSObject, NSApplicationDelegate {
         self.window = window
         self.overlayView = view
         updateOverlay()
+        view.display()
         timer = Timer.scheduledTimer(
             timeInterval: 1.0 / 60.0,
             target: self,
@@ -136,8 +168,8 @@ private final class CursorOverlayController: NSObject, NSApplicationDelegate {
 
         let cursor = NSEvent.mouseLocation
         window.setFrameOrigin(NSPoint(
-            x: cursor.x - overlaySize.width / 2,
-            y: cursor.y - overlaySize.height / 2))
+            x: cursor.x - (mode == .stick ? 16 * pointerScale : overlaySize.width / 2),
+            y: cursor.y - (mode == .stick ? 104 * pointerScale : overlaySize.height / 2)))
 
         let isPressed = NSEvent.pressedMouseButtons & 1 != 0
         if mode == .ripple && isPressed && !wasPressed {

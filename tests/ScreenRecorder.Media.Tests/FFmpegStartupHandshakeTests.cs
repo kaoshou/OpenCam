@@ -9,6 +9,36 @@ namespace ScreenRecorder.Media.Tests;
 public partial class FFmpegStartupHandshakeTests
 {
     [UnixOnlyFact]
+    public async Task ConfirmedCompatibilityFallbackDoesNotReenterNativeCapture()
+    {
+        var executable = CreateExecutable(
+            "echo 'frame=    1 fps=0.0 time=00:00:00.03' >&2\n" +
+            "while IFS= read -r line; do [ \"$line\" = q ] && exit 0; done");
+        try
+        {
+            var config = Config();
+            config.NativeCaptureEnabled = true;
+            await using var engine = new FFmpegScreenRecorderEngine(new NoNativeFallbackProvider(), null, executable,
+                pinnedCapture: new(CaptureBackend.PlatformDefault, CaptureFallbackReason.StartupFailed,
+                    null, null, null, new(0, 0, 640, 480)));
+            await engine.StartRecordingAsync(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".mkv"),
+                config, new(0, 0, 640, 480));
+            Assert.True(engine.IsRunning);
+            Assert.True(config.NativeCaptureEnabled); // Do not mutate the user's saved preference.
+            await engine.StopRecordingAsync();
+        }
+        finally { File.Delete(executable); }
+    }
+
+    private sealed class NoNativeFallbackProvider : StubProvider, INativeVideoPlatformProvider
+    {
+        public Task<INativeVideoCapture> PrepareNativeVideoAsync(RecordingConfiguration config, CaptureRegion bounds,
+            CaptureSelection? pinned, CancellationToken token) => throw new InvalidOperationException("Compatibility fallback reentered native capture");
+        public string BuildNativeInput(RecordingConfiguration config, string videoInput, bool directMic,
+            string? systemAudio, string? microphoneAudio) => throw new NotSupportedException();
+        public string BuildNativeOutput(RecordingConfiguration config, string path) => throw new NotSupportedException();
+    }
+    [UnixOnlyFact]
     public async Task DelayedExitBeforeFirstFrame_IsRejected()
     {
         var executable = CreateExecutable(
@@ -288,7 +318,7 @@ public partial class FFmpegStartupHandshakeTests
         return path;
     }
 
-    private sealed class StubProvider : IFFmpegPlatformProvider
+    private class StubProvider : IFFmpegPlatformProvider
     {
         public string? LastMicrophoneAudioPipeArg { get; private set; }
 

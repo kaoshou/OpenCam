@@ -109,7 +109,8 @@ public sealed partial class ProjectWorkspaceViewModel
             finally { _clockUpdate = false; }
             if (reply.Frame is { HasValidPixels: true } frame && frame.Revision == state.Revision &&
                 TimelineClips.Any(c => c.ClipId == frame.ClipId && frame.TimelineTicks >= c.StartTicks && frame.TimelineTicks < c.EndTicks))
-            { PreviewFrame = frame; OnPropertyChanged(nameof(PreviewFrame)); OnPropertyChanged(nameof(PreviewResolutionText)); }
+            { PreviewFrame = frame; _previewPointerUnavailable = frame.PointerUnavailable;
+              OnPropertyChanged(nameof(PreviewFrame)); OnPropertyChanged(nameof(PreviewResolutionText)); }
             IsPlayingPreview = playback.Playing;
             if (!playback.Playing) { _playbackGeneration = null; if (playback.Error is not null) Error = playback.Error; }
         }

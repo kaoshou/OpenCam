@@ -16,7 +16,7 @@ public class UserSettings
     public List<string> RecentProjectPaths { get; set; } = [];
     public bool NativeCaptureEnabled { get; set; }
     public bool EditablePointerEnabled { get; set; }
-    private WindowsCaptureMode _windowsCaptureMode;
+    private WindowsCaptureMode _windowsCaptureMode = WindowsCaptureMode.Automatic;
     public WindowsCaptureMode WindowsCaptureMode
     {
         get => _windowsCaptureMode;
@@ -26,6 +26,12 @@ public class UserSettings
     public AppLanguage Language { get; set; } = AppLanguage.ZhTw;
     public HardwareEncoderType EncoderType { get; set; } = HardwareEncoderType.Auto;
     public CursorEffectMode CursorEffect { get; set; } = CursorEffectMode.Default;
+    private TeachingPointerOptions _presentationPointer = TeachingPointerOptions.Default;
+    public TeachingPointerOptions PresentationPointer
+    {
+        get => _presentationPointer;
+        set => _presentationPointer = TeachingPointerOptions.Normalize(value);
+    }
     private int _fps = 10;
     public int Fps
     {

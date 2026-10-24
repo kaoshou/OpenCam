@@ -20,7 +20,7 @@ public partial class RecordingEncoderLifecycleTests
         public void Dispose()=>Stop();
     }
     [Fact]
-    public async Task EditablePointerRecording_KeepsOperatorSystemCursorWithoutDesktopOverlay()
+    public async Task StaleEditablePreferenceWithUnreadyOverlayUsesOrdinaryCursorAndNoTracks()
     {
         using var overlay=new PointerOverlaySpy();
         await using var scope=new RecordingScope(cursor:overlay);
@@ -35,11 +35,14 @@ public partial class RecordingEncoderLifecycleTests
         Assert.True((await project.StartAsync(scope.Configuration,Guid.NewGuid())).Success);
         Assert.False(overlay.IsRunning);
         Assert.All(overlay.Modes,m=>Assert.Equal(CursorEffectMode.Default,m));
+        Assert.True((await project.FinishAsync(Guid.NewGuid())).Success);
+        Assert.All(scope.Factory.Created, engine => Assert.Equal(CursorEffectMode.Default, engine.InputCursorEffect));
+        Assert.All(project.Current!.Sources, source => Assert.Null(source.Pointer));
     }
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task EditablePointerRecording_SavesSeparateBoundTrackForEachSegment(bool pointerFailure)
+    public async Task LegacyPreferenceNeverCreatesTracksEvenIfAnEngineRaisesPointerEvents(bool pointerFailure)
     {
         await using var scope = new RecordingScope();
         scope.Configuration.NativeCaptureEnabled=true;
@@ -52,20 +55,10 @@ public partial class RecordingEncoderLifecycleTests
         Assert.True((await project.StartAsync(scope.Configuration,Guid.NewGuid())).Success);
         Assert.True((await project.FinishAsync(Guid.NewGuid())).Success);
         Assert.Equal(2,project.Current!.Sources.Length);
-        Assert.Equal(5,project.Current.SchemaVersion);
-        // Stub video is deliberately not valid media: never claim its clock has been verified.
-        Assert.All(project.Current.Sources,s=>Assert.False(s.Pointer!.Complete));
+        Assert.InRange(project.Current.SchemaVersion, 1, 4);
+        Assert.All(project.Current.Sources, source => Assert.Null(source.Pointer));
         var tracks=Directory.GetFiles(project.ProjectDirectory!,"*.mkv.pointer",SearchOption.AllDirectories);
-        Assert.Equal(2,tracks.Length);
-        foreach(var source in project.Current.Sources)
-        {
-            var path=Path.Combine(project.ProjectDirectory!,source.RelativePath)+".pointer";
-            using var dir=ScreenRecorder.Infrastructure.Session.BoundDirectory.Open(Path.GetDirectoryName(path)!);
-            using var read=PointerTrackReader.Open(dir,Path.GetFileName(path),
-                new(project.Current.ProjectId,source.Id,320,240),new(source.FileSize,source.Sha256),true);
-            while(read.ReadNext()!=null) { }
-            Assert.Equal(!pointerFailure || source!=project.Current.Sources[0],read.Complete);
-        }
+        Assert.Empty(tracks);
     }
 
     [Theory]

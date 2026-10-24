@@ -95,7 +95,7 @@ public class MacOsFFmpegProvider : IFFmpegPlatformProvider, IPreflightAudioPlatf
         {
             "-thread_queue_size 1024",
             "-f avfoundation",
-            config.CursorEffect == CursorEffectMode.Hidden
+            config.CursorEffect is CursorEffectMode.Hidden or CursorEffectMode.PresentationStick
                 ? "-capture_cursor 0"
                 : "-capture_cursor 1",
             $"-framerate {config.Fps}"

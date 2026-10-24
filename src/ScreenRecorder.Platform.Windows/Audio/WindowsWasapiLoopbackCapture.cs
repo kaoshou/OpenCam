@@ -188,7 +188,7 @@ public class WindowsWasapiLoopbackCapture : ISystemAudioLoopbackCapture, IAudioL
             _heartbeatTask = Task.Run(() => BackupSilenceHeartbeatLoopAsync(sampleRate, channels, linkedCts.Token), linkedCts.Token);
 
             // 組裝 FFmpeg 輸入參數 (使用標準 s16le PCM 格式)
-            var ffmpegInputArgs = $"-f s16le -ar {sampleRate} -ac {channels} -i \"{pipePath}\" ";
+            var ffmpegInputArgs = BuildFfmpegInputArguments(pipePath, sampleRate, channels);
 
             return new SystemAudioCaptureInfo(pipePath, sampleRate, channels, ffmpegInputArgs);
         }
@@ -200,6 +200,11 @@ public class WindowsWasapiLoopbackCapture : ISystemAudioLoopbackCapture, IAudioL
             return null;
         }
     }
+
+    // The PCM format is fully specified. A default multi-second stream probe
+    // delays video startup while this live pipe accumulates audio samples.
+    internal static string BuildFfmpegInputArguments(string pipePath, int sampleRate, int channels) =>
+        $"-probesize 32 -analyzeduration 0 -f s16le -ar {sampleRate} -ac {channels} -i \"{pipePath}\" ";
 
     /// <summary>
     /// 備援靜音補償循環：僅在系統長達 350ms 以上完全無任何 WASAPI 回調時啟動，

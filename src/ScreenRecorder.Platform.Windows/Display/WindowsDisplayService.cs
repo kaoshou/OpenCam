@@ -5,8 +5,20 @@ using ScreenRecorder.Core.Models;
 namespace ScreenRecorder.Platform.Windows.Display;
 
 using ScreenRecorder.Core.Interfaces;
-public class WindowsDisplayService : IDisplayService
+public class WindowsDisplayService : IDisplayService, IRecordingDisplayIdentityService
 {
+    private readonly Func<IReadOnlyList<MonitorInfo>>? _readMonitors;
+    private readonly Func<string, IReadOnlyList<string>>? _readInterfaces;
+
+    public WindowsDisplayService() { }
+
+    internal WindowsDisplayService(Func<IReadOnlyList<MonitorInfo>> readMonitors,
+        Func<string, IReadOnlyList<string>> readInterfaces)
+    {
+        _readMonitors = readMonitors;
+        _readInterfaces = readInterfaces;
+    }
+
     private const int SM_XVIRTUALSCREEN = 76;
     private const int SM_YVIRTUALSCREEN = 77;
     private const int SM_CXVIRTUALSCREEN = 78;
@@ -94,6 +106,7 @@ public class WindowsDisplayService : IDisplayService
 
     public IReadOnlyList<MonitorInfo> GetMonitors()
     {
+        if (_readMonitors is not null) return _readMonitors();
         var list = new List<MonitorInfo>();
         int index = 0;
 
@@ -141,6 +154,49 @@ public class WindowsDisplayService : IDisplayService
 
         return list;
     }
+
+    public string? GetRecordingDisplayIdentity(MonitorInfo monitor)
+    {
+        // UI indices can change after display hotplug. Revalidate the current GDI mapping and physical geometry.
+        var matches = GetMonitors().Where(current =>
+            string.Equals(current.DeviceName, monitor.DeviceName, StringComparison.OrdinalIgnoreCase) &&
+            current.Bounds == monitor.Bounds).ToArray();
+        if (matches.Length != 1) return null;
+        var interfaces = (_readInterfaces ?? ReadMonitorInterfaces)(matches[0].DeviceName)
+            .Where(identity => !string.IsNullOrWhiteSpace(identity)).ToArray();
+        return interfaces.Length == 1 ? interfaces[0] : null;
+    }
+
+    private static IReadOnlyList<string> ReadMonitorInterfaces(string deviceName)
+    {
+        if (!OperatingSystem.IsWindows()) return [];
+        var identities = new List<string>();
+        const uint active = 1, mirroringDriver = 8, interfaceName = 1;
+        for (uint index = 0; index < 256; index++)
+        {
+            var device = new DisplayDevice { Size = (uint)Marshal.SizeOf<DisplayDevice>() };
+            if (!EnumDisplayDevices(deviceName, index, ref device, interfaceName)) break;
+            if ((device.StateFlags & active) != 0 && (device.StateFlags & mirroringDriver) == 0 &&
+                !string.IsNullOrWhiteSpace(device.DeviceId)) identities.Add(device.DeviceId);
+        }
+        return identities;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct DisplayDevice
+    {
+        public uint Size;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string DeviceName;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string DeviceString;
+        public uint StateFlags;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string DeviceId;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string DeviceKey;
+    }
+
+    // EDD_GET_DEVICE_INTERFACE_NAME returns the monitor interface path in DeviceID, not a display label.
+    [DllImport("user32.dll", EntryPoint = "EnumDisplayDevicesW", CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool EnumDisplayDevices(string? device, uint index, ref DisplayDevice display, uint flags);
 
     public MonitorInfo? GetPrimaryMonitor()
     {

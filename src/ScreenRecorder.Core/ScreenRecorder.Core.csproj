@@ -5,5 +5,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Assets/PresentationPointer.png" />
+    <EmbeddedResource Include="Assets/TeachingPointers/*.png" />
+    <Content Include="Assets/TeachingPointers/*.png" TargetPath="TeachingPointers/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Assets/PresentationPointer.png" TargetPath="PresentationPointer.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 
 </Project>

@@ -164,7 +164,7 @@ internal sealed class WindowsNativeVideoCapture : INativeVideoCapture, INativePo
                 }
                 if (line.StartsWith("ERROR", StringComparison.Ordinal))
                 {
-                    Incomplete(); Failed();
+                    Incomplete(); Failed(SafeFailure(line));
                     continue;
                 }
                 if (Volatile.Read(ref _metadataDisabled) != 0) continue;
@@ -188,10 +188,37 @@ internal sealed class WindowsNativeVideoCapture : INativeVideoCapture, INativePo
         catch { Log.Error("Windows native pointer failure notification failed."); }
     }
 
-    private void Failed()
+    internal static string SafeFailure(string record)
+    {
+        // Never log arbitrary helper output (it may include pointer coordinates).
+        // Preserve only fixed native stage labels or a strictly parsed HRESULT.
+        var stage = record switch
+        {
+            "ERROR WGC frame acquisition failed" => "WGC frame acquisition failed",
+            "ERROR Native video transport failed" => "Native video transport failed",
+            "ERROR Capture target closed" => "Capture target closed",
+            "ERROR WGC start failed" => "WGC start failed",
+            "ERROR Display geometry changed" => "Display geometry changed",
+            "ERROR WGC frame unsubscribe failed" => "WGC frame unsubscribe failed",
+            "ERROR WGC target unsubscribe failed" => "WGC target unsubscribe failed",
+            "ERROR WGC session close failed" => "WGC session close failed",
+            "ERROR WGC pool close failed" => "WGC pool close failed",
+            _ => "unclassified helper failure"
+        };
+        const string prefix = "ERROR Windows capture initialization HRESULT=";
+        if (record.StartsWith(prefix, StringComparison.Ordinal) &&
+            int.TryParse(record.AsSpan(prefix.Length), NumberStyles.AllowLeadingSign,
+                CultureInfo.InvariantCulture, out var hresult))
+            stage = "Windows capture initialization HRESULT=" + hresult.ToString(CultureInfo.InvariantCulture);
+        return "Windows native video producer ended unexpectedly: " + stage + ".";
+    }
+
+    private void Failed(string? reason = null)
     {
         if (Interlocked.Exchange(ref _failed, 1) != 0) return;
-        try { CaptureFailed?.Invoke(this, "Windows native video producer ended unexpectedly."); }
+        var message = reason ?? "Windows native video producer ended unexpectedly.";
+        Log.Error("{NativeCaptureFailure}", message);
+        try { CaptureFailed?.Invoke(this, message); }
         catch { Log.Error("Windows native capture failure notification failed."); }
     }
 

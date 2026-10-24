@@ -5,7 +5,10 @@ using ScreenRecorder.Core.Projects;
 
 namespace ScreenRecorder.Media.Projects;
 
-public sealed record ProjectPreviewFrame(Guid ClipId, long TimelineTicks, byte[] Rgba);
+public sealed record ProjectPreviewFrame(Guid ClipId, long TimelineTicks, byte[] Rgba)
+{
+    public bool PointerUnavailable { get; init; }
+}
 public sealed class ProjectPreviewSettings(ProjectPreviewSize size)
 {
     public ProjectPreviewSize Size { get; } = size;
@@ -97,7 +100,8 @@ public sealed class ProjectPreviewDecoder(Func<IProjectStreamingMediaProcess> pr
                             await pointer.ApplyAsync(pixels, frameNumber, settings.Size.Width, settings.Size.Height,
                                 preview: true, ct: cancel);
                             var ticks = Ceiling(frameNumber, checked(TimeSpan.TicksPerSecond * plan.Canvas.Fps.Denominator), plan.Canvas.Fps.Numerator);
-                            await publish(new(clip.Clip.Id, Math.Max(startTicks, ticks), pixels));
+                            await publish(new(clip.Clip.Id, Math.Max(startTicks, ticks), pixels)
+                                { PointerUnavailable = pointer.HadUnavailablePointer });
                             frameNumber++;
                         }
                     }, token);

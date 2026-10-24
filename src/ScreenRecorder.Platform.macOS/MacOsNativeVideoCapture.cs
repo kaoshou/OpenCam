@@ -66,7 +66,7 @@ internal sealed class MacOsNativeVideoCapture(Process process, CaptureSelection 
             RedirectStandardOutput = true, RedirectStandardError = true };
         foreach (var value in new long[] { displayId, bounds.X - displayBounds.X, bounds.Y - displayBounds.Y,
             bounds.Width, bounds.Height, displayBounds.Width, displayBounds.Height, config.Fps,
-            config.VideoBitrateKbps, config.CursorEffect == CursorEffectMode.Hidden ? 0 : 1 })
+            config.VideoBitrateKbps, config.CursorEffect is CursorEffectMode.Hidden or CursorEffectMode.PresentationStick ? 0 : 1 })
             start.ArgumentList.Add(value.ToString(CultureInfo.InvariantCulture));
         if (config.EditablePointerEnabled) start.ArgumentList.Add("1");
         return start;

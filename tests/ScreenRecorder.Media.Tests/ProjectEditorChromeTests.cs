@@ -39,6 +39,7 @@ public sealed class ProjectEditorChromeTests
     [AvaloniaTheory]
     [InlineData(AppLanguage.ZhTw)]
     [InlineData(AppLanguage.EnUs)]
+    [InlineData(AppLanguage.JaJp)]
     public async Task InspectorActionsUseConsistentIconButtons(AppLanguage language)
     {
         var previous = LanguageManager.Instance.CurrentLanguage;
@@ -52,7 +53,7 @@ public sealed class ProjectEditorChromeTests
             var pane = window.FindControl<Border>("InspectorPane")!;
             var buttons = pane.GetVisualDescendants().OfType<Button>()
                 .Where(b => b.Classes.Contains("inspectorAction")).ToArray();
-            Assert.Equal(12, buttons.Length);
+            Assert.Equal(8, buttons.Length);
             foreach (var button in buttons)
             {
                 var content = Assert.IsType<EditorToolContent>(button.Content);
@@ -61,9 +62,12 @@ public sealed class ProjectEditorChromeTests
                 Assert.Equal(38, button.MinHeight);
                 Assert.Equal(12, content.GetVisualDescendants().OfType<TextBlock>().Single().FontSize);
             }
-            var apply = window.FindControl<Button>("ApplyPropertiesButton")!;
-            var label = apply.GetVisualDescendants().OfType<TextBlock>().Single();
-            Assert.Equal(Avalonia.Media.Colors.White, Assert.IsAssignableFrom<Avalonia.Media.ISolidColorBrush>(label.Foreground).Color);
+            Assert.DoesNotContain(pane.GetVisualDescendants().OfType<Button>(),
+                b => ReferenceEquals(b.Command, vm.ApplyPropertiesCommand) || ReferenceEquals(b.Command, vm.ResetPropertiesCommand));
+            Assert.DoesNotContain(pane.GetVisualDescendants(), c => c.Name is "PointerStyleCombo" or "PointerSizeSlider");
+            Assert.Null(window.FindControl<Button>("PointerSettingsButton"));
+            Assert.DoesNotContain(window.GetVisualDescendants().OfType<EditorToolContent>(),
+                c => c.Text == vm.Strings["ProjectPointerMenu"]);
         }
         finally { await window.RequestCloseAsync(); LanguageManager.Instance.CurrentLanguage = previous; }
     }

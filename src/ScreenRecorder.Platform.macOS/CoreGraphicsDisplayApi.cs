@@ -16,6 +16,7 @@ internal readonly record struct MacOsDisplaySnapshot(
 internal interface IMacOsDisplayApi
 {
     IReadOnlyList<MacOsDisplaySnapshot> GetActiveDisplays();
+    string? GetDisplayUuid(uint displayId) => null;
 }
 
 internal sealed class CoreGraphicsDisplayApi : IMacOsDisplayApi
@@ -61,6 +62,32 @@ internal sealed class CoreGraphicsDisplayApi : IMacOsDisplayApi
 
     [DllImport(CoreGraphics)]
     private static extern int CGDisplayIsMain(uint display);
+
+    [DllImport(CoreGraphics)]
+    private static extern nint CGDisplayCreateUUIDFromDisplayID(uint display);
+    [DllImport("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation")]
+    private static extern nint CFUUIDCreateString(nint allocator, nint uuid);
+    [DllImport("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation")]
+    [return: MarshalAs(UnmanagedType.I1)]
+    private static extern bool CFStringGetCString(nint value, byte[] buffer, nint capacity, uint encoding);
+    [DllImport("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation")]
+    private static extern void CFRelease(nint value);
+
+    public string? GetDisplayUuid(uint displayId)
+    {
+        var uuid = CGDisplayCreateUUIDFromDisplayID(displayId);
+        if (uuid == 0) return null;
+        nint text = 0;
+        try
+        {
+            text = CFUUIDCreateString(0, uuid);
+            var buffer = new byte[128];
+            if (text == 0 || !CFStringGetCString(text, buffer, buffer.Length, 0x08000100)) return null;
+            var end = Array.IndexOf(buffer, (byte)0);
+            return end > 0 ? System.Text.Encoding.UTF8.GetString(buffer, 0, end) : null;
+        }
+        finally { if (text != 0) CFRelease(text); CFRelease(uuid); }
+    }
 
     public IReadOnlyList<MacOsDisplaySnapshot> GetActiveDisplays()
     {

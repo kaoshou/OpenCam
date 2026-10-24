@@ -56,23 +56,23 @@ v0.3.5: drag the ruler for progressive preview, settling at release. Playing pre
 
 v0.3.5 multilingual captions: attach SRT/VTT by selection or drop; unique project-owned copies avoid collisions. Language names follow the application language and include codes. Select the default on a subtitle card, apply, then save explicitly. Preview/fullscreen and Web CC controls offer language, size, theme, opacity and position; no MP4 burn-in. The Web sidebar offers searchable transcripts, highlighting, seek preserving play/pause, optional follow mode and bounded scrolling. Timeline edits require synchronization confirmation. **Subtitle projects use format4; released0.3.3 cannot open them. Back up first.** See [subtitle limits](https://github.com/kaoshou/OpenCam/blob/master/docs/WEB_PLAYER_EXPORT.md).
 
-## High-performance capture
+## Screen capture
 
-While idle, enable **High-performance capture** in Settings → Video Quality & Actions. Windows uses Windows Graphics Capture; macOS uses ScreenCaptureKit with Apple VideoToolbox. This option is off by default and overrides the standard capture selection when enabled. Check **Actual capture** after startup to see the active method.
+Both platforms use Settings → Video Quality & Actions → Screen capture, without a separate high-performance checkbox. Windows offers Automatic (recommended), Compatible capture (GDI), and Desktop capture (Desktop Duplication); macOS offers Standard capture (default) and ScreenCaptureKit. Check Actual capture after startup.
 
-Capture one display or a rectangle within it. On Mac, select Auto or Apple hardware encoding and grant screen-recording permission. If recording cannot start, turn this option off to use standard capture.
+ScreenCaptureKit records one display or a rectangle within it. Select Auto or Apple hardware encoding and grant screen-recording permission; return to Standard capture if startup fails or motion is less smooth. Existing Mac preferences are preserved. An old Windows high-performance preference no longer overrides the capture dropdown.
 
-**When should I enable it?** Try it for video, animation or games when standard capture is not smooth. Leave it off for everyday tasks, slides, or recordings that are already smooth. Compare the same region at 30 FPS and Standard quality before changing resolution or FPS. This changes capture technology, not picture quality, and does not guarantee the requested FPS. OpenCam still records the selected screen area; this is not a dedicated game-hook recording mode.
+For video, animation or teaching-pointer motion, compare capture methods using the same region, 30 FPS and Standard quality. Do not increase resolution and FPS together. Capture technology does not enhance picture quality or guarantee the requested FPS. OpenCam records the selected screen area, not a dedicated game-hook recording mode.
 
-On Windows, enabling it uses WGC instead of the GDI/Desktop Duplication selection; disabling it restores that selection. On Mac, standard capture uses the existing FFmpeg/AVFoundation path, while high-performance capture uses ScreenCaptureKit with Apple hardware encoding. The Windows capture selector does not apply to Mac. If startup fails, the picture is black or playback is less smooth, stop and turn it off to compare.
+Mac Standard capture retains FFmpeg/AVFoundation; ScreenCaptureKit uses Apple hardware encoding. Both platforms share the setting location and interaction, while retaining their platform-specific capture methods. Stop recording before switching capture methods.
 
-For moving content, start with 30 FPS and adjust for your computer's performance. Higher frame rates, full Retina resolution and simultaneous high-resolution playback increase GPU load. High-performance capture uses SDR H.264; HDR colours may differ. Stop recording before changing display configuration.
+Higher frame rates, full Retina resolution and simultaneous high-resolution playback increase load. ScreenCaptureKit uses SDR H.264; HDR colours may differ. Stop before changing display configuration. Enabling a teaching pointer does not automatically change FPS, quality or audio sources.
 
 ## Windows screen capture
 
-Settings → Video Quality & Actions → Windows screen capture offers **Compatible capture (GDI)** and **Desktop capture (Desktop Duplication)**. GDI is the default. Choose a method for your computer and display setup. When enabled, **High-performance capture** takes priority and uses Windows Graphics Capture.
+Settings → Video Quality & Actions → Screen capture offers **Automatic (recommended)**, **Compatible capture (GDI)**, and **Desktop capture (Desktop Duplication)**. New preferences default to Automatic; existing manual choices are preserved. Automatic uses an accepted recording core when available and otherwise uses GDI. The new core remains disabled until its platform acceptance checks are complete; selecting Automatic does not enable an unvalidated runtime.
 
-After recording starts, **Actual capture** shows GDI, Desktop Duplication or Windows Graphics Capture. Desktop capture supports unrotated displays on a single hardware graphics adapter, recording one display or a region within it at a time. Multiple GPUs, cross-display regions, rotated displays or uncertain GPU mapping use GDI and show the reason.
+After recording starts, **Actual capture** shows GDI or Desktop Duplication. Desktop capture supports unrotated displays on a single hardware graphics adapter, recording one display or a region within it at a time. Multiple GPUs, cross-display regions, rotated displays or uncertain GPU mapping use GDI and show the reason.
 
 Change capture mode only while idle, not while paused. Audio/cursor controls remain available during pause. Recording keeps the same capture method and encoder after it starts. If a display or desktop change prevents capture, recording stops and preserves working files for recovery.
 
@@ -100,7 +100,7 @@ See the [README](../README.md) for Windows download and portable-use instruction
 ### Editing, preview and saving
 
 - Select clips in the left list or timeline; dragging only reorders and never trims clip edges. Seek and explicitly split at the playhead or delete a selected range/whole clip. Undo/redo lets you revise edits; previously saved accidental trims are not restored automatically.
-- Clip properties include name, volume (0–200%), mute, fades, crop, scale and position. Apply property changes to commit them to the edit recipe. The pencil beside the title renames the project without moving its folder or original MKVs.
+- Clip properties include name, volume (0–200%), mute, fades, crop, scale and position. Valid changes apply automatically after editing; use Save to save the project version. The pencil beside the title renames the project without moving its folder or original MKVs.
 - Preview supports play/pause, seeking, quality selection, a resizable area and fullscreen. Preview sound is on/off, with no separate volume slider; it does not change exported audio. Original-resolution preview is subject to a frame-memory limit. Preview quality does not change export settings.
 - Explicit Save commits the editing version. A recovery draft protects interrupted edits; it is not a saved version or an updated MP4. Switching/closing with unsaved changes offers Save, Discard or Cancel. Reopening a recoverable draft offers a restore decision.
 - Resolve unsaved changes when prompted before manual export. If the same content has a verified existing output, choose Open Existing, Export Again or Cancel. Export has progress and cancellation controls; cancellation/failure preserves source media.
@@ -209,22 +209,24 @@ Encoders use different quality-control methods, so the same preset does not guar
 ### Cursor Style
 
 - **Native cursor**: Keeps the normal pointer appearance.
+- **Presentation stick**: The second menu item, with a transparent teaching baton anchored at its leading tip.
 - **Yellow halo**: Adds a visible halo around the pointer.
 - **Halo and click ripple**: Adds both the halo and visual click feedback.
 - **Hidden cursor**: Omits the pointer from the video.
-- **Presentation pointer (stick)**: A red tip follows the pointer, with an outlined white shaft extending down-right for presentations and demonstrations. Mouse interaction stays the same.
 
-### Editable Pointer
+### Recording the presentation stick
 
-Enable **High-performance capture**, then **Editable pointer** in Settings. This affects newly recorded project segments only: you operate with the normal desktop cursor, while the source video omits it and a separate track stores pointer positions inside the recording area. No desktop presentation-stick overlay is started.
+Selecting Presentation stick reveals four styles: Warm ivory (default), Teal silver, Round short stick, and High-contrast gold. Choose Small, Standard (default), or Large; OpenCam remembers both choices. These controls are locked while recording. Changes made while paused apply to the next segment when recording resumes, never to existing footage.
 
-In **Edit recording content**, select a slim stick, arrow, dot, or Hidden, with a size of 50–200%. Stick and arrow hotspots are at their tips. Preview, MP4, GIF, and the web player's video use the same settings, including save and undo/redo. Visible pointers require re-encoding, which can take longer than direct remuxing.
+Windows and macOS retain their recording paths with a live stick overlay recorded directly into the video; no extra capture switch is required. The normal desktop cursor remains available; you may see both the cursor and stick while operating. Once the overlay is ready, capture omits the native cursor so the video contains only the stick.
 
-This mode stores an additional track and adds capture/composition work; it does not promise faster recording. Check performance on your computer before long or high-resolution recordings, and leave it off when editable pointers are unnecessary.
+New recordings no longer create pointer tracks. The stick is baked into the video, so preview and exports use the same image and cannot change or remove it separately. If the overlay cannot start, recording uses the ordinary cursor. If it disappears during recording, a warning appears without restarting or interrupting video/audio; the remainder of that segment may have no pointer.
 
-Windows uses native WGC; macOS uses ScreenCaptureKit. The first macOS version targets ordinary desktop use and does not promise to follow cursor auto-hiding in games or other apps; choose Hidden in the editor when needed. macOS may require Input Monitoring permission; check system privacy settings if pointer preparation fails. Keyboard input and positions outside the recording area are not recorded. Compatible capture does not support this mode.
+### Legacy editable-pointer projects
 
-Already-baked cursors in older videos cannot be removed and receive no second pointer. Back up or move the whole project folder, including its `pointers` tracks. Missing or damaged tracks preserve the video but stop pointer-enabled preview/export; explicitly choose Hidden to export without the postproduction pointer. Projects using this feature require schema 5 and cannot be opened by older versions.
+The editor's post-production pointer button has been removed. Select a teaching pointer on the main recording window for new footage. Existing projects still retain and read their saved pointer settings; source video and tracks are not deleted.
+
+Back up or move the whole project folder, including its `pointers` tracks. Missing or damaged tracks fall back to original video/audio for preview with a warning. Export does not silently ignore damaged pointers: restore a complete backup or use an earlier version supporting editable pointers first. These legacy projects require schema 5; do not open them with software lacking that schema.
 
 ### System Audio and Microphone
 

@@ -9,6 +9,17 @@ namespace ScreenRecorder.Media.Tests;
 public class MacOsFFmpegProviderTests
 {
     [Fact]
+    public void LivePresentationStickDoesNotRecordASecondNativeCursor()
+    {
+        var config = new RecordingConfiguration { CursorEffect = CursorEffectMode.PresentationStick, AudioSource = AudioSourceType.None };
+        var args = CreateProvider().BuildInputArguments(config, 0, 0, 1280, 720, false, false);
+        Assert.Contains("-capture_cursor 0", args);
+        Assert.DoesNotContain("-capture_cursor 1", args);
+        var native = MacOsNativeVideoCapture.BuildStartInfo("helper", config, 1, new(0, 0, 1280, 720), new(0, 0, 1280, 720));
+        Assert.Equal("0", native.ArgumentList[9]);
+    }
+
+    [Fact]
     public void FullDisplay_SelectsNamedScreenAndScalesRetinaFrames()
     {
         var provider = CreateProvider();

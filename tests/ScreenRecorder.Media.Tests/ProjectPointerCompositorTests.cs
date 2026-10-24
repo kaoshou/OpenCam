@@ -41,6 +41,26 @@ public sealed class ProjectPointerCompositorTests : IDisposable
     }
 
     [Fact]
+    public async Task DamagedPointerDoesNotInterruptOriginalPreviewButExportStillRejectsIt()
+    {
+        await using var owner = await CreateAsync();
+        var source = owner.Current.Sources[0];
+        await File.AppendAllTextAsync(Path.Combine(owner.ProjectDirectory, source.Pointer!.RelativePath), "tamper");
+        using var compositor = new ProjectPointerCompositor(ProjectRenderPlan.Create(owner.Current),
+            (s, ct) => PointerTrackCursor.OpenAsync(owner, s, ct));
+        var pixels = Enumerable.Repeat((byte)71, 320 * 180 * 4).ToArray();
+        var original = pixels.ToArray();
+        await compositor.ApplyAsync(pixels, 0, 320, 180, preview: true);
+        Assert.Equal(original, pixels);
+        Assert.True(compositor.HadUnavailablePointer);
+        await compositor.ApplyAsync(pixels, 1, 320, 180, preview: true);
+        Assert.Equal(original, pixels);
+        using var export = new ProjectPointerCompositor(ProjectRenderPlan.Create(owner.Current),
+            (s, ct) => PointerTrackCursor.OpenAsync(owner, s, ct));
+        await Assert.ThrowsAsync<InvalidDataException>(async () => await export.ApplyAsync(pixels, 0, 320, 180));
+    }
+
+    [Fact]
     public async Task DamagedTrackIsRejectedBeforeAnyPointerPixelsArePublished()
     {
         await using var owner=await CreateAsync();

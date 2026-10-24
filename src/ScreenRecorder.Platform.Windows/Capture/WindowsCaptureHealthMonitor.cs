@@ -2,13 +2,15 @@
 using ScreenRecorder.Core.Models;
 using ScreenRecorder.Core.Enums;
 using ScreenRecorder.Media.Capture;
+using ScreenRecorder.Platform.Windows.Display;
 using System.Runtime.InteropServices;
 using System.Text;
 using Serilog;
 
 namespace ScreenRecorder.Platform.Windows.Capture;
 
-public sealed class WindowsCaptureHealthMonitor(IDxgiOutputCatalog catalog, Func<bool>? desktopAvailable = null) : ICaptureHealthMonitor
+public sealed class WindowsCaptureHealthMonitor(IDxgiOutputCatalog catalog, Func<bool>? desktopAvailable = null,
+    Func<CaptureRegion, GraphicsCaptureMonitor?>? nativeResolve = null) : ICaptureHealthMonitor
 {
     public bool Check(CaptureSelection selection)
     {
@@ -16,6 +18,12 @@ public sealed class WindowsCaptureHealthMonitor(IDxgiOutputCatalog catalog, Func
         try
         {
             if (!(desktopAvailable ?? IsInputDesktopAvailable)()) return false;
+            if (selection.RecordingCore == "libobs-v1")
+            {
+                var monitor = (nativeResolve ?? ResolveNative)(selection.Bounds);
+                return monitor is not null && string.Equals(monitor.DeviceName, selection.DeviceName, StringComparison.OrdinalIgnoreCase)
+                    && monitor.Bounds == selection.OutputBounds && WindowsCapturePlanner.Contains(monitor.Bounds, selection.Bounds);
+            }
             if (selection.Backend == CaptureBackend.WindowsGraphicsCapture)
             {
                 var monitor = WindowsGraphicsCapturePlan.Resolve(selection.Bounds);
@@ -34,6 +42,16 @@ public sealed class WindowsCaptureHealthMonitor(IDxgiOutputCatalog catalog, Func
             Log.Warning(ex, "Native capture output health check failed.");
             return false;
         }
+    }
+
+    private static GraphicsCaptureMonitor? ResolveNative(CaptureRegion bounds)
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        var displays = new WindowsDisplayService();
+        var matches = displays.GetMonitors().Where(monitor => WindowsCapturePlanner.Contains(monitor.Bounds, bounds)).ToArray();
+        if (matches.Length != 1) return null;
+        var identity = displays.GetRecordingDisplayIdentity(matches[0]);
+        return identity is null ? null : new GraphicsCaptureMonitor(0, identity, matches[0].Bounds);
     }
 
     private static bool IsInputDesktopAvailable()

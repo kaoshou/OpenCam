@@ -21,6 +21,12 @@ public interface IDisplayService
     CaptureRegion GetVirtualScreenBounds();
 }
 
+/// <summary>Resolves stable OS capture identity; never an index or display label guess.</summary>
+public interface IRecordingDisplayIdentityService
+{
+    string? GetRecordingDisplayIdentity(MonitorInfo monitor);
+}
+
 public interface IRecordingSessionStore
 {
     Task SaveSessionAsync(RecordingSession session, CancellationToken cancellationToken = default);
@@ -193,4 +199,11 @@ public interface ICursorHighlightService : IDisposable
     bool IsRunning { get; }
     void Start(CursorEffectMode mode);
     void Stop();
+}
+
+/// <summary>Optional live decoration, confirmed before omitting the captured native cursor.</summary>
+public interface IPresentationPointerOverlay
+{
+    Task<bool> StartPresentationAsync(TeachingPointerOptions options, CancellationToken cancellationToken = default);
+    event EventHandler? OverlayFailed;
 }

@@ -7,4 +7,6 @@ public sealed record CaptureSelection(CaptureBackend Backend, CaptureFallbackRea
     string? DeviceName, long? AdapterLuid, int? OutputIndex, CaptureRegion Bounds)
 {
     public CaptureRegion? OutputBounds { get; init; }
+    /// <summary>Non-null pins the recording core across pause/resume.</summary>
+    public string? RecordingCore { get; init; }
 }

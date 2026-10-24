@@ -8,6 +8,33 @@ namespace ScreenRecorder.Core.Tests;
 public class RecordingConfigurationTests
 {
     [Fact]
+    public void LivePointerPolicyPreservesCaptureAndSelectedAudio()
+    {
+        var config = new RecordingConfiguration { EditablePointerEnabled = true, NativeCaptureEnabled = true,
+            Fps = 30, AudioSource = AudioSourceType.SystemAndMicrophone, MicrophoneDeviceId = "selected-mic",
+            SystemAudioDeviceId = "selected-output", Region = new(10, 20, 1280, 720), OutputDirectory = "/recordings",
+            WindowsCaptureMode = WindowsCaptureMode.ModernExperimental };
+        Assert.True(LivePointerRecordingPolicy.Apply(config));
+        Assert.False(config.EditablePointerEnabled);
+        Assert.True(config.NativeCaptureEnabled);
+        Assert.Equal(WindowsCaptureMode.ModernExperimental, config.WindowsCaptureMode);
+        Assert.Equal(AudioSourceType.SystemAndMicrophone, config.AudioSource);
+        Assert.Equal("selected-mic", config.MicrophoneDeviceId);
+        Assert.Equal("selected-output", config.SystemAudioDeviceId);
+        Assert.Equal(new(10, 20, 1280, 720), config.Region);
+        Assert.Equal(30, config.Fps);
+        Assert.Equal("/recordings", config.OutputDirectory);
+        Assert.False(LivePointerRecordingPolicy.Apply(config));
+    }
+
+    [Fact]
+    public void LivePointerPolicyDoesNotChangeOrdinaryCapture()
+    {
+        var config = new RecordingConfiguration { NativeCaptureEnabled = true, EditablePointerEnabled = false };
+        Assert.False(LivePointerRecordingPolicy.Apply(config));
+        Assert.True(config.NativeCaptureEnabled);
+    }
+    [Fact]
     public void EditablePointer_DefaultsOffAndRoundTripsExplicitOptIn()
     {
         Assert.False(new RecordingConfiguration().EditablePointerEnabled);

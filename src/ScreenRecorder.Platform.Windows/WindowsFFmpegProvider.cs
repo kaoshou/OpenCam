@@ -92,7 +92,7 @@ public class WindowsFFmpegProvider : IFFmpegPlatformProvider, IPreflightAudioPla
             };
         }
 
-        var drawMouseParam = config.CursorEffect == CursorEffectMode.Hidden ? "-draw_mouse 0 " : "-draw_mouse 1 ";
+        var drawMouseParam = config.CursorEffect is CursorEffectMode.Hidden or CursorEffectMode.PresentationStick ? "-draw_mouse 0 " : "-draw_mouse 1 ";
         var baseVideo = $"-rtbufsize 100M -f gdigrab {drawMouseParam}-framerate {config.Fps} -offset_x {x} -offset_y {y} -video_size {width}x{height} -i desktop ";
         return BuildAudioInputArguments(baseVideo, config, hasDirectShowMic, systemAudioPipeArg);
     }

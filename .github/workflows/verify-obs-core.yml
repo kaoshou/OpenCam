@@ -1,0 +1,117 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Independent development validation. No package-release, deployment or Release writes.
+name: Verify pinned OBS recording core
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/libobs-core-validation-20261025]
+permissions:
+  contents: read
+jobs:
+  windows-core:
+    if: github.ref == 'refs/heads/codex/libobs-core-validation-20261025'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - uses: actions/setup-dotnet@v4
+        id: dotnet8
+        with:
+          dotnet-version: '8.0.x'
+      - name: Select exact installed SDK for this validation
+        shell: pwsh
+        env:
+          VALIDATION_DOTNET_SDK: ${{ steps.dotnet8.outputs.dotnet-version }}
+        run: |
+          if ($env:VALIDATION_DOTNET_SDK -notmatch '^8\.0\.\d+$') { throw 'Missing exact SDK 8 version.' }
+          if (Test-Path global.json) { throw 'Repository SDK policy changed; review validation SDK selection.' }
+          @{ sdk = @{ version = $env:VALIDATION_DOTNET_SDK; rollForward = 'disable'; allowPrerelease = $false } } | ConvertTo-Json -Depth 3 | Set-Content global.json -Encoding utf8
+          if ((dotnet --version) -cne $env:VALIDATION_DOTNET_SDK) { throw 'Exact SDK selection failed.' }
+      - name: Acquire official hash-pinned runtime and exact source revisions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/prepare-obs-validation.mjs obs-inputs
+      - name: Install pinned FFmpeg decoding test tools
+        shell: pwsh
+        run: |
+          $bin = & .\scripts\install-windows-ffmpeg.ps1 -Destination "$env:RUNNER_TEMP\opencam-obs-test-ffmpeg"
+          $bin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          "OPENCAM_VALIDATION_FFMPEG=$bin" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Record validation environment
+        run: node scripts/collect-test-environment.mjs obs-environment.json
+      - name: Compile actual Windows helper and display-only module, then run native acceptance
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $vs) { throw 'Visual C++ x64 toolchain unavailable.' }
+          $dev = Join-Path $vs 'Common7\Tools\VsDevCmd.bat'
+          cmd /d /c "`"$dev`" -arch=x64 && pwsh -NoProfile -File scripts\verify-obs-core-windows.ps1 -InputDirectory obs-inputs -OutputDirectory obs-results -FFmpegDirectory `"$env:OPENCAM_VALIDATION_FFMPEG`""
+          if ($LASTEXITCODE -ne 0) { throw 'Actual Windows core validation failed.' }
+      - name: Test managed ownership, routing and actual synthetic core adapter
+        shell: pwsh
+        run: |
+          dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release -m:1 /nodeReuse:false --filter 'FullyQualifiedName~ScreenRecorder.Media.Tests.Obs' --logger trx --results-directory obs-results/managed
+          if ($LASTEXITCODE -ne 0) { throw 'Managed OBS adapter tests failed.' }
+      - name: Preserve diagnostics and owned native build evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: obs-core-windows-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            obs-environment.json
+            obs-inputs/acquisition.json
+            obs-inputs/release-metadata.json
+            obs-inputs/notices/
+            obs-inputs/ffmpeg-source/libavutil/avconfig.h
+            obs-results/*.json
+            obs-results/*.log
+            obs-results/native/
+            obs-results/managed/
+            obs-results/build/CMakeCache.txt
+            obs-results/build/CMakeFiles/CMakeConfigureLog.yaml
+            obs-results/build/Release/OpenCam.ObsCapture.exe
+            obs-results/build/Release/OpenCam.ObsCapture.pdb
+            obs-results/build/Release/win-capture.dll
+            obs-results/build/Release/win-capture.pdb
+  managed-portable:
+    if: github.ref == 'refs/heads/codex/libobs-core-validation-20261025'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        id: dotnet8
+        with:
+          dotnet-version: '8.0.x'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Select exact installed SDK for this portable validation
+        shell: pwsh
+        env:
+          VALIDATION_DOTNET_SDK: ${{ steps.dotnet8.outputs.dotnet-version }}
+        run: |
+          if ($env:VALIDATION_DOTNET_SDK -notmatch '^8\.0\.\d+$') { throw 'Missing exact SDK 8 version.' }
+          if (Test-Path global.json) { throw 'Repository SDK policy changed; review validation SDK selection.' }
+          @{ sdk = @{ version = $env:VALIDATION_DOTNET_SDK; rollForward = 'disable'; allowPrerelease = $false } } | ConvertTo-Json -Depth 3 | Set-Content global.json -Encoding utf8
+          if ((dotnet --version) -cne $env:VALIDATION_DOTNET_SDK) { throw 'Exact SDK selection failed.' }
+      - name: Test cross-platform managed OBS contracts without physical devices
+        run: dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release -m:1 /nodeReuse:false --filter 'FullyQualifiedName~ScreenRecorder.Media.Tests.Obs&FullyQualifiedName!~ObsNativeAcceptanceTests' --logger trx --results-directory obs-managed-results
+      - name: Preserve portable managed diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: obs-core-managed-${{ matrix.os }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: obs-managed-results/
+          retention-days: 7
+          if-no-files-found: warn

@@ -85,6 +85,7 @@ public sealed record ProjectPlaybackState(Guid Generation, long TimelineTicks, b
 /// <summary>Fixed-size RGBA still, sent exclusively over authenticated media IPC.</summary>
 public sealed record ProjectFrameReply(long Revision, long TimelineTicks, Guid ClipId, byte[]? Rgba, string? Error = null)
 {
+    public bool PointerUnavailable { get; init; }
     public const int Width = 512;
     public const int Height = 288;
     public const int ByteCount = Width * Height * 4;

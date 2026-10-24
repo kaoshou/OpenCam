@@ -19,7 +19,7 @@ using Serilog;
 
 namespace ScreenRecorder.Recorder.Services;
 
-public class RecordingOrchestrator : IAsyncDisposable
+public partial class RecordingOrchestrator : IAsyncDisposable
 {
     private readonly IRecordingStateMachine _stateMachine;
     private readonly IStorageService _storageService;
@@ -34,6 +34,8 @@ public class RecordingOrchestrator : IAsyncDisposable
     private readonly IMicrophoneLevelObserver? _microphoneLevelObserver;
     private readonly IDisplayChangeMonitor? _displayChangeMonitor;
     private readonly ICursorHighlightService? _cursorHighlightService;
+    private CursorEffectMode _requestedCursorEffect;
+    private int _cursorEffectHealth; // 0=not requested/unknown, 1=ready, 2=unavailable
 
     private IScreenRecorderEngine? _engine;
     private readonly RecordingCaptureLease _captureLease;
@@ -103,9 +105,12 @@ public class RecordingOrchestrator : IAsyncDisposable
         _encoderSelectionService = encoderSelectionService ?? new FFmpegEncoderDetector(ffmpegPlatformProvider);
         _captureHealthMonitor = captureHealthMonitor;
         _engineFactory = engineFactory ?? new RecordingEngineFactory(ffmpegPlatformProvider,
-            _encoderSelectionService, systemAudioLoopbackCapture, microphoneCapture, microphoneLevelObserver);
+            _encoderSelectionService, systemAudioLoopbackCapture, microphoneCapture, microphoneLevelObserver,
+            displayService: displayService);
         _displayChangeMonitor = displayChangeMonitor;
         _cursorHighlightService = cursorHighlightService;
+        if (_cursorHighlightService is IPresentationPointerOverlay overlay)
+            overlay.OverlayFailed += OnCursorOverlayFailed;
 
         _diskMonitor.DiskSpaceCriticalTriggered += OnDiskSpaceCritical;
 
@@ -153,6 +158,8 @@ public class RecordingOrchestrator : IAsyncDisposable
         CancellationToken cancellationToken,
         ProjectSessionOwnership? ownership = null)
     {
+        if (LivePointerRecordingPolicy.Apply(config))
+            Log.Information("Legacy editable-pointer preference ignored for new recording; normal video/audio capture is retained.");
         if ((_engine != null || _unconfirmedAttemptPath != null) && _stateMachine.CurrentState == RecordingState.Failed)
         {
             try { await DisposeCurrentEngineAsync(); }
@@ -197,6 +204,8 @@ public class RecordingOrchestrator : IAsyncDisposable
             // enabling or disabling audio while paused never changes the
             // stream layout and silently drops later audio during concat.
             config.MaintainSegmentAudioTrack = true;
+            _requestedCursorEffect = config.CursorEffect;
+            Volatile.Write(ref _cursorEffectHealth, 0);
             ResetRecorderHealth(config);
 
             // 計算實際擷取幾何範圍
@@ -235,6 +244,7 @@ public class RecordingOrchestrator : IAsyncDisposable
             await SaveSessionAsync(session, cancellationToken);
             _currentSession = session;
 
+            await PrepareCursorDecorationAsync(session.Configuration, cancellationToken);
             await StartSegmentAsync(session, actualBounds, cancellationToken);
 
             await SaveSessionAsync(session, cancellationToken);
@@ -247,8 +257,6 @@ public class RecordingOrchestrator : IAsyncDisposable
             _watchdogCts?.Dispose();
             _watchdogCts = new CancellationTokenSource();
             _watchdogTask = ScheduleWatchdog(session, _watchdogCts.Token);
-
-            _cursorHighlightService?.Start(config.EditablePointerEnabled ? CursorEffectMode.Default : config.CursorEffect);
 
             Log.Information("錄影工作階段啟動成功: {SessionId}, 解析度: {W}x{H}, 輸出檔: {Output}", 
                 sessionId, actualBounds.Width, actualBounds.Height, finalMp4);
@@ -265,7 +273,7 @@ public class RecordingOrchestrator : IAsyncDisposable
                 Log.Warning(cleanupError, "清理啟動失敗的錄影監控時發生錯誤");
             }
             _diskMonitor.StopMonitoring();
-            _cursorHighlightService?.Stop();
+            StopCursorDecoration();
             if (_engine != null || _captureOwnership != null)
             {
                 try { await DisposeCurrentEngineAsync(); }
@@ -306,13 +314,13 @@ public class RecordingOrchestrator : IAsyncDisposable
                 await StartSegmentAttemptAsync(session, bounds, selection, token, capture);
                 return;
             }
-            catch (CaptureStartupException) when (!token.IsCancellationRequested &&
+            catch (CaptureStartupException error) when (!token.IsCancellationRequested &&
                 session.SegmentFilePaths.Count == 0 && !captureRetried)
             {
                 captureRetried = true;
-                capture = new(CaptureBackend.Gdi, CaptureFallbackReason.StartupFailed, null, null, null,
+                capture = new(error.CompatibilityBackend, CaptureFallbackReason.StartupFailed, null, null, null,
                     new(bounds.X, bounds.Y, bounds.Width & ~1, bounds.Height & ~1));
-                Log.Warning("Initial Desktop Duplication startup failed; one fresh-path GDI fallback.");
+                Log.Warning("Initial capture setup failed; one fresh-path compatibility fallback: {Backend}.", error.CompatibilityBackend);
             }
             catch (EncoderStartupException) when (!token.IsCancellationRequested &&
                 session.SegmentFilePaths.Count == 0 && !encoderRetried && selection.Encoder != HardwareEncoderType.SoftwareCpu)
@@ -428,6 +436,7 @@ public class RecordingOrchestrator : IAsyncDisposable
         }
         RecordRecorderEngineError(error);
         _stateMachine.ForceTransition(RecordingState.Failed, error);
+        StopCursorDecoration();
         if (_currentSession != null)
         {
             _currentSession.State = RecordingState.Failed;
@@ -551,6 +560,8 @@ public class RecordingOrchestrator : IAsyncDisposable
 
     private async Task PreserveCleanupFailureAsync(Exception error)
     {
+        // Decoration ownership does not depend on successful encoder cleanup.
+        StopCursorDecoration();
         Log.Error(error, "錄影清理尚未完成，保留引擎所有權並阻止新錄影");
         RecordRecorderEngineError(error.Message);
         _stateMachine.ForceTransition(RecordingState.Failed, error.Message);
@@ -605,6 +616,7 @@ public class RecordingOrchestrator : IAsyncDisposable
             }
 
             _currentSession.Configuration.ApplyPausedSettings(updates);
+            _requestedCursorEffect = updates.CursorEffect;
             ResetRecorderHealth(_currentSession.Configuration);
             session = _currentSession;
         }
@@ -652,7 +664,7 @@ public class RecordingOrchestrator : IAsyncDisposable
             _stateMachine.TryTransition(RecordingState.Pausing, "使用者要求暫停錄影");
         }
 
-        _cursorHighlightService?.Stop();
+        StopCursorDecoration();
 
         try
         {
@@ -723,6 +735,7 @@ public class RecordingOrchestrator : IAsyncDisposable
                 _projectDisplaySignature != GetProjectDisplaySignature(session.Configuration))
                 throw new InvalidOperationException("Displays changed while paused. Finish this session and confirm the capture target before recording again.");
             var actualBounds = ResolveCaptureBounds(session.Configuration);
+            await PrepareCursorDecorationAsync(session.Configuration, cancellationToken);
             await StartSegmentAsync(session, actualBounds, cancellationToken);
             var nextSegment = session.WorkingFilePath;
 
@@ -737,8 +750,6 @@ public class RecordingOrchestrator : IAsyncDisposable
                 _watchdogTask = ScheduleWatchdog(session, _watchdogCts.Token);
             }
 
-            _cursorHighlightService?.Start(session.Configuration.EditablePointerEnabled ? CursorEffectMode.Default : session.Configuration.CursorEffect);
-
             Log.Information("錄影已繼續，開始錄製分段 {Index}: {Path}", _segmentIndex, nextSegment);
             return (true, null);
         }
@@ -746,6 +757,7 @@ public class RecordingOrchestrator : IAsyncDisposable
         {
             RecordRecorderEngineError(ex.Message);
             Log.Error(ex, "繼續錄影失敗；保留既有片段並維持暫停");
+            StopCursorDecoration();
             if (!await TryCleanupAfterFailureAsync()) return (false, _currentSession?.ErrorMessage ?? ex.Message);
             _stateMachine.ForceTransition(RecordingState.Paused, ex.Message);
             if (_currentSession != null)
@@ -805,7 +817,7 @@ public class RecordingOrchestrator : IAsyncDisposable
         }
         _diskMonitor.StopMonitoring();
 
-        _cursorHighlightService?.Stop();
+        StopCursorDecoration();
 
         var session = _currentSession;
         session.EndTime = DateTimeOffset.Now;
@@ -1024,6 +1036,7 @@ public class RecordingOrchestrator : IAsyncDisposable
             IsSystemAudioHealthy = health.SystemAudioHealthy,
             IsMicrophoneHealthy = health.MicrophoneHealthy,
             IsEncoderHealthy = health.EncoderHealthy,
+            IsCursorEffectHealthy = GetCursorEffectHealth(),
             HealthWarning = health.Warning
         };
     }
@@ -1455,6 +1468,9 @@ public class RecordingOrchestrator : IAsyncDisposable
                 await DisposeCurrentEngineAsync();
 
             await StopWatchdogAsync();
+            StopCursorDecoration();
+            if (_cursorHighlightService is IPresentationPointerOverlay overlay)
+                overlay.OverlayFailed -= OnCursorOverlayFailed;
             _diskMonitor.Dispose();
             _sessionStoreGate.Dispose();
             _projectSessionDirectory?.Dispose();

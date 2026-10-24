@@ -128,6 +128,19 @@ public class WindowsNativeVideoCaptureTests
                 .WaitAsync(TimeSpan.FromSeconds(8)));
     }
 
+    [Theory]
+    [InlineData("ERROR WGC frame acquisition failed", "WGC frame acquisition failed")]
+    [InlineData("ERROR Native video transport failed", "Native video transport failed")]
+    [InlineData("ERROR Windows capture initialization HRESULT=-2005270523", "HRESULT=-2005270523")]
+    [InlineData("ERROR private-path-or-coordinates", "unclassified helper failure")]
+    [InlineData("ERROR WGC frame acquisition failed private-data", "unclassified helper failure")]
+    public void CaptureFailuresExposeOnlySafeDiagnosticStages(string record, string expected)
+    {
+        var error = WindowsNativeVideoCapture.SafeFailure(record);
+        Assert.Contains(expected, error);
+        Assert.DoesNotContain("private-", error);
+    }
+
     private static System.Diagnostics.ProcessStartInfo Child(string mode)
     {
         var start = EncoderProbeRunnerTests.Child("windows-native-helper");

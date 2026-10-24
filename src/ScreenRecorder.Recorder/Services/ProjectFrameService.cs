@@ -39,8 +39,8 @@ public sealed class ProjectFrameService(ProjectRecordingCoordinator coordinator,
         var width = thumbnailClipId == Guid.Empty ? size.Width : ProjectFrameReply.Width;
         var height = thumbnailClipId == Guid.Empty ? size.Height : ProjectFrameReply.Height;
         var byteCount = width * height * 4;
-        ProjectFrameReply Pixels(byte[] rgba) => new(revision, ticks, position.ClipId, rgba)
-            { PixelWidth = width, PixelHeight = height };
+        ProjectFrameReply Pixels(byte[] rgba, bool unavailable = false) => new(revision, ticks, position.ClipId, rgba)
+            { PixelWidth = width, PixelHeight = height, PointerUnavailable = unavailable };
         ProjectFrameReply Unavailable() => new(revision, ticks, position.ClipId, null,
             "Preview could not be decoded. Original media is unchanged.");
         if (_running is not null)
@@ -54,6 +54,7 @@ public sealed class ProjectFrameService(ProjectRecordingCoordinator coordinator,
             {
                 // A completed task is also a cache hit. Never let retained RGBA
                 // conceal a pointer sidecar that changed after the previous query.
+                var unavailable = false;
                 if (pointerRequired)
                 {
                     try
@@ -62,9 +63,10 @@ public sealed class ProjectFrameService(ProjectRecordingCoordinator coordinator,
                         using var verified = await coordinator.OpenPointerCursorAsync(projectId, revision,
                             part.Source.Id, validationDeadline.Token);
                     }
-                    catch (Exception) { return Unavailable(); }
+                    catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException) { unavailable = true; }
                 }
-                return await _running;
+                var result = await _running;
+                if (result.PointerUnavailable == unavailable) return result;
             }
             await _running;
             _cancel!.Dispose();
@@ -91,8 +93,18 @@ public sealed class ProjectFrameService(ProjectRecordingCoordinator coordinator,
                     lease.Stream.Position = 0;
                     // Full ownership/fingerprint/seal verification precedes both
                     // decoding and disk cache lookup, including corrupt late records.
-                    using var verifiedPointer = pointerRequired
-                        ? await coordinator.OpenPointerCursorAsync(projectId, revision, part.Source.Id, token) : null;
+                    PointerTrackCursor? cursor = null;
+                    var pointerUnavailable = false;
+                    try
+                    {
+                        if (pointerRequired) cursor = await coordinator.OpenPointerCursorAsync(projectId, revision, part.Source.Id, token);
+                    }
+                    catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+                    {
+                        pointerUnavailable = true;
+                        Log.Warning("Pointer still-preview data unavailable; retaining original video preview.");
+                    }
+                    using var verifiedPointer = cursor;
                     using var pointer = new ProjectPointerCompositor(plan, (source, _) =>
                         source.Id == part.Source.Id && verifiedPointer is not null
                             ? Task.FromResult(verifiedPointer)
@@ -100,7 +112,7 @@ public sealed class ProjectFrameService(ProjectRecordingCoordinator coordinator,
                     // No revision/name in key: renaming can reuse identical pixels.
                     // Source fingerprint is rechecked above; cache never bypasses source validation.
                     var cacheKey = Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(new {
-                        Algorithm = 4, lease.Source.Sha256, lease.Source.Timing, plan.Canvas, frame,
+                        Algorithm = 5, pointerUnavailable, lease.Source.Sha256, lease.Source.Timing, plan.Canvas, frame,
                         plan.PointerSettings, lease.Source.Pointer,
                         SourceWidth = lease.Source.Width, SourceHeight = lease.Source.Height,
                         part.Clip.InPts, part.Clip.OutPts, part.Clip.Crop, part.Clip.Scale,
@@ -114,7 +126,7 @@ public sealed class ProjectFrameService(ProjectRecordingCoordinator coordinator,
                     {
                         try {
                             var cached = await _cache.ReadAsync(cacheKey, byteCount, token);
-                            if (cached is not null) return Pixels(cached);
+                            if (cached is not null) return Pixels(cached, pointerUnavailable);
                         }
                         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                         { Log.Debug(ex, "Frame cache miss; rebuilding derived image"); }
@@ -123,12 +135,13 @@ public sealed class ProjectFrameService(ProjectRecordingCoordinator coordinator,
                         width, height);
                     var result = await process.RunAsync(job, [lease.Stream], null, token);
                     if (result.Output.Length != byteCount) throw new InvalidDataException("Invalid frame size.");
-                    await pointer.ApplyAsync(result.Output, part.StartFrame + frame, width, height, preview: true, ct: token);
+                    if (!pointerUnavailable)
+                        await pointer.ApplyAsync(result.Output, part.StartFrame + frame, width, height, preview: true, ct: token);
                     if (_cache is not null)
                         try { await _cache.PutAsync(cacheKey, result.Output, token); }
                         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                         { Log.Debug(ex, "Frame cache write skipped; source and preview are retained"); }
-                    return Pixels(result.Output);
+                    return Pixels(result.Output, pointerUnavailable);
                 }
                 catch (Exception) { return Unavailable(); }
             }

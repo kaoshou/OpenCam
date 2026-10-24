@@ -259,6 +259,7 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
             throw new IOException("Recording output already exists; refusing to overwrite it.");
         // Select before opening native PCM producers: probing must not fill their pipes.
         var nativeProvider = !_livePreviewOutput && !UseSyntheticCaptureSource && config.NativeCaptureEnabled &&
+            _pinnedCapture?.FallbackReason != CaptureFallbackReason.StartupFailed &&
             _ffmpegPlatformProvider is INativeVideoPlatformProvider candidate &&
             (!candidate.RequiresEditablePointer || config.EditablePointerEnabled) ? candidate : null;
         var targetEncoder = nativeProvider?.RequiredNativeEncoder is { } required ? required

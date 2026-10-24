@@ -8,10 +8,14 @@ namespace ScreenRecorder.Core.Tests;
 public class CaptureSelectionTests
 {
     [Fact]
-    public void MissingModeDefaultsToGdi()
+    public void MissingModeDefaultsToAutomaticWithoutReinterpretingStoredManualChoices()
     {
-        Assert.Equal(WindowsCaptureMode.CompatibleGdi, JsonSerializer.Deserialize<UserSettings>("{}")!.WindowsCaptureMode);
-        Assert.Equal(WindowsCaptureMode.CompatibleGdi, JsonSerializer.Deserialize<RecordingConfiguration>("{}")!.WindowsCaptureMode);
+        Assert.Equal((WindowsCaptureMode)2, JsonSerializer.Deserialize<UserSettings>("{}")!.WindowsCaptureMode);
+        Assert.Equal((WindowsCaptureMode)2, JsonSerializer.Deserialize<RecordingConfiguration>("{}")!.WindowsCaptureMode);
+        Assert.Equal(WindowsCaptureMode.CompatibleGdi, JsonSerializer.Deserialize<UserSettings>("{\"WindowsCaptureMode\":0}")!.WindowsCaptureMode);
+        Assert.Equal(WindowsCaptureMode.ModernExperimental, JsonSerializer.Deserialize<UserSettings>("{\"WindowsCaptureMode\":1}")!.WindowsCaptureMode);
+        Assert.Equal((WindowsCaptureMode)2, JsonSerializer.Deserialize<UserSettings>("{\"WindowsCaptureMode\":2}")!.WindowsCaptureMode);
+        Assert.Equal((WindowsCaptureMode)2, JsonSerializer.Deserialize<RecordingConfiguration>("{\"WindowsCaptureMode\":2}")!.WindowsCaptureMode);
     }
 
     [Theory]

@@ -4,7 +4,7 @@ using ScreenRecorder.Core.Models;
 
 namespace ScreenRecorder.Platform.macOS;
 
-public class MacOsDisplayService : IDisplayService
+public class MacOsDisplayService : IDisplayService, IRecordingDisplayIdentityService
 {
     private readonly IMacOsDisplayApi _displayApi;
 
@@ -59,6 +59,19 @@ public class MacOsDisplayService : IDisplayService
         var monitors = GetMonitors();
         return monitors.FirstOrDefault(monitor => monitor.IsPrimary) ??
                monitors.FirstOrDefault();
+    }
+
+    public string? GetRecordingDisplayIdentity(MonitorInfo monitor)
+    {
+        // Resolve against a fresh native snapshot by full physical geometry;
+        // a stale UI enumeration index can refer to a different monitor.
+        var matches = _displayApi.GetActiveDisplays().Where(display =>
+        {
+            var scale = display.Width > 0 ? (double)display.PixelWidth / display.Width : 1.0;
+            return new CaptureRegion((int)Math.Round(display.X * scale), (int)Math.Round(display.Y * scale),
+                (int)display.PixelWidth, (int)display.PixelHeight) == monitor.Bounds;
+        }).ToArray();
+        return matches.Length == 1 ? _displayApi.GetDisplayUuid(matches[0].Id) : null;
     }
 
     internal uint? GetNativeDisplayId(int monitorIndex)

@@ -48,22 +48,28 @@ public partial class RecordingEncoderLifecycleTests
 
         var bytes = await File.ReadAllBytesAsync(data.TrackPath); bytes[^1] ^= 1;
         await File.WriteAllBytesAsync(data.TrackPath, bytes);
-        var rejectedMemory = await frames.QueryAsync(coordinator.Current!.ProjectId, coordinator.Current.Revision,
+        var fallbackMemory = await frames.QueryAsync(coordinator.Current!.ProjectId, coordinator.Current.Revision,
             0, card, ProjectPreviewQuality.Original);
-        Assert.Null(rejectedMemory.Rgba); Assert.NotNull(rejectedMemory.Error);
+        if (fallbackMemory.Rgba is null) fallbackMemory = await PointerStillAsync(frames, coordinator.Current!, card);
+        Assert.NotNull(fallbackMemory.Rgba); Assert.Null(fallbackMemory.Error); Assert.True(fallbackMemory.PointerUnavailable);
+        Assert.InRange(fallbackMemory.Rgba![2], 240, 255); // Blue source, not a fabricated black frame.
         await frames.SuspendAsync();
-        var rejectedDisk = await PointerStillAsync(frames, coordinator.Current!, card, expectError: true);
-        Assert.Null(rejectedDisk.Rgba); Assert.NotNull(rejectedDisk.Error);
-        Assert.Equal(2, process.Calls);
+        var fallbackDisk = await PointerStillAsync(frames, coordinator.Current!, card);
+        Assert.NotNull(fallbackDisk.Rgba); Assert.Null(fallbackDisk.Error); Assert.True(fallbackDisk.PointerUnavailable);
+        Assert.Equal(fallbackMemory.Rgba, fallbackDisk.Rgba);
+        Assert.Equal(3, process.Calls);
     }
 
-    [MacOsOnlyFact]
-    public async Task PointerPreview_StreamingSeekUsesOriginalTrimmedPlanAndPreservesAudioScheduling()
+    [MacOsOnlyTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PointerPreview_StreamingSeekUsesOriginalTrimmedPlanAndPreservesAudioScheduling(bool damaged)
     {
         await using var scope = new RecordingScope();
         await using var data = await PointerPreviewFixture.CreateAsync(scope.Configuration.OutputDirectory);
         var audio = new PointerMeasuringAudio();
         var settings = new ProjectPreviewSettings(new(320,180));
+        if (damaged) await File.AppendAllTextAsync(data.TrackPath, "damaged pointer");
         Func<ProjectSource,CancellationToken,Task<PointerTrackCursor>> open = (source,ct) =>
             PointerTrackCursor.OpenAsync(data.Owner!,source,ct);
         // Reflection keeps the RED executable against the existing settings type.
@@ -74,8 +80,14 @@ public partial class RecordingEncoderLifecycleTests
         await decoder.PlayConfiguredAsync(data.Owner!.Current,500_000,settings,
             (_,_)=>Task.FromResult(File.OpenRead(data.SourcePath)), frame=> { seen.Add(frame); return Task.CompletedTask; }, _=>{},deadline.Token);
         Assert.Equal(3,seen.Count);
-        for(var i=0;i<3;i++) AssertPointer(seen[i].Rgba,320,100+i*10,60);
+        for(var i=0;i<3;i++)
+        {
+            if (damaged) Assert.True(seen[i].PointerUnavailable);
+            else AssertPointer(seen[i].Rgba,320,100+i*10,60);
+            Assert.InRange(seen[i].Rgba[2], 240, 255);
+        }
         Assert.Equal(7200,audio.PositionSamples);
+        Assert.True(audio.Peak > .01, "Original tone must remain audible, not merely a silent audio track.");
         Assert.True(audio.Stopped);
         Assert.Equal(data.Source.Sha256,Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(data.SourcePath))));
     }
@@ -133,8 +145,15 @@ public partial class RecordingEncoderLifecycleTests
     {
         public long PositionSamples {get;private set;}
         public bool Stopped;
+        public float Peak;
         public Task StartAsync(CancellationToken ct)=>Task.CompletedTask;
-        public Task WriteAsync(ReadOnlyMemory<byte> pcm,CancellationToken ct) {PositionSamples+=pcm.Length/8;return Task.CompletedTask;}
+        public Task WriteAsync(ReadOnlyMemory<byte> pcm,CancellationToken ct)
+        {
+            PositionSamples+=pcm.Length/8;
+            for (var i = 0; i + 4 <= pcm.Length; i += 4)
+                Peak = Math.Max(Peak, Math.Abs(BitConverter.ToSingle(pcm.Span.Slice(i, 4))));
+            return Task.CompletedTask;
+        }
         public Task CompleteAsync(CancellationToken ct)=>Task.CompletedTask;
         public Task StopAsync(CancellationToken ct){Stopped=true;return Task.CompletedTask;}
         public ValueTask DisposeAsync()=>ValueTask.CompletedTask;
@@ -153,10 +172,12 @@ public partial class RecordingEncoderLifecycleTests
             {
                 var ffmpeg=FFmpegDiscovery.FindFFmpegExecutable()!;
                 var sourcePath=Path.Combine(owner.ProjectDirectory,"sources/video.mkv");
-                await RecordingContentExportIntegrationTests.Run(ffmpeg,["-f","lavfi","-i","color=black:s=320x180:r=20:d=0.3","-c:v","libx264","-bf","0",sourcePath]);
+                await RecordingContentExportIntegrationTests.Run(ffmpeg,["-f","lavfi","-i","color=blue:s=320x180:r=20:d=0.3",
+                    "-f","lavfi","-i","sine=frequency=440:sample_rate=48000:duration=0.3",
+                    "-c:v","libx264","-bf","0","-c:a","pcm_f32le","-ar","48000","-ac","2",sourcePath]);
                 var id=Guid.NewGuid();
                 var source=new ProjectSource {Id=id,SessionId="s",RelativePath="sources/video.mkv",Width=320,Height=180,VideoCodec="h264",
-                    FileSize=new FileInfo(sourcePath).Length,Sha256=Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(sourcePath))),Timing=new(new(1,1000),0,300)};
+                    FileSize=new FileInfo(sourcePath).Length,Sha256=Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(sourcePath))),AudioCodec="pcm_f32le",Timing=new(new(1,1000),0,300)};
                 using(var root=BoundDirectory.Open(owner.ProjectDirectory))
                 using(var folder=root.OpenChild("pointers",create:true))
                 {

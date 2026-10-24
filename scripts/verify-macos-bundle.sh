@@ -24,6 +24,11 @@ for executable in OpenCam ffmpeg ffprobe OpenCam.SystemAudio OpenCam.Microphone 
   [[ -x "$macos/$executable" ]] || fail "missing executable: Contents/MacOS/$executable"
 done
 
+[[ -s "$macos/PresentationPointer.png" ]] || fail "missing presentation pointer image"
+for style in WarmIvory TealSilver RoundShort HighContrast; do
+  [[ -s "$macos/TeachingPointers/$style.png" ]] || fail "missing teaching pointer: $style"
+done
+
 [[ -f "$resources/OpenCam.icns" ]] || fail "missing Resources/OpenCam.icns"
 [[ -f "$resources/LICENSE" ]] || fail "missing Resources/LICENSE"
 [[ -f "$resources/NOTICE.md" ]] || fail "missing Resources/NOTICE.md"

@@ -417,6 +417,7 @@ public partial class RecordingEncoderLifecycleTests
         public Action? BeforeStart;
         public bool UseModern;
         public bool FailCapture;
+        public CaptureBackend CaptureFallbackBackend = CaptureBackend.Gdi;
         public readonly List<CaptureSelection?> Captures = new();
         public IScreenRecorderEngine Create(HardwareEncoderType? pinnedEncoder, CaptureSelection? pinnedCapture = null)
         {
@@ -440,6 +441,9 @@ public partial class RecordingEncoderLifecycleTests
         public HardwareEncoderType ActiveEncoder => encoder;
         public CaptureSelection? ActiveCapture { get; private set; }
         public bool Disposed;
+        public CursorEffectMode InputCursorEffect;
+        public bool InputEditablePointer;
+        public AudioSourceType InputAudioSource;
         public event EventHandler<string>? EngineErrorOccurred;
         public event EventHandler<string>? EngineWarningOccurred { add { } remove { } }
         public event EventHandler? AudioDeviceLost;
@@ -450,6 +454,9 @@ public partial class RecordingEncoderLifecycleTests
         public void FailWhileRecording() { IsRunning = false; EngineErrorOccurred?.Invoke(this, "runtime failure"); }
         public Task StartRecordingAsync(string path, RecordingConfiguration config, CaptureRegion bounds, CancellationToken token = default)
         {
+            InputCursorEffect = config.CursorEffect;
+            InputEditablePointer = config.EditablePointerEnabled;
+            InputAudioSource = config.AudioSource;
             owner.BeforeStart?.Invoke();
             token.ThrowIfCancellationRequested();
             owner.Paths.Add(path);
@@ -459,7 +466,7 @@ public partial class RecordingEncoderLifecycleTests
             {
                 ActiveCapture = pinned ?? new(CaptureBackend.DesktopDuplication, CaptureFallbackReason.None, "Test display", 7, 0, bounds);
                 if (owner.FailCapture && ActiveCapture.Backend == CaptureBackend.DesktopDuplication)
-                    throw new CaptureStartupException("injected DDA initialization failure");
+                    throw new CaptureStartupException("injected DDA initialization failure", owner.CaptureFallbackBackend);
             }
             if (fail)
             {

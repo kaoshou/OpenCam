@@ -39,8 +39,8 @@ public class CaptureStatusTests
 
     [Theory]
     [InlineData(true, true, WindowsCaptureMode.ModernExperimental)]
-    [InlineData(true, false, WindowsCaptureMode.CompatibleGdi)]
-    [InlineData(false, true, WindowsCaptureMode.CompatibleGdi)]
+    [InlineData(true, false, (WindowsCaptureMode)2)]
+    [InlineData(false, true, (WindowsCaptureMode)2)]
     public async Task OnlyEditableWindowsSettingsCanEnableNewCapture(bool windows, bool editable, WindowsCaptureMode expected)
     {
         var service = new MockSettingsService();

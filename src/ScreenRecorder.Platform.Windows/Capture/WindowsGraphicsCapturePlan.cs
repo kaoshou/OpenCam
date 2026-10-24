@@ -17,16 +17,15 @@ public sealed class WindowsGraphicsCapturePlan(ICapturePlanProvider compatible,
     public async Task<CaptureLaunchPlan> PrepareAsync(RecordingConfiguration config, CaptureRegion bounds,
         CaptureSelection? pinned, CancellationToken token)
     {
-        if (!config.NativeCaptureEnabled && pinned?.Backend != CaptureBackend.WindowsGraphicsCapture)
-            return await compatible.PrepareAsync(config, bounds, pinned, token);
-        if (pinned is not null && pinned.Backend != CaptureBackend.WindowsGraphicsCapture)
-            throw new InvalidOperationException("Capture backend cannot change during a recording.");
-        if (!await available(token))
-            throw new NotSupportedException("This FFmpeg build does not support Windows Graphics Capture. Select compatible capture.");
         token.ThrowIfCancellationRequested();
-        var monitor = (resolve ?? Resolve)(bounds)
-            ?? throw new NotSupportedException("Windows Graphics Capture requires a region within one available display.");
-        return Build(config, bounds, monitor, pinned);
+        // Withdraw the slower WGC route. Retain legacy builders/readers, but a
+        // persisted flag must not override the user's ordinary capture choice.
+        // Never change the backend of an already-pinned recording silently.
+        if (pinned?.Backend == CaptureBackend.WindowsGraphicsCapture)
+            throw new NotSupportedException("The retired Windows capture backend cannot resume; stop before starting a new recording.");
+        _ = available; _ = resolve; // Old callers remain source-compatible; no probe runs.
+        config.NativeCaptureEnabled = false;
+        return await compatible.PrepareAsync(config, bounds, pinned, token);
     }
 
     public static CaptureLaunchPlan Build(RecordingConfiguration config, CaptureRegion bounds,
@@ -44,7 +43,7 @@ public sealed class WindowsGraphicsCapturePlan(ICapturePlanProvider compatible,
         int right = monitor.Bounds.Width - left - bounds.Width, bottom = monitor.Bounds.Height - top - bounds.Height;
         // gfxcapture preserves source PTS. The compatibility encoder interface currently
         // accepts software surfaces; retain explicit hwdownload rather than claim zero-copy.
-        var input = FormattableString.Invariant($"-f lavfi -i \"gfxcapture=hmonitor={monitor.Handle}:max_framerate={config.Fps}:capture_cursor={(config.CursorEffect == CursorEffectMode.Hidden ? 0 : 1)}:crop_left={left}:crop_top={top}:crop_right={right}:crop_bottom={bottom}:width={bounds.Width}:height={bounds.Height}:output_fmt=bgra,hwdownload,format=bgra\" ");
+        var input = FormattableString.Invariant($"-f lavfi -i \"gfxcapture=hmonitor={monitor.Handle}:max_framerate={config.Fps}:capture_cursor={(config.CursorEffect is CursorEffectMode.Hidden or CursorEffectMode.PresentationStick ? 0 : 1)}:crop_left={left}:crop_top={top}:crop_right={right}:crop_bottom={bottom}:width={bounds.Width}:height={bounds.Height}:output_fmt=bgra,hwdownload,format=bgra\" ");
         return new(selection, input);
     }
 

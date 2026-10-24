@@ -48,32 +48,27 @@ public sealed class EditablePointerSettingsTests
     }
 
     [Fact]
-    public async Task EditablePointerSettingRequiresNativeCaptureAndIdleSettings()
+    public async Task LegacyEditablePreferenceCannotEnableNewPointerTracksOnEitherPlatform()
     {
         var service = new MockSettingsService();
+        service.CurrentSettings.NativeCaptureEnabled = true;
+        service.CurrentSettings.EditablePointerEnabled = true;
         var vm = new SettingsViewModel(service, supportsWindowsCapture: true);
         await vm.LoadSettingsAsync();
         Assert.False(vm.CanEnableEditablePointer);
-        vm.NativeCaptureEnabled = true;
-        Assert.True(vm.CanEnableEditablePointer);
-        vm.EditablePointerEnabled = true;
+        Assert.False(vm.EditablePointerEnabled);
+        vm.EditablePointerEnabled = true; // programmatic/stale input is ignored on save
         await vm.SaveAsync();
         using var json = JsonDocument.Parse(JsonSerializer.Serialize(service.CurrentSettings));
-        Assert.True(json.RootElement.GetProperty("EditablePointerEnabled").GetBoolean());
+        Assert.False(json.RootElement.GetProperty("EditablePointerEnabled").GetBoolean());
+        Assert.False(service.CurrentSettings.NativeCaptureEnabled);
         var reloaded = new SettingsViewModel(service, supportsWindowsCapture: true);
         await reloaded.LoadSettingsAsync();
-        Assert.True(reloaded.EditablePointerEnabled);
-        vm.CanEditCaptureMode = false;
-        Assert.False(vm.CanEnableEditablePointer);
-        vm.EditablePointerEnabled = false;
-        await vm.SaveAsync();
-        Assert.True(service.CurrentSettings.EditablePointerEnabled);
-        vm.CanEditCaptureMode = true;
+        Assert.False(reloaded.EditablePointerEnabled);
         vm.NativeCaptureEnabled = false;
         Assert.False(vm.EditablePointerEnabled);
         await vm.SaveAsync();
-        using var disabled = JsonDocument.Parse(JsonSerializer.Serialize(service.CurrentSettings));
-        Assert.False(disabled.RootElement.GetProperty("EditablePointerEnabled").GetBoolean());
+        Assert.False(service.CurrentSettings.EditablePointerEnabled);
     }
 }
 

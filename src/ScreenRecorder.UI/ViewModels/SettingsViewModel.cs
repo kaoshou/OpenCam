@@ -29,23 +29,37 @@ public partial class SettingsViewModel : ObservableObject
     public record LanguageOption(AppLanguage Language, string DisplayName);
     public record QualityOption(string PresetKey, string DisplayName);
     public record DiskThresholdOption(double Value, string DisplayName);
-    public record CaptureModeOption(WindowsCaptureMode Mode, string DisplayName);
+    public record CaptureModeOption(WindowsCaptureMode Mode, string DisplayName, bool Native = false);
     public record PreflightModeOption(RecordingPreflightMode Mode, string DisplayName);
     public ObservableCollection<PreflightModeOption> AvailablePreflightModes { get; } = new();
     [ObservableProperty] private PreflightModeOption? _selectedPreflightMode;
     public bool SupportsWindowsCapture { get; }
-    public bool SupportsNativeCapture => SupportsWindowsCapture || OperatingSystem.IsMacOS();
+    public bool SupportsMacOsCapture => !SupportsWindowsCapture && OperatingSystem.IsMacOS();
+    public bool SupportsNativeCapture => SupportsMacOsCapture;
+    public bool SupportsCaptureSelection => SupportsWindowsCapture || SupportsMacOsCapture;
+    public string CaptureModeNotice => Strings[SupportsWindowsCapture ? "CaptureModeNotice" : "MacCaptureModeNotice"];
     [ObservableProperty] private bool _nativeCaptureEnabled;
     [ObservableProperty] private bool _editablePointerEnabled;
-    public bool CanEnableEditablePointer => SupportsNativeCapture && CanEditCaptureMode && NativeCaptureEnabled;
+    public bool SupportsEditablePointer => false;
+    partial void OnEditablePointerEnabledChanged(bool value)
+    {
+        if (value && !SupportsEditablePointer) EditablePointerEnabled = false;
+    }
+    public string EditablePointerNotice => Strings[SupportsEditablePointer ? "EditablePointerNotice" : "EditablePointerWindowsUnavailable"];
+    public bool CanEnableEditablePointer => SupportsEditablePointer && SupportsNativeCapture && CanEditCaptureMode && NativeCaptureEnabled;
     partial void OnNativeCaptureEnabledChanged(bool value)
     {
+        if (SupportsWindowsCapture && value) { NativeCaptureEnabled = false; return; }
         if (!value) EditablePointerEnabled = false;
         OnPropertyChanged(nameof(CanEnableEditablePointer));
     }
     partial void OnCanEditCaptureModeChanged(bool value) => OnPropertyChanged(nameof(CanEnableEditablePointer));
     public ObservableCollection<CaptureModeOption> AvailableCaptureModes { get; } = new();
     [ObservableProperty] private CaptureModeOption? _selectedCaptureMode;
+    partial void OnSelectedCaptureModeChanged(CaptureModeOption? value)
+    {
+        if (SupportsMacOsCapture && value is not null) NativeCaptureEnabled = value.Native;
+    }
     [ObservableProperty] private bool _canEditCaptureMode = true;
 
     public ObservableCollection<ModifierOption> AvailableModifiers { get; } = new();
@@ -219,6 +233,8 @@ public partial class SettingsViewModel : ObservableObject
         RefreshCaptureModes();
         RefreshPreflightModes();
         OnPropertyChanged(nameof(VersionLabelText));
+        OnPropertyChanged(nameof(EditablePointerNotice));
+        OnPropertyChanged(nameof(CaptureModeNotice));
         var lang = SelectedLanguage?.Language ?? AppLanguage.ZhTw;
         AvailableLanguages.Clear();
         AvailableLanguages.Add(new LanguageOption(AppLanguage.ZhTw, Strings["LanguageOptionZhTw"]));
@@ -240,11 +256,12 @@ public partial class SettingsViewModel : ObservableObject
     {
         _currentSettings = await _settingsService.LoadSettingsAsync();
         LoadWebLanguages(_currentSettings.WebPlayerLanguages);
-        NativeCaptureEnabled = _currentSettings.NativeCaptureEnabled;
-        EditablePointerEnabled = NativeCaptureEnabled && _currentSettings.EditablePointerEnabled;
+        NativeCaptureEnabled = SupportsMacOsCapture && _currentSettings.NativeCaptureEnabled;
+        EditablePointerEnabled = SupportsEditablePointer && NativeCaptureEnabled && _currentSettings.EditablePointerEnabled;
         SelectedBookmarkModifier = AvailableModifiers.FirstOrDefault(m => m.Value == _currentSettings.BookmarkHotkeyModifiers) ?? AvailableModifiers.Single(m => m.Value == 6);
         SelectedBookmarkKey = AvailableKeys.FirstOrDefault(k => k.KeyName == _currentSettings.BookmarkHotkeyKey) ?? AvailableKeys.Single(k => k.KeyName == "M");
-        SelectedCaptureMode = AvailableCaptureModes.Single(o => o.Mode == _currentSettings.WindowsCaptureMode);
+        SelectedCaptureMode = AvailableCaptureModes.Single(o => SupportsMacOsCapture
+            ? o.Native == NativeCaptureEnabled : o.Mode == _currentSettings.WindowsCaptureMode);
 
         SelectedStartStopModifier = AvailableModifiers.FirstOrDefault(m => m.Value == _currentSettings.StartStopHotkeyModifiers)
                                     ?? AvailableModifiers[0];
@@ -315,11 +332,11 @@ public partial class SettingsViewModel : ObservableObject
         _currentSettings.Language = SelectedLanguage?.Language ?? AppLanguage.ZhTw;
         _currentSettings.VideoQualityPreset = SelectedQuality?.PresetKey ?? "Standard";
         if (SupportsWindowsCapture && CanEditCaptureMode)
-            _currentSettings.WindowsCaptureMode = SelectedCaptureMode?.Mode ?? WindowsCaptureMode.CompatibleGdi;
-        if (SupportsNativeCapture && CanEditCaptureMode)
-            _currentSettings.NativeCaptureEnabled = NativeCaptureEnabled;
-        if (SupportsNativeCapture && CanEditCaptureMode)
-            _currentSettings.EditablePointerEnabled = NativeCaptureEnabled && EditablePointerEnabled;
+            _currentSettings.WindowsCaptureMode = SelectedCaptureMode?.Mode ?? WindowsCaptureMode.Automatic;
+        if (CanEditCaptureMode)
+            _currentSettings.NativeCaptureEnabled = SupportsMacOsCapture && NativeCaptureEnabled;
+        if (CanEditCaptureMode)
+            _currentSettings.EditablePointerEnabled = false;
         _currentSettings.DiskWarningThresholdGb = SelectedWarningThreshold?.Value ?? 2.0;
         _currentSettings.DiskCriticalThresholdMb = SelectedCriticalThreshold?.Value ?? 500.0;
         _currentSettings.OpenFolderOnFinished = OpenFolderOnFinished;
@@ -392,11 +409,15 @@ public partial class SettingsViewModel : ObservableObject
 
     private void RefreshCaptureModes()
     {
-        var selected = SelectedCaptureMode?.Mode ?? WindowsCaptureMode.CompatibleGdi;
+        var selected = SelectedCaptureMode?.Mode ?? WindowsCaptureMode.Automatic;
+        var native = NativeCaptureEnabled;
         AvailableCaptureModes.Clear();
-        AvailableCaptureModes.Add(new(WindowsCaptureMode.CompatibleGdi, Strings["CaptureModeGdi"]));
-        AvailableCaptureModes.Add(new(WindowsCaptureMode.ModernExperimental, Strings["CaptureModeModern"]));
-        SelectedCaptureMode = AvailableCaptureModes.Single(o => o.Mode == selected);
+        if (!SupportsMacOsCapture)
+            AvailableCaptureModes.Add(new(WindowsCaptureMode.Automatic, Strings["CaptureModeAutomatic"]));
+        AvailableCaptureModes.Add(new(WindowsCaptureMode.CompatibleGdi, Strings[SupportsMacOsCapture ? "MacCaptureStandard" : "CaptureModeGdi"]));
+        AvailableCaptureModes.Add(new(WindowsCaptureMode.ModernExperimental,
+            Strings[SupportsMacOsCapture ? "MacCaptureScreenCaptureKit" : "CaptureModeModern"], SupportsMacOsCapture));
+        SelectedCaptureMode = AvailableCaptureModes.Single(o => SupportsMacOsCapture ? o.Native == native : o.Mode == selected);
     }
 
     private void RefreshPreflightModes()

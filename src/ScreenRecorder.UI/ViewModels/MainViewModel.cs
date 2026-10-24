@@ -97,9 +97,8 @@ public partial class MainViewModel : ObservableObject
     private uint _bookmarkHotkeyModifiers = 6;
     private string _bookmarkHotkeyKey = "M";
     private string _videoQualityPreset = "Standard";
-    private WindowsCaptureMode _windowsCaptureMode;
+    private WindowsCaptureMode _windowsCaptureMode = WindowsCaptureMode.Automatic;
     private bool _nativeCaptureEnabled;
-    private bool _editablePointerEnabled;
     private double _diskWarningThresholdGb = 2.0;
     private double _diskCriticalThresholdMb = 500.0;
     private long _activeDiskWarningThresholdBytes = RecordingConfiguration.DefaultDiskWarningThresholdBytes;
@@ -598,6 +597,7 @@ public partial class MainViewModel : ObservableObject
     partial void OnSelectedEncoderChanged(EncoderOption? value) => PersistUserSettings();
     partial void OnSelectedCursorEffectChanged(CursorEffectOption? value)
     {
+        OnPropertyChanged(nameof(ShowPresentationPointerOptions));
         PersistUserSettings();
     }
     partial void OnMinimizeOnRecordChanged(bool value) => PersistUserSettings();
@@ -626,11 +626,12 @@ public partial class MainViewModel : ObservableObject
     {
         ProjectName = NextProjectName,
         WindowsCaptureMode = OperatingSystem.IsWindows() ? _windowsCaptureMode : WindowsCaptureMode.CompatibleGdi,
-        NativeCaptureEnabled = _nativeCaptureEnabled,
-        EditablePointerEnabled = _nativeCaptureEnabled && _editablePointerEnabled,
+        NativeCaptureEnabled = !OperatingSystem.IsWindows() && _nativeCaptureEnabled,
+        EditablePointerEnabled = false,
         Fps = SelectedFps,
         EncoderType = SelectedEncoder?.Type ?? HardwareEncoderType.Auto,
         CursorEffect = SelectedCursorEffect?.Mode ?? CursorEffectMode.Default,
+        PresentationPointer = CurrentPresentationPointer,
         OutputDirectory = OutputDirectory,
         CaptureSource = IsCustomRegion ? CaptureSourceType.CustomRegion : CaptureSourceType.Monitor,
         MonitorIndex = SelectedMonitor?.Index ?? 0,
@@ -694,7 +695,8 @@ public partial class MainViewModel : ObservableObject
                 RecordMicrophone),
             MicrophoneDeviceId = RecordMicrophone ? SelectedMicrophone?.Id : null,
             SystemAudioDeviceId = null,
-            CursorEffect = SelectedCursorEffect?.Mode ?? CursorEffectMode.Default
+            CursorEffect = SelectedCursorEffect?.Mode ?? CursorEffectMode.Default,
+            PresentationPointer = CurrentPresentationPointer
         };
 
     public static RecordingConfiguration ApplyRuntimeSettings(
@@ -749,7 +751,11 @@ public partial class MainViewModel : ObservableObject
                 telemetry.HealthWarning);
         }
 
-        if (MatchesFormattedStatus(currentStatus, "StatusRecorderHealthWarning"))
+        if (telemetry.IsCursorEffectHealthy == false && telemetry.State == RecordingState.Recording)
+            return LanguageManager.Instance["StatusCursorEffectUnavailable"];
+
+        if (MatchesFormattedStatus(currentStatus, "StatusRecorderHealthWarning") ||
+            MatchesFormattedStatus(currentStatus, "StatusCursorEffectUnavailable"))
         {
             return telemetry.State == RecordingState.Paused
                 ? LanguageManager.Instance["StatusPausedMsg"]
@@ -869,6 +875,7 @@ public partial class MainViewModel : ObservableObject
             LoadMonitors();
             RefreshEncoderDisplayNames();
             RefreshCursorEffectDisplayNames();
+            RefreshTeachingPointerOptions();
             if (!IsRecording && !IsPreparing)
             {
                 if (RecoverableSessionCount > 0)
@@ -890,6 +897,7 @@ public partial class MainViewModel : ObservableObject
 
         // 非同步掃描未完成之錄影
         LoadCursorEffects(CursorEffectMode.Default);
+        RefreshTeachingPointerOptions(TeachingPointerOptions.Default);
 
         // 非同步掃描未完成之錄影
         AvailableEncoders.Clear();
@@ -974,8 +982,7 @@ public partial class MainViewModel : ObservableObject
             _bookmarkHotkeyKey = s.BookmarkHotkeyKey;
             _videoQualityPreset = s.VideoQualityPreset;
             _windowsCaptureMode = s.WindowsCaptureMode;
-            _nativeCaptureEnabled = s.NativeCaptureEnabled;
-            _editablePointerEnabled = s.EditablePointerEnabled;
+            _nativeCaptureEnabled = !OperatingSystem.IsWindows() && s.NativeCaptureEnabled;
             OnPropertyChanged(nameof(ShowCaptureStatus));
             _openFolderOnFinished = s.OpenFolderOnFinished;
             _deleteWorkingFileAfterRemux = s.DeleteWorkingFileAfterSuccessfulRemux;
@@ -1019,6 +1026,7 @@ public partial class MainViewModel : ObservableObject
 
             await LoadEncodersAsync(s.EncoderType);
             LoadCursorEffects(s.CursorEffect);
+            RefreshTeachingPointerOptions(s.PresentationPointer);
         }
         catch (Exception ex)
         {
@@ -1033,6 +1041,10 @@ public partial class MainViewModel : ObservableObject
     private void RefreshCursorEffectDisplayNames()
     {
         var currentMode = SelectedCursorEffect?.Mode ?? CursorEffectMode.Default;
+        var previous = _refreshingTeachingPointerOptions;
+        _refreshingTeachingPointerOptions = true;
+        try
+        {
         var updated = new List<CursorEffectOption>();
         foreach (var opt in AvailableCursorEffects)
         {
@@ -1054,16 +1066,18 @@ public partial class MainViewModel : ObservableObject
             AvailableCursorEffects.Add(opt);
         }
         SelectedCursorEffect = AvailableCursorEffects.FirstOrDefault(e => e.Mode == currentMode) ?? AvailableCursorEffects.FirstOrDefault();
+        }
+        finally { _refreshingTeachingPointerOptions=previous; }
     }
 
     private void LoadCursorEffects(CursorEffectMode preferred)
     {
         AvailableCursorEffects.Clear();
         AvailableCursorEffects.Add(new CursorEffectOption(CursorEffectMode.Default, Strings["CursorDefault"]));
+        AvailableCursorEffects.Add(new CursorEffectOption(CursorEffectMode.PresentationStick, Strings["CursorPresentationStick"]));
         AvailableCursorEffects.Add(new CursorEffectOption(CursorEffectMode.HighlightHalo, Strings["CursorHighlight"]));
         AvailableCursorEffects.Add(new CursorEffectOption(CursorEffectMode.HaloWithClickRipple, Strings["CursorClickRipple"]));
         AvailableCursorEffects.Add(new CursorEffectOption(CursorEffectMode.Hidden, Strings["CursorHidden"]));
-        AvailableCursorEffects.Add(new CursorEffectOption(CursorEffectMode.PresentationStick, Strings["CursorPresentationStick"]));
 
         SelectedCursorEffect = AvailableCursorEffects.FirstOrDefault(c => c.Mode == preferred)
                                ?? AvailableCursorEffects.FirstOrDefault();
@@ -1135,7 +1149,7 @@ public partial class MainViewModel : ObservableObject
 
     public void PersistUserSettings()
     {
-        if (_isLoadingSettings) return;
+        if (_isLoadingSettings || _refreshingTeachingPointerOptions) return;
         try
         {
             var rangeMode = "Monitor";
@@ -1149,6 +1163,7 @@ public partial class MainViewModel : ObservableObject
                 Language = Strings.CurrentLanguage,
                 EncoderType = SelectedEncoder?.Type ?? HardwareEncoderType.Auto,
                 CursorEffect = SelectedCursorEffect?.Mode ?? CursorEffectMode.Default,
+                PresentationPointer = CurrentPresentationPointer,
                 RecordSystemAudio = RecordSystemAudio,
                 RecordMicrophone = RecordMicrophone,
                 SelectedMicrophoneId = SelectedMicrophone?.Id,
@@ -1170,8 +1185,8 @@ public partial class MainViewModel : ObservableObject
                 BookmarkHotkeyKey = _bookmarkHotkeyKey,
                 VideoQualityPreset = _videoQualityPreset,
                 WindowsCaptureMode = _windowsCaptureMode,
-                NativeCaptureEnabled = _nativeCaptureEnabled,
-                EditablePointerEnabled = _editablePointerEnabled,
+                NativeCaptureEnabled = !OperatingSystem.IsWindows() && _nativeCaptureEnabled,
+                EditablePointerEnabled = false,
                 OpenFolderOnFinished = _openFolderOnFinished,
                 DeleteWorkingFileAfterSuccessfulRemux = _deleteWorkingFileAfterRemux,
                 DiskWarningThresholdGb = _diskWarningThresholdGb,
@@ -1188,6 +1203,7 @@ public partial class MainViewModel : ObservableObject
     public void ApplyNewSettings(UserSettings newSettings)
     {
         _webPlayerLanguages = newSettings.WebPlayerLanguages;
+        if (CanEditPausedSettings) RefreshTeachingPointerOptions(newSettings.PresentationPointer);
         _recordingPreflightMode = newSettings.RecordingPreflightMode;
         _startStopHotkeyModifiers = newSettings.StartStopHotkeyModifiers;
         _startStopHotkeyKey = newSettings.StartStopHotkeyKey;
@@ -1197,8 +1213,7 @@ public partial class MainViewModel : ObservableObject
         _bookmarkHotkeyKey = newSettings.BookmarkHotkeyKey;
         _videoQualityPreset = newSettings.VideoQualityPreset;
         if (CanEditRecordingSettings) _windowsCaptureMode = newSettings.WindowsCaptureMode;
-        if (CanEditRecordingSettings) _nativeCaptureEnabled = newSettings.NativeCaptureEnabled;
-        if (CanEditRecordingSettings) _editablePointerEnabled = newSettings.EditablePointerEnabled;
+        if (CanEditRecordingSettings) _nativeCaptureEnabled = !OperatingSystem.IsWindows() && newSettings.NativeCaptureEnabled;
         OnPropertyChanged(nameof(ShowCaptureStatus));
         _openFolderOnFinished = newSettings.OpenFolderOnFinished;
         _deleteWorkingFileAfterRemux = newSettings.DeleteWorkingFileAfterSuccessfulRemux;
@@ -1352,10 +1367,11 @@ public partial class MainViewModel : ObservableObject
             var config = ApplyRuntimeSettings(new RecordingConfiguration
             {
                 WindowsCaptureMode = OperatingSystem.IsWindows() ? _windowsCaptureMode : WindowsCaptureMode.CompatibleGdi,
-                NativeCaptureEnabled = _nativeCaptureEnabled,
+                NativeCaptureEnabled = !OperatingSystem.IsWindows() && _nativeCaptureEnabled,
                 Fps = SelectedFps,
                 EncoderType = SelectedEncoder?.Type ?? HardwareEncoderType.Auto,
                 CursorEffect = SelectedCursorEffect?.Mode ?? CursorEffectMode.Default,
+                PresentationPointer = CurrentPresentationPointer,
                 OutputDirectory = OutputDirectory,
                 CaptureSource = captureSource,
                 MonitorIndex = SelectedMonitor?.Index ?? 0,

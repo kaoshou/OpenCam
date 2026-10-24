@@ -36,6 +36,7 @@ public class RecorderTelemetry
     public bool? IsMicrophoneHealthy { get; set; }
 
     public bool? IsEncoderHealthy { get; set; }
+    public bool? IsCursorEffectHealthy { get; set; }
 
     public string? HealthWarning { get; set; }
 

@@ -448,14 +448,14 @@ public class FoolproofUiLogicTests
         // 切換到英文
         vm.Strings.CurrentLanguage = ScreenRecorder.Core.Localization.AppLanguage.EnUs;
         var enHidden = vm.AvailableCursorEffects.First(e => e.Mode == ScreenRecorder.Core.Enums.CursorEffectMode.Hidden);
-        Assert.Equal("Hide Cursor (Clean View)", enHidden.DisplayName);
-        Assert.Equal("Presentation pointer (stick)", vm.AvailableCursorEffects.Single(e => e.Mode == ScreenRecorder.Core.Enums.CursorEffectMode.PresentationStick).DisplayName);
+        Assert.Equal("Hide Cursor", enHidden.DisplayName);
+        Assert.Equal("Presentation stick", vm.AvailableCursorEffects.Single(e => e.Mode == ScreenRecorder.Core.Enums.CursorEffectMode.PresentationStick).DisplayName);
 
         // 切換回繁體中文
         vm.Strings.CurrentLanguage = ScreenRecorder.Core.Localization.AppLanguage.ZhTw;
         var zhHidden = vm.AvailableCursorEffects.First(e => e.Mode == ScreenRecorder.Core.Enums.CursorEffectMode.Hidden);
-        Assert.Equal("隱藏滑鼠游標 (不錄游標)", zhHidden.DisplayName);
-        Assert.Equal("虛擬教鞭（細長棒）", vm.AvailableCursorEffects.Single(e => e.Mode == ScreenRecorder.Core.Enums.CursorEffectMode.PresentationStick).DisplayName);
+        Assert.Equal("隱藏滑鼠游標", zhHidden.DisplayName);
+        Assert.Equal("虛擬教鞭", vm.AvailableCursorEffects.Single(e => e.Mode == ScreenRecorder.Core.Enums.CursorEffectMode.PresentationStick).DisplayName);
     }
 
     [Fact]

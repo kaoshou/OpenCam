@@ -157,6 +157,29 @@ public class RecorderHealthTrackerTests
         Assert.Equal(expectedMicrophone, health.MicrophoneHealthy);
     }
 
+    [Fact]
+    public void AudioBytesAndTimeCannotMaskStalledVideoFrames()
+    {
+        var tracker = CreateTracker(AudioSourceType.SystemOnly);
+        tracker.ObserveProgress(new(true, 10, TimeSpan.FromSeconds(1), 1024));
+        for (var i = 2; i <= 4; i++)
+            tracker.ObserveProgress(new(true, 10, TimeSpan.FromSeconds(i), i * 1024));
+        var health = tracker.CreateTelemetryHealth(OffAudio());
+        Assert.False(health.VideoHealthy);
+        Assert.Contains("Video frames", health.Warning);
+
+        tracker.ObserveProgress(new(true, 11, TimeSpan.FromSeconds(5), 5120));
+        Assert.True(tracker.CreateTelemetryHealth(OffAudio()).VideoHealthy);
+    }
+
+    [Fact]
+    public void AudioOnlyProgressCannotConfirmVideoHealth()
+    {
+        var tracker = CreateTracker(AudioSourceType.SystemOnly);
+        tracker.ObserveProgress(new(true, 0, TimeSpan.FromSeconds(1), 1024));
+        Assert.Null(tracker.CreateTelemetryHealth(OffAudio()).VideoHealthy);
+    }
+
     private static RecorderHealthTracker CreateTracker(AudioSourceType source)
     {
         var tracker = new RecorderHealthTracker();

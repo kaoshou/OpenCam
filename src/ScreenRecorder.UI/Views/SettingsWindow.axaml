@@ -211,10 +211,11 @@
                                 </ComboBox>
                             </Grid>
 
-                            <StackPanel IsVisible="{Binding SupportsWindowsCapture}" Spacing="6">
+                            <StackPanel IsVisible="{Binding SupportsCaptureSelection}" Spacing="6">
                                 <Grid ColumnDefinitions="*,Auto">
                                     <TextBlock Text="{Binding Strings[CaptureModeLabel]}" FontSize="12" VerticalAlignment="Center" />
-                                    <ComboBox Grid.Column="1" Width="275" FontSize="11.5"
+                                    <ComboBox x:Name="CaptureModePicker" Grid.Column="1" Width="275" FontSize="11.5"
+                                              AutomationProperties.Name="{Binding Strings[CaptureModeLabel]}"
                                               IsEnabled="{Binding CanEditCaptureMode}"
                                               ItemsSource="{Binding AvailableCaptureModes}" SelectedItem="{Binding SelectedCaptureMode}">
                                         <ComboBox.ItemTemplate>
@@ -222,17 +223,10 @@
                                         </ComboBox.ItemTemplate>
                                     </ComboBox>
                                 </Grid>
-                                <TextBlock Text="{Binding Strings[CaptureModeNotice]}" FontSize="11" Foreground="#64748B" TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding CaptureModeNotice}" FontSize="11" Foreground="#64748B" TextWrapping="Wrap" />
                             </StackPanel>
-                            <StackPanel IsVisible="{Binding SupportsNativeCapture}" Spacing="4">
-                                <CheckBox IsChecked="{Binding NativeCaptureEnabled}" IsEnabled="{Binding CanEditCaptureMode}">
-                                    <TextBlock Text="{Binding Strings[NativeCaptureLabel]}" FontSize="12" TextWrapping="Wrap" />
-                                </CheckBox>
-                                <TextBlock Text="{Binding Strings[NativeCaptureNotice]}" FontSize="11" Foreground="#64748B" TextWrapping="Wrap" />
-                                <CheckBox IsChecked="{Binding EditablePointerEnabled}" IsEnabled="{Binding CanEnableEditablePointer}">
-                                    <TextBlock Text="{Binding Strings[EditablePointerLabel]}" FontSize="12" TextWrapping="Wrap" />
-                                </CheckBox>
-                                <TextBlock Text="{Binding Strings[EditablePointerNotice]}" FontSize="11" Foreground="#64748B" TextWrapping="Wrap" />
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="{Binding Strings[LivePointerNotice]}" FontSize="11" Foreground="#64748B" TextWrapping="Wrap" />
                             </StackPanel>
                             <CheckBox IsChecked="{Binding OpenFolderOnFinished}" Margin="0,2">
                                 <TextBlock Text="{Binding Strings[OpenFolderOnFinishedLabel]}" FontSize="12" Foreground="#334155" TextWrapping="Wrap" />

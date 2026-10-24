@@ -13,6 +13,8 @@ public sealed class ProjectPointerCompositor(ProjectRenderPlan plan,
     private bool _disposed;
     private (Guid Clip,int Width,int Height,bool Preview,bool Gif)? _geometryKey;
     private ProjectPointerGeometry? _geometry;
+    private readonly HashSet<Guid> _unavailable = [];
+    public bool HadUnavailablePointer { get; private set; }
 
     public static bool IsRequired(ProjectRenderPlan plan) =>
         plan.PointerSettings.Style != ProjectPointerStyle.Hidden && plan.Clips.Any(c=>c.Source.Pointer!=null);
@@ -26,7 +28,9 @@ public sealed class ProjectPointerCompositor(ProjectRenderPlan plan,
         var position=plan.LocateVideoFrame(absoluteFrame);
         if(position is null) return;
         var part=plan.Clips.First(c=>c.Clip.Id==position.ClipId);
-        if(part.Source.Pointer is null) return;
+        if(part.Source.Pointer is null || _unavailable.Contains(part.Source.Id)) return;
+        try
+        {
         if(_cursor is null || _sourceId!=part.Source.Id)
         {
             _cursor?.Dispose(); _cursor=null;
@@ -41,6 +45,14 @@ public sealed class ProjectPointerCompositor(ProjectRenderPlan plan,
         }
         var point=await _cursor.ResolveAsync(position.SourcePts,ct).ConfigureAwait(false);
         PointerRasterizer.Composite(rgba,width,height,_geometry!.Map(point),plan.PointerSettings,_geometry.RasterScale);
+        }
+        catch (Exception ex) when (preview && ex is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            _cursor?.Dispose(); _cursor = null;
+            _unavailable.Add(part.Source.Id);
+            HadUnavailablePointer = true;
+            Serilog.Log.Warning("Pointer preview data unavailable; original video and audio remain available.");
+        }
     }
 
     public void Dispose() { _disposed=true;_cursor?.Dispose();_cursor=null; }

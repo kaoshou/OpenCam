@@ -6,6 +6,21 @@ namespace ScreenRecorder.Media.Tests;
 public partial class RecordingEncoderLifecycleTests
 {
     [Fact]
+    public async Task NativeSetupFailureUsesRequestedPlatformCompatibilityBackend()
+    {
+        await using var scope = new RecordingScope();
+        scope.Factory.UseModern = scope.Factory.FailCapture = true;
+        scope.Factory.CaptureFallbackBackend = CaptureBackend.PlatformDefault;
+        var result = await scope.Recorder.StartRecordingAsync(scope.Configuration);
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(2, scope.Factory.Created.Count);
+        Assert.Equal(CaptureBackend.PlatformDefault, scope.Recorder.CurrentSession!.CaptureSelection!.Backend);
+        Assert.Equal(CaptureFallbackReason.StartupFailed, scope.Factory.Captures[1]!.FallbackReason);
+        Assert.All(scope.Factory.Requested, encoder => Assert.Equal(HardwareEncoderType.IntelQsv, encoder));
+        Assert.NotEqual(scope.Factory.Paths[0], scope.Factory.Paths[1]);
+    }
+
+    [Fact]
     public async Task LostCaptureSafelyStopsAndPreservesRecordedData()
     {
         await using var scope = new RecordingScope();

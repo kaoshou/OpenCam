@@ -8,6 +8,68 @@ namespace ScreenRecorder.Media.Tests;
 public sealed class ProjectInspectorTests
 {
     [Fact]
+    public async Task PropertyChangesAutomaticallyApplyAsOneEditingBurst()
+    {
+        var client = new InspectorClient();
+        var vm = new ProjectWorkspaceViewModel(client);
+        await vm.RefreshAsync();
+        vm.ClipName = "Automatic";
+        vm.ClipVolumePercent = 65;
+        vm.ClipMuted = true;
+        vm.ClipFadeInSeconds = .1m;
+        vm.ClipScalePercent = 120;
+        await WaitForAsync(() => !vm.HasPropertyDraft && client.Edits.Count == 1);
+        var edit = Assert.IsType<ProjectClipEdit.Properties>(Assert.Single(client.Edits));
+        Assert.Equal("Automatic", edit.Name);
+        Assert.Equal(.65, edit.Volume);
+        Assert.True(edit.Muted);
+        Assert.Equal(1_000_000, edit.FadeInTicks);
+        Assert.Equal(1.2, edit.Scale);
+        await Task.Delay(350);
+        Assert.Single(client.Edits);
+    }
+
+    [Fact]
+    public async Task InvalidAutomaticInputCanBeCorrectedWithoutAnApplyButton()
+    {
+        var client = new InspectorClient();
+        var vm = new ProjectWorkspaceViewModel(client);
+        await vm.RefreshAsync();
+        vm.ClipFadeInSeconds = null;
+        await WaitForAsync(() => vm.Error is not null);
+        Assert.Empty(client.Edits);
+        Assert.False(vm.StatusUnconfirmed);
+        vm.ClipFadeInSeconds = .25m;
+        await WaitForAsync(() => !vm.HasPropertyDraft && client.Edits.Count == 1);
+        Assert.Null(vm.Error);
+        Assert.Equal(2_500_000, client.Clip.FadeInTicks);
+    }
+
+    [Fact]
+    public async Task ReloadAndDiscardCancelPendingAutomaticChanges()
+    {
+        var client = new InspectorClient();
+        var vm = new ProjectWorkspaceViewModel(client);
+        await vm.RefreshAsync();
+        vm.ClipName = "Discard";
+        vm.ResetProperties();
+        await Task.Delay(400);
+        Assert.Empty(client.Edits);
+        Assert.False(vm.HasPropertyDraft);
+        vm.ClipVolumePercent = 60;
+        await vm.SaveAsync();
+        await Task.Delay(400);
+        Assert.Single(client.Edits);
+        Assert.Equal(new[] { "ApplyProjectEdit", "SaveProject" }, client.Mutations);
+    }
+
+    private static async Task WaitForAsync(Func<bool> predicate)
+    {
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        while (!predicate()) await Task.Delay(10, deadline.Token);
+    }
+
+    [Fact]
     public async Task DraftMustBeAppliedOrDiscardedBeforeOtherTimelineEdits()
     {
         var client = new InspectorClient();

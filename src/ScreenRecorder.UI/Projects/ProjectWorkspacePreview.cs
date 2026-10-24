@@ -6,6 +6,7 @@ namespace ScreenRecorder.UI.Projects;
 public sealed partial class ProjectWorkspaceViewModel
 {
     private int _pollingPreview;
+    private bool _previewPointerUnavailable;
     private long? _failedPreviewTicks;
     private long _previewEpoch, _scrubSequence;
     private bool _scrubbing, _resumeAfterScrub;
@@ -39,7 +40,8 @@ public sealed partial class ProjectWorkspaceViewModel
         OnPropertyChanged(nameof(PreviewStatus));
     }
     public ProjectFrameReply? PreviewFrame { get; private set; }
-    public string PreviewStatus => IsChangingPreviewQuality ? Strings["PreviewChangingQuality"] : IsPlayingPreview ? Strings["ProjectPreviewPlaying"] : DurationTicks == 0 ? Strings["ProjectFrameEmpty"] : Strings[_failedPreviewTicks == PlayheadTicks
+    public string PreviewStatus => _previewPointerUnavailable ? Strings["ProjectPointerPreviewUnavailable"] :
+        IsChangingPreviewQuality ? Strings["PreviewChangingQuality"] : IsPlayingPreview ? Strings["ProjectPreviewPlaying"] : DurationTicks == 0 ? Strings["ProjectFrameEmpty"] : Strings[_failedPreviewTicks == PlayheadTicks
         ? "ProjectFrameUnavailable" : PreviewFrame is null ? "ProjectFrameLoading" : "ProjectStillPreview"];
 
     private void ClearPreview()
@@ -49,6 +51,7 @@ public sealed partial class ProjectWorkspaceViewModel
         _scrubbing = false;
         _resumeAfterScrub = false;
         PreviewFrame = null;
+        _previewPointerUnavailable = false;
         _failedPreviewTicks = null;
         OnPropertyChanged(nameof(PreviewFrame));
         OnPropertyChanged(nameof(PreviewResolutionText));
@@ -92,6 +95,7 @@ public sealed partial class ProjectWorkspaceViewModel
             { _failedPreviewTicks = ticks; return; }
             if (frame.Rgba is null) return;
             PreviewFrame = frame;
+            _previewPointerUnavailable = frame.PointerUnavailable;
             OnPropertyChanged(nameof(PreviewFrame));
             OnPropertyChanged(nameof(PreviewResolutionText));
         }

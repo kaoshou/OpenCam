@@ -40,10 +40,11 @@ public static class PointerRasterizer
                 var dy = (y + .25 + .5 * sy - p.Y) / unit;
                 var color = ColorAt(settings.Style, dx, dy);
                 if (color < 0) continue;
-                red += (color >> 16) & 255;
-                green += (color >> 8) & 255;
-                blue += color & 255;
-                coverage++;
+                var sampleAlpha = ((color >> 24) & 255) / 255d;
+                red += ((color >> 16) & 255) * sampleAlpha;
+                green += ((color >> 8) & 255) * sampleAlpha;
+                blue += (color & 255) * sampleAlpha;
+                coverage += sampleAlpha;
             }
             if (coverage == 0) continue;
             var index = (y * width + x) * 4;
@@ -60,28 +61,21 @@ public static class PointerRasterizer
     private static byte Mix(double source, byte destination, double alpha, double previousAlpha, double resultAlpha) =>
         (byte)Math.Clamp(Math.Round((source * alpha + destination * previousAlpha * (1 - alpha)) / resultAlpha), 0, 255);
 
-    private static int ColorAt(ProjectPointerStyle style, double x, double y)
+    private static long ColorAt(ProjectPointerStyle style, double x, double y)
     {
         if (style == ProjectPointerStyle.Dot)
         {
             var distance = x * x + y * y;
-            return distance <= 16 ? 0xE33B36 : distance <= 25 ? 0xFFFFFF : -1;
+            return distance <= 16 ? 0xFFE33B36L : distance <= 25 ? 0xFFFFFFFFL : -1;
         }
         if (style == ProjectPointerStyle.Arrow)
         {
             // Tip at (0,0), slim arrow extending down/right, with a contrasting edge.
             if (x < 0 || y < 0 || y > 26 || x > y * .7) return -1;
             if (y > 17 && x < y * .7 - 5) return -1;
-            return x < 1.2 || y * .7 - x < 1.2 || y > 24.8 ? 0xFFFFFF : 0x253244;
+            return x < 1.2 || y * .7 - x < 1.2 || y > 24.8 ? 0xFFFFFFFFL : 0xFF253244L;
         }
-        // A 56 px diagonal silver shaft and a short dark grip, at 1080p / 100%.
-        var along = (x + y) / Math.Sqrt(2);
-        var across = (y - x) / Math.Sqrt(2);
-        if (along < 0 || along > 56) return -1;
-        var halfWidth = along >= 43 ? 2.7 : 1.5;
-        if (Math.Abs(across) > halfWidth) return -1;
-        if (along < 3 || along >= 43) return across < -.6 ? 0x596170 : 0x252C38;
-        if (Math.Abs(across) > 1) return 0x526078;
-        return across < 0 ? 0xF2F7FF : 0xA9BDD4;
+        var pixel = PresentationPointerImage.Sample(x, y);
+        return pixel == 0 ? -1 : pixel;
     }
 }

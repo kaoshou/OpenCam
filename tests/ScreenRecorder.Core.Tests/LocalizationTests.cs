@@ -6,6 +6,24 @@ namespace ScreenRecorder.Core.Tests;
 
 public class LocalizationTests
 {
+    [Theory]
+    [InlineData(AppLanguage.ZhTw)]
+    [InlineData(AppLanguage.EnUs)]
+    [InlineData(AppLanguage.JaJp)]
+    public void CursorModeLabelsDoNotContainParentheticalDescriptions(AppLanguage language)
+    {
+        var service = new LocalizationService { CurrentLanguage = language };
+        foreach (var key in new[] { "CursorDefault", "CursorHighlight", "CursorClickRipple", "CursorHidden", "CursorPresentationStick" })
+        {
+            var label = service[key];
+            Assert.False(string.IsNullOrWhiteSpace(label));
+            Assert.DoesNotContain("(", label);
+            Assert.DoesNotContain(")", label);
+            Assert.DoesNotContain("（", label);
+            Assert.DoesNotContain("）", label);
+        }
+    }
+
     [Fact]
     public void JapaneseSelection_ReturnsJapaneseAndFormatsErrors()
     {
