@@ -31,7 +31,7 @@ static void event(const std::string &json) {std::lock_guard<std::mutex> hold(dia
 static void logger(int level, const char *format, va_list arguments, void *) {
     // Raw upstream diagnostics are opt-in for generated fixtures only. Normal
     // capture never logs user paths, titles or endpoint names from libobs.
-    if (syntheticDiagnostics && level <= LOG_WARNING) {std::lock_guard<std::mutex> hold(diagnostics);std::vfprintf(stderr,format,arguments);std::fputc('\n',stderr);}
+    if (syntheticDiagnostics && level <= LOG_INFO) {std::lock_guard<std::mutex> hold(diagnostics);std::vfprintf(stderr,format,arguments);std::fputc('\n',stderr);}
 }
 static void error(const char *code) {event(std::string("{\"event\":\"error\",\"code\":\"") + code + "\"}");}
 static void pump() {
@@ -309,7 +309,9 @@ static int run(int argc,char **argv) {
         }
         auto *settings=obs_data_create();
         if(r.synthetic) {
-            obs_source_info sourceInfo{};sourceInfo.id="opencam_clock_source";sourceInfo.type=OBS_SOURCE_TYPE_INPUT;sourceInfo.output_flags=OBS_SOURCE_VIDEO|OBS_SOURCE_CUSTOM_DRAW|(r.hasAudio()?OBS_SOURCE_AUDIO:0);
+            // Silence exercises the same device-free OBS mixer path as real
+            // recovery mode; do not make it pass by adding a generated device.
+            obs_source_info sourceInfo{};sourceInfo.id="opencam_clock_source";sourceInfo.type=OBS_SOURCE_TYPE_INPUT;sourceInfo.output_flags=OBS_SOURCE_VIDEO|OBS_SOURCE_CUSTOM_DRAW|(r.hasAudio()&&r.audio!="silence"?OBS_SOURCE_AUDIO:0);
             sourceInfo.get_name=name;sourceInfo.create=testCreate;sourceInfo.destroy=destroy;sourceInfo.get_width=testWidth;sourceInfo.get_height=testHeight;sourceInfo.video_render=testRender;sourceInfo.get_properties=testProperties;obs_register_source(&sourceInfo);
             screen=source("opencam_clock_source","clock",settings); system=obs_source_get_ref(screen);
             if(r.mic())mic=obs_source_get_ref(screen);
@@ -359,7 +361,7 @@ static int run(int argc,char **argv) {
         obs_set_output_source(0,obs_scene_get_source(scene));
         if(system)obs_source_add_audio_capture_callback(system,sample,nullptr);
         if(mic)obs_source_add_audio_capture_callback(mic,sample,reinterpret_cast<void *>(1));
-        if(r.synthetic&&r.hasAudio()) {
+        if(r.synthetic&&r.hasAudio()&&r.audio!="silence") {
             audioThread=std::thread([&]{
                 float samples[2][480]{}; uint64_t frame=0;
                 while(!s.commandStop) {

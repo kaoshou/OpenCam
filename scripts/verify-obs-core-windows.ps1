@@ -47,6 +47,7 @@ $env:OPENCAM_OBS_RUNTIME = $stage
 $env:OPENCAM_TEST_FFMPEG = Join-Path $FFmpegDirectory 'ffmpeg.exe'
 $env:OPENCAM_TEST_FFPROBE = Join-Path $FFmpegDirectory 'ffprobe.exe'
 $env:OPENCAM_OBS_TEST_ARTIFACTS = Join-Path $OutputDirectory 'native'
+$env:OPENCAM_OBS_SYNTHETIC_DIAGNOSTICS = '1'
 New-Item -ItemType Directory -Path $env:OPENCAM_OBS_TEST_ARTIFACTS | Out-Null
 $savedPath = $env:PATH
 $started = Get-Date
