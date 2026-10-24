@@ -28,6 +28,26 @@ public class MockSettingsService : ISettingsService
 public class SettingsViewModelTests
 {
     [Avalonia.Headless.XUnit.AvaloniaFact]
+    public async Task MainWindowSavingRecordingPreferencesPreservesWebLanguages()
+    {
+        var service = new MockSettingsService();
+        var main = new MainViewModel(forScreenshot: true);
+        typeof(MainViewModel).GetField("_settingsService", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .SetValue(main, service);
+        try
+        {
+            main.ApplyNewSettings(new UserSettings { WebPlayerLanguages = new()
+                { EnabledLanguages = ["ja"], DefaultLanguage = "ja" } });
+            main.SelectedFps = 20;
+            for (var i = 0; i < 100 && service.SaveCount == 0; i++) await Task.Delay(10);
+            Assert.True(service.SaveCount > 0);
+            Assert.Equal(new[] { "ja" }, service.CurrentSettings.WebPlayerLanguages.EnabledLanguages);
+            Assert.Equal("ja", service.CurrentSettings.WebPlayerLanguages.DefaultLanguage);
+        }
+        finally { main.Cleanup(); }
+    }
+
+    [Avalonia.Headless.XUnit.AvaloniaFact]
     public async Task WebLanguagesRequireOneAndPersistOnlyOnSave()
     {
         var service = new MockSettingsService();

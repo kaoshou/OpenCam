@@ -105,6 +105,7 @@ public partial class MainViewModel : ObservableObject
     private long _activeDiskWarningThresholdBytes = RecordingConfiguration.DefaultDiskWarningThresholdBytes;
 
     private bool _isLoadingSettings = true;
+    private WebPlayerLanguageOptions _webPlayerLanguages = new();
     private bool _isDiskSpaceWarningActive;
     private bool _startupStatusUnconfirmed;
     private bool _unconfirmedStopFailed;
@@ -955,6 +956,7 @@ public partial class MainViewModel : ObservableObject
         try
         {
             var s = await _settingsService.LoadSettingsAsync();
+            _webPlayerLanguages = s.WebPlayerLanguages;
             _recordingPreflightMode = s.RecordingPreflightMode;
             RecentProjectPaths = (s.RecentProjectPaths ?? []).Where(p => !string.IsNullOrWhiteSpace(p)).Distinct().Take(20).ToList();
             SelectedFps = s.Fps;
@@ -1141,6 +1143,7 @@ public partial class MainViewModel : ObservableObject
 
             var settings = new UserSettings
             {
+                WebPlayerLanguages = _webPlayerLanguages,
                 RecentProjectPaths = RecentProjectPaths.Take(20).ToList(),
                 Fps = SelectedFps,
                 Language = Strings.CurrentLanguage,
@@ -1184,6 +1187,7 @@ public partial class MainViewModel : ObservableObject
 
     public void ApplyNewSettings(UserSettings newSettings)
     {
+        _webPlayerLanguages = newSettings.WebPlayerLanguages;
         _recordingPreflightMode = newSettings.RecordingPreflightMode;
         _startStopHotkeyModifiers = newSettings.StartStopHotkeyModifiers;
         _startStopHotkeyKey = newSettings.StartStopHotkeyKey;

@@ -6,6 +6,34 @@ using ScreenRecorder.Recorder.Services;
 
 namespace ScreenRecorder.Media.Tests;
 
+public partial class RecordingEncoderLifecycleTests
+{
+    [Fact]
+    public async Task SameExportOperationCannotBeReusedWithDifferentLanguagePolicy()
+    {
+        await using var scope = new RecordingScope();
+        await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(),
+            new ProjectProbeStub(), new WebPlayerExportTests.VideoFixtureExporter(false));
+        Assert.True((await coordinator.CreateAsync(scope.Configuration.OutputDirectory, "language identity")).Success);
+        Assert.True((await coordinator.StartAsync(scope.Configuration, Guid.NewGuid())).Success);
+        Assert.True((await coordinator.PauseAsync(Guid.NewGuid())).Success);
+        var operation = Guid.NewGuid();
+        var revision = coordinator.Current!.Revision;
+        var english = new ScreenRecorder.Core.Models.WebPlayerLanguageOptions { EnabledLanguages = ["en"] };
+        Assert.True((await coordinator.ExportAsync(scope.Configuration.OutputDirectory, revision, operation,
+            webPlayer: true, webPlayerLanguages: english)).Success);
+        await UntilAsync(() => coordinator.ExportStatus?.State == RecordingExportState.Succeeded);
+        var repeated = await coordinator.ExportAsync(scope.Configuration.OutputDirectory, revision, operation,
+            webPlayer: true, webPlayerLanguages: english);
+        Assert.True(repeated.Success);
+        var changed = await coordinator.ExportAsync(scope.Configuration.OutputDirectory, revision, operation,
+            webPlayer: true, webPlayerLanguages: new() { EnabledLanguages = ["ja"] });
+        Assert.False(changed.Success);
+        Assert.Contains("Operation ID", changed.ErrorCode);
+        await coordinator.FinishAsync(Guid.NewGuid());
+    }
+}
+
 public sealed class WebPlayerExportTests
 {
     [Fact]
@@ -233,12 +261,18 @@ public partial class RecordingEncoderLifecycleTests
         await vm.PauseAsync();
         await vm.SaveAsync();
         Assert.True(vm.CanExport, vm.Error);
+        vm.LoadWebPlayerLanguages = () => Task.FromResult(new ScreenRecorder.Core.Models.WebPlayerLanguageOptions
+            { EnabledLanguages = ["en", "ja"], DefaultLanguage = "ja" });
         await vm.ExportWebPlayerAsync(scope.Configuration.OutputDirectory);
         Assert.Null(vm.Error);
         await UntilAsync(() => coordinator.ExportStatus?.State == RecordingExportState.Succeeded);
         var output = coordinator.ExportStatus!.FinalPath!;
         Assert.Equal("index.html", Path.GetFileName(output));
         Assert.True(File.Exists(Path.Combine(Path.GetDirectoryName(output)!, "media.mp4")));
+        var script = await File.ReadAllTextAsync(Path.Combine(Path.GetDirectoryName(output)!, "opencam-player.js"));
+        using var document = JsonDocument.Parse(script[(script.IndexOf(" = ", StringComparison.Ordinal) + 3)..].Trim().TrimEnd(';'));
+        Assert.Equal("ja", document.RootElement.GetProperty("uiLanguages").GetProperty("defaultLanguage").GetString());
+        Assert.Equal(new[] { "en", "ja" }, document.RootElement.GetProperty("uiLanguages").GetProperty("enabledLanguages").EnumerateArray().Select(x => x.GetString()));
         Assert.Equal(ProjectMode.Paused, coordinator.Mode);
         var invalid = await coordinator.ExportAsync(scope.Configuration.OutputDirectory, coordinator.Current!.Revision,
             Guid.NewGuid(), pathIsFile: true, webPlayer: true);

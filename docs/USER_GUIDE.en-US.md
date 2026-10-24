@@ -305,6 +305,9 @@ Original project MKVs must be retained for reopening, editing and continued reco
 ### General and Language
 
 - **Language**: Traditional Chinese, English (US) or Japanese for the application interface.
+- **Web player interface languages**: Enable Traditional Chinese, English and/or Japanese, keeping at least one. Choose Automatic (browser preference) or an enabled fixed default. Disabling the fixed default restores Automatic. A single enabled language hides the web language selector.
+- Viewers can switch the interface at the top right; their choice is remembered when browser storage is available. Automatic maps all Chinese variants to Traditional Chinese, Japanese to Japanese, unsupported languages to English, and unavailable browser language to Traditional Chinese. If that language is disabled, the fallback order is English, Traditional Chinese, Japanese among enabled languages.
+- Settings apply only to future exports, not existing folders. Interface language is separate from captions/transcripts; switching it preserves playback position, search and caption choices.
 - **Open output folder when recording finishes**: Opens the output location after an MP4 is created successfully.
 - **Minimize when recording starts**: The same option shown on the main window.
 

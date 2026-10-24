@@ -704,6 +704,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   }}catch{}
   const renderCaptions=()=>{
     const track=subtitleTracks.find(t=>t.id===subtitleId),position=video.currentTime;
+    captionText.setAttribute('lang',track?.language||'und');captionText.setAttribute('dir','auto');
     const text=track&&!video.ended?track.cues.filter(c=>position>=c.start&&position<c.end).map(c=>c.text).join('\n'):'';
     captionText.textContent=text;captionOverlay.hidden=text.length===0;
   };

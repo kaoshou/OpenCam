@@ -106,6 +106,13 @@ test('denied storage keeps language selection functional',()=>{
   ids['ui-language'].value='ja';ids['ui-language'].dispatch('change');
   assert.equal(ids.play.attributes['aria-label'],'再生');
 });
+test('caption text keeps its content language independently of interface language',()=>{
+  const ids=setup(subtitleLesson(),{},'en-US');
+  assert.equal(ids['caption-text'].attributes.lang,'zh-TW');
+  ids['caption-language'].value='en';ids['caption-language'].dispatch('change');
+  ids['ui-language'].value='ja';ids['ui-language'].dispatch('change');
+  assert.equal(ids['caption-text'].attributes.lang,'en');
+});
 test('reading preferences affect only transcript text and reject malformed stored values',()=>{
   const data=subtitleLesson(),saved={'opencam.readingAppearance':'{"size":999,"spacing":0,"theme":"url(evil)"}'};
   const ids=setup(data,saved);

@@ -61,6 +61,57 @@ async function goto(path){await page.goto(base+path);await page.waitForTimeout(1
 async function axe(){await page.addScriptTag({path:axePath});return page.evaluate(async()=>{const r=await axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}});return r.violations.map(v=>({id:v.id,impact:v.impact,nodes:v.nodes.map(n=>n.target)}));});}
 async function noOverflow(){assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);}
 try{
+ await check('three interface languages preserve playback and content and translate all controls',async()=>{
+  await goto('/player/');await page.waitForFunction(()=>document.querySelector('#video').readyState>=1);
+  await page.locator('#transcript-tab').click();await page.locator('#transcript-search').fill('學習');
+  await page.waitForTimeout(150);
+  await page.evaluate(()=>{const video=document.querySelector('#video');video.currentTime=2;});
+  for(const [language,chapterLabel,playLabel] of [['zh-TW','章節','播放'],['en','Chapters','Play'],['ja','チャプター','再生']]){
+   await page.locator('#ui-language').selectOption(language);
+   assert.equal(await page.locator('html').getAttribute('lang'),language);
+   assert.equal(await page.locator('#chapter-tab').innerText(),chapterLabel);
+   assert.equal(await page.locator('#play').getAttribute('aria-label'),playLabel);
+   assert.equal(await page.locator('#transcript-search').inputValue(),'學習');
+   assert.equal(await page.locator('#transcript-language').inputValue(),'tw');
+   assert.equal(await page.locator('#caption-language').inputValue(),'tw');
+   assert.equal(await page.locator('#video').evaluate(v=>v.currentTime),2);
+   const untranslated=await page.locator('[data-i18n]').evaluateAll(nodes=>nodes.filter(n=>n.textContent===n.dataset.i18n).map(n=>n.dataset.i18n));
+   assert.deepEqual(untranslated,[]);
+   await page.locator('.keyboard-help summary').evaluate(el=>el.parentElement.open=true);
+   for(const width of [1280,768,390]){
+    await page.setViewportSize({width,height:1000});await noOverflow();
+    await page.evaluate(()=>{document.activeElement.blur();scrollTo(0,0)});
+    await page.screenshot({path:join(out,'screens/player-language-'+language+'-'+width+'.png'),fullPage:true});
+   }
+   assert.deepEqual(await axe(),[]);
+  }
+  await page.reload();assert.equal(await page.locator('#ui-language').inputValue(),'ja');
+  await page.locator('#transcript-tab').click();await page.locator('#reading-button').click();
+  const downloadPromise=page.waitForEvent('download');await page.locator('#download-html').click();
+  const download=await downloadPromise;const contents=await readFile(await download.path(),'utf8');
+  assert(contents.includes('lang="zh-TW"'));assert(contents.includes('lang="ja"'));
+  assert(contents.includes('每個人，都有適合自己的學習節奏。'));
+  await page.evaluate(()=>localStorage.removeItem('opencam.uiLanguage'));
+  await page.setViewportSize({width:1440,height:1000});
+ });
+ await check('restricted languages override remembered choices and hide a single-language menu',async()=>{
+  const data=structuredClone(lesson);data.uiLanguages={enabledLanguages:['ja'],defaultLanguage:'auto'};
+  await page.route('**/opencam-player.js',r=>r.fulfill({body:safeData(data),contentType:'text/javascript'}));
+  await goto('/player/');assert.equal(await page.locator('#ui-language-control').isVisible(),false);
+  assert.equal(await page.locator('html').getAttribute('lang'),'ja');
+  assert.equal(await page.locator('#ui-language option').count(),1);
+ });
+ await check('browser Chinese variants and denied storage resolve without network translations',async()=>{
+  for(const [locale,want] of [['zh-CN','zh-TW'],['zh-HK','zh-TW'],['ja-JP','ja'],['fr-FR','en']]){
+   const c=await browser.newContext({locale});const p=await c.newPage();
+   try{
+    await p.addInitScript(()=>{Object.defineProperty(window,'localStorage',{get(){throw new Error('denied')}});Intl.DisplayNames=undefined;});
+    await p.goto(base+'/player/');await p.waitForFunction(()=>document.querySelector('#stage').classList.contains('enhanced'));
+    assert.equal(await p.locator('html').getAttribute('lang'),want);
+    await p.locator('#ui-language').selectOption('ja');assert.equal(await p.locator('#play').getAttribute('aria-label'),'再生');
+   }finally{await c.close();}
+  }
+ });
  await check('keyboard destinations restore panels and preserve native control keys',async()=>{
   await goto('/player/');
   assert.equal(await page.locator('#skip-player').count(),1,'a keyboard entrance to the video is available');
@@ -105,7 +156,8 @@ try{
  await check('reading overlay is dismissible and usable on phones tablets and desktop',async()=>{
   for(const [width,height] of [[1440,1000],[768,1024],[1024,768],[390,844],[844,390],[320,568],[320,225]]){
    await page.setViewportSize({width,height});await goto('/player/');await page.locator('#transcript-tab').click();
-   const button=page.getByRole('button',{name:'閱讀設定 / Reading settings',exact:true}),dialog=page.getByRole('dialog',{name:'閱讀設定 / Reading settings',exact:true});
+   await page.locator('#ui-language').selectOption('zh-TW');
+   const button=page.getByRole('button',{name:'閱讀設定',exact:true}),dialog=page.getByRole('dialog',{name:'閱讀設定',exact:true});
    assert(await page.locator('#reading-menu').isHidden());
    const before=await page.locator('#transcript-list').boundingBox();
    await button.click();await dialog.waitFor({state:'visible'});
