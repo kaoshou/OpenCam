@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, readFile } from 'node:fs/promises';
+import { mkdtemp, rm, readFile, mkdir, copyFile, writeFile } from 'node:fs/promises';
+import { pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { buildSite } from '../build.mjs';
@@ -16,7 +17,7 @@ test('localized homepages include genuine previews, guide, and current download'
     await buildSite({ repositoryRoot: resolve(import.meta.dirname, '../..'), outputRoot: out });
     for (const [lang, suffix] of [['zh-TW', 'zhtw'], ['en-US', 'enus']]) {
       const html = await readFile(join(out, lang, 'index.html'), 'utf8');
-      assert.match(html, /class="button button-primary" href="https:\/\/github\.com\/kaoshou\/OpenCam\/releases"/);
+      assert.match(html, /href="https:\/\/github\.com\/kaoshou\/OpenCam\/releases"/);
       assert.match(html, new RegExp(`preview_main_${suffix}\\.png`));
       assert.match(html, new RegExp(`preview_settings_${suffix}\\.png`));
       assert.match(html, new RegExp(`preview_editor_${suffix}\\.png`));
@@ -39,6 +40,54 @@ test('localized homepages include genuine previews, guide, and current download'
       assert.doesNotMatch(html, /fonts\.googleapis|google-analytics|gtag\(/);
     }
   } finally { await rm(out, { recursive: true, force: true }); }
+});
+
+test('hero offers three localized published attachment downloads and supporting links', async () => {
+  const out = await mkdtemp(join(tmpdir(), 'opencam-downloads-'));
+  try {
+    await buildSite({ repositoryRoot: resolve(import.meta.dirname, '../..'), outputRoot: out });
+    for (const [lang, labels] of [
+      ['zh-TW', ['下載 Windows 免安裝版', '下載 Windows 安裝版', '下載 macOS 版']],
+      ['en-US', ['Download Windows portable', 'Download Windows installer', 'Download macOS']],
+    ]) {
+      const html = await readFile(join(out, lang, 'index.html'), 'utf8');
+      const actions = html.match(/<div class="hero-actions">([\s\S]*?)<\/div>/)?.[1];
+      assert(actions, 'Download actions must be present');
+      const links = [...actions.matchAll(/<a\b[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)];
+      assert.equal(links.length, 3);
+      assert.deepEqual(links.map(m => m[1]), [
+        'https://github.com/kaoshou/OpenCam/releases/download/v0.4.1/OpenCam_v0.4.1_Windows_x64_Portable.zip',
+        'https://github.com/kaoshou/OpenCam/releases/download/v0.4.1/OpenCam_v0.4.1_Windows_x64_Setup.exe',
+        'https://github.com/kaoshou/OpenCam/releases/download/v0.4.1/OpenCam_v0.4.1_macOS_arm64.dmg',
+      ]);
+      assert.deepEqual(links.map(m => m[2]), labels);
+      const notes = html.match(/<div class="download-notes">([\s\S]*?)<\/div>/)?.[1];
+      assert(notes, 'Architecture and supporting links must stay below downloads');
+      assert.match(notes, /x64/);assert.match(notes, /Apple Silicon/);
+      assert.match(notes, /href="https:\/\/github\.com\/kaoshou\/OpenCam\/releases"/);
+      assert.match(notes, new RegExp(`href="/OpenCam/${lang}/guide/"`));
+    }
+  } finally { await rm(out, { recursive: true, force: true }); }
+});
+
+test('unpublished development version does not move downloads or the public version label', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'opencam-future-version-'));
+  try {
+    await mkdir(join(root, 'website/src'), { recursive: true });
+    await mkdir(join(root, 'docs/images'), { recursive: true });
+    for (const name of ['content.mjs', 'layout.mjs', 'paths.mjs']) {
+      await copyFile(new URL('../src/' + name, import.meta.url), join(root, 'website/src', name));
+    }
+    await copyFile(new URL('../downloads.json', import.meta.url), join(root, 'website/downloads.json'));
+    await writeFile(join(root, 'VERSION'), '9.9.9\n');
+    await writeFile(join(root, 'docs/images/metadata.json'), '{"version":"0.3.5"}');
+    const future = await import(pathToFileURL(join(root, 'website/src/content.mjs')).href);
+    assert.equal(future.productVersion, '9.9.9');
+    const html = future.renderHome('en-US');
+    assert.match(html, /Current version v0\.4\.1/);
+    assert.match(html, /releases\/download\/v0\.4\.1\/OpenCam_v0\.4\.1_Windows_x64_Portable\.zip/);
+    assert.doesNotMatch(html, /releases\/download\/v9\.9\.9/);
+  } finally { await rm(root, { recursive: true, force: true }); }
 });
 
 test('each homepage offers full-size current macOS screenshots', async () => {

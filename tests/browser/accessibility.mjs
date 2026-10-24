@@ -208,6 +208,25 @@ try{
   const ready=page.waitForEvent('download');await page.locator('#download-html').click();assert((await ready).suggestedFilename().endsWith('.html'));
   await page.goto(pathToFileURL(join(out,'reading-preview.html')).href);assert.equal(await page.locator('h2').count(),3);
  });
+ await check('localized download buttons reflow with keyboard and touch-size targets',async()=>{
+  for(const language of ['zh-TW','en-US']){
+   await goto('/OpenCam/'+language+'/');
+   const buttons=page.locator('.hero-actions a');assert.equal(await buttons.count(),3);
+   for(const width of [1440,1024,768,390,320]){
+    await page.setViewportSize({width,height:1000});await noOverflow();
+    const boxes=await buttons.evaluateAll(els=>els.map(el=>el.getBoundingClientRect().toJSON()));
+    for(const b of boxes)assert(b.width>=44&&b.height>=52);
+    assert(Math.abs(boxes[0].width-boxes[1].width)<1);assert(Math.abs(boxes[0].width-boxes[2].width)<1);
+    if(width>650){assert(Math.abs(boxes[0].y-boxes[1].y)<1);assert(boxes[2].y>=boxes[0].bottom);assert.equal(boxes[2].x,boxes[0].x)}
+    else{assert(boxes[1].y>=boxes[0].bottom&&boxes[2].y>=boxes[1].bottom);assert.equal(boxes[1].x,boxes[0].x)}
+    await buttons.first().focus();await page.keyboard.press('Tab');assert(await buttons.nth(1).evaluate(el=>el===document.activeElement));
+    await page.keyboard.press('Tab');assert(await buttons.nth(2).evaluate(el=>el===document.activeElement));
+    if(width===1440||width===768||width===390){await page.evaluate(()=>{document.activeElement.blur();window.scrollTo(0,0)});await page.screenshot({path:join(out,'screens/downloads-'+language+'-'+width+'.png'),fullPage:false});}
+   }
+   await page.evaluate(()=>document.documentElement.style.fontSize='200%');await noOverflow();
+   await page.evaluate(()=>document.documentElement.style.fontSize='');
+  }
+ });
  for(const language of ['zh-TW','en-US'])for(const suffix of ['','guide/'])await check('website '+language+'/'+suffix+' keyboard, axe, reflow',async()=>{
   await page.setViewportSize({width:1440,height:1000});await goto('/OpenCam/'+language+'/'+suffix);
   await page.keyboard.press('Tab');await page.keyboard.press('Enter');assert.equal(await page.evaluate(()=>document.activeElement.id),'main');

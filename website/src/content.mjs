@@ -8,7 +8,14 @@ if (!/^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\n$/.test(versionT
   throw new Error('VERSION must contain numeric SemVer and exactly one final LF');
 }
 export const productVersion = versionText.slice(0, -1);
-const displayVersion = `v${productVersion}`;
+// Advance this manifest only after all three public Release assets are verified.
+// Development VERSION changes must not silently create dead download links.
+const downloads = JSON.parse(readFileSync(new URL('../downloads.json', import.meta.url), 'utf8'));
+if (typeof downloads.version !== 'string' || !/^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$/.test(downloads.version)) {
+  throw new Error('Download version must identify a numeric published release');
+}
+export const downloadVersion = downloads.version;
+const downloadDisplayVersion = `v${downloadVersion}`;
 export const mainScreenshotVersion = JSON.parse(readFileSync(new URL('../../docs/images/metadata.json', import.meta.url), 'utf8')).version;
 const mainScreenshotDisplayVersion = `v${mainScreenshotVersion}`;
 
@@ -17,9 +24,12 @@ export const content = {
     eyebrow: 'Windows 與 macOS 的簡單錄影與剪輯工具',
     heroTitle: '<span class="hero-line">把重要的畫面，</span><em class="hero-line">好好錄下來。</em>',
     heroText: '錄影、剪輯、續錄，一次完成。整理片段、附加多語字幕，再輸出 MP4、GIF 或具章節與逐字稿搜尋的網頁播放器。原始 MKV 素材保留在專案中。',
-    downloadLabel: '下載 OpenCam', guideLabel: '閱讀使用說明',
+    windowsPortableLabel: '下載 Windows 免安裝版', windowsInstallerLabel: '下載 Windows 安裝版', macOSLabel: '下載 macOS 版', guideLabel: '閱讀使用說明',
+    windowsDownloadNote: 'Windows 適用於 x64；免安裝版請完整解壓後執行。',
+    macOSDownloadNote: 'macOS 適用於 Apple Silicon（M 系列）。',
+    releaseLinksLabel: '版本說明與其他下載：GitHub Releases',
     openSource: '開放原始碼 · 免費使用',
-    licenseReleaseNote: `目前版本 ${displayVersion} · Windows 與 macOS · AGPL-3.0-or-later`,
+    licenseReleaseNote: `目前版本 ${downloadDisplayVersion} · Windows 與 macOS · AGPL-3.0-or-later`,
     screenshotTitle: '每一步，都清楚直覺。',
     screenshotText: '從開始錄影到整理片段，保留熟悉而簡單的操作。錄影中分別查看兩種收音波形；需要剪輯時，再開啟時間軸。點選圖片可在頁內放大檢視。',
     mainAlt: `OpenCam ${mainScreenshotVersion} macOS 繁體中文錄影中主畫面，右側顯示系統聲音與麥克風收音波形`,
@@ -62,9 +72,12 @@ export const content = {
     eyebrow: 'Simple recording and editing for Windows and macOS',
     heroTitle: '<span class="hero-line">Capture what matters.</span><em class="hero-line">Keep it safe.</em>',
     heroText: 'Record, edit and continue in one place. Organize clips, attach multilingual subtitles and export MP4, GIF or a web player with chapters and transcript search. Keep original MKV media in your project.',
-    downloadLabel: 'Download OpenCam', guideLabel: 'Read the user guide',
+    windowsPortableLabel: 'Download Windows portable', windowsInstallerLabel: 'Download Windows installer', macOSLabel: 'Download macOS', guideLabel: 'Read the user guide',
+    windowsDownloadNote: 'Windows requires x64. Fully extract the portable ZIP before running.',
+    macOSDownloadNote: 'macOS requires Apple Silicon (M-series).',
+    releaseLinksLabel: 'Release notes and other downloads: GitHub Releases',
     openSource: 'Open source · Free to use',
-    licenseReleaseNote: `Current version ${displayVersion} · Windows and macOS · AGPL-3.0-or-later`,
+    licenseReleaseNote: `Current version ${downloadDisplayVersion} · Windows and macOS · AGPL-3.0-or-later`,
     screenshotTitle: 'Clear from the first click.',
     screenshotText: 'Keep recording simple, then open the timeline when you need to edit. Separate audio waveforms help monitor capture. Enlarge images in place without leaving the page.',
     mainAlt: `OpenCam ${mainScreenshotVersion} macOS English Recording screen with live system-audio and microphone audio waveforms`,
@@ -111,12 +124,13 @@ export function renderHome(language) {
   const suffix = language === 'zh-TW' ? 'zhtw' : 'enus';
   const guide = routeFor(language, 'guide');
   const latest = 'https://github.com/kaoshou/OpenCam/releases';
+  const downloadBase = `${latest}/download/${downloadDisplayVersion}/OpenCam_${downloadDisplayVersion}`;
   const featureCards = c.features.map(([number, title, text]) => `<li class="feature-card"><span class="feature-number">${number}</span><h3>${escapeHtml(title)}</h3><p>${escapeHtml(text)}</p></li>`).join('');
   const mainImage = assetPath(`preview_main_${suffix}.png`);
   const settingsImage = assetPath(`preview_settings_${suffix}.png`);
   const editorImage = assetPath(`preview_editor_${suffix}.png`);
   const subtitlesImage = assetPath(`preview_subtitles_${suffix}.png`);
-return `<section class="hero"><div class="container hero-grid"><div class="hero-copy"><p class="eyebrow"><span class="eyebrow-dot"></span>${escapeHtml(c.eyebrow)}</p><h1>${c.heroTitle}</h1><p class="hero-text">${escapeHtml(c.heroText)}</p><div class="hero-actions"><a class="button button-primary" href="${latest}">${escapeHtml(c.downloadLabel)} <span aria-hidden="true">↗</span></a><a class="button button-secondary" href="${guide}">${escapeHtml(c.guideLabel)} <span aria-hidden="true">→</span></a></div><p class="hero-meta">${escapeHtml(c.openSource)}</p><p class="release-license-note">${escapeHtml(c.licenseReleaseNote)}</p></div><div class="hero-visual"><div class="window-halo"></div><a class="screenshot-link" href="${mainImage}" data-lightbox aria-label="${escapeHtml(c.fullSizeLabel)}"><img src="${mainImage}" alt="${escapeHtml(c.mainAlt)}" width="840" height="820"></a><span class="visual-caption">${escapeHtml(c.mainCaption)} · ${escapeHtml(c.fullSizeLabel)}</span></div></div></section>
+return `<section class="hero"><div class="container hero-grid"><div class="hero-copy"><p class="eyebrow"><span class="eyebrow-dot"></span>${escapeHtml(c.eyebrow)}</p><h1>${c.heroTitle}</h1><p class="hero-text">${escapeHtml(c.heroText)}</p><div class="hero-actions"><a class="button button-primary" href="${downloadBase}_Windows_x64_Portable.zip">${escapeHtml(c.windowsPortableLabel)}</a><a class="button button-secondary" href="${downloadBase}_Windows_x64_Setup.exe">${escapeHtml(c.windowsInstallerLabel)}</a><a class="button button-secondary" href="${downloadBase}_macOS_arm64.dmg">${escapeHtml(c.macOSLabel)}</a></div><div class="download-notes"><p>${escapeHtml(c.windowsDownloadNote)}</p><p>${escapeHtml(c.macOSDownloadNote)}</p><p class="download-links"><a href="${latest}">${escapeHtml(c.releaseLinksLabel)}</a><a href="${guide}">${escapeHtml(c.guideLabel)}</a></p></div><p class="hero-meta">${escapeHtml(c.openSource)}</p><p class="release-license-note">${escapeHtml(c.licenseReleaseNote)}</p></div><div class="hero-visual"><div class="window-halo"></div><a class="screenshot-link" href="${mainImage}" data-lightbox aria-label="${escapeHtml(c.fullSizeLabel)}"><img src="${mainImage}" alt="${escapeHtml(c.mainAlt)}" width="840" height="820"></a><span class="visual-caption">${escapeHtml(c.mainCaption)} · ${escapeHtml(c.fullSizeLabel)}</span></div></div></section>
 <section class="section screenshot-section" id="preview"><div class="container"><div class="section-intro"><p class="section-kicker">01 / OpenCam</p><h2>${escapeHtml(c.screenshotTitle)}</h2><p>${escapeHtml(c.screenshotText)}</p></div><div class="screenshot-grid"><figure class="screenshot-card"><a class="screenshot-link" href="${mainImage}" data-lightbox aria-label="${escapeHtml(c.fullSizeLabel)}"><img src="${mainImage}" alt="${escapeHtml(c.mainAlt)}" loading="lazy" width="840" height="820"></a><figcaption>${escapeHtml(c.mainCaption)} · <a href="${mainImage}" data-lightbox>${escapeHtml(c.fullSizeLabel)}</a></figcaption></figure><figure class="screenshot-card settings-card"><a class="screenshot-link" href="${settingsImage}" data-lightbox aria-label="${escapeHtml(c.fullSizeLabel)}"><img src="${settingsImage}" alt="${escapeHtml(c.settingsAlt)}" loading="lazy" width="650" height="820"></a><figcaption>${escapeHtml(c.settingsCaption)} · <a href="${settingsImage}" data-lightbox>${escapeHtml(c.fullSizeLabel)}</a></figcaption></figure></div><p class="preview-note">${escapeHtml(c.previewNote)}</p></div></section>
 <section class="section editor-section" id="editing"><div class="container"><div class="section-intro"><p class="section-kicker">NEW / ${escapeHtml(mainScreenshotVersion)}</p><h2>${escapeHtml(c.editorTitle)}</h2><p>${escapeHtml(c.editorText)}</p></div><figure class="screenshot-card editor-card"><a class="screenshot-link" href="${editorImage}" data-lightbox aria-label="${escapeHtml(c.fullSizeLabel)}"><img src="${editorImage}" alt="${escapeHtml(c.editorAlt)}" loading="lazy" width="1440" height="900"></a><figcaption>${escapeHtml(c.editorCaption)} · <a href="${editorImage}" data-lightbox>${escapeHtml(c.fullSizeLabel)}</a></figcaption></figure><ul class="editor-highlights">${c.editorPoints.map(point => `<li>${escapeHtml(point)}</li>`).join('')}</ul></div></section>
 <section class="section editor-section" id="subtitles"><div class="container"><div class="section-intro"><p class="section-kicker">NEW / ${escapeHtml(productVersion)}</p><h2>${escapeHtml(c.subtitlesTitle)}</h2><p>${escapeHtml(c.subtitlesText)}</p></div><figure class="screenshot-card editor-card"><a class="screenshot-link" href="${subtitlesImage}" data-lightbox aria-label="${escapeHtml(c.fullSizeLabel)}"><img src="${subtitlesImage}" alt="${escapeHtml(c.subtitlesAlt)}" loading="lazy" width="780" height="620"></a><figcaption>${escapeHtml(c.subtitlesCaption)} · <a href="${subtitlesImage}" data-lightbox>${escapeHtml(c.fullSizeLabel)}</a></figcaption></figure></div></section>
