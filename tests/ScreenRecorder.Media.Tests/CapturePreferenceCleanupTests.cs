@@ -59,7 +59,7 @@ public class CapturePreferenceCleanupTests
         finally {window.Close();vm.Strings.CurrentLanguage=old;}
     }
 
-    [MacOsOnlyFact]
+    [MacOsAvaloniaFact]
     public async Task MacCaptureDropdownPreservesScreenCaptureKitAcrossLanguageAndLockedSave()
     {
         var service=new MockSettingsService{CurrentSettings=new(){NativeCaptureEnabled=true}};

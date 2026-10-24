@@ -45,6 +45,19 @@ internal sealed class MacOsOnlyFactAttribute : FactAttribute
     }
 }
 
+// AvaloniaFactAttribute is sealed; retain its pinned 11.2.5 discoverer and add only the platform skip.
+[Xunit.Sdk.XunitTestCaseDiscoverer("Avalonia.Headless.XUnit.AvaloniaUIFactDiscoverer", "Avalonia.Headless.XUnit")]
+internal sealed class MacOsAvaloniaFactAttribute : FactAttribute
+{
+    public MacOsAvaloniaFactAttribute()
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            Skip = "Requires macOS capture preferences and an Avalonia service scope.";
+        }
+    }
+}
+
 internal sealed class RealMacHelperFactAttribute : FactAttribute
 {
     public RealMacHelperFactAttribute()
