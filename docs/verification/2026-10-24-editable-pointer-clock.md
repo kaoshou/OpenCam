@@ -70,7 +70,7 @@ The validation artifact includes the exact native executable beside the managed 
 
 Still **REQUIRES MANUAL VALIDATION**:
 
-1. Build the current revision with the Windows SDK and execute the Windows-specific synthetic named-pipe/FFmpeg case. Verify the copied executable/hash and preserve the exact run/source revision.
+1. Automated Windows build/synthetic pipeline/package validation is now complete for `c862e21` (see final evidence below). Physical capture acceptance remains separate.
 2. On Windows, record a stationary and moving desktop with rapid physical press/release events; verify that every transition survives, cursor-free video stays valid after a forced metadata-queue failure, and the normal desktop cursor remains usable. Cover mixed DPI, negative monitor origins and crop edges.
 3. Exercise repeated start/stop, cancellation, monitor loss, secure-desktop/lock transitions and sustained load. Preserve video, private sidecar, frame-PTS probe and process/handle/thread evidence; establish that all owned processes and native callbacks stop.
 4. On macOS, validate real ScreenCaptureKit permission/event-tap behavior, Retina/multiple displays, normal auto-hidden cursor semantics and physical click-to-frame alignment. Generated VideoToolbox frames do not prove those OS interactions.
@@ -97,11 +97,19 @@ A final regression reproduces an internal frame-clock probe cancellation escapin
 
 ## Independent whole-branch review and Windows integration
 
-Fresh read-only review of `c1fd395..515eaec` found no Critical or Minor findings and one Important issue: destination-write failure could leave the pointer video encoder waiting for blocked sibling tasks. A generated-noise/disk-full regression and bounded worker/process cleanup are required before handoff. This is not a second review or a claim of physical validation.
+Fresh read-only review of `c1fd395..515eaec` found no Critical or Minor findings and one Important issue: destination-write failure could leave the pointer video encoder waiting for blocked sibling tasks. The generated-noise/disk-full regression first failed with TimeoutException after10seconds, then passed after first-worker-failure signaling unblocked cleanup while preserving the original IOException. All6encoder tests passed. This is the single review/fix pass, not a second review or a claim of physical validation.
 
 Windows run40074334873 compiled the native helper and passed its protocol/package fixtures. Core reported330passed,3skipped,5failed. Complete failure evidence is `/private/tmp/opencam-pointer-windows-515eaec-failed.log`. Three collector cases attempted to reopen a file before releasing its write handle; production already disposes the collector before promotion. The replacement test attempted rename while its verified reader was still Windows-locked; the fixture now closes the reader to target the intended verification/reopen window. The symlink rejection test expected the Unix IOException rather than Windows InvalidDataException; platform-specific exact expectations preserve rejection. Storage guards are unchanged; the current Windows rerun must pass before package handoff.
 
 Review limitations retained: real Windows capture/mixed DPI/secure desktop, real macOS permissions/Retina/click alignment, long-duration resource use, and actual screen readers/touch devices need manual acceptance. No physical results are invented from synthetic tests. macOS app-controlled cursor auto-hiding remains outside the user-approved ordinary-desktop scope; editor Hidden remains available.
+
+### Final evidence and development handoff
+
+- Final local Release suite at code revision`c862e21001ebbea4582aec64c6ca54e0614919be`: Core338passed; Media1184passed/21skipped;0failures. `/private/tmp/opencam-pointer-review-full.log`.
+- Windows [run40074727998](https://github.com/kaoshou/OpenCam/actions/runs/40074727998) succeeded at exactly that SHA: Core335passed/3skipped; scoped native/pointer Media99passed/8skipped. Native compile/protocol tests, packaging, exact helper execution, source and license checks passed. This is not a full Windows Media suite or physical screen capture test.
+- Original Actions package artifact12552703057,181697065bytes, SHA256`164d9fcef669989fc63420446fe35a818124a5c5ace28f5eb28c5ba0cdf7b261`; API workflow SHA/expiry/size/digest matched before extraction. ZIP integrity/full extraction passed. OpenCam.exe, OpenCam.ScreenCapture.exe, ffmpeg.exe, ffprobe.exe are nonempty PE x64; helper342016bytes and SHA256`24ff3bab9407a3db82cd2a4af4f33e3a9eb6bd87112fb548731e1ac8b4198a82` match CI's copy receipt. Local release-notice check passed for0.4.1and exact source SHA.
+- Package and diagnostics retained in `/Users/yhcheng/Documents/Codex/OpenCam-test-packages/0.4.1-editable-pointer-c862e21/`, alongside screenshots and usage instructions. ZIP is the original Actions artifact, not a locally rebuilt/repacked substitute.
+- No version change, master merge, Release, website deployment or automation enablement. The existing unrelated main-worktree changes remain untouched. Development branch/worktree are retained.
 
 ## Earlier player evidence
 

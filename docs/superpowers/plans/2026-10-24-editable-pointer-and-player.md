@@ -68,4 +68,4 @@
 
 - [x] Update guide/website descriptions of opt-in/new recordings, editable styles and full-folder backups.
 - [x] Browser19 groups, Node36, website41/build and native synthetic tests passed; desktop/mobile screenshots inspected. Local full suite passed; physical platform limits remain documented.
-- [ ] Fresh whole-branch review, address important findings with regression tests, preserve evidence and hand off without publishing.
+- [x] Fresh whole-branch review c1fd395..515eaec completed: one Important export-worker deadlock fixed under RED/GREEN; final Core338/Media1184 pass,21 skips. Windows run40074727998 at c862e21 passed; original validation ZIP digest/PE/helper/source/notices verified. Development handoff only, no merge/release/deployment.
