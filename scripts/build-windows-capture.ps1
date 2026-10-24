@@ -9,7 +9,7 @@ $source = Join-Path $repo 'src/ScreenRecorder.Platform.Windows/Native/OpenCamScr
 $test = Join-Path $repo 'tests/native/capture-clock-tests.cpp'
 Push-Location $output
 try {
-    & $compiler.Source /nologo /std:c++17 /EHsc /W4 /WX /O2 /utf-8 /DWINVER=0x0A00 /D_WIN32_WINNT=0x0A00 $source /Fe:OpenCam.ScreenCapture.exe /link d3d11.lib dxgi.lib windowsapp.lib user32.lib
+    & $compiler.Source /nologo /std:c++20 /EHsc /W4 /WX /O2 /utf-8 /DWINVER=0x0A00 /D_WIN32_WINNT=0x0A00 $source /Fe:OpenCam.ScreenCapture.exe /link d3d11.lib dxgi.lib windowsapp.lib user32.lib
     if ($LASTEXITCODE -ne 0) { throw 'Windows capture helper compilation failed.' }
     & $compiler.Source /nologo /std:c++17 /EHsc /W4 /WX /O2 /utf-8 $test /Fe:capture-clock-tests.exe
     if ($LASTEXITCODE -ne 0) { throw 'Native protocol tests compilation failed.' }

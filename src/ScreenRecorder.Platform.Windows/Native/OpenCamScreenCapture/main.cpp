@@ -23,9 +23,9 @@
 #include "capture_protocol.h"
 
 using namespace winrt;
-using namespace Windows::Graphics::Capture;
-using namespace Windows::Graphics::DirectX;
-using namespace Windows::Graphics::DirectX::Direct3D11;
+using namespace winrt::Windows::Graphics::Capture;
+using namespace winrt::Windows::Graphics::DirectX;
+using namespace winrt::Windows::Graphics::DirectX::Direct3D11;
 namespace {
 std::mutex diagnostic_mutex;
 void diagnostic(const std::string& value) {
@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
                 auto frame = sender.TryGetNextFrame(); if (!frame) return;
                 if (frame.ContentSize().Width != args[5] || frame.ContentSize().Height != args[6])
                     throw std::runtime_error("Capture dimensions changed");
-                auto access = frame.Surface().template as<IDirect3DDxgiInterfaceAccess>();
+                auto access = frame.Surface().template as<::Windows::Graphics::DirectX::Direct3D11::IDirect3DDxgiInterfaceAccess>();
                 com_ptr<ID3D11Texture2D> texture;
                 check_hresult(access->GetInterface(__uuidof(ID3D11Texture2D), texture.put_void()));
                 const D3D11_BOX box{static_cast<UINT>(args[1]), static_cast<UINT>(args[2]), 0,
