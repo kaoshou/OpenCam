@@ -1,17 +1,20 @@
 using ScreenRecorder.Core.Projects;
+using ScreenRecorder.Core.Models;
 using ScreenRecorder.Infrastructure.Projects;
 using ScreenRecorder.Infrastructure.Session;
 using System.Text;
 
 namespace ScreenRecorder.Recorder.Services;
 
-public sealed class ProjectWebPlayerExporter(IRecordingContentExporter exporter) : IRecordingContentExporter
+public sealed class ProjectWebPlayerExporter(IRecordingContentExporter exporter, WebPlayerLanguageOptions? languages = null) : IRecordingContentExporter
 {
+    private readonly WebPlayerLanguageOptions _languages = WebPlayerLanguageOptions.Normalize(languages);
     public async Task<RecordingExportResult> ExportAsync(IProjectHandle owner, RecordingProject snapshot,
         string directory, Guid id, IProgress<double> progress, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var data = await ProjectWebPlayerDocument.CreateDataAsync(owner, snapshot, ct);
+        var data = await ProjectWebPlayerDocument.CreateDataAsync(owner, snapshot, ct) with
+            { UiLanguages = WebPlayerLanguageOptions.Normalize(_languages) };
         if (data.Chapters.Length == 0) throw new InvalidOperationException("There is no content to export.");
         var html = ProjectWebPlayerDocument.CreateHtml(data);
         var script = ProjectWebPlayerDocument.CreateScript(data);

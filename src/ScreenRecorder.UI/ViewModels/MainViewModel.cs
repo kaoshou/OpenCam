@@ -655,6 +655,7 @@ public partial class MainViewModel : ObservableObject
             (command, request, ct) => _ipcClient.SendCommandAsync(command, request, timeoutMs: 45000, cancellationToken: ct),
             (request, ct) => _ipcClient.SendProjectFrameAsync(request, ct)));
         IsProjectWorkspaceOpen = true;
+        workspace.LoadWebPlayerLanguages = async () => (await _settingsService.LoadSettingsAsync()).WebPlayerLanguages;
         workspace.StateChanged += (_, _) => {
             IsPreparing = workspace.IsBusy || workspace.StatusUnconfirmed;
             IsRecording = workspace.State.Mode == ScreenRecorder.Core.Projects.ProjectMode.Recording;

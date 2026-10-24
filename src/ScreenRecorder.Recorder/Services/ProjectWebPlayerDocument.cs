@@ -1,4 +1,5 @@
 using ScreenRecorder.Core.Projects;
+using ScreenRecorder.Core.Models;
 using System.Net;
 using System.Reflection;
 using System.Text.Json;
@@ -15,6 +16,7 @@ public sealed record WebPlayerData(string Format, int SchemaVersion, WebPlayerGe
     string Entry, string Media, string Title, WebPlayerChapter[] Chapters)
 {
     public WebPlayerSubtitles? Subtitles { get; init; }
+    public WebPlayerLanguageOptions UiLanguages { get; init; } = new();
 }
 
 public static class ProjectWebPlayerDocument

@@ -28,6 +28,30 @@ public class MockSettingsService : ISettingsService
 public class SettingsViewModelTests
 {
     [Avalonia.Headless.XUnit.AvaloniaFact]
+    public async Task WebLanguagesRequireOneAndPersistOnlyOnSave()
+    {
+        var service = new MockSettingsService();
+        var vm = new SettingsViewModel(service);
+        await vm.LoadSettingsAsync();
+        vm.WebEnglishEnabled = false;
+        vm.WebJapaneseEnabled = false;
+        vm.WebChineseEnabled = false;
+        Assert.True(vm.WebChineseEnabled);
+        Assert.False(vm.CanDisableWebChinese);
+        Assert.Equal(3, service.CurrentSettings.WebPlayerLanguages.EnabledLanguages.Length);
+        vm.WebJapaneseEnabled = true;
+        vm.SelectedWebDefault = vm.AvailableWebDefaults.Single(x => x.Code == "ja");
+        vm.WebJapaneseEnabled = false;
+        Assert.Equal("auto", vm.SelectedWebDefault?.Code);
+        await vm.SaveCommand.ExecuteAsync(null);
+        var reloaded = new SettingsViewModel(service);
+        await reloaded.LoadSettingsAsync();
+        Assert.True(reloaded.WebChineseEnabled);
+        Assert.False(reloaded.WebEnglishEnabled);
+        Assert.False(reloaded.WebJapaneseEnabled);
+    }
+
+    [Avalonia.Headless.XUnit.AvaloniaFact]
     public async Task JapaneseLanguage_CanBeSelectedSavedAndReloaded()
     {
         var service = new MockSettingsService();

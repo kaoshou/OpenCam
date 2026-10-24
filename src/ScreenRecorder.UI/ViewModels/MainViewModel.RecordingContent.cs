@@ -169,6 +169,7 @@ public partial class MainViewModel
                 throw new IOException(_content.Workspace.Error ?? "Preview shutdown is unconfirmed.");
         });
         _content.Workspace.RequestUnsavedDecision = () => RequestUnsavedProjectDecision?.Invoke() ?? Task.FromResult(UnsavedDecision.Cancel);
+        _content.Workspace.LoadWebPlayerLanguages = async () => (await _settingsService.LoadSettingsAsync()).WebPlayerLanguages;
         _content.Workspace.RequestSubtitleExportDecision = () => RequestSubtitleExportDecision?.Invoke() ?? Task.FromResult(SubtitleExportDecision.Cancel);
         _content.Workspace.RequestDraftRecovery = () => RequestProjectDraftRecovery?.Invoke() ?? Task.FromResult<bool?>(null);
         _content.Workspace.RequestExistingExport = path => RequestExistingProjectExport?.Invoke(path) ?? Task.FromResult(ExistingExportDecision.Cancel);

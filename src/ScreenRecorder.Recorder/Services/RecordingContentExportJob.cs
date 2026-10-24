@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 using ScreenRecorder.Core.Projects;
+using ScreenRecorder.Core.Models;
 
 namespace ScreenRecorder.Recorder.Services;
 
@@ -29,16 +30,18 @@ internal sealed class RecordingContentExportJob : IRecordingExportProgress, IDis
     public RecordingContentExportJob(IRecordingContentExporter exporter, IProjectHandle owner,
         RecordingProject snapshot, string outputDirectory,
         Func<IProjectHandle, RecordingProject, string, CancellationToken, Task>? writeReceipt = null,
-        string? fileName = null, bool webPlayer = false, ProjectExportOptions? exportOptions = null)
+        string? fileName = null, bool webPlayer = false, ProjectExportOptions? exportOptions = null,
+        WebPlayerLanguageOptions? webPlayerLanguages = null)
     {
         Options = exportOptions;
+        var languages = WebPlayerLanguageOptions.Normalize(webPlayerLanguages);
         _status = new(Guid.NewGuid(), snapshot.Revision, RecordingExportState.Running, 0);
         Completion = Task.Run(async () =>
         {
             try
             {
                 using var destination = fileName is null ? null : ScreenRecorder.Infrastructure.Session.BoundDirectory.Open(outputDirectory);
-                IRecordingContentExporter outputExporter = webPlayer ? new ProjectWebPlayerExporter(exporter) : exporter;
+                IRecordingContentExporter outputExporter = webPlayer ? new ProjectWebPlayerExporter(exporter, languages) : exporter;
                 var result = await outputExporter.ExportAsync(owner, snapshot, outputDirectory, _status.ExportId, this, _cancellation.Token);
                 if (destination is not null && result.Success && result.FinalPath is { } generated)
                 {

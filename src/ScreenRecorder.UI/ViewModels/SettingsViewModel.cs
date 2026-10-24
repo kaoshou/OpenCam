@@ -152,6 +152,7 @@ public partial class SettingsViewModel : ObservableObject
 
     private void InitializeOptions()
     {
+        RefreshWebDefaults();
         RefreshCaptureModes();
         RefreshPreflightModes();
         // 1. 修飾鍵清單 (0=None, 1=Alt, 2=Ctrl, 4=Shift, 3=Ctrl+Alt, 6=Ctrl+Shift, 5=Alt+Shift)
@@ -214,6 +215,7 @@ public partial class SettingsViewModel : ObservableObject
 
     private void RefreshOptionLabels()
     {
+        RefreshWebDefaults();
         RefreshCaptureModes();
         RefreshPreflightModes();
         OnPropertyChanged(nameof(VersionLabelText));
@@ -237,6 +239,7 @@ public partial class SettingsViewModel : ObservableObject
     public async Task LoadSettingsAsync()
     {
         _currentSettings = await _settingsService.LoadSettingsAsync();
+        LoadWebLanguages(_currentSettings.WebPlayerLanguages);
         NativeCaptureEnabled = _currentSettings.NativeCaptureEnabled;
         EditablePointerEnabled = NativeCaptureEnabled && _currentSettings.EditablePointerEnabled;
         SelectedBookmarkModifier = AvailableModifiers.FirstOrDefault(m => m.Value == _currentSettings.BookmarkHotkeyModifiers) ?? AvailableModifiers.Single(m => m.Value == 6);
@@ -303,6 +306,7 @@ public partial class SettingsViewModel : ObservableObject
         candidate.BookmarkHotkeyKey = SelectedBookmarkKey.KeyName;
         if (TryApplyHotkeys?.Invoke(candidate) is { } registrationError) { ErrorMessage = registrationError; return; }
         _currentSettings = candidate;
+        _currentSettings.WebPlayerLanguages = GetWebLanguages();
         _currentSettings.StartStopHotkeyModifiers = SelectedStartStopModifier?.Value ?? 0;
         _currentSettings.StartStopHotkeyKey = SelectedStartStopKey?.KeyName ?? "F9";
         _currentSettings.PauseResumeHotkeyModifiers = SelectedPauseResumeModifier?.Value ?? 0;
@@ -353,6 +357,7 @@ public partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     public void ResetToDefaults()
     {
+        LoadWebLanguages(null);
         SelectedBookmarkModifier = AvailableModifiers.Single(m => m.Value == 6);
         SelectedBookmarkKey = AvailableKeys.Single(k => k.KeyName == "M");
         if (CanEditCaptureMode) SelectedCaptureMode = AvailableCaptureModes[0];

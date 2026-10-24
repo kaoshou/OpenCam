@@ -15,6 +15,7 @@ public sealed record ProjectRequest
     public bool PathIsExportFile { get; init; }
     public ProjectExportOptions? ExportOptions { get; init; }
     public bool ExportWebPlayer { get; init; }
+    public WebPlayerLanguageOptions? WebPlayerLanguages { get; init; }
     public bool SubtitleExportConfirmed { get; init; }
     public bool ExportWithoutSubtitles { get; init; }
     public bool ConfirmSubtitleSync { get; init; }

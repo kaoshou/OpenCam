@@ -9,6 +9,28 @@ namespace ScreenRecorder.Media.Tests;
 public sealed class WebPlayerExportTests
 {
     [Fact]
+    public async Task WebExportSnapshotsEnabledLanguages()
+    {
+        var root = Directory.CreateTempSubdirectory("opencam-web-languages-");
+        try
+        {
+            await using var owner = await new JsonProjectStore().CreateAsync(root.FullName, "Languages");
+            var options = new ScreenRecorder.Core.Models.WebPlayerLanguageOptions
+                { EnabledLanguages = ["ja"], DefaultLanguage = "ja" };
+            var exporter = new ProjectWebPlayerExporter(new VideoFixtureExporter(false), options);
+            options.EnabledLanguages[0] = "en";
+            var result = await exporter.ExportAsync(owner, Fixture(), root.FullName, Guid.NewGuid(), new Progress<double>(), default);
+            Assert.True(result.Success, result.Error);
+            var script = await File.ReadAllTextAsync(Path.Combine(Path.GetDirectoryName(result.FinalPath)!, "opencam-player.js"));
+            using var doc = JsonDocument.Parse(script[(script.IndexOf(" = ", StringComparison.Ordinal) + 3)..].Trim().TrimEnd(';'));
+            var policy = doc.RootElement.GetProperty("uiLanguages");
+            Assert.Equal("ja", policy.GetProperty("defaultLanguage").GetString());
+            Assert.Equal("ja", Assert.Single(policy.GetProperty("enabledLanguages").EnumerateArray()).GetString());
+        }
+        finally { root.Delete(true); }
+    }
+
+    [Fact]
     public async Task WebExportEmbedsProjectSubtitlesAndRejectsChangedAssets()
     {
         var root = Directory.CreateTempSubdirectory("opencam-web-subtitles-");

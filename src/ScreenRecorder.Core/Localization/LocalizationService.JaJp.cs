@@ -5,6 +5,10 @@ public partial class LocalizationService
 {
     public static readonly Dictionary<string, string> JaJpDictionary = new()
     {
+        ["WebLanguagesTitle"] = "Web プレーヤーの表示言語",
+        ["WebLanguagesDefault"] = "既定の言語",
+        ["WebLanguagesAuto"] = "自動（ブラウザーの設定）",
+        ["WebLanguagesNotice"] = "言語を最低 1 つ選択してください。1 つの場合は Web の言語メニューを非表示にします。今後の書き出しに適用され、字幕言語や既存の書き出しには影響しません。",
         ["EditablePointerLabel"] = "後から編集できるポインターを記録（初期値はオフ）",
         ["EditablePointerNotice"] = "高性能キャプチャが必要です。これから録画する内容に適用します。録画中は通常のカーソルが表示されます。元動画にはカーソルやポインター効果を含めず、エディターと書き出し時に追加します。指示棒・矢印・丸・非表示と、50～200% のサイズを選べます。Mac ではゲームによる自動非表示の再現は保証されません。エディターで非表示を選択できます。既存動画に焼き込まれたカーソルは変更できません。",
         ["ProjectPointerTitle"] = "編集用ポインター（プロジェクト全体）",

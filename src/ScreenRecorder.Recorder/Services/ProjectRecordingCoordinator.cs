@@ -340,7 +340,7 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
     }, operationId, "retry-export", ct);
 
     private void BeginExport(string? fileName = null, bool webPlayer = false, bool omitSubtitles = false,
-        ProjectExportOptions? exportOptions = null)
+        ProjectExportOptions? exportOptions = null, WebPlayerLanguageOptions? webPlayerLanguages = null)
     {
         if (exporter is null) throw new InvalidOperationException("Verified content export is not available yet. Sources remain saved.");
         if (_handle is null || Current!.Clips.IsEmpty) throw new InvalidOperationException("There is no content to export.");
@@ -354,12 +354,16 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
             ? mp4Exporter?.Invoke(profile) ?? throw new InvalidOperationException("Configured MP4 export is not available.")
             : exporter;
         _export = new(selectedExporter, _handle, selected, OutputDirectory, fileName: fileName, webPlayer: webPlayer,
-            exportOptions: exportOptions);
+            exportOptions: exportOptions, webPlayerLanguages: webPlayerLanguages);
     }
 
     public Task<ProjectCommandResult> ExportAsync(string outputDirectory, long expectedRevision, Guid operationId,
         CancellationToken ct = default, bool pathIsFile = false, bool webPlayer = false,
-        bool subtitleConfirmed = false, bool omitSubtitles = false, ProjectExportOptions? exportOptions = null) => Run(async () =>
+        bool subtitleConfirmed = false, bool omitSubtitles = false, ProjectExportOptions? exportOptions = null,
+        WebPlayerLanguageOptions? webPlayerLanguages = null)
+    {
+        var languages = WebPlayerLanguageOptions.Normalize(webPlayerLanguages);
+        return Run(async () =>
     {
         RequireNoExport();
         if (_handle is null || Mode is not (ProjectMode.Ready or ProjectMode.Paused))
@@ -384,8 +388,9 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
             throw new InvalidDataException($"Choose a new {extension} filename / 請指定尚未存在的 {extension} 檔名，既有檔案不會被覆寫。");
         await EnsureSavedForOperationAsync(ct);
         OutputDirectory = pathIsFile ? Path.GetDirectoryName(outputDirectory)! : outputDirectory;
-        BeginExport(fileName, webPlayer, omitSubtitles, exportOptions);
-    }, operationId, "export:" + expectedRevision + ":" + pathIsFile + ":" + webPlayer + ":" + subtitleConfirmed + ":" + omitSubtitles + ":" + outputDirectory + ":" + JsonSerializer.Serialize(exportOptions), ct);
+        BeginExport(fileName, webPlayer, omitSubtitles, exportOptions, languages);
+    }, operationId, "export:" + expectedRevision + ":" + pathIsFile + ":" + webPlayer + ":" + subtitleConfirmed + ":" + omitSubtitles + ":" + outputDirectory + ":" + JsonSerializer.Serialize(exportOptions) + ":" + JsonSerializer.Serialize(languages), ct);
+    }
 
     public async Task<ProjectCommandResult> CancelExportAsync(Guid exportId, CancellationToken ct = default)
     {

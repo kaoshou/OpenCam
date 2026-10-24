@@ -11,6 +11,7 @@ namespace ScreenRecorder.UI.Projects;
 
 public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : ObservableObject
 {
+    public Func<Task<WebPlayerLanguageOptions>>? LoadWebPlayerLanguages { get; set; }
     private readonly SemaphoreSlim _gate = new(1, 1);
     private Guid _pendingOperation;
     private (string Command, ProjectRequest Request)? _pendingRequest;
@@ -137,7 +138,10 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
             ? await (RequestSubtitleExportDecision?.Invoke() ?? Task.FromResult(SubtitleExportDecision.Cancel))
             : SubtitleExportDecision.Attach;
         if (decision == SubtitleExportDecision.Cancel || !Current()) return;
+        var languages = WebPlayerLanguageOptions.Normalize(LoadWebPlayerLanguages is null ? null : await LoadWebPlayerLanguages());
+        if (!Current()) return;
         await ExecuteAsync("ExportRecordingContent", new() { Path = parentDirectory, ExportWebPlayer = true,
+            WebPlayerLanguages = languages,
             ExportOptions = mp4 is null ? null : new(Mp4: mp4),
             SubtitleExportConfirmed = decision == SubtitleExportDecision.Attach,
             ExportWithoutSubtitles = decision == SubtitleExportDecision.Without }, Current);

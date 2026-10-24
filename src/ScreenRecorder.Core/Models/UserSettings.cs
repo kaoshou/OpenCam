@@ -7,6 +7,12 @@ namespace ScreenRecorder.Core.Models;
 
 public class UserSettings
 {
+    private WebPlayerLanguageOptions _webPlayerLanguages = new();
+    public WebPlayerLanguageOptions WebPlayerLanguages
+    {
+        get => WebPlayerLanguageOptions.Normalize(_webPlayerLanguages);
+        set => _webPlayerLanguages = WebPlayerLanguageOptions.Normalize(value);
+    }
     public List<string> RecentProjectPaths { get; set; } = [];
     public bool NativeCaptureEnabled { get; set; }
     public bool EditablePointerEnabled { get; set; }

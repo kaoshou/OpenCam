@@ -173,6 +173,23 @@
                         </StackPanel>
                     </Border>
 
+                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="16,13">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="{Binding Strings[WebLanguagesTitle]}" FontWeight="Bold" />
+                            <WrapPanel Orientation="Horizontal">
+                                <CheckBox Content="繁體中文" IsChecked="{Binding WebChineseEnabled}" IsEnabled="{Binding CanDisableWebChinese}" Margin="0,0,16,0" />
+                                <CheckBox Content="English" IsChecked="{Binding WebEnglishEnabled}" IsEnabled="{Binding CanDisableWebEnglish}" Margin="0,0,16,0" />
+                                <CheckBox Content="日本語" IsChecked="{Binding WebJapaneseEnabled}" IsEnabled="{Binding CanDisableWebJapanese}" />
+                            </WrapPanel>
+                            <TextBlock Text="{Binding Strings[WebLanguagesDefault]}" />
+                            <ComboBox ItemsSource="{Binding AvailableWebDefaults}" SelectedItem="{Binding SelectedWebDefault}"
+                                      HorizontalAlignment="Stretch" AutomationProperties.Name="{Binding Strings[WebLanguagesDefault]}">
+                                <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding DisplayName}" /></DataTemplate></ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <TextBlock Text="{Binding Strings[WebLanguagesNotice]}" TextWrapping="Wrap" FontSize="12" />
+                        </StackPanel>
+                    </Border>
+
                     <!-- 分組 3：錄影畫質與行為 -->
                     <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="16,13" BoxShadow="0 2 8 #0F172A05">
                         <StackPanel Spacing="10">

@@ -62,6 +62,10 @@ public partial class LocalizationService : ILocalizationService
 
     public static readonly Dictionary<string, string> ZhTwDictionary = new()
     {
+        ["WebLanguagesTitle"] = "網頁播放器介面語言",
+        ["WebLanguagesDefault"] = "預設語言",
+        ["WebLanguagesAuto"] = "自動判斷（依瀏覽器）",
+        ["WebLanguagesNotice"] = "至少保留一種語言；只有一種時隱藏網頁語言選單。僅套用至之後匯出的播放器，不影響字幕語言或既有匯出。",
         ["EditablePointerLabel"] = "錄製可於後製調整的指標（預設關閉）",
         ["EditablePointerNotice"] = "需先開啟高效能擷取，只影響接下來新錄製的內容。錄影時仍顯示正常滑鼠；原始影片不含滑鼠或指標效果，編輯器與匯出再套用指標。後製可選指示棒、箭頭、圓點或隱藏，大小 50–200%。Mac 不保證跟隨遊戲自動隱藏游標，可在編輯器選隱藏。舊影片的內嵌游標無法變更。",
         ["ProjectPointerTitle"] = "後製指標（整個專案）",
@@ -634,6 +638,10 @@ public partial class LocalizationService : ILocalizationService
 
     public static readonly Dictionary<string, string> EnUsDictionary = new()
     {
+        ["WebLanguagesTitle"] = "Web player interface languages",
+        ["WebLanguagesDefault"] = "Default language",
+        ["WebLanguagesAuto"] = "Automatic (browser preference)",
+        ["WebLanguagesNotice"] = "Keep at least one language. With one language, the web language selector is hidden. Applies to future exports only, not subtitle languages or existing exports.",
         ["EditablePointerLabel"] = "Record an editable pointer (off by default)",
         ["EditablePointerNotice"] = "Requires high-performance capture; applies to newly recorded content. Your normal cursor stays visible while recording. Source video contains no cursor or pointer effects; the editor and export add the pointer. Choose Stick, Arrow, Dot or Hidden at 50–200%. On Mac, game-triggered cursor hiding is not guaranteed; choose Hidden in the editor. Cursors baked into older videos cannot be changed.",
         ["ProjectPointerTitle"] = "Postproduction pointer (whole project)",
