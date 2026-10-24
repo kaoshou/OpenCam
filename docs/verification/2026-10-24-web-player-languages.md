@@ -31,6 +31,18 @@ Browser fixture video is synthetic. Screenshots contain no personal desktop reco
 
 ## Manual checks
 
+## Independent review
+
+Fresh read-only whole-branch review of d7b01e9..6db535f found no Critical/Important issues. Reviewer independently ran 35 Node tests and checked identical 106-key catalogs.
+
+Deferred minor: exiting wide layout through a chapter/transcript skip link leaves the wide button's accessible name as Restore layout until refreshed; visual layout, tooltip and operation are correct.
+
+Coverage limits: new browser switching cases use selectOption with paused video; actual keyboard language selection during playback remains manual. Node tests simulate playing state. Catalog parity was independently inspected, not enforced by a committed parity test.
+
+Unchanged settings I/O fallback/concurrent saves and legacy failed-export retry behavior remain outside this feature; no introduced failure was established. JavaScript-disabled fallback stays Chinese, because policy selection requires JavaScript.
+
+### Remaining manual checks
+
 On Windows and macOS, open Settings, select one/two/three web interface languages, save, change FPS, reopen Settings and export. The choices must persist; one enabled language must hide the web selector. Existing exported folders must remain unchanged.
 
 On physical iOS Safari and Android Chrome, open a new export, switch interface language during playback, search the transcript, open reading settings and download HTML/TXT. Expect no playback reset, horizontal overflow or lost keyboard/touch focus. These physical-device and native desktop interaction checks require manual validation.
