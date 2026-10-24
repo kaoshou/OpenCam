@@ -42,84 +42,454 @@ footer{color:#536174}
 #transcript-list{height:auto;min-height:0}
 @media(max-width:480px){.caption-menu{position:fixed;inset:auto 10px 12px;width:auto;max-width:none;max-height:80vh}.time-display{font-size:11px}.control-button{min-width:32px;min-height:32px}}
 @media(forced-colors:active){button,select,input,summary{border:1px solid ButtonText!important}.caption-text{forced-color-adjust:none}.transcript-row[aria-current=true],.chapter[aria-current=true]{outline:2px solid Highlight}.controls{background:Canvas;color:CanvasText}}
+.ui-language-control{margin-left:auto;min-width:0}.ui-language-control select{max-width:150px;font-size:12px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}@media(max-width:480px){header{flex-wrap:wrap}.heading{flex:1}.ui-language-control{margin-left:auto}}
 </style>
 <script src="opencam-player.js" defer></script>
 </head>
 <body>
-<nav aria-label="快速導覽 / Quick navigation"><a class="skip-link" id="skip-player" href="#stage" data-jump="player">跳至播放器 / Skip to player</a><a class="skip-link" id="skip-chapters" href="#chapter-tab" data-jump="chapters">跳至章節 / Skip to chapters</a><a class="skip-link" id="skip-transcript" href="#transcript-tab" data-jump="transcript">跳至逐字稿 / Skip to transcript</a></nav>
+<nav aria-label="快速導覽" data-i18n-aria-label="quick"><a class="skip-link" id="skip-player" href="#stage" data-jump="player"><span data-i18n="skipPlayer">跳至播放器</span></a><a class="skip-link" id="skip-chapters" href="#chapter-tab" data-jump="chapters"><span data-i18n="skipChapters">跳至章節</span></a><a class="skip-link" id="skip-transcript" href="#transcript-tab" data-jump="transcript"><span data-i18n="skipTranscript">跳至逐字稿</span></a></nav>
 <main id="main">
-<header><span class="mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="26" height="20" rx="4"/><path d="M13 10l8 4-8 4z" fill="currentColor" stroke="none"/><path d="M11 29h10"/></svg></span><div class="heading"><h1 id="title">%%TITLE%%</h1><div class="subtitle" id="summary">OpenCam · 網頁播放器 / Web player</div></div></header>
+<header><span class="mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="26" height="20" rx="4"/><path d="M13 10l8 4-8 4z" fill="currentColor" stroke="none"/><path d="M11 29h10"/></svg></span><div class="heading"><h1 id="title">%%TITLE%%</h1><div class="subtitle" id="summary"><span data-i18n="webPlayer">OpenCam · 網頁播放器</span></div></div><label id="ui-language-control" class="ui-language-control"><span class="sr-only" data-i18n="uiLanguage">介面語言</span><select id="ui-language" aria-label="介面語言" data-i18n-aria-label="uiLanguage"></select></label></header>
 <div class="layout" id="layout">
-<section class="player" id="player" aria-label="影片播放器 / Video player">
-<div class="stage" id="stage" tabindex="0" aria-label="影片；空白鍵播放、方向鍵快轉 / Video keyboard controls">
-<video id="video" controls playsinline preload="metadata" src="media.mp4">您的瀏覽器不支援影片播放。 Your browser does not support video playback.</video>
+<section class="player" id="player" aria-label="影片播放器" data-i18n-aria-label="videoPlayer">
+<div class="stage" id="stage" tabindex="0" aria-label="影片；空白鍵播放、方向鍵快轉" data-i18n-aria-label="videoKeys">
+<video id="video" controls playsinline preload="metadata" src="media.mp4"><span data-i18n="unsupported">您的瀏覽器不支援影片播放。</span></video>
 <div class="caption-overlay" id="caption-overlay" data-position="bottom" hidden><span class="caption-text" id="caption-text"></span></div>
-<div class="controls" id="controls" role="group" aria-label="播放控制 / Playback controls">
-<input class="seek" id="seek" type="range" min="0" max="100" step="0.1" value="0" aria-label="播放進度 / Seek">
+<div class="controls" id="controls" role="group" aria-label="播放控制" data-i18n-aria-label="controls">
+<input class="seek" id="seek" type="range" min="0" max="100" step="0.1" value="0" aria-label="播放進度" data-i18n-aria-label="seek">
 <div class="control-row">
-<button class="control-button" id="play" type="button" aria-label="播放 / Play" title="播放／暫停 / Play or pause"><svg class="play-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z" fill="currentColor" stroke="none"/></svg><svg class="pause-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14" stroke-width="4"/></svg></button>
-<button class="control-button" id="mute" type="button" aria-label="靜音 / Mute" aria-pressed="false" title="靜音 / Mute"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h4l5-5v16l-5-5H3zM16 8q5 4 0 8"/></svg></button>
-<input class="volume" id="volume" type="range" min="0" max="1" step="0.05" value="1" aria-label="音量 / Volume">
+<button class="control-button" id="play" type="button" aria-label="播放" data-i18n-aria-label="play" title="播放／暫停" data-i18n-title="playPause"><svg class="play-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z" fill="currentColor" stroke="none"/></svg><svg class="pause-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14" stroke-width="4"/></svg></button>
+<button class="control-button" id="mute" type="button" aria-label="靜音" data-i18n-aria-label="mute" aria-pressed="false" title="靜音" data-i18n-title="mute"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h4l5-5v16l-5-5H3zM16 8q5 4 0 8"/></svg></button>
+<input class="volume" id="volume" type="range" min="0" max="1" step="0.05" value="1" aria-label="音量" data-i18n-aria-label="volume">
 <span class="time-display"><span id="current-time">0:00</span> / <span id="total-time">0:00</span></span>
 <span class="control-spacer"></span>
-<select id="speed" aria-label="播放速度 / Playback speed" title="播放速度 / Speed"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option selected value="1">1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option></select>
-<button class="control-button" id="caption-button" type="button" aria-label="字幕 / Subtitles" aria-controls="caption-menu" aria-expanded="false" aria-pressed="false" title="字幕 / Subtitles" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 10h4m-4 4h3m5-4h4m-4 4h3"/></svg></button>
-<button class="control-button" id="wide" type="button" aria-label="寬螢幕 / Wide screen" aria-pressed="false" title="寬螢幕 / Wide screen"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/></svg></button>
-<button class="control-button" id="fullscreen" type="button" aria-label="全螢幕 / Full screen" aria-pressed="false" title="全螢幕 / Full screen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></button>
+<select id="speed" aria-label="播放速度" data-i18n-aria-label="speed" title="播放速度" data-i18n-title="speedTitle"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option selected value="1">1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option></select>
+<button class="control-button" id="caption-button" type="button" aria-label="字幕" data-i18n-aria-label="captions" aria-controls="caption-menu" aria-expanded="false" aria-pressed="false" title="字幕" data-i18n-title="captions" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 10h4m-4 4h3m5-4h4m-4 4h3"/></svg></button>
+<button class="control-button" id="wide" type="button" aria-label="寬螢幕" data-i18n-aria-label="wide" aria-pressed="false" title="寬螢幕" data-i18n-title="wide"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/></svg></button>
+<button class="control-button" id="fullscreen" type="button" aria-label="全螢幕" data-i18n-aria-label="fullscreen" aria-pressed="false" title="全螢幕" data-i18n-title="fullscreen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></button>
 </div>
-<div class="caption-menu" id="caption-menu" role="dialog" aria-label="字幕設定 / Subtitle settings" hidden>
-<h3>字幕 / Subtitles</h3>
-<label for="caption-language">語言 / Language</label><select id="caption-language"></select>
-<label for="caption-size">字級 / Text size <output id="caption-size-value">100%</output></label><input id="caption-size" type="range" min="75" max="200" step="25" value="100">
-<label for="caption-theme">樣式 / Appearance</label><select id="caption-theme"><option value="0">白字黑底 / White on black</option><option value="1">黃字黑底 / Yellow on black</option><option value="2">黑字白底 / Black on white</option><option value="3">白字陰影 / White with shadow</option></select>
-<label for="caption-opacity">背景不透明度 / Background opacity</label><input id="caption-opacity" type="range" min="0" max="1" step="0.05" value="0.78">
-<label for="caption-position">位置 / Position</label><select id="caption-position"><option value="bottom">下方 / Bottom</option><option value="middle">中間 / Middle</option><option value="top">上方 / Top</option></select>
-<button id="caption-reset" type="button">重設外觀 / Reset appearance</button>
-<button id="caption-close" type="button">關閉設定 / Close settings</button>
+<div class="caption-menu" id="caption-menu" role="dialog" aria-label="字幕設定" data-i18n-aria-label="captionSettings" hidden>
+<h3><span data-i18n="captions">字幕</span></h3>
+<label for="caption-language"><span data-i18n="language">語言</span></label><select id="caption-language"></select>
+<label for="caption-size"><span data-i18n="captionSize">字級</span><output id="caption-size-value">100%</output></label><input id="caption-size" type="range" min="75" max="200" step="25" value="100">
+<label for="caption-theme"><span data-i18n="appearance">樣式</span></label><select id="caption-theme"><option value="0" data-i18n="whiteBlack">白字黑底</option><option value="1" data-i18n="yellowBlack">黃字黑底</option><option value="2" data-i18n="blackWhite">黑字白底</option><option value="3" data-i18n="shadow">白字陰影</option></select>
+<label for="caption-opacity"><span data-i18n="opacity">背景不透明度</span></label><input id="caption-opacity" type="range" min="0" max="1" step="0.05" value="0.78">
+<label for="caption-position"><span data-i18n="position">位置</span></label><select id="caption-position"><option value="bottom" data-i18n="bottom">下方</option><option value="middle" data-i18n="middle">中間</option><option value="top" data-i18n="top">上方</option></select>
+<button id="caption-reset" type="button"><span data-i18n="resetAppearance">重設外觀</span></button>
+<button id="caption-close" type="button"><span data-i18n="closeSettings">關閉設定</span></button>
 </div></div></div>
-<div class="details"><div class="current"><span class="caption">目前章節 / NOW PLAYING</span><span class="now" id="now">準備播放 / Ready</span></div></div>
+<div class="details"><div class="current"><span class="caption"><span data-i18n="now">目前章節</span></span><span class="now" id="now"><span data-i18n="ready">準備播放</span></span></div></div>
 <div class="error" id="error" role="status" hidden></div>
 </section>
 <aside class="chapters" id="sidebar">
-<div class="index-tabs" role="tablist" aria-label="教材索引 / Lesson index"><button id="chapter-tab" role="tab" aria-selected="true" aria-controls="chapter-panel">章節 / Chapters</button><button id="transcript-tab" role="tab" aria-selected="false" aria-controls="transcript-panel">逐字稿 / Transcript</button></div>
-<div class="index-panel" id="chapter-panel" role="tabpanel" aria-labelledby="chapter-tab"><nav class="list" id="chapters" aria-label="影片章節 / Video chapters"></nav></div>
+<div class="index-tabs" role="tablist" aria-label="教材索引" data-i18n-aria-label="index"><button id="chapter-tab" role="tab" aria-selected="true" aria-controls="chapter-panel"><span data-i18n="chapters">章節</span></button><button id="transcript-tab" role="tab" aria-selected="false" aria-controls="transcript-panel"><span data-i18n="transcript">逐字稿</span></button></div>
+<div class="index-panel" id="chapter-panel" role="tabpanel" aria-labelledby="chapter-tab"><nav class="list" id="chapters" aria-label="影片章節" data-i18n-aria-label="videoChapters"></nav></div>
 <div class="index-panel" id="transcript-panel" role="tabpanel" aria-labelledby="transcript-tab" hidden>
-<div class="transcript-tools"><div class="reading-toolbar"><button id="reading-button" class="reading-toggle" type="button" aria-expanded="false" aria-controls="reading-menu" aria-haspopup="dialog"><span class="reading-arrow" aria-hidden="true">▶</span>閱讀設定 / Reading settings</button></div>
-<div id="reading-menu" class="reading-options" role="dialog" aria-labelledby="reading-heading" hidden><div class="reading-heading"><h3 id="reading-heading">閱讀設定 / Reading settings</h3><button id="reading-close" class="reading-close" type="button" aria-label="關閉閱讀設定 / Close reading settings">✕</button></div><div class="reading-fields">
-<label class="follow"><input id="transcript-follow" type="checkbox" checked>跟隨播放 / Follow playback</label>
-<label for="reading-size">閱讀字級 / Text size <output id="reading-size-value">100%</output></label><input id="reading-size" type="range" min="100" max="200" step="25" value="100">
+<div class="transcript-tools"><div class="reading-toolbar"><button id="reading-button" class="reading-toggle" type="button" aria-expanded="false" aria-controls="reading-menu" aria-haspopup="dialog"><span class="reading-arrow" aria-hidden="true">▶</span><span data-i18n="reading">閱讀設定</span></button></div>
+<div id="reading-menu" class="reading-options" role="dialog" aria-labelledby="reading-heading" hidden><div class="reading-heading"><h3 id="reading-heading"><span data-i18n="reading">閱讀設定</span></h3><button id="reading-close" class="reading-close" type="button" aria-label="關閉閱讀設定" data-i18n-aria-label="closeReading">✕</button></div><div class="reading-fields">
+<label class="follow"><input id="transcript-follow" type="checkbox" checked><span data-i18n="follow">跟隨播放</span></label>
+<label for="reading-size"><span data-i18n="readingSize">閱讀字級</span><output id="reading-size-value">100%</output></label><input id="reading-size" type="range" min="100" max="200" step="25" value="100">
 <div class="advanced-fields">
-<label for="reading-spacing">行距 / Line spacing</label><select id="reading-spacing"><option value="1.5">標準 / Standard</option><option value="1.8">寬鬆 / Relaxed</option><option value="2">加寬 / Spacious</option></select>
-<label for="reading-theme">閱讀背景 / Reading background</label><select id="reading-theme"><option value="default">原有配色 / Default</option><option value="dark">深色高對比 / Dark contrast</option><option value="warm">暖白背景 / Warm paper</option></select>
-<div class="reading-actions"><button id="reading-reset" type="button">重設閱讀 / Reset</button></div>
- </div><h4 class="reading-download-heading">下載完整逐字稿 / Download full transcript</h4>
-<label><input id="reading-timestamps" type="checkbox">下載含時間標記 / Include timestamps</label>
-<div class="reading-actions"><button id="download-html" type="button">閱讀版 HTML / Download</button><button id="download-txt" type="button">TXT / Download</button></div>
-<p class="reading-note">下載所選語言的完整逐字稿，不受搜尋影響。 / Download the full selected language, independent of search.</p>
+<label for="reading-spacing"><span data-i18n="spacing">行距</span></label><select id="reading-spacing"><option value="1.5" data-i18n="standard">標準</option><option value="1.8" data-i18n="relaxed">寬鬆</option><option value="2" data-i18n="spacious">加寬</option></select>
+<label for="reading-theme"><span data-i18n="background">閱讀背景</span></label><select id="reading-theme"><option value="default" data-i18n="default">原有配色</option><option value="dark" data-i18n="dark">深色高對比</option><option value="warm" data-i18n="warm">暖白背景</option></select>
+<div class="reading-actions"><button id="reading-reset" type="button"><span data-i18n="reset">重設閱讀</span></button></div>
+ </div><h4 class="reading-download-heading"><span data-i18n="downloadHeading">下載完整逐字稿</span></h4>
+<label><input id="reading-timestamps" type="checkbox"><span data-i18n="timestamps">下載含時間標記</span></label>
+<div class="reading-actions"><button id="download-html" type="button"><span data-i18n="html">閱讀版 HTML</span></button><button id="download-txt" type="button"><span data-i18n="txt">純文字 TXT</span></button></div>
+<p class="reading-note"><span data-i18n="downloadNote">下載所選語言的完整逐字稿，不受搜尋影響。</span></p>
 <div id="download-status" role="status" aria-live="polite"></div>
-</div></div><label for="transcript-language">逐字稿語言 / Language</label><select id="transcript-language"></select><input id="transcript-search" type="search" maxlength="200" placeholder="搜尋字幕文字… / Search" aria-label="搜尋逐字稿 / Search transcript"><div id="transcript-status" role="status" aria-live="polite"></div></div>
-<div class="list" id="transcript-list" role="region" tabindex="0" aria-label="逐字稿內容 / Transcript entries"></div><button id="transcript-more" class="transcript-more" hidden>載入更多 / Load more</button>
+</div></div><label for="transcript-language"><span data-i18n="transcriptLanguage">逐字稿語言</span></label><select id="transcript-language"></select><input id="transcript-search" type="search" maxlength="200" placeholder="搜尋字幕文字…" data-i18n-placeholder="searchPlaceholder" aria-label="搜尋逐字稿" data-i18n-aria-label="search"><div id="transcript-status" role="status" aria-live="polite"></div></div>
+<div class="list" id="transcript-list" role="region" tabindex="0" aria-label="逐字稿內容" data-i18n-aria-label="entries"></div><button id="transcript-more" class="transcript-more" hidden><span data-i18n="more">載入更多</span></button>
 </div></aside>
 </div>
-<details class="keyboard-help"><summary>鍵盤操作說明 / Keyboard help</summary>
-<nav class="keyboard-jumps" aria-label="移至操作區 / Go to controls"><a href="#stage" data-jump="player">播放器 / Player</a><a href="#chapter-tab" data-jump="chapters">章節 / Chapters</a><a href="#transcript-tab" data-jump="transcript">逐字稿 / Transcript</a></nav>
+<details class="keyboard-help"><summary><span data-i18n="keyboard">鍵盤操作說明</span></summary>
+<nav class="keyboard-jumps" aria-label="移至操作區" data-i18n-aria-label="goControls"><a href="#stage" data-jump="player"><span data-i18n="player">播放器</span></a><a href="#chapter-tab" data-jump="chapters"><span data-i18n="chapters">章節</span></a><a href="#transcript-tab" data-jump="transcript"><span data-i18n="transcript">逐字稿</span></a></nav>
 <div class="keyboard-groups">
-<section class="keyboard-group"><h3>頁面導覽 / Navigation</h3><dl><dt><kbd>Tab</kbd> / <kbd>Shift + Tab</kbd></dt><dd>下一項／上一項控制。頁首先提供三個快速入口。<br>Next / previous control. Three skip links appear first.</dd><dt><kbd>Enter</kbd></dt><dd>啟動目前的連結或按鈕。<br>Activate the focused link or button.</dd></dl></section>
-<section class="keyboard-group"><h3>影片區 / Video area</h3><p>先用上方「播放器」連結移入影片區，看到焦點框後操作。<br>Use the Player link above to focus the video area first.</p><dl><dt><kbd>Space</kbd></dt><dd>播放／暫停 · Play / pause</dd><dt><kbd>←</kbd> / <kbd>→</kbd></dt><dd>後退／前進 5 秒 · Seek back / forward 5 seconds</dd><dt><kbd>F</kbd></dt><dd>切換全螢幕 · Toggle fullscreen</dd></dl></section>
-<section class="keyboard-group"><h3>章節與逐字稿 / Lesson index</h3><dl><dt>分頁上 / On tabs: <kbd>←</kbd> <kbd>→</kbd></dt><dd>切換章節／逐字稿。<br>Switch Chapters / Transcript.</dd><dt><kbd>Home</kbd> / <kbd>End</kbd></dt><dd>選擇第一／最後分頁。<br>Select the first / last tab.</dd><dt>項目上 / On an entry: <kbd>Enter</kbd></dt><dd>章節：跳轉並播放。逐字稿：跳轉並保留播放／暫停狀態。<br>Chapter: seek and play. Transcript: seek, keeping play / pause state.</dd></dl></section>
-<section class="keyboard-group"><h3>設定與控制 / Settings and controls</h3><dl><dt><kbd>Esc</kbd></dt><dd>關閉閱讀／字幕設定並回到開啟按鈕；全螢幕時離開全螢幕。<br>Close settings and return focus; exit fullscreen when no settings are open.</dd><dt>滑桿／選單上 / On sliders or lists: <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd></dt><dd>調整該項數值；搜尋框正常輸入，不觸發影片快捷鍵。<br>Adjust that control. Typing in search does not trigger video shortcuts.</dd></dl></section>
+<section class="keyboard-group"><h3><span data-i18n="navigation">頁面導覽</span></h3><dl><dt><kbd>Tab</kbd> / <kbd>Shift + Tab</kbd></dt><dd><span data-i18n="nextHelp">下一項／上一項控制。頁首先提供三個快速入口。</span></dd><dt><kbd>Enter</kbd></dt><dd><span data-i18n="activateHelp">啟動目前的連結或按鈕。</span></dd></dl></section>
+<section class="keyboard-group"><h3><span data-i18n="videoArea">影片區</span></h3><p><span data-i18n="focusHelp">先用上方「播放器」連結移入影片區，看到焦點框後操作。</span></p><dl><dt><kbd>Space</kbd></dt><dd><span data-i18n="playPauseHelp">播放／暫停</span></dd><dt><kbd>←</kbd> / <kbd>→</kbd></dt><dd><span data-i18n="seekHelp">後退／前進 5 秒</span></dd><dt><kbd>F</kbd></dt><dd><span data-i18n="fullscreenHelp">切換全螢幕</span></dd></dl></section>
+<section class="keyboard-group"><h3><span data-i18n="indexHelp">章節與逐字稿</span></h3><dl><dt><span data-i18n="onTabs">分頁上：</span><kbd>←</kbd> <kbd>→</kbd></dt><dd><span data-i18n="tabsHelp">切換章節／逐字稿。</span></dd><dt><kbd>Home</kbd> / <kbd>End</kbd></dt><dd><span data-i18n="homeHelp">選擇第一／最後分頁。</span></dd><dt><span data-i18n="onEntry">項目上：</span><kbd>Enter</kbd></dt><dd><span data-i18n="entryHelp">章節：跳轉並播放。逐字稿：跳轉並保留播放／暫停狀態。</span></dd></dl></section>
+<section class="keyboard-group"><h3><span data-i18n="settingsControls">設定與控制</span></h3><dl><dt><kbd>Esc</kbd></dt><dd><span data-i18n="escapeHelp">關閉閱讀／字幕設定並回到開啟按鈕；無設定視窗時離開全螢幕。</span></dd><dt><span data-i18n="onLists">滑桿／選單上：</span><kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd></dt><dd><span data-i18n="adjustHelp">調整該項數值；搜尋框正常輸入，不觸發影片快捷鍵。</span></dd></dl></section>
 </div></details>
-<footer>以 <a href="https://github.com/kaoshou/OpenCam" target="_blank" rel="noopener noreferrer">OpenCam</a> 製作 · Created with OpenCam</footer>
+<footer><span data-i18n="createdBefore">以</span> <a href="https://github.com/kaoshou/OpenCam" target="_blank" rel="noopener noreferrer">OpenCam</a> <span data-i18n="createdAfter">製作</span></footer>
 <noscript>請啟用 JavaScript 以使用章節跳播。影片仍可使用上方控制列播放。</noscript>
 </main>
 <script>
 window.addEventListener('DOMContentLoaded',()=>{
   const video=document.getElementById('video'),error=document.getElementById('error'),data=window.OpenCamPlayerData;
-  const showError=text=>{error.textContent=text;error.hidden=false};
-  if(!data||data.format!=='opencam.web-player'||data.schemaVersion!==1||!Array.isArray(data.chapters)){showError('播放器資料無法載入，請確認 opencam-player.js 與 index.html 放在同一個資料夾。 Player data is missing.');return;}
+
+  const catalogs={
+  "zh-TW": {
+    "skipPlayer": "跳至播放器",
+    "skipChapters": "跳至章節",
+    "skipTranscript": "跳至逐字稿",
+    "webPlayer": "OpenCam · 網頁播放器",
+    "unsupported": "您的瀏覽器不支援影片播放。",
+    "captions": "字幕",
+    "language": "語言",
+    "captionSize": "字級",
+    "appearance": "樣式",
+    "whiteBlack": "白字黑底",
+    "yellowBlack": "黃字黑底",
+    "blackWhite": "黑字白底",
+    "shadow": "白字陰影",
+    "opacity": "背景不透明度",
+    "position": "位置",
+    "bottom": "下方",
+    "middle": "中間",
+    "top": "上方",
+    "resetAppearance": "重設外觀",
+    "closeSettings": "關閉設定",
+    "now": "目前章節",
+    "ready": "準備播放",
+    "chapters": "章節",
+    "transcript": "逐字稿",
+    "reading": "閱讀設定",
+    "follow": "跟隨播放",
+    "readingSize": "閱讀字級",
+    "spacing": "行距",
+    "standard": "標準",
+    "relaxed": "寬鬆",
+    "spacious": "加寬",
+    "background": "閱讀背景",
+    "default": "原有配色",
+    "dark": "深色高對比",
+    "warm": "暖白背景",
+    "reset": "重設閱讀",
+    "downloadHeading": "下載完整逐字稿",
+    "timestamps": "下載含時間標記",
+    "html": "閱讀版 HTML",
+    "txt": "純文字 TXT",
+    "downloadNote": "下載所選語言的完整逐字稿，不受搜尋影響。",
+    "transcriptLanguage": "逐字稿語言",
+    "more": "載入更多",
+    "keyboard": "鍵盤操作說明",
+    "player": "播放器",
+    "navigation": "頁面導覽",
+    "nextHelp": "下一項／上一項控制。頁首先提供三個快速入口。",
+    "activateHelp": "啟動目前的連結或按鈕。",
+    "videoArea": "影片區",
+    "focusHelp": "先用上方「播放器」連結移入影片區，看到焦點框後操作。",
+    "playPauseHelp": "播放／暫停",
+    "seekHelp": "後退／前進 5 秒",
+    "fullscreenHelp": "切換全螢幕",
+    "indexHelp": "章節與逐字稿",
+    "onTabs": "分頁上：",
+    "tabsHelp": "切換章節／逐字稿。",
+    "homeHelp": "選擇第一／最後分頁。",
+    "onEntry": "項目上：",
+    "entryHelp": "章節：跳轉並播放。逐字稿：跳轉並保留播放／暫停狀態。",
+    "settingsControls": "設定與控制",
+    "escapeHelp": "關閉閱讀／字幕設定並回到開啟按鈕；無設定視窗時離開全螢幕。",
+    "onLists": "滑桿／選單上：",
+    "adjustHelp": "調整該項數值；搜尋框正常輸入，不觸發影片快捷鍵。",
+    "createdBefore": "以",
+    "createdAfter": "製作",
+    "quick": "快速導覽",
+    "videoPlayer": "影片播放器",
+    "videoKeys": "影片；空白鍵播放、方向鍵快轉",
+    "controls": "播放控制",
+    "seek": "播放進度",
+    "play": "播放",
+    "playPause": "播放／暫停",
+    "mute": "靜音",
+    "volume": "音量",
+    "speed": "播放速度",
+    "speedTitle": "播放速度",
+    "wide": "寬螢幕",
+    "fullscreen": "全螢幕",
+    "captionSettings": "字幕設定",
+    "index": "教材索引",
+    "videoChapters": "影片章節",
+    "closeReading": "關閉閱讀設定",
+    "searchPlaceholder": "搜尋字幕文字…",
+    "search": "搜尋逐字稿",
+    "entries": "逐字稿內容",
+    "goControls": "移至操作區",
+    "summary": "影片總長度 {duration} · {count} 章節",
+    "start": "起始時間",
+    "duration": "片段總時間",
+    "dataError": "播放器資料無法載入，請確認 opencam-player.js 與 index.html 放在同一個資料夾。",
+    "mediaError": "影片無法播放，請確認 media.mp4 與網頁放在同一個資料夾，或改用支援 H.264／AAC 的瀏覽器。",
+    "subtitleError": "字幕資料不完整，影片仍可播放。",
+    "noSubtitles": "請先附加字幕",
+    "results": "搜尋結果",
+    "captionCount": "字幕",
+    "transcriptNote": "此逐字稿來自附加字幕；必要的說話者、聲音與畫面描述須由作者核對補充。",
+    "downloadReady": "已準備完整逐字稿",
+    "downloadError": "下載無法建立，請使用支援下載的瀏覽器。",
+    "off": "關閉字幕",
+    "pause": "暫停",
+    "playError": "無法開始播放，請再按播放或確認影片檔案。",
+    "unmute": "開啟聲音",
+    "exitFullscreen": "離開全螢幕",
+    "restore": "還原版面",
+    "uiLanguage": "介面語言",
+    "unknownLanguage": "其他語言"
+  },
+  "en": {
+    "skipPlayer": "Skip to player",
+    "skipChapters": "Skip to chapters",
+    "skipTranscript": "Skip to transcript",
+    "webPlayer": "OpenCam · Web player",
+    "unsupported": "Your browser does not support video playback.",
+    "captions": "Subtitles",
+    "language": "Language",
+    "captionSize": "Text size",
+    "appearance": "Appearance",
+    "whiteBlack": "White on black",
+    "yellowBlack": "Yellow on black",
+    "blackWhite": "Black on white",
+    "shadow": "White with shadow",
+    "opacity": "Background opacity",
+    "position": "Position",
+    "bottom": "Bottom",
+    "middle": "Middle",
+    "top": "Top",
+    "resetAppearance": "Reset appearance",
+    "closeSettings": "Close settings",
+    "now": "Now playing",
+    "ready": "Ready",
+    "chapters": "Chapters",
+    "transcript": "Transcript",
+    "reading": "Reading settings",
+    "follow": "Follow playback",
+    "readingSize": "Text size",
+    "spacing": "Line spacing",
+    "standard": "Standard",
+    "relaxed": "Relaxed",
+    "spacious": "Spacious",
+    "background": "Reading background",
+    "default": "Default",
+    "dark": "Dark contrast",
+    "warm": "Warm paper",
+    "reset": "Reset reading settings",
+    "downloadHeading": "Download full transcript",
+    "timestamps": "Include timestamps",
+    "html": "Readable HTML",
+    "txt": "Plain text TXT",
+    "downloadNote": "Download the full selected language, independent of search.",
+    "transcriptLanguage": "Transcript language",
+    "more": "Load more",
+    "keyboard": "Keyboard help",
+    "player": "Player",
+    "navigation": "Navigation",
+    "nextHelp": "Next / previous control. Three skip links appear first.",
+    "activateHelp": "Activate the focused link or button.",
+    "videoArea": "Video area",
+    "focusHelp": "Use the Player link above to focus the video area first.",
+    "playPauseHelp": "Play / pause",
+    "seekHelp": "Seek back / forward 5 seconds",
+    "fullscreenHelp": "Toggle fullscreen",
+    "indexHelp": "Chapters and transcript",
+    "onTabs": "On tabs:",
+    "tabsHelp": "Switch Chapters / Transcript.",
+    "homeHelp": "Select the first / last tab.",
+    "onEntry": "On an entry:",
+    "entryHelp": "Chapter: seek and play. Transcript: seek, keeping play / pause state.",
+    "settingsControls": "Settings and controls",
+    "escapeHelp": "Close settings and return focus; exit fullscreen when no settings are open.",
+    "onLists": "On sliders or lists:",
+    "adjustHelp": "Adjust that control. Typing in search does not trigger video shortcuts.",
+    "createdBefore": "Created with",
+    "createdAfter": "",
+    "quick": "Quick navigation",
+    "videoPlayer": "Video player",
+    "videoKeys": "Video: Space to play, arrows to seek",
+    "controls": "Playback controls",
+    "seek": "Seek",
+    "play": "Play",
+    "playPause": "Play or pause",
+    "mute": "Mute",
+    "volume": "Volume",
+    "speed": "Playback speed",
+    "speedTitle": "Playback speed",
+    "wide": "Wide screen",
+    "fullscreen": "Full screen",
+    "captionSettings": "Subtitle settings",
+    "index": "Lesson index",
+    "videoChapters": "Video chapters",
+    "closeReading": "Close reading settings",
+    "searchPlaceholder": "Search transcript…",
+    "search": "Search transcript",
+    "entries": "Transcript entries",
+    "goControls": "Go to controls",
+    "summary": "Duration {duration} · {count} chapters",
+    "start": "Start time",
+    "duration": "Chapter duration",
+    "dataError": "Player data is missing. Keep opencam-player.js and index.html in the same folder.",
+    "mediaError": "Unable to play media.mp4. Keep it beside the page and use a browser supporting H.264/AAC.",
+    "subtitleError": "Invalid subtitle data. The video can still play.",
+    "noSubtitles": "No subtitles attached",
+    "results": "Search results",
+    "captionCount": "Captions",
+    "transcriptNote": "Derived from attached captions; authors must check and add speaker, sound and visual descriptions as needed.",
+    "downloadReady": "Full transcript prepared",
+    "downloadError": "Download unavailable in this browser.",
+    "off": "Off",
+    "pause": "Pause",
+    "playError": "Unable to start playback. Try Play again or check the media file.",
+    "unmute": "Unmute",
+    "exitFullscreen": "Exit full screen",
+    "restore": "Restore layout",
+    "uiLanguage": "Interface language",
+    "unknownLanguage": "Other language"
+  },
+  "ja": {
+    "skipPlayer": "プレーヤーへ移動",
+    "skipChapters": "チャプターへ移動",
+    "skipTranscript": "文字起こしへ移動",
+    "webPlayer": "OpenCam · Web プレーヤー",
+    "unsupported": "このブラウザーは動画の再生に対応していません。",
+    "captions": "字幕",
+    "language": "言語",
+    "captionSize": "文字サイズ",
+    "appearance": "表示スタイル",
+    "whiteBlack": "黒地に白文字",
+    "yellowBlack": "黒地に黄色文字",
+    "blackWhite": "白地に黒文字",
+    "shadow": "影付き白文字",
+    "opacity": "背景の不透明度",
+    "position": "位置",
+    "bottom": "下",
+    "middle": "中央",
+    "top": "上",
+    "resetAppearance": "表示をリセット",
+    "closeSettings": "設定を閉じる",
+    "now": "現在のチャプター",
+    "ready": "再生準備完了",
+    "chapters": "チャプター",
+    "transcript": "文字起こし",
+    "reading": "読みやすさ設定",
+    "follow": "再生に追従",
+    "readingSize": "文字サイズ",
+    "spacing": "行間",
+    "standard": "標準",
+    "relaxed": "広め",
+    "spacious": "さらに広く",
+    "background": "背景",
+    "default": "元の配色",
+    "dark": "ダーク・高コントラスト",
+    "warm": "暖色の背景",
+    "reset": "読みやすさ設定をリセット",
+    "downloadHeading": "文字起こし全文をダウンロード",
+    "timestamps": "時刻を含める",
+    "html": "閲覧用 HTML",
+    "txt": "テキスト TXT",
+    "downloadNote": "検索結果に関係なく、選択した言語の全文をダウンロードします。",
+    "transcriptLanguage": "文字起こしの言語",
+    "more": "さらに表示",
+    "keyboard": "キーボード操作",
+    "player": "プレーヤー",
+    "navigation": "ページ内移動",
+    "nextHelp": "次／前の操作項目へ移動します。ページの先頭に 3 つのスキップリンクがあります。",
+    "activateHelp": "フォーカス中のリンクやボタンを実行します。",
+    "videoArea": "動画エリア",
+    "focusHelp": "上の「プレーヤー」リンクで動画エリアに移動し、フォーカス枠を確認してから操作してください。",
+    "playPauseHelp": "再生／一時停止",
+    "seekHelp": "5 秒戻る／進む",
+    "fullscreenHelp": "全画面を切り替え",
+    "indexHelp": "チャプターと文字起こし",
+    "onTabs": "タブ上：",
+    "tabsHelp": "チャプター／文字起こしを切り替えます。",
+    "homeHelp": "最初／最後のタブを選択します。",
+    "onEntry": "項目上：",
+    "entryHelp": "チャプターは移動して再生します。文字起こしは再生／一時停止の状態を保って移動します。",
+    "settingsControls": "設定と操作",
+    "escapeHelp": "設定を閉じ、元のボタンに戻ります。設定が開いていない場合は全画面を終了します。",
+    "onLists": "スライダー／リスト上：",
+    "adjustHelp": "値を調整します。検索欄での入力は動画ショートカットを実行しません。",
+    "createdBefore": "作成：",
+    "createdAfter": "",
+    "quick": "クイックナビゲーション",
+    "videoPlayer": "動画プレーヤー",
+    "videoKeys": "動画：スペースで再生、矢印でシーク",
+    "controls": "再生コントロール",
+    "seek": "再生位置",
+    "play": "再生",
+    "playPause": "再生／一時停止",
+    "mute": "ミュート",
+    "volume": "音量",
+    "speed": "再生速度",
+    "speedTitle": "再生速度",
+    "wide": "ワイド表示",
+    "fullscreen": "全画面",
+    "captionSettings": "字幕設定",
+    "index": "教材の索引",
+    "videoChapters": "動画のチャプター",
+    "closeReading": "読みやすさ設定を閉じる",
+    "searchPlaceholder": "文字起こしを検索…",
+    "search": "文字起こしを検索",
+    "entries": "文字起こしの内容",
+    "goControls": "操作エリアへ移動",
+    "summary": "再生時間 {duration} · {count} チャプター",
+    "start": "開始時刻",
+    "duration": "チャプターの長さ",
+    "dataError": "プレーヤーデータを読み込めません。opencam-player.js と index.html を同じフォルダーに置いてください。",
+    "mediaError": "media.mp4 を再生できません。同じフォルダーに置き、H.264/AAC 対応ブラウザーをご使用ください。",
+    "subtitleError": "字幕データが不完全です。動画は再生できます。",
+    "noSubtitles": "字幕が添付されていません",
+    "results": "検索結果",
+    "captionCount": "字幕",
+    "transcriptNote": "この文字起こしは添付字幕から作成されています。話者・音・映像の説明は、必要に応じて作成者が確認し補足してください。",
+    "downloadReady": "文字起こし全文を準備しました",
+    "downloadError": "このブラウザーではダウンロードを作成できません。",
+    "off": "字幕をオフ",
+    "pause": "一時停止",
+    "playError": "再生できません。再生をもう一度押すか、動画ファイルを確認してください。",
+    "unmute": "ミュートを解除",
+    "exitFullscreen": "全画面を終了",
+    "restore": "レイアウトを戻す",
+    "uiLanguage": "表示言語",
+    "unknownLanguage": "その他の言語"
+  }
+};
+  const readPref=key=>{try{return window.localStorage?.getItem(key)??null}catch{return null}};
+  const writePref=(key,value)=>{try{window.localStorage?.setItem(key,value)}catch{}};
+  const supported=['zh-TW','en','ja'];
+  const normalizeUiOptions=options=>{
+    let enabled=supported.filter(code=>Array.isArray(options?.enabledLanguages)&&options.enabledLanguages.includes(code));
+    if(!enabled.length)enabled=[...supported];
+    return {enabledLanguages:enabled,defaultLanguage:enabled.includes(options?.defaultLanguage)?options.defaultLanguage:'auto'};
+  };
+  const resolveUiLanguage=(options,remembered,browserLanguage)=>{
+    const {enabledLanguages:enabled,defaultLanguage:configured}=normalizeUiOptions(options);
+    if(enabled.length===1)return enabled[0];
+    if(enabled.includes(remembered))return remembered;
+    const code=typeof browserLanguage==='string'?browserLanguage.trim().toLowerCase().replace(/_/g,'-'):'';
+    const detected=!code?'zh-TW':/^zh(?:-|$)/.test(code)?'zh-TW':/^ja(?:-|$)/.test(code)?'ja':'en';
+    const selected=configured==='auto'?detected:configured;
+    return enabled.includes(selected)?selected:['en','zh-TW','ja'].find(lang=>enabled.includes(lang));
+  };
+  let browserLanguage;
+  try{browserLanguage=window.navigator?.languages?.[0]||window.navigator?.language}catch{}
+  const uiOptions=normalizeUiOptions(data?.uiLanguages);
+  let uiLanguage=resolveUiLanguage(uiOptions,readPref('opencam.uiLanguage'),browserLanguage);
+  const t=(key,parameters={})=>(catalogs[uiLanguage][key]??catalogs['en'][key]??key).replace(/\{(\w+)\}/g,(match,name)=>String(parameters[name]??match));
+  const translateStatic=()=>{
+    document.documentElement.lang=uiLanguage;
+    document.querySelectorAll('[data-i18n]').forEach(el=>{el.textContent=t(el.dataset.i18n)});
+    for(const attr of ['aria-label','title','placeholder'])
+      document.querySelectorAll('[data-i18n-'+attr+']').forEach(el=>el.setAttribute(attr,t(el.getAttribute('data-i18n-'+attr))));
+  };
+  const languageSelect=document.getElementById('ui-language');
+  document.getElementById('ui-language-control').hidden=uiOptions.enabledLanguages.length===1;
+  for(const code of uiOptions.enabledLanguages){const option=document.createElement('option');option.value=code;option.textContent=({'zh-TW':'繁體中文',en:'English',ja:'日本語'})[code];languageSelect.append(option);}
+  languageSelect.value=uiLanguage;translateStatic();
+  let refreshUi=()=>{},errorKey=null,downloadKey=null;
+  const setUiLanguage=(language,remember=false)=>{
+    if(!uiOptions.enabledLanguages.includes(language))return;
+    uiLanguage=language;languageSelect.value=language;translateStatic();refreshUi();
+    if(errorKey)error.textContent=t(errorKey);
+    if(downloadKey)document.getElementById('download-status').textContent=t(downloadKey);
+    if(remember)writePref('opencam.uiLanguage',language);
+  };
+  languageSelect.addEventListener('change',()=>setUiLanguage(languageSelect.value,true));
+
+  const showError=key=>{errorKey=key;error.textContent=t(key);error.hidden=false};
+  if(!data||data.format!=='opencam.web-player'||data.schemaVersion!==1||!Array.isArray(data.chapters)){showError('dataError');return;}
   const time=seconds=>{seconds=Math.max(0,Math.floor(seconds));const h=Math.floor(seconds/3600),m=Math.floor(seconds%3600/60),s=String(seconds%60).padStart(2,'0');return h?h+':'+String(m).padStart(2,'0')+':'+s:m+':'+s};
   document.getElementById('title').textContent=data.title;
-  document.getElementById('summary').textContent='影片總長度 '+time(data.chapters.at(-1)?.end||0)+' · '+data.chapters.length+' 章節';
+  document.getElementById('summary').textContent=t('summary',{duration:time(data.chapters.at(-1)?.end||0),count:data.chapters.length});
   let pending=null;const buttons=[];
   data.chapters.forEach((chapter,index)=>{
     const button=document.createElement('button');button.type='button';button.className='chapter';
@@ -127,8 +497,8 @@ window.addEventListener('DOMContentLoaded',()=>{
     const copy=document.createElement('span'),title=document.createElement('span'),times=document.createElement('span');
     copy.className='copy';title.className='title';title.textContent=chapter.title;title.title=chapter.title;times.className='times';
     const start=document.createElement('span'),duration=document.createElement('span'),length=Math.max(0,chapter.end-chapter.start);
-    start.textContent='▶ '+time(chapter.start);start.title='起始時間 / Start time';
-    duration.textContent='◷ '+(length>0&&length<1?'<0:01':time(length));duration.title='片段總時間 / Chapter duration';
+    start.textContent='▶ '+time(chapter.start);start.title=t('start');
+    duration.textContent='◷ '+(length>0&&length<1?'<0:01':time(length));duration.title=t('duration');
     button.setAttribute('aria-label',chapter.title+' · '+start.title+' '+time(chapter.start)+' · '+duration.title+' '+(length>0&&length<1?'<0:01':time(length)));
     times.append(start,duration);copy.append(title,times);button.append(number,copy);
     button.addEventListener('click',()=>{if(video.readyState<1)pending=chapter.start;else video.currentTime=chapter.start;video.play().catch(()=>{});update(chapter.start)});
@@ -137,7 +507,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   const update=(position=video.currentTime)=>{let active=-1;data.chapters.forEach((c,i)=>{if(position>=c.start)active=i});buttons.forEach((b,i)=>b.setAttribute('aria-current',String(i===active)));if(active>=0)document.getElementById('now').textContent=data.chapters[active].title};
   video.addEventListener('loadedmetadata',()=>{if(pending!==null){video.currentTime=pending;pending=null}update()});
   video.addEventListener('timeupdate',()=>update());video.addEventListener('seeked',()=>update());
-  video.addEventListener('error',()=>showError('影片無法播放，請確認 media.mp4 與網頁放在同一個資料夾，或改用支援 H.264／AAC 的瀏覽器。 Unable to play media.mp4.'));
+  video.addEventListener('error',()=>showError('mediaError'));
   const stage=document.getElementById('stage'),controls=document.getElementById('controls'),seek=document.getElementById('seek'),
     play=document.getElementById('play'),mute=document.getElementById('mute'),volume=document.getElementById('volume'),
     speed=document.getElementById('speed'),wide=document.getElementById('wide'),fullscreen=document.getElementById('fullscreen');
@@ -158,18 +528,15 @@ window.addEventListener('DOMContentLoaded',()=>{
     track&&typeof track.id==='string'&&track.id.length>0&&track.id.length<=128&&track.id!=='off'&&typeof track.label==='string'&&
     typeof track.language==='string'&&Array.isArray(track.cues)&&track.cues.length>0&&track.cues.length<=100000&&
     track.cues.every(c=>c&&Number.isFinite(c.start)&&Number.isFinite(c.end)&&c.start>=0&&c.end>c.start&&typeof c.text==='string'&&c.text.length<=10000)):[];
-  if(sourceTracks&&(!Array.isArray(sourceTracks)||subtitleTracks.length!==sourceTracks.length))showError('字幕資料不完整，影片仍可播放。 Invalid subtitle data.');
-  const readPref=key=>{try{return window.localStorage?.getItem(key)??null}catch{return null}};
-  const writePref=(key,value)=>{try{window.localStorage?.setItem(key,value)}catch{}};
+  if(sourceTracks&&(!Array.isArray(sourceTracks)||subtitleTracks.length!==sourceTracks.length))showError('subtitleError');
   const choiceKey='opencam.subtitle.'+data.title+'.'+(data.chapters[0]?.id||'lesson');
   const defaultTrack=subtitleTracks.find(t=>t.id===data.subtitles?.defaultTrackId)||subtitleTracks.find(t=>t.language==='zh-TW')||subtitleTracks[0];
   const subtitleLanguageLabel=track=>{
     const code=track.language.replace(/_/g,'-');
-    const names={'zh-tw':'繁體中文（台灣）','zh-cn':'簡體中文（中國大陸）','en':'英文','ko':'韓文','ja':'日文',
-      'vi':'越南文','th':'泰文','id':'印尼文','ms':'馬來文','fr':'法文','de':'德文','es':'西班牙文','pt':'葡萄牙文','ar':'阿拉伯文','ru':'俄文'};
-    let name=names[code.toLowerCase()];
-    if(!name){try{name=new Intl.DisplayNames(['zh-Hant'],{type:'language'}).of(code)}catch{}}
-    return (name||'其他語言')+' ('+code+')';
+    const names={'zh-TW':{'zh-tw':'繁體中文（台灣）','zh-cn':'簡體中文（中國大陸）',en:'英文',ja:'日文'},en:{'zh-tw':'Traditional Chinese (Taiwan)','zh-cn':'Simplified Chinese (China)',en:'English',ja:'Japanese'},ja:{'zh-tw':'繁体字中国語（台湾）','zh-cn':'簡体字中国語（中国）',en:'英語',ja:'日本語'}};
+    let name=names[uiLanguage][code.toLowerCase()];
+    if(!name){try{name=new Intl.DisplayNames([uiLanguage],{type:'language'}).of(code)}catch{}}
+    return (name||t('unknownLanguage'))+' ('+code+')';
   };
   const sidebar=document.getElementById('sidebar'),playerPane=document.getElementById('player');
   const syncSidebarHeight=()=>{
@@ -230,8 +597,8 @@ window.addEventListener('DOMContentLoaded',()=>{
       transcriptList.append(row);transcriptRows.push({row,cue});
     }
     transcriptMore.hidden=end>=transcriptMatches.length;
-    transcriptStatus.textContent=!subtitleTracks.length?'請先附加字幕 / No subtitles attached':
-      (query?'搜尋結果 ':'字幕 ')+transcriptMatches.length+' · '+(end?transcriptStart+1:0)+'–'+end;
+    transcriptStatus.textContent=!subtitleTracks.length?t('noSubtitles'):
+      (query?t('results')+' ':t('captionCount')+' ')+transcriptMatches.length+' · '+(end?transcriptStart+1:0)+'–'+end;
   };
   const searchTranscript=()=>{
     const query=transcriptSearch.value.trim().toLowerCase();
@@ -273,7 +640,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     e.preventDefault();closeReading();
     if(link.dataset.jump==='player'){stage.focus();return;}
     if(document.fullscreenElement===stage)try{await document.exitFullscreen();}catch{return;}
-    exitFrame();document.getElementById('layout').classList.remove('wide');wide.setAttribute('aria-pressed','false');wide.title='寬螢幕 / Wide screen';
+    exitFrame();document.getElementById('layout').classList.remove('wide');wide.setAttribute('aria-pressed','false');wide.title=t('wide');
     const transcript=link.dataset.jump==='transcript';showIndex(transcript);(transcript?transcriptTab:chapterTab).focus();
   }));
   [chapterTab,transcriptTab].forEach(tab=>tab.addEventListener('keydown',e=>{
@@ -306,7 +673,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     const track=subtitleTracks.find(t=>t.id===transcriptLanguage.value);if(!track)return;
     const cues=[...track.cues].sort((a,b)=>a.start-b.start),stamps=document.getElementById('reading-timestamps').checked;
     const lang=/^[a-zA-Z]{2,8}(?:-[a-zA-Z0-9]{1,8})*$/.test(track.language)?track.language:'und';
-    const note='此逐字稿來自附加字幕；必要的說話者、聲音與畫面描述須由作者核對補充。 / Derived from attached captions; authors must check speaker, sound and visual descriptions.';
+    const note=t('transcriptNote');
     const text=[data.title,subtitleLanguageLabel(track),'',note,''];let body='',chapter=-1;
     for(const cue of cues){
       let next=-1;data.chapters.forEach((c,i)=>{if(cue.start>=c.start)next=i});
@@ -314,15 +681,15 @@ window.addEventListener('DOMContentLoaded',()=>{
       text.push((stamps?'['+time(cue.start)+'] ':'')+cue.text,'');
       body+='<p dir="auto">'+(stamps?'<span class="timestamp">'+time(cue.start)+'</span> ':'')+escapeHtml(cue.text)+'</p>';
     }
-    const html='<!doctype html><html lang="'+lang+'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+escapeHtml(data.title)+' — 逐字稿 / Transcript</title><style>body{margin:0;background:#fafafa;color:#17202a;font:1.125rem/1.85 system-ui,sans-serif}main{max-width:72ch;margin:auto;padding:clamp(20px,5vw,64px)}h1{line-height:1.35}h1,h2,p{overflow-wrap:anywhere}h2{margin-top:2em}p{white-space:pre-line}.meta,.note,.timestamp{color:#475569}.note{font-size:.875rem;border-left:3px solid #64748b;padding-left:1em}.timestamp{font-size:.875em;font-variant-numeric:tabular-nums}@media print{body{background:white;color:black}main{max-width:none;padding:0}h2{break-after:avoid}p{orphans:3;widows:3}}</style></head><body><main><h1>'+escapeHtml(data.title)+'</h1><p class="meta">'+escapeHtml(subtitleLanguageLabel(track))+'</p><p class="note">'+escapeHtml(note)+'</p>'+body+'</main></body></html>';
+    const html='<!doctype html><html lang="'+lang+'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+escapeHtml(data.title)+' — '+escapeHtml(t('transcript'))+'</title><style>body{margin:0;background:#fafafa;color:#17202a;font:1.125rem/1.85 system-ui,sans-serif}main{max-width:72ch;margin:auto;padding:clamp(20px,5vw,64px)}h1{line-height:1.35}h1,h2,p{overflow-wrap:anywhere}h2{margin-top:2em}p{white-space:pre-line}.meta,.note,.timestamp{color:#475569}.note{font-size:.875rem;border-left:3px solid #64748b;padding-left:1em}.timestamp{font-size:.875em;font-variant-numeric:tabular-nums}@media print{body{background:white;color:black}main{max-width:none;padding:0}h2{break-after:avoid}p{orphans:3;widows:3}}</style></head><body><main><h1>'+escapeHtml(data.title)+'</h1><p class="meta" lang="'+uiLanguage+'">'+escapeHtml(subtitleLanguageLabel(track))+'</p><p class="note" lang="'+uiLanguage+'">'+escapeHtml(note)+'</p>'+body+'</main></body></html>';
     let url;
     try{
       const blob=new Blob([format==='html'?html:'\ufeff'+text.join('\n')],{type:format==='html'?'text/html;charset=utf-8':'text/plain;charset=utf-8'});
       url=window.URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;
       const stem=String(data.title).replace(/[<>:"/\\|?*\u0000-\u001f\u007f]/g,'_').slice(0,80).replace(/[. ]+$/,'')||'OpenCam';
       link.download=stem+'_'+lang+'_transcript.'+format;document.body.append(link);link.click();link.remove();
-      document.getElementById('download-status').textContent='已準備完整逐字稿 / Full transcript prepared';
-    }catch{document.getElementById('download-status').textContent='下載無法建立，請使用支援下載的瀏覽器。 / Download unavailable in this browser.';}
+      document.getElementById('download-status').textContent=t(downloadKey='downloadReady');
+    }catch{document.getElementById('download-status').textContent=t(downloadKey='downloadError');}
     finally{if(url)window.setTimeout(()=>window.URL.revokeObjectURL(url),60000);}
   };
   for(const format of ['html','txt']){const button=document.getElementById('download-'+format);button.disabled=!subtitleTracks.length;button.addEventListener('click',()=>downloadTranscript(format));}
@@ -366,7 +733,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   document.addEventListener('focusin',e=>{if(!captionMenu.hidden&&!captionMenu.contains(e.target)&&e.target!==captionButton)closeCaptionMenu()});
   if(subtitleTracks.length){
     captionButton.hidden=false;
-    const off=document.createElement('option');off.value='off';off.textContent='關閉字幕 / Off';captionLanguage.append(off);
+    const off=document.createElement('option');off.value='off';off.textContent=t('off');captionLanguage.append(off);
     subtitleTracks.forEach(track=>{const option=document.createElement('option');option.value=track.id;option.textContent=subtitleLanguageLabel(track);captionLanguage.append(option)});
     setSubtitle(subtitleId);applyCaptionAppearance();
   }
@@ -388,13 +755,13 @@ window.addEventListener('DOMContentLoaded',()=>{
     seek.disabled=!validDuration();seek.value=String(validDuration()?Math.min(100,video.currentTime/video.duration*100):0);
     seek.setAttribute('aria-valuetext',time(video.currentTime)+' / '+(validDuration()?time(video.duration):'0:00'));
   };
-  const syncPlay=()=>{play.classList.toggle('playing',!video.paused&&!video.ended);play.setAttribute('aria-label',video.paused?'播放 / Play':'暫停 / Pause');showControls()};
-  const togglePlay=()=>{if(video.paused||video.ended)video.play().catch(()=>{showControls();showError('無法開始播放，請再按播放或確認影片檔案。 Unable to start playback.');});else video.pause()};
+  const syncPlay=()=>{play.classList.toggle('playing',!video.paused&&!video.ended);play.setAttribute('aria-label',video.paused?t('play'):t('pause'));showControls()};
+  const togglePlay=()=>{if(video.paused||video.ended)video.play().catch(()=>{showControls();showError('playError');});else video.pause()};
   const syncVolume=()=>{volume.value=String(video.volume);mute.setAttribute('aria-pressed',String(video.muted||video.volume===0));
-    mute.setAttribute('aria-label',video.muted||video.volume===0?'開啟聲音 / Unmute':'靜音 / Mute');mute.title=video.muted||video.volume===0?'開啟聲音 / Unmute':'靜音 / Mute'};
+    mute.setAttribute('aria-label',video.muted||video.volume===0?t('unmute'):t('mute'));mute.title=video.muted||video.volume===0?t('unmute'):t('mute')};
   const syncFullscreen=()=>{if(document.fullscreenElement===stage){stage.classList.remove('frame-fullscreen');document.body.classList.remove('frame-fullscreen-active');}
     const active=document.fullscreenElement===stage||stage.classList.contains('frame-fullscreen');
-    fullscreen.setAttribute('aria-pressed',String(active));fullscreen.setAttribute('aria-label',active?'離開全螢幕 / Exit full screen':'全螢幕 / Full screen');showControls()};
+    fullscreen.setAttribute('aria-pressed',String(active));fullscreen.setAttribute('aria-label',active?t('exitFullscreen'):t('fullscreen'));fullscreen.title=t(active?'exitFullscreen':'fullscreen');showControls()};
   const exitFrame=()=>{stage.classList.remove('frame-fullscreen');document.body.classList.remove('frame-fullscreen-active');syncFullscreen()};
   const enterFrame=()=>{stage.classList.add('frame-fullscreen');document.body.classList.add('frame-fullscreen-active');syncFullscreen()};
   const toggleFullscreen=async()=>{
@@ -412,7 +779,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   volume.addEventListener('input',()=>{video.volume=Math.max(0,Math.min(1,Number(volume.value)));video.muted=false;syncVolume();showControls()});
   speed.addEventListener('change',()=>{video.playbackRate=Number(speed.value);showControls()});
   video.addEventListener('ratechange',()=>{speed.value=String(video.playbackRate)});
-  wide.addEventListener('click',()=>{const active=document.getElementById('layout').classList.toggle('wide');wide.setAttribute('aria-pressed',String(active));wide.title=active?'還原版面 / Restore layout':'寬螢幕 / Wide screen';showControls()});
+  wide.addEventListener('click',()=>{const active=document.getElementById('layout').classList.toggle('wide');wide.setAttribute('aria-pressed',String(active));wide.title=active?t('restore'):t('wide');wide.setAttribute('aria-label',wide.title);showControls()});
   fullscreen.addEventListener('click',toggleFullscreen);document.addEventListener('fullscreenchange',syncFullscreen);
   document.addEventListener('keydown',e=>{if(!e.defaultPrevented&&e.key==='Escape'&&stage.classList.contains('frame-fullscreen'))exitFrame()});
   stage.addEventListener('keydown',e=>{
@@ -427,6 +794,25 @@ window.addEventListener('DOMContentLoaded',()=>{
   ['timeupdate','seeked','loadedmetadata','durationchange'].forEach(event=>video.addEventListener(event,syncTime));
   video.addEventListener('volumechange',syncVolume);
   setTranscriptLanguage();showIndex(false);syncTime();syncPlay();syncVolume();update();stage.classList.add('enhanced');video.controls=false;
+
+  refreshUi=()=>{
+    document.getElementById('summary').textContent=t('summary',{duration:time(data.chapters.at(-1)?.end||0),count:data.chapters.length});
+    buttons.forEach((button,index)=>{
+      const chapter=data.chapters[index],length=Math.max(0,chapter.end-chapter.start),times=button.children[1].children[1];
+      times.children[0].title=t('start');times.children[1].title=t('duration');
+      button.setAttribute('aria-label',chapter.title+' · '+t('start')+' '+time(chapter.start)+' · '+t('duration')+' '+(length>0&&length<1?'<0:01':time(length)));
+    });
+    for(const select of [captionLanguage,transcriptLanguage])
+      for(const option of select.children){const track=subtitleTracks.find(track=>track.id===option.value);option.textContent=track?subtitleLanguageLabel(track):t('off');}
+    const end=Math.min(transcriptMatches.length,transcriptStart+transcriptLimit);
+    transcriptStatus.textContent=!subtitleTracks.length?t('noSubtitles'):(transcriptSearch.value.trim()?t('results'):t('captionCount'))+' '+transcriptMatches.length+' · '+(end?transcriptStart+1:0)+'–'+end;
+    syncPlay();syncVolume();syncFullscreen();
+    wide.title=t(document.getElementById('layout').classList.contains('wide')?'restore':'wide');
+    wide.setAttribute('aria-label',wide.title);
+    syncSidebarHeight();positionReading();
+  };
+  refreshUi();
+
 });
 </script>
 </body>

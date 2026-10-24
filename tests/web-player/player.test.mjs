@@ -20,7 +20,7 @@ class Element {
   set innerHTML(value){throw new Error('Player content must not inject HTML')}
 }
 function setup(data = {format:'opencam.web-player',schemaVersion:1,title:'教材 <img onerror=alert(1)>',
-  chapters:[{title:'介紹',start:0,end:4},{title:'示範 </script>',start:4,end:8},{title:'整理',start:8,end:12}]},saved={}){
+  chapters:[{title:'介紹',start:0,end:4},{title:'示範 </script>',start:4,end:8},{title:'整理',start:8,end:12}]},saved={},browserLanguage){
   const ids = Object.fromEntries(['video','error','title','summary','chapters','now','speed','stage','layout','controls',
     'seek','play','mute','volume','current-time','total-time','wide','fullscreen',
     'caption-button','caption-menu','caption-language','caption-overlay','caption-text','caption-size','caption-size-value',
@@ -28,19 +28,20 @@ function setup(data = {format:'opencam.web-player',schemaVersion:1,title:'教材
     'transcript-panel','transcript-language','transcript-search','transcript-list','transcript-status','transcript-more','transcript-follow','sidebar','player',
     'reading-button','reading-menu','reading-close','reading-size','reading-size-value','reading-spacing','reading-theme','reading-reset','reading-timestamps','download-html','download-txt','download-status','caption-close','skip-transcript','skip-player','skip-chapters'].map(id=>[id,new Element()]));
   ids.player.getBoundingClientRect=()=>({height:480});
+  ids['ui-language']=new Element();ids['ui-language-control']=new Element();
   Object.assign(ids.video,{controls:true,readyState:1,currentTime:0,duration:12,playbackRate:1,paused:true,ended:false,volume:1,muted:false,
     play(){this.playCalled=true;this.paused=false;this.dispatch('play');return Promise.resolve()},
     pause(){this.paused=true;this.dispatch('pause')}});
   ids.controls.append(ids.seek,ids.play,ids.mute,ids.volume,ids.speed,ids.wide,ids.fullscreen);
   ids.controls.append(ids['caption-button'],ids['caption-menu']);
   ids['caption-menu'].append(ids['caption-language'],ids['caption-size'],ids['caption-theme'],ids['caption-opacity'],ids['caption-position'],ids['caption-reset']);
-  const document={getElementById:id=>ids[id],createElement:()=>new Element(),body:new Element(),listeners:{},activeElement:null,fullscreenElement:null,
+  const document={getElementById:id=>ids[id],createElement:()=>new Element(),body:new Element(),documentElement:new Element(),listeners:{},activeElement:null,fullscreenElement:null,
     addEventListener(name,handler){(this.listeners[name]??=[]).push(handler)},dispatch(name,event={}){this.listeners[name]?.forEach(handler=>handler(event))},
     exitFullscreen(){this.fullscreenElement=null;this.dispatch('fullscreenchange');return Promise.resolve()}};
   const jumpLinks=[...html.matchAll(/<a\b([^>]*\bdata-jump="([^"]+)"[^>]*)>/g)].map(([,attributes,jump])=>{
     const id=/\bid="([^"]+)"/.exec(attributes)?.[1],el=ids[id]||new Element();el.dataset.jump=jump;return el;
   });
-  document.querySelectorAll=selector=>{assert.equal(selector,'[data-jump]');return jumpLinks;};
+  document.querySelectorAll=selector=>selector==='[data-jump]'?jumpLinks:[];
   for(const el of Object.values(ids))el.focus=()=>{document.activeElement=el};
   ids.downloads=[];
   document.createElement=()=>{const el=new Element();el.click=()=>ids.downloads.push({name:el.download,blob:ids.blob});el.remove=()=>{};return el};
@@ -48,7 +49,7 @@ function setup(data = {format:'opencam.web-player',schemaVersion:1,title:'教材
   const timers=new Map();let timerId=0;
   ids.runTimers=()=>{const pending=[...timers.values()];timers.clear();pending.forEach(fn=>fn())};ids.document=document;
   let ready;
-  const context={Blob,window:{innerHeight:800,OpenCamPlayerData:data,URL:{createObjectURL(blob){ids.blob=blob;return 'blob:test'},revokeObjectURL(){}},
+  const context={Blob,window:{navigator:{language:browserLanguage},innerHeight:800,OpenCamPlayerData:data,URL:{createObjectURL(blob){ids.blob=blob;return 'blob:test'},revokeObjectURL(){}},
     localStorage:{getItem:k=>saved[k]??null,setItem(k,v){saved[k]=v}},addEventListener(name,handler){if(name==='DOMContentLoaded')ready=handler},
     setTimeout(fn){timers.set(++timerId,fn);return timerId},clearTimeout(id){timers.delete(id)}},document};
   vm.runInNewContext(runtime,context);ready();return ids;
@@ -58,6 +59,53 @@ const subtitleLesson=()=>({format:'opencam.web-player',schemaVersion:1,title:'Su
     {id:'tw',language:'zh-TW',label:'繁體中文',cues:[{start:0,end:2,text:'教材 <img onerror=alert(1)>'},{start:1,end:3,text:'重疊'}]},
     {id:'en',language:'en',label:'English',cues:[{start:0,end:3,text:'Lesson'}]}
   ]}});
+test('interface language resolves browser variants, configured defaults and restricted subsets',()=>{
+  for(const [browser,want] of [['zh-CN','zh-TW'],['zh-HK','zh-TW'],['ja-JP','ja'],['en-US','en'],['fr-FR','en'],[undefined,'zh-TW']]){
+    assert.equal(setup(subtitleLesson(),{},browser)['ui-language'].value,want);
+  }
+  const codes=['zh-TW','en','ja'];
+  for(let mask=1;mask<8;mask++){
+    const enabled=codes.filter((_,i)=>mask&(1<<i));
+    for(const configured of ['auto',...codes]){
+      const lesson=subtitleLesson();lesson.uiLanguages={enabledLanguages:enabled,defaultLanguage:configured};
+      for(const remembered of [null,'obsolete',...codes]){
+        const ids=setup(lesson,{'opencam.uiLanguage':remembered},'ja-JP');
+        const preferred=enabled.includes(remembered)?remembered:enabled.includes(configured)?configured:'ja';
+        const want=enabled.includes(preferred)?preferred:['en','zh-TW','ja'].find(x=>enabled.includes(x));
+        assert.equal(ids['ui-language'].value,want);
+        assert.equal(ids['ui-language-control'].hidden,enabled.length===1);
+      }
+    }
+  }
+});
+test('manual interface switch is remembered without changing media, captions, search or reading state',()=>{
+  const saved={},ids=setup(subtitleLesson(),saved,'en-US');
+  ids.video.currentTime=1;ids.video.play();ids['transcript-search'].value='教材';
+  ids['reading-size'].value='175';ids['reading-size'].dispatch('input');
+  const before=ids['transcript-list'].children[0];
+  ids['ui-language'].value='ja';ids['ui-language'].dispatch('change');
+  assert.equal(ids.document.documentElement.lang,'ja');
+  assert.equal(ids.play.attributes['aria-label'],'一時停止');
+  assert.equal(ids.video.currentTime,1);assert.equal(ids.video.paused,false);
+  assert.equal(ids['caption-language'].value,'tw');assert.equal(ids['transcript-language'].value,'tw');
+  assert.equal(ids['transcript-search'].value,'教材');assert.equal(ids['reading-size'].value,'175');
+  assert.equal(ids['transcript-list'].children[0],before);
+  assert.equal(setup(subtitleLesson(),saved,'en-US')['ui-language'].value,'ja');
+});
+test('localized toggle names describe their current action',async()=>{
+  const ids=setup(subtitleLesson(),{},'en-US');
+  ids.wide.dispatch('click');
+  assert.equal(ids.wide.attributes['aria-label'],'Restore layout');
+  ids.fullscreen.dispatch('click');await Promise.resolve();
+  assert.equal(ids.fullscreen.title,'Exit full screen');
+});
+test('denied storage keeps language selection functional',()=>{
+  const denied=new Proxy({},{get(){throw Error('denied')},set(){throw Error('denied')}});
+  const ids=setup(subtitleLesson(),denied,'zh-CN');
+  assert.equal(ids['ui-language'].value,'zh-TW');
+  ids['ui-language'].value='ja';ids['ui-language'].dispatch('change');
+  assert.equal(ids.play.attributes['aria-label'],'再生');
+});
 test('reading preferences affect only transcript text and reject malformed stored values',()=>{
   const data=subtitleLesson(),saved={'opencam.readingAppearance':'{"size":999,"spacing":0,"theme":"url(evil)"}'};
   const ids=setup(data,saved);
