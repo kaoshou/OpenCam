@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Verify editable pointer native foundation
+on:
+  push:
+    branches: [codex/focused-editor-revision]
+    paths:
+      - 'src/ScreenRecorder.Platform.Windows/Native/OpenCamScreenCapture/**'
+      - 'tests/native/capture-clock-tests.cpp'
+      - 'scripts/build-windows-capture.ps1'
+      - '.github/workflows/verify-editable-pointer.yml'
+permissions:
+  contents: read
+jobs:
+  windows-native:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile helper and run native protocol tests
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $vs) { throw 'Visual C++ toolchain unavailable.' }
+          $dev = Join-Path $vs 'Common7\Tools\VsDevCmd.bat'
+          cmd /c "`"$dev`" -arch=x64 && pwsh -NoProfile -File scripts\build-windows-capture.ps1 -OutputDirectory native-results"
+          if ($LASTEXITCODE -ne 0) { throw 'Native verification failed.' }
+      - name: Preserve native diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: editable-pointer-native-foundation
+          path: native-results/invalid-arguments.log
+          if-no-files-found: ignore
