@@ -13,12 +13,15 @@
 - Language resolver and in-place switching: observed 2 new failures before implementation, then 32 passed.
 - Toggle accessible actions: observed Wide screen instead of Restore layout; corrected labels and fullscreen titles.
 - Caption language metadata: observed missing lang before correction; now independent of interface language.
-- Latest Node player tests: 35 passed, 0 failed; /tmp/opencam-languages-player-green.log.
-- Browser integration: 22 groups passed, 0 failed; /tmp/opencam-languages-browser2.log.
-- Browser evidence: /var/folders/95/1sbw_nz57fschyb8czpsmxp40000gn/T/opencam-reading-m0j9gO/results.json.
+- Latest Node player tests: 35 passed, 0 failed; /tmp/opencam-languages-player-final.log.
+- Browser integration: 22 groups passed, 0 failed; /tmp/opencam-languages-browser-final.log.
+- Browser evidence: /var/folders/95/1sbw_nz57fschyb8czpsmxp40000gn/T/opencam-reading-i46GQM/results.json.
 - Screenshots copied to /Users/yhcheng/Documents/Codex/OpenCam-test-packages/0.4.1-web-player-languages/.
 - Settings/export initial targeted tests: Core 2 and Media 16 passed. The Core initial failure was missing new API at compilation; the settings/export cases were written first but first executed after implementation, not an observed behavioral RED.
-- Full .NET regression and final integration correction: in progress; do not treat this record as complete until results below are updated.
+- Main-window preference persistence regression: observed ja-only resetting to all three; fixed Load/Apply/Persist snapshots, then targeted settings/export tests 19 passed.
+- Export integration confirms generated policy through IPC and rejects reuse of an operation ID with a different policy.
+- Final full Release regression: Core 340 passed; Media 1188 passed, 21 skipped, 0 failed (5m44s). SDK 8.0.425, existing restored dependencies; no new online dependency audit claimed.
+- Version consistency 0.4.1 and git diff whitespace checks passed. Final independent review is recorded separately.
 
 ## Browser coverage
 
