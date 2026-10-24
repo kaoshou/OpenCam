@@ -52,7 +52,7 @@ public sealed class ProjectEditorChromeTests
             var pane = window.FindControl<Border>("InspectorPane")!;
             var buttons = pane.GetVisualDescendants().OfType<Button>()
                 .Where(b => b.Classes.Contains("inspectorAction")).ToArray();
-            Assert.Equal(10, buttons.Length);
+            Assert.Equal(12, buttons.Length);
             foreach (var button in buttons)
             {
                 var content = Assert.IsType<EditorToolContent>(button.Content);

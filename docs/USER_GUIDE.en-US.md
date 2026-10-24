@@ -214,6 +214,18 @@ Encoders use different quality-control methods, so the same preset does not guar
 - **Hidden cursor**: Omits the pointer from the video.
 - **Presentation pointer (stick)**: A red tip follows the pointer, with an outlined white shaft extending down-right for presentations and demonstrations. Mouse interaction stays the same.
 
+### Editable Pointer
+
+Enable **High-performance capture**, then **Editable pointer** in Settings. This affects newly recorded project segments only: you operate with the normal desktop cursor, while the source video omits it and a separate track stores pointer positions inside the recording area. No desktop presentation-stick overlay is started.
+
+In **Edit recording content**, select a slim stick, arrow, dot, or Hidden, with a size of 50–200%. Stick and arrow hotspots are at their tips. Preview, MP4, GIF, and the web player's video use the same settings, including save and undo/redo. Visible pointers require re-encoding, which can take longer than direct remuxing.
+
+This mode stores an additional track and adds capture/composition work; it does not promise faster recording. Check performance on your computer before long or high-resolution recordings, and leave it off when editable pointers are unnecessary.
+
+Windows uses native WGC; macOS uses ScreenCaptureKit. The first macOS version targets ordinary desktop use and does not promise to follow cursor auto-hiding in games or other apps; choose Hidden in the editor when needed. macOS may require Input Monitoring permission; check system privacy settings if pointer preparation fails. Keyboard input and positions outside the recording area are not recorded. Compatible capture does not support this mode.
+
+Already-baked cursors in older videos cannot be removed and receive no second pointer. Back up or move the whole project folder, including its `pointers` tracks. Missing or damaged tracks preserve the video but stop pointer-enabled preview/export; explicitly choose Hidden to export without the postproduction pointer. Projects using this feature require schema 5 and cannot be opened by older versions.
+
 ### System Audio and Microphone
 
 The two audio sources can be switched independently, supporting four combinations: no audio, system audio only, microphone only, or both sources.

@@ -3,11 +3,26 @@ using System.Collections.Generic;
 using ScreenRecorder.Core.Interfaces;
 using ScreenRecorder.Core.Enums;
 using ScreenRecorder.Core.Models;
+using ScreenRecorder.Media.Capture;
 
 namespace ScreenRecorder.Platform.Windows;
 
-public class WindowsFFmpegProvider : IFFmpegPlatformProvider, IPreflightAudioPlatformProvider
+public class WindowsFFmpegProvider : IFFmpegPlatformProvider, IPreflightAudioPlatformProvider, INativeVideoPlatformProvider
 {
+    public bool RequiresEditablePointer => true;
+    public HardwareEncoderType? RequiredNativeEncoder => null;
+    public bool UsesNamedPipeVideo => true;
+    public Task<INativeVideoCapture> PrepareNativeVideoAsync(RecordingConfiguration config,
+        CaptureRegion bounds, CaptureSelection? pinned, CancellationToken token) =>
+        WindowsNativeVideoCapture.PrepareAsync(config, bounds, pinned, token);
+    public string BuildNativeInput(RecordingConfiguration config, string videoInput, bool directMic,
+        string? systemAudio, string? microphoneAudio) =>
+        BuildAudioInputArguments(videoInput, config, directMic, systemAudio);
+    public string BuildNativeOutput(RecordingConfiguration config, string outputPath) =>
+        BuildNativeOutput(config, config.EncoderType, outputPath);
+    public string BuildNativeOutput(RecordingConfiguration config, HardwareEncoderType selectedEncoder, string outputPath) =>
+        "-fps_mode passthrough " + BuildOutputArguments(config, selectedEncoder, outputPath);
+
     public string BuildPreflightAudioInputArguments(RecordingConfiguration configuration, bool synthetic,
         string? systemAudioInput, string? microphoneAudioInput)
     {

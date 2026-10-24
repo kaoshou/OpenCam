@@ -7,6 +7,14 @@ namespace ScreenRecorder.Core.Tests;
 
 public class RecordingConfigurationTests
 {
+    [Fact]
+    public void EditablePointer_DefaultsOffAndRoundTripsExplicitOptIn()
+    {
+        Assert.False(new RecordingConfiguration().EditablePointerEnabled);
+        var config = JsonSerializer.Deserialize<RecordingConfiguration>("{\"EditablePointerEnabled\":true}")!;
+        Assert.True(config.EditablePointerEnabled);
+    }
+
     [Theory]
     [InlineData("Ultra", 18, 10000)]
     [InlineData("Standard", 23, 6000)]

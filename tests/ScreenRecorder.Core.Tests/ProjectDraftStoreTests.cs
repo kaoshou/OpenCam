@@ -30,6 +30,24 @@ public sealed class ProjectDraftStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task PointerStyleDraftAndSchemaSurviveReopen()
+    {
+        string path;
+        await using (var h = await new JsonProjectStore().CreateAsync(_root, "saved"))
+        {
+            await h.SaveAsync(h.Current with { SchemaVersion = 5, Revision = 1 }, 0);
+            path = Path.Combine(h.ProjectDirectory, "project.opencam");
+            await h.SaveDraftAsync(Draft(h) with { PointerSettings = new(ProjectPointerStyle.Arrow, 75) });
+            var json = await File.ReadAllTextAsync(Path.Combine(h.ProjectDirectory, "project.edits.json"));
+            using var envelope = JsonDocument.Parse(json);
+            Assert.Equal(5, envelope.RootElement.GetProperty("SchemaVersion").GetInt32());
+        }
+        await using var reopened = await new JsonProjectStore().OpenAsync(path);
+        Assert.Equal(5, reopened.Current.SchemaVersion);
+        Assert.Equal(new ProjectPointerSettings(ProjectPointerStyle.Arrow, 75), (await reopened.ReadDraftAsync())!.PointerSettings);
+    }
+
+    [Fact]
     public async Task StaleDraftCannotOverwriteNewerDraft()
     {
         await using var h = await new JsonProjectStore().CreateAsync(_root, "saved");

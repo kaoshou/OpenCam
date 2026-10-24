@@ -44,6 +44,7 @@ public static class ProjectInsertion
         var inserted = new ProjectClip { Id = source.Id, SourceId = source.Id, Name = $"Clip {clips.Length + 1}",
             InPts = source.Timing.StartPts, OutPts = checked(source.Timing.StartPts + source.Timing.DurationTs), GroupId = group };
         var next = project with { Revision = checked(project.Revision + 1), Sources = project.Sources.Add(source),
+            SchemaVersion = source.Pointer != null ? Math.Max(5, project.SchemaVersion) : project.SchemaVersion,
             Sessions = project.Sessions.Contains(source.SessionId) ? project.Sessions : project.Sessions.Add(source.SessionId),
             Clips = clips.Insert(index, inserted) };
         ProjectValidation.Validate(next);

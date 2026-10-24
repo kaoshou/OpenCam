@@ -36,19 +36,19 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     };
     public bool CanEdit => !IsBusy && !IsChangingPreviewQuality && !StatusUnconfirmed && !IsExporting && !State.HasRecoverableDraft && State.Mode is ProjectMode.Ready or ProjectMode.Paused;
     public bool CanEditTimeline => CanEdit && !HasPropertyDraft;
-    public bool CanReplaceProject => !IsBusy && !HasPropertyDraft;
+    public bool CanReplaceProject => !IsBusy && !HasPropertyDraft && !HasPointerDraft;
     public bool CanReturnToRecording => !IsBusy && !StatusUnconfirmed && State.Mode is not (ProjectMode.Recording or ProjectMode.SavingSegment);
-    public bool CanRecord => CanEditTimeline && State.ProjectId is not null;
+    public bool CanRecord => CanEditTimeline && !HasPointerDraft && State.ProjectId is not null;
     public bool CanPause => !IsBusy && !StatusUnconfirmed && State.Mode == ProjectMode.Recording;
-    public bool CanFinish => !HasPropertyDraft && !IsBusy && !StatusUnconfirmed && State.Mode is ProjectMode.Recording or ProjectMode.Paused or ProjectMode.SaveFailed;
+    public bool CanFinish => !HasPropertyDraft && !HasPointerDraft && !IsBusy && !StatusUnconfirmed && State.Mode is ProjectMode.Recording or ProjectMode.Paused or ProjectMode.SaveFailed;
     public bool CanClose => !IsBusy && !StatusUnconfirmed && !IsExporting && State.Mode is ProjectMode.Ready or ProjectMode.Interrupted or ProjectMode.Closed;
-    public bool CanUndo => CanEditTimeline && State.CanUndo;
-    public bool CanRedo => CanEditTimeline && State.CanRedo;
+    public bool CanUndo => CanEditTimeline && !HasPointerDraft && State.CanUndo;
+    public bool CanRedo => CanEditTimeline && !HasPointerDraft && State.CanRedo;
     public bool CanEditSelection => CanEdit && SelectedClip is not null && Clips.Contains(SelectedClip);
     public bool CanMoveEarlier => CanEditTimeline && CanEditSelection && GroupStart(Clips.IndexOf(SelectedClip!)) > 0;
     public bool CanMoveLater => CanEditTimeline && CanEditSelection && GroupEnd(Clips.IndexOf(SelectedClip!)) < Clips.Count - 1;
     public string SaveStatus => State.ProjectId is null ? "" : Strings[StatusUnconfirmed ? "ProjectUnconfirmed" : IsBusy ? "ProjectSaving" :
-        Error is not null ? "ProjectSaveFailed" : State.DraftError is not null ? "ProjectDraftSaveFailed" : State.IsDirty || HasPropertyDraft ? "ProjectUnsaved" : "ProjectSaved"];
+        Error is not null ? "ProjectSaveFailed" : State.DraftError is not null ? "ProjectDraftSaveFailed" : State.IsDirty || HasPropertyDraft || HasPointerDraft ? "ProjectUnsaved" : "ProjectSaved"];
     public string ModeText => Strings["ProjectMode" + State.Mode];
     public string StartText => Strings[State.Mode == ProjectMode.Paused ? "ProjectContinue" : "ProjectRecord"];
     public string ClipCountText => $"{Clips.Count} / {State.ClipCount}";
@@ -60,6 +60,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     partial void OnStatusUnconfirmedChanged(bool value) => NotifyState();
     private void NotifyState()
     {
+        NotifyPointers();
         foreach (var property in new[] { nameof(CanEdit), nameof(CanRecord), nameof(CanPause), nameof(CanFinish), nameof(CanClose),
             nameof(CanUndo), nameof(CanRedo), nameof(SaveStatus), nameof(ModeText), nameof(StartText), nameof(ClipCountText), nameof(IsExporting),
             nameof(CanExport), nameof(CanCancelExport), nameof(ExportProgress), nameof(ExportStatusText), nameof(HasEditorError), nameof(CanReturnToRecording),
@@ -152,6 +153,11 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
         {
             await ApplyPropertiesAsync();
             if (HasPropertyDraft || StatusUnconfirmed) return;
+        }
+        if (HasPointerDraft)
+        {
+            await ApplyPointerSettingsAsync();
+            if (HasPointerDraft || StatusUnconfirmed || Error is not null) return;
         }
         await ExecuteAsync("SaveProject");
     }

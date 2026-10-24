@@ -35,6 +35,9 @@ public static class ProjectExportFingerprint
         var payload = new { Profile = exportProfile, project.Canvas, Clips = project.Clips.Select(c => new {
             Source = project.Sources.Single(s => s.Id == c.SourceId), c.InPts, c.OutPts, c.Volume, c.Muted,
             c.FadeInTicks, c.FadeOutTicks, c.Crop, c.Scale, c.PositionX, c.PositionY }).ToArray() };
+        if (project.Sources.Any(s => s.Pointer != null))
+            return Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(new {
+                Content = payload, project.PointerSettings, PointerProfile = "pointer-v1" })));
         return Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(payload)));
     }
 }

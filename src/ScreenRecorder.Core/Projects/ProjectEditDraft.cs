@@ -7,4 +7,5 @@ public sealed record ProjectEditDraft(Guid Id, Guid ProjectId, long BaseRevision
     string Name, ImmutableArray<ProjectClip> Clips)
 {
     public ProjectSubtitleSettings Subtitles { get; init; } = ProjectSubtitleSettings.Empty;
+    public ProjectPointerSettings PointerSettings { get; init; } = new();
 }

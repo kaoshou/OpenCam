@@ -13,8 +13,19 @@ if "$test_dir/capture" 2> "$test_dir/invalid.log"; then
   exit 1
 fi
 grep -q '^ERROR Invalid arguments$' "$test_dir/invalid.log"
-if [[ "${1:-}" == '--synthetic' ]]; then
-  "$test_dir/capture" --synthetic-test > "$test_dir/video.mkv"
+xcrun swiftc "$repo_root/src/ScreenRecorder.Platform.macOS/Native/OpenCamScreenCapture/main.swift" \
+  "$repo_root/tests/native/pointer-sampler-tests.swift" -D POINTER_TESTS \
+  -parse-as-library -target arm64-apple-macos13.0 -module-cache-path "$test_dir/cache" \
+  -framework ScreenCaptureKit -framework VideoToolbox -framework CoreMedia -framework CoreGraphics \
+  -o "$test_dir/pointer-tests"
+"$test_dir/pointer-tests"
+if [[ "${1:-}" == '--synthetic' || "${1:-}" == '--clock' ]]; then
+  mode=--synthetic-test
+  if [[ "${1:-}" == '--clock' ]]; then mode=--synthetic-clock-test; fi
+  if ! "$test_dir/capture" "$mode" > "$test_dir/video.mkv" 2> "$test_dir/clock.log"; then
+    cat "$test_dir/clock.log" >&2
+    exit 1
+  fi
   ffprobe -v error -show_entries stream=codec_name,width,height -show_entries packet=pts_time -of json \
     "$test_dir/video.mkv" > "$test_dir/probe.json"
   node - "$test_dir/probe.json" <<'JS'
@@ -31,6 +42,19 @@ assert.ok(pts.every((p, i) => i === 0 || p > pts[i - 1]));
 assert.ok(Math.abs(pts[30] - pts[29] - 0.533) < 0.002);
 assert.ok(Math.abs(pts.at(-1) - 2.467) < 0.002);
 JS
+  if [[ "${1:-}" == '--clock' ]]; then
+    node - "$test_dir/probe.json" "$test_dir/clock.log" <<'JS'
+const fs = require('node:fs'), assert = require('node:assert/strict');
+const pts = JSON.parse(fs.readFileSync(process.argv[2], 'utf8')).packets.map(p=>Math.round(Number(p.pts_time)*1e6));
+const clocks = fs.readFileSync(process.argv[3], 'utf8').split('\n').filter(x=>x.startsWith('FRAME_CLOCK v1 ')).map(x=>x.split(' ').slice(2).map(Number));
+assert.equal(clocks.length,60,'each actually encoded frame has a clock record');
+for(let i=0;i<60;i++){
+  assert.equal(clocks[i][0],pts[i],'clock PTS matches muxed PTS, not stderr arrival');
+  assert.equal(clocks[i][1]-clocks[i][2],3333,'acquisition age survives encoding');
+  assert.equal(clocks[i][3],i+1,'native surface identity survives asynchronous encoding');
+}
+JS
+  fi
   ffmpeg -v error -xerror -i "$test_dir/video.mkv" -f null -
   ffmpeg -v error -xerror -i "$test_dir/video.mkv" -f lavfi -i sine=frequency=440:sample_rate=48000 \
     -map 0:v -map 1:a -c:v copy -c:a aac -shortest "$test_dir/muxed.mkv"

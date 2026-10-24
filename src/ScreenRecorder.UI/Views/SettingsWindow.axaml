@@ -212,6 +212,10 @@
                                     <TextBlock Text="{Binding Strings[NativeCaptureLabel]}" FontSize="12" TextWrapping="Wrap" />
                                 </CheckBox>
                                 <TextBlock Text="{Binding Strings[NativeCaptureNotice]}" FontSize="11" Foreground="#64748B" TextWrapping="Wrap" />
+                                <CheckBox IsChecked="{Binding EditablePointerEnabled}" IsEnabled="{Binding CanEnableEditablePointer}">
+                                    <TextBlock Text="{Binding Strings[EditablePointerLabel]}" FontSize="12" TextWrapping="Wrap" />
+                                </CheckBox>
+                                <TextBlock Text="{Binding Strings[EditablePointerNotice]}" FontSize="11" Foreground="#64748B" TextWrapping="Wrap" />
                             </StackPanel>
                             <CheckBox IsChecked="{Binding OpenFolderOnFinished}" Margin="0,2">
                                 <TextBlock Text="{Binding Strings[OpenFolderOnFinishedLabel]}" FontSize="12" Foreground="#334155" TextWrapping="Wrap" />

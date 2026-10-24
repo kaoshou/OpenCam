@@ -345,6 +345,27 @@
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Spacing="10" Margin="0,0,16,0">
           <TextBlock Text="{Binding Strings[ProjectProperties]}" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,10"/>
+          <TextBlock Text="{Binding Strings[ProjectPointerTitle]}" FontWeight="SemiBold"/>
+          <TextBlock Text="{Binding PointerNotice}" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource ProjectMutedBrush}"/>
+          <StackPanel Spacing="8" IsEnabled="{Binding CanEditPointer}">
+            <ComboBox x:Name="PointerStyleCombo" SelectedIndex="{Binding PointerStyleIndex}" HorizontalAlignment="Stretch"
+                      AutomationProperties.Name="{Binding Strings[ProjectPointerStyle]}">
+              <ComboBoxItem Content="{Binding Strings[ProjectPointerStick]}"/>
+              <ComboBoxItem Content="{Binding Strings[ProjectPointerArrow]}"/>
+              <ComboBoxItem Content="{Binding Strings[ProjectPointerDot]}"/>
+              <ComboBoxItem Content="{Binding Strings[ProjectPointerHidden]}"/>
+            </ComboBox>
+            <Grid ColumnDefinitions="*,Auto"><TextBlock Text="{Binding Strings[ProjectPointerSize]}" FontSize="12"/><TextBlock Grid.Column="1" Text="{Binding PointerSizePercent, StringFormat={}{0:0}%}" FontSize="12"/></Grid>
+            <Slider x:Name="PointerSizeSlider" Minimum="50" Maximum="200" TickFrequency="1" IsSnapToTickEnabled="True"
+                    Value="{Binding PointerSizePercent}" AutomationProperties.Name="{Binding Strings[ProjectPointerSize]}"/>
+            <Button Classes="inspectorAction" Command="{Binding ApplyPointerSettingsCommand}" IsEnabled="{Binding HasPointerDraft}">
+              <editor:EditorToolContent Icon="check" Text="{Binding Strings[ProjectPointerApply]}"/>
+            </Button>
+            <Button Classes="inspectorAction" Command="{Binding ResetPointerSettingsCommand}">
+              <editor:EditorToolContent Icon="undo" Text="{Binding Strings[ProjectPointerReset]}"/>
+            </Button>
+          </StackPanel>
+          <Separator Margin="0,6"/>
           <TextBlock Text="{Binding Strings[ProjectClipName]}" FontWeight="SemiBold"/>
           <TextBox Text="{Binding ClipName}" IsEnabled="{Binding CanEditSelection}" MaxLength="200"/>
           <StackPanel Spacing="8" IsEnabled="{Binding CanEditSelection}">

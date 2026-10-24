@@ -7,6 +7,7 @@ using ScreenRecorder.Core.Projects;
 using ScreenRecorder.Infrastructure.Projects;
 using ScreenRecorder.Infrastructure.Session;
 using ScreenRecorder.Media.Probe;
+using ScreenRecorder.Media.Projects;
 
 namespace ScreenRecorder.Recorder.Services;
 
@@ -30,7 +31,7 @@ public sealed class ProjectSegmentCommitter(IProjectSourceProbe probe)
             var id = new Guid(SHA256.HashData(Encoding.UTF8.GetBytes($"{handle.Current.ProjectId}/{relative}"))[..16]);
             var intent = (await _journal.ReadPendingAsync(handle, ct)).FirstOrDefault(i => i.SourceId == id)
                 ?? new SegmentCommitIntent(id, id, session.SessionId, relative, handle.Current.Revision,
-                    CaptureFps: session.Configuration.Fps);
+                    CaptureFps: session.Configuration.Fps, EditablePointerEnabled: session.Configuration.EditablePointerEnabled);
             await _journal.WriteIntentAsync(handle, intent, ct);
             await CommitIntentAsync(handle, intent, ct, onCommitted);
         }
@@ -63,11 +64,15 @@ public sealed class ProjectSegmentCommitter(IProjectSourceProbe probe)
         var media = new ProjectSource { Id = intent.SourceId, SessionId = intent.SessionId,
             RelativePath = intent.RelativePath, FileSize = size, Sha256 = hash, Timing = info.Timing,
             Width = info.Width, Height = info.Height, VideoCodec = info.VideoCodec, AudioCodec = info.AudioCodec };
+        if(intent.EditablePointerEnabled)
+            media=media with { Pointer=await ProjectPointerFiles.PromoteAsync(handle,media,
+                reader=>PointerTrackClockVerification.VerifyAsync(reader,new ProjectFrameClockProbe().ReadAsync(source,ct),ct),ct) };
         var current = handle.Current;
         var insertion = await new ProjectInsertionJournal().FindAsync(handle, intent.SessionId, ct);
         // Sources survive Undo. Their presence, not the current clip list, is the receipt.
         var firstInsertionSource = insertion is not null && !current.Sources.Any(s => s.SessionId == intent.SessionId);
         var next = current with {
+            SchemaVersion=media.Pointer is null ? current.SchemaVersion : 5,
             Revision = checked(current.Revision + 1), Sources = current.Sources.Add(media),
             Sessions = current.Sessions.Contains(intent.SessionId) ? current.Sessions : current.Sessions.Add(intent.SessionId),
             Clips = current.Clips.Add(new ProjectClip { Id = intent.SourceId, SourceId = intent.SourceId,

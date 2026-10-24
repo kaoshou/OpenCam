@@ -6,6 +6,10 @@
 #include <stdexcept>
 #include <limits>
 #include <string>
+#include <array>
+#include <mutex>
+#include <condition_variable>
+#include <utility>
 
 namespace opencam {
 struct FrameTiming { int64_t pts_us; int64_t acquired_us; int64_t presented_us; };
@@ -27,6 +31,115 @@ inline Pointer relative_pointer(int64_t time, int x, int y, int left, int top, i
         return {time, 0, 0, false, 0};
     return {time, x - left, y - top, true, buttons};
 }
+
+enum class PointerError { none, overflow, unavailable, invalid_clock };
+class PointerButtons {
+    unsigned buttons_;
+public:
+    explicit PointerButtons(unsigned initial = 0) : buttons_(initial & 7u) {}
+    unsigned value() const { return buttons_; }
+    template<class Emit> bool apply(unsigned down, unsigned up, Emit emit) {
+        for (unsigned bit = 1; bit <= 4; bit <<= 1) {
+            if (down & bit) { buttons_ |= bit; if (!emit(buttons_)) return false; }
+            if (up & bit) { buttons_ &= ~bit; if (!emit(buttons_)) return false; }
+        }
+        return true;
+    }
+};
+// The input thread never waits for a pipe write. Every accepted transition is
+// retained in order; saturation invalidates the track instead of hiding clicks.
+template<size_t Capacity = 2048> class PointerQueue {
+    static_assert(Capacity > 0, "Pointer queue must be bounded and nonempty");
+    std::array<Pointer, Capacity> samples_{};
+    std::mutex mutex_;
+    std::condition_variable ready_;
+    size_t head_ = 0, count_ = 0;
+    int64_t last_ = -1;
+    bool finished_ = false;
+    PointerError error_ = PointerError::none;
+public:
+    bool push(Pointer point) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (finished_) return false;
+        if (count_ == Capacity || point.host_us < 0 || last_ == std::numeric_limits<int64_t>::max()) {
+            error_ = count_ == Capacity ? PointerError::overflow : PointerError::invalid_clock;
+            finished_ = true;
+            ready_.notify_all();
+            return false;
+        }
+        // QPC quantization can put separate input events in the same microsecond.
+        if (point.host_us <= last_) point.host_us = last_ + 1;
+        last_ = point.host_us;
+        samples_[(head_ + count_) % Capacity] = point;
+        ++count_;
+        ready_.notify_one();
+        return true;
+    }
+    bool wait_pop(Pointer& point) {
+        std::unique_lock<std::mutex> lock(mutex_);
+        ready_.wait(lock, [&] { return count_ || finished_; });
+        if (!count_) return false;
+        point = samples_[head_];
+        head_ = (head_ + 1) % Capacity;
+        --count_;
+        return true;
+    }
+    void finish(PointerError error = PointerError::none) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (error_ == PointerError::none) error_ = error;
+        finished_ = true;
+        ready_.notify_all();
+    }
+    PointerError error() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return error_;
+    }
+};
+
+// A delegate retains shared ownership of its state, and a lease guards access
+// to closable resources. stop -> unsubscribe -> wait -> Close is safe even for
+// a delegate invocation which was already queued before unsubscribe.
+class CallbackGate {
+    std::mutex mutex_;
+    std::condition_variable drained_;
+    bool stopped_ = false;
+    size_t active_ = 0;
+    void leave() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (--active_ == 0) drained_.notify_all();
+    }
+public:
+    class Lease {
+        CallbackGate* owner_ = nullptr;
+        friend class CallbackGate;
+        explicit Lease(CallbackGate* owner) : owner_(owner) {}
+    public:
+        Lease() = default;
+        Lease(const Lease&) = delete;
+        Lease& operator=(const Lease&) = delete;
+        Lease(Lease&& other) noexcept : owner_(std::exchange(other.owner_, nullptr)) {}
+        Lease& operator=(Lease&& other) noexcept {
+            if (this != &other) {
+                if (owner_) owner_->leave();
+                owner_ = std::exchange(other.owner_, nullptr);
+            }
+            return *this;
+        }
+        ~Lease() { if (owner_) owner_->leave(); }
+        explicit operator bool() const { return owner_ != nullptr; }
+    };
+    Lease enter() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (stopped_) return {};
+        ++active_;
+        return Lease(this);
+    }
+    void stop() { std::lock_guard<std::mutex> lock(mutex_); stopped_ = true; }
+    void wait() {
+        std::unique_lock<std::mutex> lock(mutex_);
+        drained_.wait(lock, [&] { return active_ == 0; });
+    }
+};
 
 using Bytes = std::vector<uint8_t>;
 inline Bytes number(uint64_t n) {

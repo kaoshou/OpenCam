@@ -11,6 +11,7 @@ public class RecordingConfiguration
 {
     public string? ProjectName { get; set; }
     public bool NativeCaptureEnabled { get; set; }
+    public bool EditablePointerEnabled { get; set; }
     private WindowsCaptureMode _windowsCaptureMode;
     public WindowsCaptureMode WindowsCaptureMode
     {

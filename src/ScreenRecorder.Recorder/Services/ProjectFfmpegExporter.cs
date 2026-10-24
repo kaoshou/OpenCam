@@ -22,6 +22,10 @@ public sealed partial class ProjectFfmpegExporter(IProjectMediaProcess process, 
         profile.Validate();
         // This is an export-only view of the canvas; never save it to the project.
         var plan = ProjectRenderPlan.Create(snapshot with { Canvas = profile.OutputCanvas(snapshot.Canvas) });
+        var hasPointer = ProjectPointerCompositor.IsRequired(plan);
+        var basePlan = hasPointer ? ProjectRenderPlan.Create(snapshot with { Canvas = plan.Canvas,
+            PointerSettings = new(ProjectPointerStyle.Hidden) }) : plan;
+        using var pointer = new ProjectPointerCompositor(plan, (source, token) => PointerTrackCursor.OpenAsync(owner, source, token));
         if (plan.FrameCount == 0) throw new InvalidOperationException("No retained video frames to export.");
         using var directory = BoundDirectory.Open(outputDirectory);
         var prefix = $".opencam-export-{Guid.NewGuid():N}";
@@ -39,7 +43,7 @@ public sealed partial class ProjectFfmpegExporter(IProjectMediaProcess process, 
         try
         {
             ReportPhase(progress, RecordingExportPhase.Inspecting);
-            var fast = profile.IsOriginal
+            var fast = profile.IsOriginal && !hasPointer
                 ? await TryFastExportAsync(owner, snapshot, plan, directory, temporary, exportId, Create, owned, progress, ct)
                 : null;
             if (fast is not null) return fast;
@@ -65,8 +69,36 @@ public sealed partial class ProjectFfmpegExporter(IProjectMediaProcess process, 
                         directory.DeleteOwnedFile(partName);
                         owned.Remove(partName);
                     }
-                    if (clip.EndFrame > clip.StartFrame) await Append(ProjectMediaJob.EncodeClipVideo(plan, index,
-                        options: profile), video);
+                    if (clip.EndFrame > clip.StartFrame)
+                    {
+                        if (hasPointer && clip.Source.Pointer is not null)
+                        {
+                            if (process is not IProjectStreamingMediaProcess streaming)
+                                throw new NotSupportedException("Editable pointer export requires streaming video support.");
+                            await using (var part = Create(partName))
+                            {
+                                var frameBytes = checked(plan.Canvas.Width * plan.Canvas.Height * 4);
+                                await new ProjectPointerVideoEncoder().EncodeAsync(plan.Canvas, profile.VideoCrf,
+                                    clip.EndFrame - clip.StartFrame, part, (input, token) => streaming.RunStreamingAsync(
+                                        ProjectMediaJob.PreviewVideo(basePlan, index, 0, plan.Canvas.Width, plan.Canvas.Height), source,
+                                        async (decoded, decodeToken) =>
+                                        {
+                                            var pixels = new byte[frameBytes];
+                                            for (var frame = clip.StartFrame; frame < clip.EndFrame; frame++)
+                                            {
+                                                await decoded.ReadExactlyAsync(pixels, decodeToken);
+                                                await pointer.ApplyAsync(pixels, frame, plan.Canvas.Width, plan.Canvas.Height, ct: decodeToken);
+                                                await input.WriteAsync(pixels, decodeToken);
+                                            }
+                                            if (await decoded.ReadAsync(new byte[1], decodeToken) != 0)
+                                                throw new InvalidDataException("Unexpected compositor frames.");
+                                        }, token), ct);
+                            }
+                            await using (var part = directory.Read(partName)) await part.CopyToAsync(video, ct);
+                            directory.DeleteOwnedFile(partName); owned.Remove(partName);
+                        }
+                        else await Append(ProjectMediaJob.EncodeClipVideo(basePlan, index, options: profile), video);
+                    }
                     if (clip.EndAudioSample > clip.StartAudioSample) await Append(ProjectMediaJob.RenderClipAudio(plan, index), audio);
                     progress.Report(0.8 * (index + 1) / plan.Clips.Length);
                 }

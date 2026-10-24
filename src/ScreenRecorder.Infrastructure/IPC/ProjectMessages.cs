@@ -24,6 +24,7 @@ public sealed record ProjectRequest
     public long BookmarkRevision { get; init; }
     public Guid? SubtitleTrackId { get; init; }
     public ProjectSubtitleSettings? SubtitleSettings { get; init; }
+    public ProjectPointerSettings? PointerSettings { get; init; }
     public string? SubtitleLanguage { get; init; }
     public long TimelineTicks { get; init; }
     public Guid? PlaybackGeneration { get; init; }
@@ -55,6 +56,8 @@ public sealed record ProjectSnapshot(Guid? ProjectId, string Name, string? Direc
     public long SessionRecordingTicks { get; init; }
     public ProjectSubtitleSettings Subtitles { get; init; } = ProjectSubtitleSettings.Empty;
     public bool SubtitlesNeedSyncConfirmation { get; init; }
+    public ProjectPointerSettings PointerSettings { get; init; } = new();
+    public bool HasEditablePointerSources { get; init; }
 }
 
 public sealed record ProjectReply(bool Success, string? Error, ProjectSnapshot State,

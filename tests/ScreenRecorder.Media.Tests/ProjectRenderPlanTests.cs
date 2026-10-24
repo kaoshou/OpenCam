@@ -8,6 +8,24 @@ namespace ScreenRecorder.Media.Tests;
 public sealed class ProjectRenderPlanTests
 {
     [Fact]
+    public void VideoOnlyJobsCannotSilentlyOmitAnEditablePointer()
+    {
+        var p = Make(1, 1000, new(1,1000));
+        var source = p.Sources[0];
+        p = p with { SchemaVersion = 5, Sources = [source with {
+            Pointer = new($"pointers/{source.Id:N}.ocpt", 485, new string('a',64), 0, true) }] };
+        var plan = ProjectRenderPlan.Create(p);
+        Assert.Null(ProjectMediaJob.CopyWholeRecording(plan));
+        Assert.Throws<InvalidOperationException>(() => ProjectMediaJob.EncodeClipVideo(plan, 0));
+        Assert.Throws<InvalidOperationException>(() => ProjectMediaJob.PreviewStill(plan, 0, 0));
+        var gif = new GifExportOptions();
+        var gifPlan = ProjectRenderPlan.Create(p with { Canvas = p.Canvas with { Fps = new(gif.FramesPerSecond, 1) } });
+        Assert.Throws<InvalidOperationException>(() => ProjectMediaJob.RenderGifClip(gifPlan, 0, gif));
+        var hidden = ProjectRenderPlan.Create(p with { PointerSettings = new(ProjectPointerStyle.Hidden,100) });
+        Assert.NotNull(ProjectMediaJob.EncodeClipVideo(hidden, 0));
+    }
+
+    [Fact]
     public void FractionalClips_QuantizeGlobalBoundaries_NotEachDuration()
     {
         var project = Make(300, 1, new(1001, 30000));

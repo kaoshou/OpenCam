@@ -64,7 +64,7 @@ public sealed partial class ProjectRecordingCoordinator
     {
         var id = _draftId ?? Guid.NewGuid();
         var draft = new ProjectEditDraft(id, Current!.ProjectId, _handle!.Current.Revision,
-            checked(++_draftSequence), Current.Name, Current.Clips) { Subtitles = Current.Subtitles };
+            checked(++_draftSequence), Current.Name, Current.Clips) { Subtitles = Current.Subtitles, PointerSettings = Current.PointerSettings };
         await _handle.SaveDraftAsync(draft, ct);
         _draftId = id;
         DraftError = null;
@@ -92,8 +92,9 @@ public sealed partial class ProjectRecordingCoordinator
         var draft = _recoveredDraft ?? throw new InvalidOperationException("No recovered draft is pending.");
         if (restore)
         {
-            _history!.ReplaceEdits(Current! with { Name = draft.Name, Clips = draft.Clips, Subtitles = draft.Subtitles,
-                SchemaVersion = !draft.Subtitles.Tracks.IsEmpty ? 4 : Math.Max(Current!.SchemaVersion, draft.Clips.Any(c => !c.Parts.IsEmpty) ? 3 : 1),
+            _history!.ReplaceEdits(Current! with { Name = draft.Name, Clips = draft.Clips, Subtitles = draft.Subtitles, PointerSettings = draft.PointerSettings,
+                SchemaVersion = Math.Max(Current!.SchemaVersion, draft.PointerSettings != new ProjectPointerSettings() ? 5 :
+                    !draft.Subtitles.Tracks.IsEmpty ? 4 : draft.Clips.Any(c => !c.Parts.IsEmpty) ? 3 : 1),
                 Revision = checked(Current!.Revision + 1) }, true);
             _draftId = draft.Id; _draftSequence = draft.Sequence;
         }

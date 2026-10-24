@@ -5,6 +5,20 @@ public partial class LocalizationService
 {
     public static readonly Dictionary<string, string> JaJpDictionary = new()
     {
+        ["EditablePointerLabel"] = "後から編集できるポインターを記録（初期値はオフ）",
+        ["EditablePointerNotice"] = "高性能キャプチャが必要です。これから録画する内容に適用します。録画中は通常のカーソルが表示されます。元動画にはカーソルやポインター効果を含めず、エディターと書き出し時に追加します。指示棒・矢印・丸・非表示と、50～200% のサイズを選べます。Mac ではゲームによる自動非表示の再現は保証されません。エディターで非表示を選択できます。既存動画に焼き込まれたカーソルは変更できません。",
+        ["ProjectPointerTitle"] = "編集用ポインター（プロジェクト全体）",
+        ["ProjectPointerStyle"] = "ポインターの種類",
+        ["ProjectPointerStick"] = "指示棒",
+        ["ProjectPointerArrow"] = "矢印",
+        ["ProjectPointerDot"] = "丸",
+        ["ProjectPointerHidden"] = "非表示",
+        ["ProjectPointerSize"] = "ポインターのサイズ",
+        ["ProjectPointerApply"] = "ポインター設定を適用",
+        ["ProjectPointerReset"] = "指示棒・100% に戻す",
+        ["ProjectPointerNotice"] = "プレビューと書き出しを含め、このプロジェクト内の編集可能な全ポインターに適用します。既存動画のカーソルは変わりません。元に戻す・やり直しに対応し、保存すると設定が残ります。表示には完全で検証済みのデータが必要です。不完全・紛失・破損の場合は「非表示」を明示的に選ぶと、保持された動画をプレビュー・書き出しできます。自動的に非表示にはしません。",
+        ["ProjectPointerUnavailable"] = "このプロジェクトには編集用ポインターデータがありません。既存のカーソルは変更できず、二重のポインターも追加しません。高性能キャプチャで編集用ポインターを有効にしてから新しく録画してください。",
+        ["ProjectPointerInvalid"] = "有効なポインターの種類と、50～200% の整数サイズを選択してください。",
         ["Mp4ExportSettings"] = "MP4 出力設定",
         ["Mp4ExportQuality"] = "出力品質",
         ["Mp4QualityOriginal"] = "現在の設定を維持（既定）",

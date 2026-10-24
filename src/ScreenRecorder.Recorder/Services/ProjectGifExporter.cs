@@ -15,6 +15,10 @@ public sealed class ProjectGifExporter(IProjectMediaProcess process, GifExportOp
             throw new InvalidOperationException("Export must use the owned, saved revision.");
         var size = GifTiming.OutputSize(snapshot.Canvas, options);
         var plan = ProjectRenderPlan.Create(snapshot with { Canvas = snapshot.Canvas with { Fps = new(options.FramesPerSecond, 1) } });
+        var hasPointer = ProjectPointerCompositor.IsRequired(plan);
+        var basePlan = hasPointer ? ProjectRenderPlan.Create(snapshot with { Canvas = plan.Canvas,
+            PointerSettings = new(ProjectPointerStyle.Hidden) }) : plan;
+        using var pointer = new ProjectPointerCompositor(plan, (source, token) => PointerTrackCursor.OpenAsync(owner, source, token));
         if (plan.FrameCount == 0) throw new InvalidDataException("No retained frames to export.");
         var rawBytes = checked(plan.FrameCount * size.Width * size.Height * 3);
         using var directory = BoundDirectory.Open(outputDirectory);
@@ -41,8 +45,32 @@ public sealed class ProjectGifExporter(IProjectMediaProcess process, GifExportOp
                         Convert.ToHexString(await SHA256.HashDataAsync(source, ct)), clip.Source.Sha256, StringComparison.OrdinalIgnoreCase))
                         throw new InvalidDataException("Original source fingerprint changed.");
                     await using (var part = Create(partName))
-                        await process.RunAsync(ProjectMediaJob.RenderGifClip(plan, index, options), [source], part, ct);
-                    await using (var part = directory.Read(partName)) await part.CopyToAsync(raw, ct);
+                        await process.RunAsync(ProjectMediaJob.RenderGifClip(basePlan, index, options), [source], part, ct);
+                    await using (var part = directory.Read(partName))
+                    {
+                        if (hasPointer && clip.Source.Pointer is not null)
+                        {
+                            var rgb = new byte[checked(size.Width * size.Height * 3)];
+                            var rgba = new byte[checked(size.Width * size.Height * 4)];
+                            for (var frame = clip.StartFrame; frame < clip.EndFrame; frame++)
+                            {
+                                await part.ReadExactlyAsync(rgb, ct);
+                                for (var pixel=0;pixel<rgb.Length/3;pixel++)
+                                {
+                                    rgba[pixel*4]=rgb[pixel*3]; rgba[pixel*4+1]=rgb[pixel*3+1];
+                                    rgba[pixel*4+2]=rgb[pixel*3+2]; rgba[pixel*4+3]=255;
+                                }
+                                await pointer.ApplyAsync(rgba, frame, size.Width, size.Height, gif: true, ct: ct);
+                                for (var pixel=0;pixel<rgb.Length/3;pixel++)
+                                {
+                                    rgb[pixel*3]=rgba[pixel*4]; rgb[pixel*3+1]=rgba[pixel*4+1]; rgb[pixel*3+2]=rgba[pixel*4+2];
+                                }
+                                await raw.WriteAsync(rgb, ct);
+                            }
+                            if (part.Position != part.Length) throw new InvalidDataException("Unexpected GIF compositor frames.");
+                        }
+                        else await part.CopyToAsync(raw, ct);
+                    }
                     Delete(partName);
                     progress.Report(.55 * (index + 1) / plan.Clips.Length);
                 }

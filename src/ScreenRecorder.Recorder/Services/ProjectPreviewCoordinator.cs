@@ -47,7 +47,9 @@ public sealed class ProjectPreviewCoordinator : IAsyncDisposable
             _coordinator.ExportStatus?.State == RecordingExportState.Running || ProjectTimeline.Build(project).Locate(ticks) is null)
             throw new InvalidOperationException("Preview snapshot or position is unavailable.");
         var generation = Guid.NewGuid();
-        var settings = new ProjectPreviewSettings(ProjectPreviewFormat.Resolve(project.Canvas, quality));
+        var settings = new ProjectPreviewSettings(ProjectPreviewFormat.Resolve(project.Canvas, quality)) {
+            OpenPointerCursor = (source, ct) => _coordinator.OpenPointerCursorAsync(projectId, revision, source.Id, ct)
+        };
         settings.Audio.Muted = muted;
         Log.Information("Project preview starting: generation {Generation}, clips {Clips}, sources with audio {AudioSources}, muted clips {MutedClips}, zero-volume clips {ZeroVolumeClips}",
             generation, project.Clips.Length, project.Sources.Count(s => s.AudioCodec is not null),

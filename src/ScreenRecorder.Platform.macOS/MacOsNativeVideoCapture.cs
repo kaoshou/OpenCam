@@ -8,13 +8,20 @@ using Serilog;
 
 namespace ScreenRecorder.Platform.macOS;
 
-internal sealed class MacOsNativeVideoCapture(Process process, CaptureSelection selection) : INativeVideoCapture
+internal sealed class MacOsNativeVideoCapture(Process process, CaptureSelection selection,
+    bool editablePointer = false, ILogger? diagnosticLogger = null) : INativeVideoCapture, INativePointerCapture
 {
+    private readonly NativePointerProtocol? _pointerProtocol = editablePointer
+        ? new(selection.Bounds.Width, selection.Bounds.Height) : null;
+    private readonly ILogger _log = diagnosticLogger ?? Log.Logger;
+    private bool _pointerIncomplete;
     private Task? _stderr;
     private volatile bool _stopping;
     private readonly object _stopLock = new();
     private Task? _stopTask;
     public event EventHandler<string>? CaptureFailed;
+    public event EventHandler<NativePointerEvent>? PointerMetadata;
+    public event EventHandler<string>? PointerIncomplete;
     public Stream Output => process.StandardOutput.BaseStream;
     public CaptureSelection Selection => selection;
 
@@ -44,21 +51,45 @@ internal sealed class MacOsNativeVideoCapture(Process process, CaptureSelection 
             match.Display.Id.ToString(CultureInfo.InvariantCulture), null, null, bounds) { OutputBounds = match.Bounds };
         if (pinned is not null && pinned != selection)
             throw new InvalidOperationException("The original capture display changed.");
+        var start = BuildStartInfo(helper, config, match.Display.Id, bounds, match.Bounds);
+        var process = Process.Start(start) ?? throw new IOException("Cannot start ScreenCaptureKit helper.");
+        return await PrepareProcessAsync(process, selection, config.EditablePointerEnabled, token);
+    }
+
+    internal static ProcessStartInfo BuildStartInfo(string helper, RecordingConfiguration config,
+        long displayId, CaptureRegion bounds, CaptureRegion displayBounds)
+    {
+        // Validate metadata geometry before launching a child that would otherwise
+        // be left waiting for its start command when the parser cannot support it.
+        if (config.EditablePointerEnabled) _ = new NativePointerProtocol(bounds.Width, bounds.Height);
         var start = new ProcessStartInfo(helper) { UseShellExecute = false, RedirectStandardInput = true,
             RedirectStandardOutput = true, RedirectStandardError = true };
-        foreach (var value in new long[] { match.Display.Id, bounds.X - match.Bounds.X, bounds.Y - match.Bounds.Y,
-            bounds.Width, bounds.Height, match.Bounds.Width, match.Bounds.Height, config.Fps,
+        foreach (var value in new long[] { displayId, bounds.X - displayBounds.X, bounds.Y - displayBounds.Y,
+            bounds.Width, bounds.Height, displayBounds.Width, displayBounds.Height, config.Fps,
             config.VideoBitrateKbps, config.CursorEffect == CursorEffectMode.Hidden ? 0 : 1 })
             start.ArgumentList.Add(value.ToString(CultureInfo.InvariantCulture));
-        var process = Process.Start(start) ?? throw new IOException("Cannot start ScreenCaptureKit helper.");
-        var capture = new MacOsNativeVideoCapture(process, selection);
+        if (config.EditablePointerEnabled) start.ArgumentList.Add("1");
+        return start;
+    }
+
+    internal static async Task<MacOsNativeVideoCapture> PrepareProcessAsync(Process process,
+        CaptureSelection selection, bool editablePointer, CancellationToken token)
+    {
+        var capture = new MacOsNativeVideoCapture(process, selection, editablePointer);
         try
         {
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
             deadline.CancelAfter(TimeSpan.FromSeconds(8));
             var ready = await process.StandardError.ReadLineAsync(deadline.Token);
-            if (ready != "READY h264-matroska-v1")
-                throw new IOException("ScreenCaptureKit initialization failed: " + ready);
+            var expected = editablePointer ? "READY h264-matroska-clock-v1" : "READY h264-matroska-v1";
+            if (ready != expected)
+            {
+                // Native preparation failures contain no pointer records. An
+                // unexpected metadata line must never enter exception/log text.
+                var detail = ready?.StartsWith("ERROR ", StringComparison.Ordinal) == true
+                    ? ready[..Math.Min(ready.Length, 2048)] : "incompatible or unavailable native protocol";
+                throw new IOException("ScreenCaptureKit initialization failed: " + detail);
+            }
             capture._stderr = capture.DrainAsync();
             return capture;
         }
@@ -81,13 +112,35 @@ internal sealed class MacOsNativeVideoCapture(Process process, CaptureSelection 
         try
         {
             while (await process.StandardError.ReadLineAsync() is { } line)
-                Log.Information("ScreenCaptureKit: {Diagnostic}", line.Length <= 2048 ? line : line[..2048]);
+                HandleDiagnosticLine(line);
             if (!_stopping) CaptureFailed?.Invoke(this, "ScreenCaptureKit video producer ended unexpectedly.");
         }
         catch (Exception ex)
         {
             if (!_stopping) CaptureFailed?.Invoke(this, "ScreenCaptureKit diagnostics failed: " + ex.Message);
         }
+    }
+
+    internal void HandleDiagnosticLine(string line)
+    {
+        if (line.StartsWith("POINTER", StringComparison.Ordinal) || line.StartsWith("FRAME_CLOCK", StringComparison.Ordinal))
+        {
+            // Metadata is private media data, including malformed/error records.
+            // Never forward raw records to Serilog or an exception message.
+            if (_pointerProtocol is null || _pointerIncomplete) return;
+            try
+            {
+                if (_pointerProtocol.Parse(line) is { } value) PointerMetadata?.Invoke(this, value);
+            }
+            catch (Exception)
+            {
+                _pointerIncomplete = true;
+                try { PointerIncomplete?.Invoke(this, "Editable pointer metadata is invalid or incomplete."); }
+                catch (Exception) { _log.Warning("Editable pointer failure subscriber could not accept the incomplete status."); }
+            }
+            return;
+        }
+        _log.Information("ScreenCaptureKit: {Diagnostic}", line.Length <= 2048 ? line : line[..2048]);
     }
 
     public Task StopAsync()

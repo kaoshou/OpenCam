@@ -29,6 +29,10 @@ public sealed class ProjectFrameService(ProjectRecordingCoordinator coordinator,
         var selection = ProjectStillSelection.Create(snapshot, ticks, thumbnailClipId);
         var (plan, index, frame) = selection;
         var part = plan.Clips[index];
+        var pointerRequired = part.Source.Pointer is not null && plan.PointerSettings.Style != ProjectPointerStyle.Hidden;
+        var basePlan = pointerRequired ? ProjectStillSelection.Create(snapshot with {
+            PointerSettings = snapshot.PointerSettings with { Style = ProjectPointerStyle.Hidden }
+        }, ticks, thumbnailClipId).Plan : plan;
         var position = new ProjectPosition(ProjectClipProjection.LogicalId(snapshot, part.Clip.Id), part.Source.Id, part.Clip.InPts);
         var key = (projectId, revision, ticks, thumbnailClipId, quality);
         var size = ProjectPreviewFormat.Resolve(snapshot.Canvas, quality);
@@ -37,6 +41,8 @@ public sealed class ProjectFrameService(ProjectRecordingCoordinator coordinator,
         var byteCount = width * height * 4;
         ProjectFrameReply Pixels(byte[] rgba) => new(revision, ticks, position.ClipId, rgba)
             { PixelWidth = width, PixelHeight = height };
+        ProjectFrameReply Unavailable() => new(revision, ticks, position.ClipId, null,
+            "Preview could not be decoded. Original media is unchanged.");
         if (_running is not null)
         {
             if (!_running.IsCompleted)
@@ -44,7 +50,22 @@ public sealed class ProjectFrameService(ProjectRecordingCoordinator coordinator,
                 if (_key != key) { _superseded = true; _cancel!.Cancel(); }
                 return new(revision, ticks, position.ClipId, null);
             }
-            if (_key == key && !_superseded) return await _running;
+            if (_key == key && !_superseded)
+            {
+                // A completed task is also a cache hit. Never let retained RGBA
+                // conceal a pointer sidecar that changed after the previous query.
+                if (pointerRequired)
+                {
+                    try
+                    {
+                        using var validationDeadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                        using var verified = await coordinator.OpenPointerCursorAsync(projectId, revision,
+                            part.Source.Id, validationDeadline.Token);
+                    }
+                    catch (Exception) { return Unavailable(); }
+                }
+                return await _running;
+            }
             await _running;
             _cancel!.Dispose();
         }
@@ -68,10 +89,20 @@ public sealed class ProjectFrameService(ProjectRecordingCoordinator coordinator,
                             lease.Source.Sha256, StringComparison.OrdinalIgnoreCase))
                         throw new InvalidDataException("Original source fingerprint changed.");
                     lease.Stream.Position = 0;
+                    // Full ownership/fingerprint/seal verification precedes both
+                    // decoding and disk cache lookup, including corrupt late records.
+                    using var verifiedPointer = pointerRequired
+                        ? await coordinator.OpenPointerCursorAsync(projectId, revision, part.Source.Id, token) : null;
+                    using var pointer = new ProjectPointerCompositor(plan, (source, _) =>
+                        source.Id == part.Source.Id && verifiedPointer is not null
+                            ? Task.FromResult(verifiedPointer)
+                            : Task.FromException<PointerTrackCursor>(new InvalidDataException("Unexpected pointer source for still frame.")));
                     // No revision/name in key: renaming can reuse identical pixels.
                     // Source fingerprint is rechecked above; cache never bypasses source validation.
                     var cacheKey = Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(new {
-                        Algorithm = 3, lease.Source.Sha256, lease.Source.Timing, plan.Canvas, frame,
+                        Algorithm = 4, lease.Source.Sha256, lease.Source.Timing, plan.Canvas, frame,
+                        plan.PointerSettings, lease.Source.Pointer,
+                        SourceWidth = lease.Source.Width, SourceHeight = lease.Source.Height,
                         part.Clip.InPts, part.Clip.OutPts, part.Clip.Crop, part.Clip.Scale,
                         part.Clip.PositionX, part.Clip.PositionY,
                         StartNumerator = part.ExactStart.Numerator.ToString(System.Globalization.CultureInfo.InvariantCulture),
@@ -88,17 +119,18 @@ public sealed class ProjectFrameService(ProjectRecordingCoordinator coordinator,
                         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                         { Log.Debug(ex, "Frame cache miss; rebuilding derived image"); }
                     }
-                    var job = ProjectMediaJob.PreviewStill(plan, index, frame,
+                    var job = ProjectMediaJob.PreviewStill(basePlan, index, frame,
                         width, height);
                     var result = await process.RunAsync(job, [lease.Stream], null, token);
                     if (result.Output.Length != byteCount) throw new InvalidDataException("Invalid frame size.");
+                    await pointer.ApplyAsync(result.Output, part.StartFrame + frame, width, height, preview: true, ct: token);
                     if (_cache is not null)
                         try { await _cache.PutAsync(cacheKey, result.Output, token); }
                         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                         { Log.Debug(ex, "Frame cache write skipped; source and preview are retained"); }
                     return Pixels(result.Output);
                 }
-                catch (Exception) { return new(revision, ticks, position.ClipId, null, "Preview could not be decoded. Original media is unchanged."); }
+                catch (Exception) { return Unavailable(); }
             }
         });
         return new(revision, ticks, position.ClipId, null);

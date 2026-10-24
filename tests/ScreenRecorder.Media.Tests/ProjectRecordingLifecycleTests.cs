@@ -11,6 +11,63 @@ namespace ScreenRecorder.Media.Tests;
 
 public partial class RecordingEncoderLifecycleTests
 {
+    private sealed class PointerOverlaySpy : ICursorHighlightService
+    {
+        public bool IsRunning {get;private set;}
+        public List<CursorEffectMode> Modes {get;}=[];
+        public void Start(CursorEffectMode mode) { Modes.Add(mode); IsRunning=mode!=CursorEffectMode.Default; }
+        public void Stop()=>IsRunning=false;
+        public void Dispose()=>Stop();
+    }
+    [Fact]
+    public async Task EditablePointerRecording_KeepsOperatorSystemCursorWithoutDesktopOverlay()
+    {
+        using var overlay=new PointerOverlaySpy();
+        await using var scope=new RecordingScope(cursor:overlay);
+        scope.Configuration.NativeCaptureEnabled=true;
+        scope.Configuration.EditablePointerEnabled=true;
+        scope.Configuration.CursorEffect=CursorEffectMode.PresentationStick;
+        await using var project=new ProjectRecordingCoordinator(scope.Recorder,new JsonProjectStore(),new ProjectProbeStub());
+        Assert.True((await project.CreateAsync(scope.Configuration.OutputDirectory,"Pointer")).Success);
+        Assert.True((await project.StartAsync(scope.Configuration,Guid.NewGuid())).Success);
+        Assert.False(overlay.IsRunning);
+        Assert.True((await project.PauseAsync(Guid.NewGuid())).Success);
+        Assert.True((await project.StartAsync(scope.Configuration,Guid.NewGuid())).Success);
+        Assert.False(overlay.IsRunning);
+        Assert.All(overlay.Modes,m=>Assert.Equal(CursorEffectMode.Default,m));
+    }
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task EditablePointerRecording_SavesSeparateBoundTrackForEachSegment(bool pointerFailure)
+    {
+        await using var scope = new RecordingScope();
+        scope.Configuration.NativeCaptureEnabled=true;
+        scope.Configuration.EditablePointerEnabled=true;
+        await using var project = new ProjectRecordingCoordinator(scope.Recorder,new JsonProjectStore(),new ProjectProbeStub());
+        Assert.True((await project.CreateAsync(scope.Configuration.OutputDirectory,"Pointer")).Success);
+        Assert.True((await project.StartAsync(scope.Configuration,Guid.NewGuid())).Success);
+        if(pointerFailure) scope.Factory.Created[^1].LosePointer();
+        Assert.True((await project.PauseAsync(Guid.NewGuid())).Success);
+        Assert.True((await project.StartAsync(scope.Configuration,Guid.NewGuid())).Success);
+        Assert.True((await project.FinishAsync(Guid.NewGuid())).Success);
+        Assert.Equal(2,project.Current!.Sources.Length);
+        Assert.Equal(5,project.Current.SchemaVersion);
+        // Stub video is deliberately not valid media: never claim its clock has been verified.
+        Assert.All(project.Current.Sources,s=>Assert.False(s.Pointer!.Complete));
+        var tracks=Directory.GetFiles(project.ProjectDirectory!,"*.mkv.pointer",SearchOption.AllDirectories);
+        Assert.Equal(2,tracks.Length);
+        foreach(var source in project.Current.Sources)
+        {
+            var path=Path.Combine(project.ProjectDirectory!,source.RelativePath)+".pointer";
+            using var dir=ScreenRecorder.Infrastructure.Session.BoundDirectory.Open(Path.GetDirectoryName(path)!);
+            using var read=PointerTrackReader.Open(dir,Path.GetFileName(path),
+                new(project.Current.ProjectId,source.Id,320,240),new(source.FileSize,source.Sha256),true);
+            while(read.ReadNext()!=null) { }
+            Assert.Equal(!pointerFailure || source!=project.Current.Sources[0],read.Complete);
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

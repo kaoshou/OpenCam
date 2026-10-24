@@ -56,7 +56,7 @@ public sealed partial class ProjectWorkspaceViewModel
         {
             ct.ThrowIfCancellationRequested();
             if (!await ResolveRecoveredDraftAsync()) return false;
-            if (!State.IsDirty && !HasPropertyDraft) { Error = null; return true; }
+            if (!State.IsDirty && !HasPropertyDraft && !HasPointerDraft) { Error = null; return true; }
             var decision = RequestUnsavedDecision is null ? UnsavedDecision.Cancel : await RequestUnsavedDecision();
             ct.ThrowIfCancellationRequested();
             if (decision == UnsavedDecision.Cancel) return false;
@@ -64,9 +64,9 @@ public sealed partial class ProjectWorkspaceViewModel
             else
             {
                 await ExecuteAsync("DiscardProjectEdits");
-                if (!StatusUnconfirmed && Error is null) ResetProperties();
+                if (!StatusUnconfirmed && Error is null) { ResetProperties(); ResetPointerDraft(); }
             }
-            return !StatusUnconfirmed && Error is null && !State.IsDirty && !HasPropertyDraft;
+            return !StatusUnconfirmed && Error is null && !State.IsDirty && !HasPropertyDraft && !HasPointerDraft;
         }
         finally { _resolvingSave = false; }
     }

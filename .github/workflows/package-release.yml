@@ -74,6 +74,18 @@ jobs:
       run: |
         .\scripts\install-windows-ffmpeg.ps1 -Destination "installer\publish" | Out-Null
 
+    - name: Compile and package owned Windows capture helper
+      shell: pwsh
+      run: |
+        pwsh -NoProfile -File tests/native/WindowsNativePackageTests.ps1
+        if ($LASTEXITCODE -ne 0) { throw 'Native helper packaging tests failed.' }
+        $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+        $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+        if (-not $vs) { throw 'Visual C++ toolchain unavailable.' }
+        $dev = Join-Path $vs 'Common7\Tools\VsDevCmd.bat'
+        cmd /c "`"$dev`" -arch=x64 && pwsh -NoProfile -File scripts\build-windows-capture.ps1 -OutputDirectory native-results -PublishDirectory installer\publish"
+        if ($LASTEXITCODE -ne 0) { throw 'Windows native helper build or packaging failed.' }
+
     - name: Add project license and corresponding source notice
       run: |
         Copy-Item LICENSE installer/publish/LICENSE

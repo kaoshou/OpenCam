@@ -21,6 +21,7 @@ public sealed record RecordingProject
     public ImmutableArray<ProjectClip> Clips { get; init; } = [];
     public ImmutableArray<string> Sessions { get; init; } = [];
     public ProjectSubtitleSettings Subtitles { get; init; } = ProjectSubtitleSettings.Empty;
+    public ProjectPointerSettings PointerSettings { get; init; } = new();
     public ProjectViewState ViewState { get; init; } = new();
     public bool AutoExportOnStop { get; init; } = true;
     public Guid? ResolvedDraftId { get; init; }
@@ -31,6 +32,8 @@ public sealed record RecordingProject
 
 public sealed record ProjectSource
 {
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public ProjectPointerTrack? Pointer { get; init; }
     public Guid Id { get; init; }
     public string SessionId { get; init; } = "";
     public string RelativePath { get; init; } = "";

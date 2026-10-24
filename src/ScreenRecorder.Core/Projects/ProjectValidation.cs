@@ -9,13 +9,15 @@ public static class ProjectValidation
     public static void Validate(RecordingProject p)
     {
         Require(p is not null, "Missing project.");
-        Require(p.SchemaVersion is 1 or 3 or 4, "Unsupported project schema.");
+        Require(p.SchemaVersion is 1 or 3 or 4 or 5, "Unsupported project schema.");
         Require(p.ProjectId != Guid.Empty && p.Revision >= 0, "Invalid project identity.");
         Require(p.RecoveryDraftBaseRevision is null ||
             p.RecoveryDraftBaseRevision >= 0 && p.RecoveryDraftBaseRevision < p.Revision, "Invalid recovery draft base.");
         ValidateName(p.Name);
         ValidateSubtitles(p.Subtitles);
-        Require(p.Subtitles.Tracks.IsEmpty || p.SchemaVersion == 4, "Subtitles require project schema 4.");
+        Require(p.Subtitles.Tracks.IsEmpty || p.SchemaVersion >= 4, "Subtitles require project schema 4 or newer.");
+        ProjectPointers.Validate(p.PointerSettings);
+        Require(p.SchemaVersion >= 5 || p.PointerSettings == new ProjectPointerSettings(), "Pointer settings require schema 5.");
         Require(p.Canvas is not null && Dimension(p.Canvas.Width) && Dimension(p.Canvas.Height), "Invalid canvas.");
         Rational(p.Canvas.Fps);
         Require(!p.Sources.IsDefault && p.Sources.Length <= 10000 &&
@@ -34,6 +36,15 @@ public static class ProjectValidation
             Require(p.Sessions.Contains(s.SessionId), "Source session missing.");
             Require(!string.IsNullOrWhiteSpace(s.RelativePath) && s.RelativePath.Length <= 1024, "Invalid source path.");
             Require(s.FileSize > 0 && s.Sha256 is { Length: 64 } && s.Sha256.All(Uri.IsHexDigit), "Invalid source fingerprint.");
+            if (s.Pointer is { } pointer)
+            {
+                Require(p.SchemaVersion >= 5, "Pointer data requires project schema 5.");
+                Require(pointer.RelativePath == $"pointers/{s.Id:N}.ocpt" &&
+                    pointer.FileSize is >= 97 and <= 4L * 1024 * 1024 * 1024 &&
+                    pointer.Sha256 is { Length: 64 } && pointer.Sha256.All(Uri.IsHexDigit), "Invalid pointer track identity.");
+                Require(pointer.VideoPtsOffsetMicroseconds is >= -60_000_000 and <= 60_000_000,
+                    "Pointer source clock shift exceeds verified range.");
+            }
             Require(Dimension(s.Width) && Dimension(s.Height), "Invalid source dimensions.");
             Require(!string.IsNullOrWhiteSpace(s.VideoCodec) && s.VideoCodec.Length <= 64 &&
                 (s.AudioCodec is null || s.AudioCodec.Length <= 64), "Invalid codec metadata.");

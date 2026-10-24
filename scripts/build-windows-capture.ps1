@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-param([Parameter(Mandatory=$true)][string]$OutputDirectory)
+param(
+    [Parameter(Mandatory=$true)][string]$OutputDirectory,
+    [string]$PublishDirectory
+)
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 $compiler = Get-Command cl.exe -ErrorAction Stop
@@ -16,5 +19,12 @@ try {
     & (Join-Path $output 'capture-clock-tests.exe')
     if ($LASTEXITCODE -ne 0) { throw 'Native clock protocol tests failed.' }
     & (Join-Path $output 'OpenCam.ScreenCapture.exe') 2> invalid-arguments.log
-    if ($LASTEXITCODE -eq 0) { throw 'Invalid helper arguments were accepted.' }
+    if ($LASTEXITCODE -ne 1) { throw 'Invalid helper arguments did not return the expected exit code.' }
+    if ((Get-Content invalid-arguments.log -Raw).Trim() -cne 'ERROR Expected monitor crop and rate arguments') {
+        throw 'Native helper invalid-argument diagnostics changed.'
+    }
 } finally { Pop-Location }
+if ($PublishDirectory) {
+    & (Join-Path $PSScriptRoot 'copy-windows-capture.ps1') -HelperPath (Join-Path $output 'OpenCam.ScreenCapture.exe') -PublishDirectory $PublishDirectory
+}
+exit 0

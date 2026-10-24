@@ -12,6 +12,7 @@ public sealed partial class ProjectMediaJob
 
     public static ProjectMediaJob? CopyWholeRecording(ProjectRenderPlan plan)
     {
+        if (plan.PointerSettings.Style != ProjectPointerStyle.Hidden && plan.Clips.Any(c => c.Source.Pointer != null)) return null;
         if (plan.Clips.Length != 1) return null;
         var part = plan.Clips[0];
         var clip = part.Clip;
@@ -42,6 +43,10 @@ public sealed partial class ProjectMediaJob
         GifExportOptions? gif = null, int videoCrf = 18)
     {
         var part = plan.Clips[index];
+        // Video-only jobs must never silently bypass the shared pointer compositor.
+        // That compositor consumes an explicit Hidden base plan before adding the verified track.
+        if (part.Source.Pointer != null && plan.PointerSettings.Style != ProjectPointerStyle.Hidden)
+            throw new InvalidOperationException("Editable pointer requires verified pointer composition.");
         var canvas = plan.Canvas;
         var count = part.EndFrame - part.StartFrame - skipFrames;
         if (skipFrames < 0) throw new ArgumentOutOfRangeException(nameof(skipFrames));
@@ -56,7 +61,9 @@ public sealed partial class ProjectMediaJob
             canvas = canvas with { Width = Math.Max(2, (int)(canvas.Width * ratio)),
                 Height = Math.Max(2, (int)(canvas.Height * ratio)) };
         }
-        var rgbCanvas = gif is not null || preview && (canvas.Width % 2 != 0 || canvas.Height % 2 != 0);
+        // Editable sources use a known pixel grid for crop/pad/overlay hotspot placement.
+        // Keep the legacy color pipeline for media without a separate pointer track.
+        var rgbCanvas = part.Source.Pointer is not null || gif is not null || preview && (canvas.Width % 2 != 0 || canvas.Height % 2 != 0);
         var clip = part.Clip;
         ValidateTimestamp(clip.InPts, part.Source.Timing.TimeBase);
         ValidateTimestamp(clip.OutPts, part.Source.Timing.TimeBase);

@@ -99,6 +99,7 @@ public partial class MainViewModel : ObservableObject
     private string _videoQualityPreset = "Standard";
     private WindowsCaptureMode _windowsCaptureMode;
     private bool _nativeCaptureEnabled;
+    private bool _editablePointerEnabled;
     private double _diskWarningThresholdGb = 2.0;
     private double _diskCriticalThresholdMb = 500.0;
     private long _activeDiskWarningThresholdBytes = RecordingConfiguration.DefaultDiskWarningThresholdBytes;
@@ -625,6 +626,7 @@ public partial class MainViewModel : ObservableObject
         ProjectName = NextProjectName,
         WindowsCaptureMode = OperatingSystem.IsWindows() ? _windowsCaptureMode : WindowsCaptureMode.CompatibleGdi,
         NativeCaptureEnabled = _nativeCaptureEnabled,
+        EditablePointerEnabled = _nativeCaptureEnabled && _editablePointerEnabled,
         Fps = SelectedFps,
         EncoderType = SelectedEncoder?.Type ?? HardwareEncoderType.Auto,
         CursorEffect = SelectedCursorEffect?.Mode ?? CursorEffectMode.Default,
@@ -970,6 +972,7 @@ public partial class MainViewModel : ObservableObject
             _videoQualityPreset = s.VideoQualityPreset;
             _windowsCaptureMode = s.WindowsCaptureMode;
             _nativeCaptureEnabled = s.NativeCaptureEnabled;
+            _editablePointerEnabled = s.EditablePointerEnabled;
             OnPropertyChanged(nameof(ShowCaptureStatus));
             _openFolderOnFinished = s.OpenFolderOnFinished;
             _deleteWorkingFileAfterRemux = s.DeleteWorkingFileAfterSuccessfulRemux;
@@ -1164,6 +1167,7 @@ public partial class MainViewModel : ObservableObject
                 VideoQualityPreset = _videoQualityPreset,
                 WindowsCaptureMode = _windowsCaptureMode,
                 NativeCaptureEnabled = _nativeCaptureEnabled,
+                EditablePointerEnabled = _editablePointerEnabled,
                 OpenFolderOnFinished = _openFolderOnFinished,
                 DeleteWorkingFileAfterSuccessfulRemux = _deleteWorkingFileAfterRemux,
                 DiskWarningThresholdGb = _diskWarningThresholdGb,
@@ -1189,6 +1193,7 @@ public partial class MainViewModel : ObservableObject
         _videoQualityPreset = newSettings.VideoQualityPreset;
         if (CanEditRecordingSettings) _windowsCaptureMode = newSettings.WindowsCaptureMode;
         if (CanEditRecordingSettings) _nativeCaptureEnabled = newSettings.NativeCaptureEnabled;
+        if (CanEditRecordingSettings) _editablePointerEnabled = newSettings.EditablePointerEnabled;
         OnPropertyChanged(nameof(ShowCaptureStatus));
         _openFolderOnFinished = newSettings.OpenFolderOnFinished;
         _deleteWorkingFileAfterRemux = newSettings.DeleteWorkingFileAfterSuccessfulRemux;

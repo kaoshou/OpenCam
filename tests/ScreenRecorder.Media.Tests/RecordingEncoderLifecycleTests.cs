@@ -347,13 +347,15 @@ public partial class RecordingEncoderLifecycleTests
         public readonly ProbeStub Probe = new();
         public RecordingOrchestrator Recorder { get; }
         public RecordingConfiguration Configuration { get; }
-        public RecordingScope(IDisplayService? suppliedDisplay = null, RecordingCaptureLease? captureLease = null)
+        public RecordingScope(IDisplayService? suppliedDisplay = null, RecordingCaptureLease? captureLease = null,
+            ICursorHighlightService? cursor = null)
         {
             var storage = new StorageService();
             var display = suppliedDisplay ?? new FixedDisplay();
             Recorder = new(new RecordingStateMachine(), storage, Store, new DiskSpaceMonitor(storage),
                 Remuxer, Probe, display, new MacOsFFmpegProvider(display),
-                encoderSelectionService: Selection, engineFactory: Factory, captureHealthMonitor: Health, captureLease: captureLease);
+                encoderSelectionService: Selection, engineFactory: Factory, captureHealthMonitor: Health, captureLease: captureLease,
+                cursorHighlightService: cursor);
             Configuration = new() { OutputDirectory = _root, AudioSource = AudioSourceType.None, EncoderType = HardwareEncoderType.Auto };
         }
         public async ValueTask DisposeAsync() { Factory.FailCleanup = false; await Recorder.DisposeAsync(); Directory.Delete(_root, true); }
@@ -428,7 +430,7 @@ public partial class RecordingEncoderLifecycleTests
         }
     }
 
-    private sealed class EngineStub(HardwareEncoderType encoder, EngineFactoryStub owner, bool fail, CaptureSelection? pinned) : IScreenRecorderEngine, IBoundRecordingOutput
+    private sealed class EngineStub(HardwareEncoderType encoder, EngineFactoryStub owner, bool fail, CaptureSelection? pinned) : IScreenRecorderEngine, IBoundRecordingOutput, INativePointerCapture
     {
         public Stream? OutputStream { get; set; }
         public bool IsRunning { get; private set; }
@@ -441,6 +443,9 @@ public partial class RecordingEncoderLifecycleTests
         public event EventHandler<string>? EngineErrorOccurred;
         public event EventHandler<string>? EngineWarningOccurred { add { } remove { } }
         public event EventHandler? AudioDeviceLost;
+        public event EventHandler<NativePointerEvent>? PointerMetadata;
+        public event EventHandler<string>? PointerIncomplete;
+        public void LosePointer() => PointerIncomplete?.Invoke(this,"Injected pointer loss");
         public void LoseAudio() => AudioDeviceLost?.Invoke(this, EventArgs.Empty);
         public void FailWhileRecording() { IsRunning = false; EngineErrorOccurred?.Invoke(this, "runtime failure"); }
         public Task StartRecordingAsync(string path, RecordingConfiguration config, CaptureRegion bounds, CancellationToken token = default)
@@ -462,6 +467,11 @@ public partial class RecordingEncoderLifecycleTests
                 throw new EncoderStartupException("injected startup failure");
             }
             IsRunning = true;
+            if (config.EditablePointerEnabled)
+            {
+                PointerMetadata?.Invoke(this,new(new PointerSample(100,2,3,true,0),null));
+                PointerMetadata?.Invoke(this,new(null,new NativeFrameClock(0,100,100,1)));
+            }
             return Task.CompletedTask;
         }
         public Task StopRecordingAsync(CancellationToken token = default)

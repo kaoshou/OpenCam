@@ -36,6 +36,14 @@ public partial class SettingsViewModel : ObservableObject
     public bool SupportsWindowsCapture { get; }
     public bool SupportsNativeCapture => SupportsWindowsCapture || OperatingSystem.IsMacOS();
     [ObservableProperty] private bool _nativeCaptureEnabled;
+    [ObservableProperty] private bool _editablePointerEnabled;
+    public bool CanEnableEditablePointer => SupportsNativeCapture && CanEditCaptureMode && NativeCaptureEnabled;
+    partial void OnNativeCaptureEnabledChanged(bool value)
+    {
+        if (!value) EditablePointerEnabled = false;
+        OnPropertyChanged(nameof(CanEnableEditablePointer));
+    }
+    partial void OnCanEditCaptureModeChanged(bool value) => OnPropertyChanged(nameof(CanEnableEditablePointer));
     public ObservableCollection<CaptureModeOption> AvailableCaptureModes { get; } = new();
     [ObservableProperty] private CaptureModeOption? _selectedCaptureMode;
     [ObservableProperty] private bool _canEditCaptureMode = true;
@@ -230,6 +238,7 @@ public partial class SettingsViewModel : ObservableObject
     {
         _currentSettings = await _settingsService.LoadSettingsAsync();
         NativeCaptureEnabled = _currentSettings.NativeCaptureEnabled;
+        EditablePointerEnabled = NativeCaptureEnabled && _currentSettings.EditablePointerEnabled;
         SelectedBookmarkModifier = AvailableModifiers.FirstOrDefault(m => m.Value == _currentSettings.BookmarkHotkeyModifiers) ?? AvailableModifiers.Single(m => m.Value == 6);
         SelectedBookmarkKey = AvailableKeys.FirstOrDefault(k => k.KeyName == _currentSettings.BookmarkHotkeyKey) ?? AvailableKeys.Single(k => k.KeyName == "M");
         SelectedCaptureMode = AvailableCaptureModes.Single(o => o.Mode == _currentSettings.WindowsCaptureMode);
@@ -305,6 +314,8 @@ public partial class SettingsViewModel : ObservableObject
             _currentSettings.WindowsCaptureMode = SelectedCaptureMode?.Mode ?? WindowsCaptureMode.CompatibleGdi;
         if (SupportsNativeCapture && CanEditCaptureMode)
             _currentSettings.NativeCaptureEnabled = NativeCaptureEnabled;
+        if (SupportsNativeCapture && CanEditCaptureMode)
+            _currentSettings.EditablePointerEnabled = NativeCaptureEnabled && EditablePointerEnabled;
         _currentSettings.DiskWarningThresholdGb = SelectedWarningThreshold?.Value ?? 2.0;
         _currentSettings.DiskCriticalThresholdMb = SelectedCriticalThreshold?.Value ?? 500.0;
         _currentSettings.OpenFolderOnFinished = OpenFolderOnFinished;
@@ -346,6 +357,7 @@ public partial class SettingsViewModel : ObservableObject
         SelectedBookmarkKey = AvailableKeys.Single(k => k.KeyName == "M");
         if (CanEditCaptureMode) SelectedCaptureMode = AvailableCaptureModes[0];
         if (CanEditCaptureMode) NativeCaptureEnabled = false;
+        if (CanEditCaptureMode) EditablePointerEnabled = false;
         SelectedStartStopModifier = AvailableModifiers[0]; // None
         SelectedStartStopKey = AvailableKeys.FirstOrDefault(k => k.KeyName == "F9");
 

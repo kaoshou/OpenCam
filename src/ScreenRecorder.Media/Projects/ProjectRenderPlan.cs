@@ -16,6 +16,7 @@ public sealed class ProjectRenderPlan
     public Guid ProjectId { get; }
     public long Revision { get; }
     public ProjectCanvas Canvas { get; }
+    public ProjectPointerSettings PointerSettings { get; }
     public ImmutableArray<ProjectRenderClip> Clips { get; }
     public long DurationTicks { get; }
     public long FrameCount { get; }
@@ -27,6 +28,7 @@ public sealed class ProjectRenderPlan
         ProjectId = project.ProjectId;
         Revision = project.Revision;
         Canvas = project.Canvas;
+        PointerSettings = project.PointerSettings;
         Clips = clips;
         DurationTicks = durationTicks;
         FrameCount = frames;

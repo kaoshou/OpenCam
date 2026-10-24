@@ -1,12 +1,24 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-name: Verify editable pointer native foundation
+name: Verify editable pointer Windows integration
 on:
   push:
     branches: [codex/focused-editor-revision]
     paths:
       - 'src/ScreenRecorder.Platform.Windows/Native/OpenCamScreenCapture/**'
+      - 'src/ScreenRecorder.Platform.Windows/WindowsNativeVideoCapture.cs'
+      - 'src/ScreenRecorder.Platform.Windows/WindowsFFmpegProvider.cs'
+      - 'src/ScreenRecorder.Media/Capture/**'
+      - 'src/ScreenRecorder.Media/Projects/**'
+      - 'src/ScreenRecorder.Core/**'
       - 'tests/native/capture-clock-tests.cpp'
+      - 'tests/native/WindowsNativePackageTests.ps1'
+      - 'tests/ScreenRecorder.Media.Tests/WindowsNative*'
+      - 'tests/ScreenRecorder.Media.Tests/*Pointer*'
+      - 'tests/ScreenRecorder.Media.Tests/NativeCaptureTests.cs'
+      - 'tests/ScreenRecorder.Core.Tests/**'
+      - 'tests/ScreenRecorder.TestChild/**'
       - 'scripts/build-windows-capture.ps1'
+      - 'scripts/copy-windows-capture.ps1'
       - '.github/workflows/verify-editable-pointer.yml'
 permissions:
   contents: read
@@ -16,19 +28,92 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        id: dotnet8
+        with:
+          dotnet-version: '8.0.x'
+      - name: Select the installed SDK 8 for this validation run
+        shell: pwsh
+        env:
+          VALIDATION_DOTNET_SDK: ${{ steps.dotnet8.outputs.dotnet-version }}
+        run: |
+          if ($env:VALIDATION_DOTNET_SDK -notmatch '^8\.0\.\d+$') { throw 'Setup did not identify an exact SDK 8 version.' }
+          if (Test-Path global.json) { throw 'Repository SDK policy changed; review the validation pin.' }
+          @{ sdk = @{ version = $env:VALIDATION_DOTNET_SDK; rollForward = 'disable'; allowPrerelease = $false } } | ConvertTo-Json -Depth 3 | Set-Content global.json -Encoding utf8
+          $selected = dotnet --version
+          if ($LASTEXITCODE -ne 0 -or $selected -cne $env:VALIDATION_DOTNET_SDK) { throw 'Validation did not select the exact installed SDK 8.' }
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
       - name: Compile helper and run native protocol tests
         shell: pwsh
         run: |
+          pwsh -NoProfile -File tests/native/WindowsNativePackageTests.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'Native helper packaging tests failed.' }
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
           if (-not $vs) { throw 'Visual C++ toolchain unavailable.' }
           $dev = Join-Path $vs 'Common7\Tools\VsDevCmd.bat'
           cmd /c "`"$dev`" -arch=x64 && pwsh -NoProfile -File scripts\build-windows-capture.ps1 -OutputDirectory native-results"
           if ($LASTEXITCODE -ne 0) { throw 'Native verification failed.' }
+      - name: Install pinned FFmpeg validation prerequisites
+        shell: pwsh
+        run: |
+          $ffmpegBin = & .\scripts\install-windows-ffmpeg.ps1 -Destination "$env:RUNNER_TEMP\opencam-pointer-ffmpeg"
+          $ffmpegBin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          "OPENCAM_VALIDATION_FFMPEG=$ffmpegBin" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Record exact validation environment
+        run: node scripts/collect-test-environment.mjs
+      - name: Test core pointer models and storage
+        shell: pwsh
+        run: |
+          dotnet test tests/ScreenRecorder.Core.Tests/ScreenRecorder.Core.Tests.csproj -c Release -m:1 /nodeReuse:false --logger trx --results-directory test-results
+          if ($LASTEXITCODE -ne 0) { throw 'Core pointer and storage regression tests failed.' }
+      - name: Test owned native host and video bridge without desktop capture
+        shell: pwsh
+        run: |
+          dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release -m:1 /nodeReuse:false --filter "FullyQualifiedName~WindowsNativeVideoCaptureTests|FullyQualifiedName~WindowsNativePipelineTests|FullyQualifiedName~NativeCaptureTests|FullyQualifiedName~Pointer" --logger trx --results-directory test-results
+          if ($LASTEXITCODE -ne 0) { throw 'Managed native video integration tests failed.' }
+      - name: Assemble development validation package with the exact helper
+        shell: pwsh
+        run: |
+          dotnet publish src/ScreenRecorder.UI/ScreenRecorder.UI.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o validation-package
+          if ($LASTEXITCODE -ne 0) { throw 'Validation package publish failed.' }
+          & .\scripts\copy-windows-capture.ps1 -HelperPath native-results/OpenCam.ScreenCapture.exe -PublishDirectory validation-package | ConvertTo-Json | Set-Content native-results/package-helper.json -Encoding utf8
+          Copy-Item "$env:OPENCAM_VALIDATION_FFMPEG\ffmpeg.exe", "$env:OPENCAM_VALIDATION_FFMPEG\ffprobe.exe" validation-package
+          Copy-Item "$env:OPENCAM_VALIDATION_FFMPEG\ffmpeg-notices" validation-package -Recurse
+          Copy-Item LICENSE validation-package/LICENSE
+          Copy-Item NOTICE.md validation-package/NOTICE.md
+          $version = (Get-Content VERSION -Raw).Trim()
+          @"
+          OpenCam $version
+          SPDX-License-Identifier: AGPL-3.0-or-later
+          Corresponding source: https://github.com/kaoshou/OpenCam/tree/$env:GITHUB_SHA
+          "@ | Set-Content validation-package/SOURCE.txt -Encoding utf8
+          node scripts/assemble-third-party-notices.mjs validation-package win-x64 validation-package/ffmpeg-notices
+          if ($LASTEXITCODE -ne 0) { throw 'Validation package notice assembly failed.' }
+          node scripts/check-release-notices.mjs validation-package $env:GITHUB_SHA $version
+          if ($LASTEXITCODE -ne 0) { throw 'Validation package notice checks failed.' }
+          "Development validation only. Physical Windows capture is not validated by this workflow." | Set-Content validation-package/VALIDATION.txt -Encoding utf8
+          & .\validation-package\OpenCam.ScreenCapture.exe 2> native-results/packaged-invalid-arguments.log
+          if ($LASTEXITCODE -ne 1) { throw 'Packaged helper did not reject missing arguments with its expected exit code.' }
+          if ((Get-Content native-results/packaged-invalid-arguments.log -Raw).Trim() -cne 'ERROR Expected monitor crop and rate arguments') { throw 'Packaged helper argument diagnostics changed.' }
+          exit 0
+      - name: Preserve development validation package
+        uses: actions/upload-artifact@v4
+        with:
+          name: editable-pointer-windows-validation-${{ github.sha }}
+          path: validation-package/
+          retention-days: 7
+          if-no-files-found: error
       - name: Preserve native diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: editable-pointer-native-foundation
-          path: native-results/invalid-arguments.log
+          path: |
+            native-results/*.log
+            native-results/package-helper.json
+            test-results/
+          retention-days: 7
           if-no-files-found: ignore

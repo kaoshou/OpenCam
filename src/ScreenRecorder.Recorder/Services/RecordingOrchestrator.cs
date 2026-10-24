@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Security.Cryptography;
 using ScreenRecorder.Core.Enums;
 using ScreenRecorder.Core.Projects;
 using ScreenRecorder.Core.Interfaces;
@@ -47,6 +48,8 @@ public class RecordingOrchestrator : IAsyncDisposable
     private string? _projectDisplaySignature;
     private ProjectSessionDirectory? _projectSessionDirectory;
     private FileStream? _projectOutput;
+    private PointerTrackCollector? _pointerTrack;
+    private string? _pointerMediaLeaf;
     private CancellationTokenSource? _watchdogCts;
     private Task? _watchdogTask;
     private TimeSpan _accumulatedDuration = TimeSpan.Zero;
@@ -245,7 +248,7 @@ public class RecordingOrchestrator : IAsyncDisposable
             _watchdogCts = new CancellationTokenSource();
             _watchdogTask = ScheduleWatchdog(session, _watchdogCts.Token);
 
-            _cursorHighlightService?.Start(config.CursorEffect);
+            _cursorHighlightService?.Start(config.EditablePointerEnabled ? CursorEffectMode.Default : config.CursorEffect);
 
             Log.Information("錄影工作階段啟動成功: {SessionId}, 解析度: {W}x{H}, 輸出檔: {Output}", 
                 sessionId, actualBounds.Width, actualBounds.Height, finalMp4);
@@ -353,6 +356,16 @@ public class RecordingOrchestrator : IAsyncDisposable
                 _projectOutput = _projectSessionDirectory.Directory.CreateNew(Path.GetFileName(path));
                 boundOutput.OutputStream = _projectOutput;
             }
+            if(session.Configuration.EditablePointerEnabled)
+            {
+                if(!session.Configuration.NativeCaptureEnabled || _projectSessionDirectory is null ||
+                    _engine is not INativePointerCapture pointer)
+                    throw new InvalidOperationException("Editable pointer requires owned native project capture.");
+                _pointerMediaLeaf=Path.GetFileName(path);
+                _pointerTrack=_projectSessionDirectory.CreatePointerTrack(_pointerMediaLeaf,bounds.Width & ~1,bounds.Height & ~1);
+                pointer.PointerMetadata+=OnPointerMetadata;
+                pointer.PointerIncomplete+=OnPointerIncomplete;
+            }
             _engine.UseSyntheticCaptureSource = UseSyntheticCaptureSource;
             _engine.EngineErrorOccurred += OnEngineError;
             _engine.EngineWarningOccurred += OnEngineWarning;
@@ -449,6 +462,25 @@ public class RecordingOrchestrator : IAsyncDisposable
                 _projectOutput.Dispose();
                 _projectOutput = null;
             }
+            if(engine is INativePointerCapture pointer)
+            {
+                pointer.PointerMetadata-=OnPointerMetadata;
+                pointer.PointerIncomplete-=OnPointerIncomplete;
+            }
+            if(_pointerTrack is {} track)
+            {
+                try
+                {
+                    using var video=_projectSessionDirectory!.Directory.Read(_pointerMediaLeaf!);
+                    var hash=Convert.ToHexString(await SHA256.HashDataAsync(video));
+                    if(_unconfirmedAttemptPath!=null) track.MarkIncomplete();
+                    if(!await track.CompleteAsync(new(video.Length,hash)))
+                        Log.Warning("Editable pointer track is incomplete; original video is retained.");
+                }
+                catch(Exception ex) when(ex is IOException or InvalidDataException)
+                { track.MarkIncomplete(); Log.Warning("Editable pointer could not be sealed; original video is retained."); }
+                finally { await track.DisposeAsync(); _pointerTrack=null; _pointerMediaLeaf=null; }
+            }
             if (ReferenceEquals(_engine, engine)) _engine = null;
             await ReleaseCaptureOwnershipAsync();
             if (QuarantineFailedAttempt() && _currentSession != null)
@@ -456,10 +488,14 @@ public class RecordingOrchestrator : IAsyncDisposable
         }
         catch (Exception ex)
         {
+            _pointerTrack?.MarkIncomplete();
             // Do not start a second encoder while cleanup of the first is uncertain.
             throw new InvalidOperationException("Recording engine cleanup failed; no fallback was started.", ex);
         }
     }
+
+    private void OnPointerMetadata(object? sender, NativePointerEvent item)=>_pointerTrack?.TryAppend(item);
+    private void OnPointerIncomplete(object? sender, string reason)=>_pointerTrack?.MarkIncomplete();
 
     private async Task ReleaseCaptureOwnershipAsync()
     {
@@ -701,7 +737,7 @@ public class RecordingOrchestrator : IAsyncDisposable
                 _watchdogTask = ScheduleWatchdog(session, _watchdogCts.Token);
             }
 
-            _cursorHighlightService?.Start(session.Configuration.CursorEffect);
+            _cursorHighlightService?.Start(session.Configuration.EditablePointerEnabled ? CursorEffectMode.Default : session.Configuration.CursorEffect);
 
             Log.Information("錄影已繼續，開始錄製分段 {Index}: {Path}", _segmentIndex, nextSegment);
             return (true, null);

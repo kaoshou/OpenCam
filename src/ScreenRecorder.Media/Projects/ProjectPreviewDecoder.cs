@@ -10,6 +10,7 @@ public sealed class ProjectPreviewSettings(ProjectPreviewSize size)
 {
     public ProjectPreviewSize Size { get; } = size;
     public PreviewAudioGate Audio { get; } = new();
+    public Func<ProjectSource, CancellationToken, Task<PointerTrackCursor>>? OpenPointerCursor { get; init; }
 }
 public sealed class ProjectPreviewShutdownException(Exception cause)
     : IOException("Preview output shutdown could not be confirmed.", cause);
@@ -41,6 +42,11 @@ public sealed class ProjectPreviewDecoder(Func<IProjectStreamingMediaProcess> pr
         Func<ProjectPreviewFrame, Task> publish, Action<long> position, IProjectAudioOutput audio, CancellationToken ct)
     {
         var plan = ProjectRenderPlan.Create(project);
+        var basePlan = ProjectPointerCompositor.IsRequired(plan) ? ProjectRenderPlan.Create(project with {
+            PointerSettings = project.PointerSettings with { Style = ProjectPointerStyle.Hidden }
+        }) : plan;
+        using var pointer = new ProjectPointerCompositor(plan, settings.OpenPointerCursor ?? ((_, _) =>
+            Task.FromException<PointerTrackCursor>(new InvalidOperationException("Editable pointer preview requires a verified project-owned track."))));
         if (startTicks < 0 || startTicks >= plan.DurationTicks) throw new ArgumentOutOfRangeException(nameof(startTicks));
         using var life = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var token = life.Token;
@@ -71,7 +77,7 @@ public sealed class ProjectPreviewDecoder(Func<IProjectStreamingMediaProcess> pr
                 var frameNumber = Math.Max(startFrame, clip.StartFrame);
                 if (frameNumber >= clip.EndFrame) continue;
                 await using var source = await Open(clip);
-                await process.RunStreamingAsync(ProjectMediaJob.PreviewVideo(plan, i, frameNumber - clip.StartFrame,
+                await process.RunStreamingAsync(ProjectMediaJob.PreviewVideo(basePlan, i, frameNumber - clip.StartFrame,
                     settings.Size.Width, settings.Size.Height), source,
                     async (stream, cancel) =>
                     {
@@ -88,6 +94,8 @@ public sealed class ProjectPreviewDecoder(Func<IProjectStreamingMediaProcess> pr
                                 await Task.Delay(5, cancel);
                             }
                             cancel.ThrowIfCancellationRequested();
+                            await pointer.ApplyAsync(pixels, frameNumber, settings.Size.Width, settings.Size.Height,
+                                preview: true, ct: cancel);
                             var ticks = Ceiling(frameNumber, checked(TimeSpan.TicksPerSecond * plan.Canvas.Fps.Denominator), plan.Canvas.Fps.Numerator);
                             await publish(new(clip.Clip.Id, Math.Max(startTicks, ticks), pixels));
                             frameNumber++;

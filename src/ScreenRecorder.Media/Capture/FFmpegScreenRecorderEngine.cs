@@ -44,7 +44,7 @@ public interface IBoundRecordingOutput
     bool UsesDirectPreview => false;
 }
 
-public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudioLevelSource, IBoundRecordingOutput
+public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudioLevelSource, IBoundRecordingOutput, INativePointerCapture
 {
     public bool UsesDirectPreview => _livePreviewOutput;
     public Stream? OutputStream { get; set; }
@@ -69,8 +69,19 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
     private readonly ICapturePlanProvider? _capturePlanProvider;
     private CaptureLaunchPlan? _capturePlan;
     private INativeVideoCapture? _nativeVideo;
+    private NativeVideoPipe? _nativeVideoPipe;
+    private volatile bool _nativeStopping;
+    private bool _nativeCleanupFailed;
+    public event EventHandler<NativePointerEvent>? PointerMetadata;
+    public event EventHandler<string>? PointerIncomplete;
+    private void OnNativePointerMetadata(object? sender, NativePointerEvent metadata) => PointerMetadata?.Invoke(this, metadata);
+    private void OnNativePointerIncomplete(object? sender, string reason) =>
+        PointerIncomplete?.Invoke(this, "Native pointer metadata is incomplete.");
+    private void OnNativeVideoPipeFailed(object? sender, EventArgs args) =>
+        OnNativeCaptureFailed(sender, "Native video pipe transport failed.");
     private void OnNativeCaptureFailed(object? sender, string error)
     {
+        if (_nativeStopping) return;
         // A video-pipe EOF alone would allow the muxer to keep recording audio.
         // Fail closed and retain the already-written recovery MKV instead.
         lock (_lock)
@@ -215,6 +226,8 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
         _microphoneLevelActive = false;
         lock (_lock)
         {
+            if (_nativeCleanupFailed)
+                throw new InvalidOperationException("Previous native capture cleanup was not confirmed; create a new recording engine.");
             if (IsRunning)
             {
                 throw new InvalidOperationException("錄影引擎已在運作中");
@@ -245,15 +258,16 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
         if (OutputStream is null && (Path.Exists(workingFilePath) || new FileInfo(workingFilePath).LinkTarget != null))
             throw new IOException("Recording output already exists; refusing to overwrite it.");
         // Select before opening native PCM producers: probing must not fill their pipes.
-        var nativeProvider = !_livePreviewOutput && !UseSyntheticCaptureSource && config.NativeCaptureEnabled
-            ? _ffmpegPlatformProvider as INativeVideoPlatformProvider : null;
-        var targetEncoder = nativeProvider is not null ? HardwareEncoderType.AppleVideoToolbox
+        var nativeProvider = !_livePreviewOutput && !UseSyntheticCaptureSource && config.NativeCaptureEnabled &&
+            _ffmpegPlatformProvider is INativeVideoPlatformProvider candidate &&
+            (!candidate.RequiresEditablePointer || config.EditablePointerEnabled) ? candidate : null;
+        var targetEncoder = nativeProvider?.RequiredNativeEncoder is { } required ? required
             : _pinnedEncoder ?? (await _encoderSelectionService.SelectAsync(config.EncoderType, cancellationToken)).Encoder;
         cancellationToken.ThrowIfCancellationRequested();
 
         ActiveCapture = null;
         _startupError = "";
-        _capturePlan = !UseSyntheticCaptureSource && _capturePlanProvider != null
+        _capturePlan = nativeProvider is null && !UseSyntheticCaptureSource && _capturePlanProvider != null
             ? await _capturePlanProvider.PrepareAsync(config,
                 new(actualBounds.X, actualBounds.Y, width, height), _pinnedCapture, cancellationToken)
             : null;
@@ -261,11 +275,16 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
         // must not add seconds of buffered audio before the first video frame.
         if (nativeProvider is not null)
         {
-            if (_pinnedEncoder is not null && _pinnedEncoder != HardwareEncoderType.AppleVideoToolbox)
+            if (_pinnedEncoder is not null && _pinnedEncoder != targetEncoder)
                 throw new InvalidOperationException("Native capture cannot change the pinned encoder.");
             _nativeVideo = await nativeProvider.PrepareNativeVideoAsync(config,
                 new(actualBounds.X, actualBounds.Y, width, height), _pinnedCapture, cancellationToken);
             _nativeVideo.CaptureFailed += OnNativeCaptureFailed;
+            if (_nativeVideo is INativePointerCapture pointer)
+            {
+                pointer.PointerMetadata += OnNativePointerMetadata;
+                pointer.PointerIncomplete += OnNativePointerIncomplete;
+            }
         }
         _performance = new();
         _performanceStarted = 0;
@@ -274,8 +293,7 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
         {
             MeasurementId = Guid.NewGuid(),
             RequestedCapture = config.WindowsCaptureMode.ToString(),
-            ActualCapture = _nativeVideo is not null
-                ? "ScreenCaptureKit" : _capturePlan?.Selection.Backend.ToString() ?? "PlatformDefault",
+            ActualCapture = _nativeVideo?.Selection.Backend.ToString() ?? _capturePlan?.Selection.Backend.ToString() ?? "PlatformDefault",
             Fallback = _capturePlan?.Selection.FallbackReason.ToString() ?? "None",
             RequestedFps = config.Fps, Width = width, Height = height,
             Encoder = targetEncoder.ToString(), BoundOutput = OutputStream is not null,
@@ -412,7 +430,7 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
             throw new EncoderStartupException("FFmpeg 錄影引擎初始化失敗，無法啟動錄影進程。請檢查視訊/音訊設備與輸出路徑權限。");
         }
 
-        ActiveEncoder = _nativeVideo is not null ? HardwareEncoderType.AppleVideoToolbox : targetEncoder;
+        ActiveEncoder = targetEncoder;
         ActiveCapture = _nativeVideo?.Selection ?? _capturePlan?.Selection;
         if (hasDirectShowMic && _microphoneLevelObserver != null &&
             !string.IsNullOrWhiteSpace(config.MicrophoneDeviceId))
@@ -450,13 +468,19 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
 
             using var systemDescriptor = InheritedAudioDescriptor.Duplicate(_systemPcm);
             using var microphoneDescriptor = InheritedAudioDescriptor.Duplicate(_microphonePcm);
-            var nativeProvider = !_livePreviewOutput && !UseSyntheticCaptureSource && config.NativeCaptureEnabled
+            var nativeProvider = _nativeVideo is not null
                 ? _ffmpegPlatformProvider as INativeVideoPlatformProvider : null;
-            using var videoDescriptor = InheritedAudioDescriptor.Duplicate(_nativeVideo?.Output);
+            using var videoDescriptor = nativeProvider?.UsesNamedPipeVideo == false
+                ? InheritedAudioDescriptor.Duplicate(_nativeVideo?.Output) : null;
+            if (nativeProvider?.UsesNamedPipeVideo == true)
+            {
+                _nativeVideoPipe = new NativeVideoPipe();
+                _nativeVideoPipe.CopyFailed += OnNativeVideoPipeFailed;
+            }
             systemAudioPipeArg = systemDescriptor?.Input(2) ?? systemAudioPipeArg;
             microphoneAudioPipeArg = microphoneDescriptor?.Input(1) ?? microphoneAudioPipeArg;
             var inputArgs = nativeProvider is not null
-                ? nativeProvider.BuildNativeInput(config, videoDescriptor!.VideoInput(), hasDirectShowMic,
+                ? nativeProvider.BuildNativeInput(config, _nativeVideoPipe?.VideoInput ?? videoDescriptor!.VideoInput(), hasDirectShowMic,
                     systemAudioPipeArg, microphoneAudioPipeArg)
                 : _livePreviewOutput
                 ? _ffmpegPlatformProvider.BuildDirectPreviewArguments(config, x, y, width, height,
@@ -475,7 +499,7 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
                 systemAudioPipeArg,
                 microphoneAudioPipeArg);
             var outputPath = OutputStream is null ? workingFilePath : "pipe:1";
-            var outputArgs = nativeProvider is not null ? nativeProvider.BuildNativeOutput(config, outputPath)
+            var outputArgs = nativeProvider is not null ? nativeProvider.BuildNativeOutput(config, encoderType, outputPath)
                 : _livePreviewOutput ? "" : _ffmpegPlatformProvider.BuildOutputArguments(config, encoderType, outputPath);
             // Each attempt has its own fresh path. Refuse overwrite even if a
             // file appears after the caller's existence check.
@@ -519,7 +543,11 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
             // Begin draining immediately: scheduling a blocking pipe reader on
             // the pool can let the startup deadline win before progress is read.
             _stderrReadingTask = ReadStderrLoop(proc, proc.StandardError, cancellationToken);
-            if (_nativeVideo is not null) await _nativeVideo.BeginAsync(cancellationToken);
+            if (_nativeVideo is not null)
+            {
+                if (_nativeVideoPipe is not null) await _nativeVideoPipe.StartAsync(_nativeVideo, cancellationToken);
+                else await _nativeVideo.BeginAsync(cancellationToken);
+            }
 
             var exitTask = proc.WaitForExitAsync(cancellationToken);
             var startupTimeout = OperatingSystem.IsMacOS() &&
@@ -544,10 +572,12 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
             }
             catch { }
 
-            try { await proc.WaitForExitAsync(CancellationToken.None); } catch { }
+            try { await proc.WaitForExitAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(3)); }
+            catch { _nativeCleanupFailed |= _nativeVideo is not null; }
             if (_stderrReadingTask != null)
             {
-                try { await _stderrReadingTask; } catch { }
+                try { await _stderrReadingTask.WaitAsync(TimeSpan.FromSeconds(3)); }
+                catch { _nativeCleanupFailed |= _nativeVideo is not null; }
             }
 
             string errorTail;
@@ -733,9 +763,9 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
             // other EOF/cancellation, do not leave ScreenCaptureKit capturing
             // into an abandoned pipe, even if the muxer exited with code zero.
             var native = _nativeVideo;
-            if (native is not null)
+            if (native is not null && !_nativeStopping)
             {
-                try { await native.StopAsync().ConfigureAwait(false); }
+                try { await native.StopAsync().WaitAsync(TimeSpan.FromSeconds(12)).ConfigureAwait(false); }
                 catch (Exception ex) { Log.Error(ex, "Native video cleanup after muxer exit failed"); }
                 if (!cancellationToken.IsCancellationRequested)
                     EngineErrorOccurred?.Invoke(this, "Native video muxer ended before recording was stopped.");
@@ -784,27 +814,50 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
             if (_nativeVideo is not null)
             {
                 var video = _nativeVideo;
-                _nativeVideo = null;
-                video.CaptureFailed -= OnNativeCaptureFailed;
-                try { await video.StopAsync(); }
+                _nativeStopping = true;
+                try
+                {
+                    await video.StopAsync().WaitAsync(TimeSpan.FromSeconds(12));
+                    if (_nativeVideoPipe is not null) await _nativeVideoPipe.CompleteAsync();
+                }
                 catch (Exception ex)
                 {
                     nativeShutdownError = ex;
+                    _nativeCleanupFailed = true;
+                    OnNativePointerIncomplete(this, "");
                     Log.Error(ex, "Native video producer did not stop cleanly");
-                    EngineErrorOccurred?.Invoke(this, "Native capture shutdown failed: " + ex.Message);
+                    EngineErrorOccurred?.Invoke(this, "Native capture shutdown failed; retain the recording for recovery.");
+                }
+                finally
+                {
+                    // Final pointer/clock records are delivered by StopAsync before detaching.
+                    video.CaptureFailed -= OnNativeCaptureFailed;
+                    if (video is INativePointerCapture pointer)
+                    {
+                        pointer.PointerMetadata -= OnNativePointerMetadata;
+                        pointer.PointerIncomplete -= OnNativePointerIncomplete;
+                    }
+                    try { await video.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(4)); }
+                    catch (Exception ex)
+                    {
+                        nativeShutdownError ??= ex;
+                        _nativeCleanupFailed = true;
+                        OnNativePointerIncomplete(this, "");
+                        Log.Error("Native video resource cleanup could not be confirmed.");
+                    }
+                    _nativeVideo = null;
+                    _nativeStopping = false;
                 }
             }
             if (proc != null && !proc.HasExited)
             {
                 try
                 {
-                    await proc.StandardInput.WriteAsync("q\n");
-                    await proc.StandardInput.FlushAsync();
-                    proc.StandardInput.Close();
-
                     using var timeoutCts = new CancellationTokenSource(6000);
                     using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
-
+                    await proc.StandardInput.WriteAsync("q\n".AsMemory(), linkedCts.Token);
+                    await proc.StandardInput.FlushAsync(linkedCts.Token);
+                    proc.StandardInput.Close();
                     await proc.WaitForExitAsync(linkedCts.Token);
                 }
                 catch
@@ -819,20 +872,60 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
                     catch { }
                 }
             }
+            if (proc is { HasExited: false })
+            {
+                try { await proc.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(3)); }
+                catch
+                {
+                    nativeShutdownError ??= new IOException("Recording muxer termination could not be confirmed.");
+                    _nativeCleanupFailed = true;
+                    OnNativePointerIncomplete(this, "");
+                }
+            }
         }
         finally
         {
+            if (_nativeVideoPipe is not null)
+            {
+                var bridge = _nativeVideoPipe;
+                _nativeVideoPipe = null;
+                bridge.CopyFailed -= OnNativeVideoPipeFailed;
+                try { await bridge.DisposeAsync(); }
+                catch (Exception ex)
+                {
+                    nativeShutdownError ??= ex;
+                    _nativeCleanupFailed = true;
+                    OnNativePointerIncomplete(this, "");
+                    Log.Error("Native video pipe cleanup could not be confirmed.");
+                }
+            }
             if (_stderrReadingTask != null)
             {
-                try { await _stderrReadingTask; } catch { }
+                try { await _stderrReadingTask.WaitAsync(TimeSpan.FromSeconds(3)); }
+                catch (TimeoutException)
+                {
+                    nativeShutdownError ??= new IOException("Recording diagnostics did not close within the stop deadline.");
+                    _nativeCleanupFailed = true;
+                    OnNativePointerIncomplete(this, "");
+                }
+                catch { }
             }
 
             try
             {
                 if (_outputCopyTask is { } output)
                 {
-                    _outputCopyTask = null;
-                    await output;
+                    try
+                    {
+                        await output.WaitAsync(TimeSpan.FromSeconds(6));
+                        _outputCopyTask = null;
+                    }
+                    catch (TimeoutException)
+                    {
+                        _nativeCleanupFailed = true;
+                        OnNativePointerIncomplete(this, "");
+                        throw new IOException("Recording output drain did not complete within the stop deadline; retain the working recording.");
+                    }
                 }
             }
             finally

@@ -62,6 +62,20 @@ public partial class LocalizationService : ILocalizationService
 
     public static readonly Dictionary<string, string> ZhTwDictionary = new()
     {
+        ["EditablePointerLabel"] = "錄製可於後製調整的指標（預設關閉）",
+        ["EditablePointerNotice"] = "需先開啟高效能擷取，只影響接下來新錄製的內容。錄影時仍顯示正常滑鼠；原始影片不含滑鼠或指標效果，編輯器與匯出再套用指標。後製可選指示棒、箭頭、圓點或隱藏，大小 50–200%。Mac 不保證跟隨遊戲自動隱藏游標，可在編輯器選隱藏。舊影片的內嵌游標無法變更。",
+        ["ProjectPointerTitle"] = "後製指標（整個專案）",
+        ["ProjectPointerStyle"] = "指標樣式",
+        ["ProjectPointerStick"] = "指示棒",
+        ["ProjectPointerArrow"] = "箭頭",
+        ["ProjectPointerDot"] = "圓點",
+        ["ProjectPointerHidden"] = "隱藏",
+        ["ProjectPointerSize"] = "指標大小",
+        ["ProjectPointerApply"] = "套用指標設定",
+        ["ProjectPointerReset"] = "重設為指示棒 · 100%",
+        ["ProjectPointerNotice"] = "套用至專案內所有可編輯指標片段，含預覽與匯出。舊片段的內嵌游標不變。可復原／重做，儲存後保留。顯示指標需要完整且通過驗證的資料；若資料不完整、遺失或損毀，請明確選擇「隱藏」以預覽或匯出保留的影片。程式不會自動隱藏指標。",
+        ["ProjectPointerUnavailable"] = "此專案沒有可編輯指標資料。舊影片的內嵌游標無法更改，也不會加上第二個指標。請在高效能擷取設定中開啟可編輯指標後錄製新內容。",
+        ["ProjectPointerInvalid"] = "請選擇有效的指標樣式，大小須為 50–200% 的整數。",
         ["LanguageOptionJaJp"] = "日本語 (Japanese)",
         ["Mp4ExportSettings"] = "MP4 匯出設定",
         ["Mp4ExportQuality"] = "匯出品質",
@@ -620,6 +634,20 @@ public partial class LocalizationService : ILocalizationService
 
     public static readonly Dictionary<string, string> EnUsDictionary = new()
     {
+        ["EditablePointerLabel"] = "Record an editable pointer (off by default)",
+        ["EditablePointerNotice"] = "Requires high-performance capture; applies to newly recorded content. Your normal cursor stays visible while recording. Source video contains no cursor or pointer effects; the editor and export add the pointer. Choose Stick, Arrow, Dot or Hidden at 50–200%. On Mac, game-triggered cursor hiding is not guaranteed; choose Hidden in the editor. Cursors baked into older videos cannot be changed.",
+        ["ProjectPointerTitle"] = "Postproduction pointer (whole project)",
+        ["ProjectPointerStyle"] = "Pointer style",
+        ["ProjectPointerStick"] = "Stick",
+        ["ProjectPointerArrow"] = "Arrow",
+        ["ProjectPointerDot"] = "Dot",
+        ["ProjectPointerHidden"] = "Hidden",
+        ["ProjectPointerSize"] = "Pointer size",
+        ["ProjectPointerApply"] = "Apply pointer settings",
+        ["ProjectPointerReset"] = "Reset to Stick · 100%",
+        ["ProjectPointerNotice"] = "Applies to all editable pointer clips in this project, in preview and export. Baked cursors in older clips stay as recorded. Supports undo/redo; save to keep changes. Showing a pointer requires complete, verified data. If data is incomplete, missing or damaged, explicitly choose Hidden to preview or export the retained video. The pointer will not be hidden automatically.",
+        ["ProjectPointerUnavailable"] = "This project has no editable pointer data. Existing baked cursors cannot be changed, and no second pointer will be added. Enable editable pointer with high-performance capture before recording new content.",
+        ["ProjectPointerInvalid"] = "Choose a valid pointer style and a whole-number size from 50 to 200%.",
         ["LanguageOptionJaJp"] = "日本語 (Japanese)",
         ["Mp4ExportSettings"] = "MP4 export settings",
         ["Mp4ExportQuality"] = "Export quality",

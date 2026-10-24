@@ -63,6 +63,10 @@ public static class ProjectPacketInspector
             }
             if (parts[0] == "format")
             {
+                // Valid short/video-only Matroska can report N/A. That cannot certify
+                // remux timing; use the fully decoded render path, never guess zero.
+                if (values.GetValueOrDefault("start_time") is null or "N/A")
+                    throw new ProjectRemuxIncompatibleException("Format start time cannot certify fast export.");
                 if (!double.TryParse(values.GetValueOrDefault("start_time"), NumberStyles.Float, CultureInfo.InvariantCulture, out formatStart) ||
                     !double.IsFinite(formatStart)) throw new InvalidDataException("Missing format start time.");
                 return;

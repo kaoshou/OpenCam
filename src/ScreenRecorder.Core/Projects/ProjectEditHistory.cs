@@ -6,10 +6,10 @@ namespace ScreenRecorder.Core.Projects;
 /// <summary>In-memory edit history, separate from durable save acknowledgements.</summary>
 public sealed class ProjectEditHistory
 {
-    private sealed record Snapshot(string Name, ImmutableArray<ProjectClip> Clips, ProjectSubtitleSettings Subtitles, int Schema);
+    private sealed record Snapshot(string Name, ImmutableArray<ProjectClip> Clips, ProjectSubtitleSettings Subtitles, ProjectPointerSettings PointerSettings, int Schema);
     private readonly Stack<Snapshot> _undo = new();
     private readonly Stack<Snapshot> _redo = new();
-    private Snapshot Capture() => new(Current.Name, Current.Clips, Current.Subtitles, Current.SchemaVersion);
+    private Snapshot Capture() => new(Current.Name, Current.Clips, Current.Subtitles, Current.PointerSettings, Current.SchemaVersion);
     private int _savedSchema;
     public RecordingProject Current { get; private set; }
     public bool CanUndo => _undo.Count > 0;
@@ -19,7 +19,7 @@ public sealed class ProjectEditHistory
         ProjectValidation.ValidateSubtitles(subtitles);
         if (Current.Subtitles.DefaultTrackId == subtitles.DefaultTrackId && Current.Subtitles.Tracks.SequenceEqual(subtitles.Tracks)) return;
         var next = Current with { Subtitles = subtitles, Revision = checked(Current.Revision + 1),
-            SchemaVersion = subtitles.Tracks.IsEmpty ? Current.SchemaVersion : 4 };
+            SchemaVersion = subtitles.Tracks.IsEmpty ? Current.SchemaVersion : Math.Max(4, Current.SchemaVersion) };
         ProjectValidation.Validate(next);
         _undo.Push(Capture()); _redo.Clear(); Current = next;
     }
@@ -29,6 +29,16 @@ public sealed class ProjectEditHistory
         ProjectValidation.Validate(project);
         Current = project;
         _savedSchema = project.SchemaVersion;
+    }
+
+    public void SetPointerSettings(ProjectPointerSettings settings)
+    {
+        ProjectPointers.Validate(settings);
+        if (settings == Current.PointerSettings) return;
+        var next = Current with { PointerSettings = settings, SchemaVersion = Math.Max(5, Current.SchemaVersion),
+            Revision = checked(Current.Revision + 1) };
+        ProjectValidation.Validate(next);
+        _undo.Push(Capture()); _redo.Clear(); Current = next;
     }
 
     public void RenameProject(string name)
@@ -78,7 +88,7 @@ public sealed class ProjectEditHistory
 
     public void AcceptSavedMetadata(RecordingProject project)
     {
-        if (project.ProjectId != Current.ProjectId || !project.Clips.SequenceEqual(Current.Clips) || project.Name != Current.Name ||
+        if (project.ProjectId != Current.ProjectId || project.PointerSettings != Current.PointerSettings || !project.Clips.SequenceEqual(Current.Clips) || project.Name != Current.Name ||
             project.Subtitles.DefaultTrackId != Current.Subtitles.DefaultTrackId || !project.Subtitles.Tracks.SequenceEqual(Current.Subtitles.Tracks))
             throw new InvalidDataException("Saved metadata must preserve working edits.");
         ProjectValidation.Validate(project);
@@ -136,7 +146,8 @@ public sealed class ProjectEditHistory
     {
         if (from.Count == 0) return;
         var next = Current with { Revision = checked(Current.Revision + 1), Name = from.Peek().Name,
-            Clips = from.Peek().Clips, Subtitles = from.Peek().Subtitles, SchemaVersion = Math.Max(_savedSchema, from.Peek().Schema) };
+            Clips = from.Peek().Clips, Subtitles = from.Peek().Subtitles, PointerSettings = from.Peek().PointerSettings,
+            SchemaVersion = Math.Max(_savedSchema, from.Peek().Schema) };
         ProjectValidation.Validate(next);
         to.Push(Capture());
         from.Pop();

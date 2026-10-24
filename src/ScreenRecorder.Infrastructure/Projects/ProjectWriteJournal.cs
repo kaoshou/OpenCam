@@ -6,7 +6,8 @@ using ScreenRecorder.Core.Projects;
 namespace ScreenRecorder.Infrastructure.Projects;
 
 public sealed record SegmentCommitIntent(Guid OperationId, Guid SourceId, string SessionId,
-    string RelativePath, long ExpectedRevision, string Status = "pending", int? CaptureFps = null);
+    string RelativePath, long ExpectedRevision, string Status = "pending", int? CaptureFps = null,
+    bool EditablePointerEnabled = false);
 
 /// <summary>Durable intent ledger; the manifest and its operation IDs resolve incomplete commits.</summary>
 public sealed class ProjectWriteJournal

@@ -2,6 +2,8 @@
 using ScreenRecorder.Core.Models;
 using ScreenRecorder.Core.Projects;
 using ScreenRecorder.Infrastructure.Session;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace ScreenRecorder.Infrastructure.Projects;
 
@@ -44,6 +46,16 @@ public sealed class ProjectSessionDirectory : IDisposable
         session.WorkingDirectory = path;
         session.LogFilePath = Path.Combine(path, "session.log");
         session.Configuration.OutputDirectory = Path.Combine(root, "sessions");
+    }
+
+    public PointerTrackCollector CreatePointerTrack(string mediaLeaf, int width, int height)
+    {
+        if (Path.GetFileName(mediaLeaf)!=mediaLeaf || !mediaLeaf.EndsWith(".mkv",StringComparison.Ordinal))
+            throw new InvalidDataException("Invalid recording segment name.");
+        var projectId=_project.Current.ProjectId;
+        var relative=$"sessions/Sessions/{_sessionId}/{mediaLeaf}";
+        var sourceId=new Guid(SHA256.HashData(Encoding.UTF8.GetBytes($"{projectId}/{relative}"))[..16]);
+        return new(PointerTrackWriter.Create(Directory,mediaLeaf+".pointer",new(projectId,sourceId,width,height)));
     }
 
     public void Dispose() { Directory.Dispose(); _catalog.Dispose(); _sessions.Dispose(); }

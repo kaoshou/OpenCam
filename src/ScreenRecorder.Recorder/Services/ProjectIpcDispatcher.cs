@@ -17,7 +17,7 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
         or "GetProjectClips" or "GetProjectWaveform" or "PlayProjectPreview" or "StopProjectPreview" or "SetProjectPreviewMuted" or "StartProjectRecording" or "PauseProjectRecording" or "FinishProjectRecording"
         or "SaveProject" or "FindProjectExport" or "DiscardProjectEdits" or "ResolveProjectDraft" or "SetProjectAutoExport" or "RenameProject" or "RenameProjectClip" or "ApplyProjectEdit" or "UndoProject" or "RedoProject" or "CloseProject" or "RestoreProjectBackup"
         or "StartNewRecordingContent" or "StartProjectInsertion" or "FinishRecordingContent" or "RetryRecordingContentExport" or "CancelRecordingContentExport" or "ExportRecordingContent"
-        or "ImportProjectSubtitle" or "EditProjectSubtitles"
+        or "ImportProjectSubtitle" or "EditProjectSubtitles" or "SetProjectPointerSettings"
         or "AddProjectBookmark" or "AddProjectBookmarkAtPlayhead" or "GetProjectBookmarks" or "RenameProjectBookmark" or "DeleteProjectBookmark";
 
     private ProjectSnapshot Snapshot()
@@ -32,7 +32,8 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
             HasRecoverableDraft = coordinator.HasRecoverableDraft, DraftError = coordinator.DraftError,
             AutoExportOnStop = coordinator.Current?.AutoExportOnStop ?? true,
             Subtitles = coordinator.Current?.Subtitles ?? ProjectSubtitleSettings.Empty,
-            SubtitlesNeedSyncConfirmation = coordinator.SubtitlesNeedSyncConfirmation };
+            SubtitlesNeedSyncConfirmation = coordinator.SubtitlesNeedSyncConfirmation,
+            PointerSettings = coordinator.Current?.PointerSettings ?? new(), HasEditablePointerSources = coordinator.HasEditablePointerSources };
     }
 
     public async Task<IpcResponse> DispatchAsync(IpcMessage message)
@@ -88,6 +89,8 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
                 return Reply(new(true, null, Snapshot()) { Waveform = waveform });
             }
             if (request.OperationId == Guid.Empty) throw new InvalidDataException("An operation ID is required.");
+            if (message.MessageType == "SetProjectPointerSettings" && request.ServerInstanceId != _instanceId)
+                throw new InvalidOperationException("Obsolete pointer command; refresh the project before editing.");
             if (message.MessageType is "AddProjectBookmark" or "AddProjectBookmarkAtPlayhead" or "RenameProjectBookmark" or "DeleteProjectBookmark" && request.ServerInstanceId != _instanceId)
                 throw new InvalidOperationException("Obsolete bookmark command.");
             if (message.MessageType == "ImportProjectSubtitle")
@@ -158,6 +161,8 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
                 "RenameProject" => await coordinator.RenameProjectAsync(request.Name ?? "", request.ExpectedRevision),
                 "EditProjectSubtitles" => await coordinator.SetSubtitlesAsync(request.SubtitleSettings
                     ?? throw new InvalidDataException("Missing subtitle settings."), request.ExpectedRevision, confirmSync: request.ConfirmSubtitleSync),
+                "SetProjectPointerSettings" => await coordinator.SetPointerSettingsAsync(request.PointerSettings
+                    ?? throw new InvalidDataException("Missing pointer settings."), request.ExpectedRevision),
                 "ApplyProjectEdit" => await coordinator.ApplyEditAsync(request.Edit ?? throw new InvalidDataException("Missing clip edit."),
                     request.ExpectedRevision, request.OperationId),
                 "UndoProject" => await coordinator.UndoAsync(request.ExpectedRevision),
