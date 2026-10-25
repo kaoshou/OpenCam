@@ -364,14 +364,31 @@ public sealed class ObsScreenRecorderEngine : IScreenRecorderEngine, IBoundRecor
         _startup = ObsStartupDiagnostics.Read(value);
         if (code == "ready" && _startup is { } ready &&
             (ready.Stage != "first_frame" || ready.Frames == 0 || ready.Bytes == 0 ||
-             ready.SourceWidth != _request!.MonitorWidth || ready.SourceHeight != _request.MonitorHeight ||
-             ready.ExpectedWidth != _request.MonitorWidth || ready.ExpectedHeight != _request.MonitorHeight ||
+             !HasConsistentCaptureGeometry(ready) ||
              ready.SystemSelected != (_request.Audio is "system" or "both") ||
              ready.MicrophoneSelected != (_request.Audio is "microphone" or "both") ||
              ready.SystemSelected && !ready.SystemSamples || ready.MicrophoneSelected && !ready.MicrophoneSamples))
             throw new JsonException();
         if (_startup is not null)
             Log.Information("Recording native startup: code={Code}, readiness={@Readiness}", code, _startup);
+    }
+
+    private bool HasConsistentCaptureGeometry(ObsStartupDiagnostics ready)
+    {
+        if (ready.SourceWidth <= 0 || ready.SourceHeight <= 0 ||
+            ready.SourceWidth != ready.ExpectedWidth || ready.SourceHeight != ready.ExpectedHeight) return false;
+        var request = _request!;
+        if (OperatingSystem.IsMacOS() && !UseSyntheticCaptureSource)
+        {
+            // ScreenCaptureKit reports backing pixels; the desktop request uses
+            // CGDisplayPixelsWide/High. Native code pins the display UUID and mode,
+            // validates its source dimensions, and scales the scene to the request.
+            // Permit the uniform Retina scale (one-pixel rounding tolerance), not
+            // an arbitrary aspect-ratio change or an uninitialized source.
+            return Math.Abs(ready.SourceWidth * request.MonitorHeight - ready.SourceHeight * request.MonitorWidth)
+                <= Math.Max(request.MonitorWidth, request.MonitorHeight);
+        }
+        return ready.ExpectedWidth == request.MonitorWidth && ready.ExpectedHeight == request.MonitorHeight;
     }
 
     private static AudioLevelSample? Level(JsonElement value, string ageKey, double peak, DateTimeOffset now)

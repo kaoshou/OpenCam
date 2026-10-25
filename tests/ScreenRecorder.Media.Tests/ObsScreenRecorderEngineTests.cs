@@ -362,6 +362,19 @@ public sealed class ObsScreenRecorderEngineTests : IDisposable
         Assert.Equal("MKV-prefix",Encoding.ASCII.GetString(output.ToArray()));
     }
 
+    [MacOsOnlyFact]
+    public async Task RetinaSourceReadinessUsesBackingPixelsWithoutChangingOutputBounds()
+    {
+        const string details = "{\"stage\":\"first_frame\",\"elapsedMs\":20,\"sourceWidth\":1280,\"sourceHeight\":960,\"expectedWidth\":1280,\"expectedHeight\":960,\"systemSelected\":true,\"microphoneSelected\":true,\"systemSamples\":true,\"microphoneSamples\":true,\"frames\":1,\"bytes\":10}";
+        var ready = Ready.Replace("synthetic", "sck").Replace("\"encoder\":\"cpu\"}", "\"encoder\":\"cpu\",\"startup\":" + details + "}");
+        await using var engine = Engine("printf 'MKV-prefix'\n" + ready + Stop, synthetic: false);
+        using var output = new MemoryStream(); engine.OutputStream = output;
+        await engine.StartRecordingAsync("unused", Config(), Monitor.Bounds);
+        Assert.True(engine.IsRunning);
+        Assert.Equal(640, engine.ActiveCapture!.Bounds.Width);
+        await engine.StopRecordingAsync();
+    }
+
     [UnixOnlyFact]
     public async Task NativePerformanceLogsOwnedWriteMetricsWithoutPrivatePathsOrInventedFfmpegCounters()
     {
@@ -411,7 +424,7 @@ public sealed class ObsScreenRecorderEngineTests : IDisposable
         public void Emit(LogEvent item) => Events.Enqueue(item);
     }
 
-    private ObsScreenRecorderEngine Engine(string body, TimeSpan? stopTimeout = null, bool allowCompatibilityFallback = true)
+    private ObsScreenRecorderEngine Engine(string body, TimeSpan? stopTimeout = null, bool allowCompatibilityFallback = true, bool synthetic = true)
     {
         var path = Path.Combine(_root, "helper");
         File.WriteAllText(path, "#!/bin/sh\nIFS= read -r request\nprintf '%s' \"$request\" > \"$0.request\"\n" + body);
@@ -420,7 +433,7 @@ public sealed class ObsScreenRecorderEngineTests : IDisposable
         return new ObsScreenRecorderEngine(path, _root, (_, _, _) => Monitor,
             pinnedEncoder: HardwareEncoderType.SoftwareCpu, startupTimeout: TimeSpan.FromSeconds(2), stopTimeout: stopTimeout,
             allowCompatibilityFallback: allowCompatibilityFallback)
-            { UseSyntheticCaptureSource = true };
+            { UseSyntheticCaptureSource = synthetic };
     }
 
     private static RecordingConfiguration Config() => new() { Fps = 30,
