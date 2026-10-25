@@ -24,6 +24,7 @@ test('release profile uses checksum-pinned source builds rather than third-party
   assert.match(script,/--enable-libvpl/);
   assert.match(script,/--enable-zlib/);
   assert.match(script,/-DZLIB_BUILD_SHARED=OFF/);
+  assert.match(script,/cp "\$prefix\/lib\/libzs\.a" "\$prefix\/lib\/libz\.a"/);
   assert.match(script,/sources/);
   assert.match(script,/libvpl-mingw-secure-functions\.patch/);
   assert.match(script,/cp config\.h ffbuild\/config\.log ffbuild\/config\.mak/);

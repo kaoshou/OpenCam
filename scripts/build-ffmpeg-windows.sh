@@ -31,6 +31,9 @@ cmake -S "$build_root/zlib" -B "$build_root/zlib-build" -G Ninja \
   -DZLIB_BUILD_SHARED=OFF -DZLIB_BUILD_STATIC=ON -DZLIB_BUILD_TESTING=OFF
 cmake --build "$build_root/zlib-build" --parallel "$jobs"
 cmake --install "$build_root/zlib-build"
+# zlib's Windows static target is libzs.a, but its pkg-config file advertises
+# -lz. Supply that name from our own archive, never an MSYS2 shared import lib.
+cp "$prefix/lib/libzs.a" "$prefix/lib/libz.a"
 pushd "$build_root/x264"
 ./configure --prefix="$prefix" --host=x86_64-w64-mingw32 --enable-static --disable-cli --enable-win32thread
 make -j"$jobs"
