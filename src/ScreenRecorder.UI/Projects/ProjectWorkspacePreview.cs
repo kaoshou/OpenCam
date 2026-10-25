@@ -9,6 +9,7 @@ public sealed partial class ProjectWorkspaceViewModel
     private bool _previewPointerUnavailable;
     private long? _failedPreviewTicks;
     private long _previewEpoch, _scrubSequence;
+    private bool _previewNeedsRefresh;
     private bool _scrubbing, _resumeAfterScrub;
     private Task<bool>? _scrubStop;
     private long _scrubPlaybackIntent;
@@ -44,16 +45,17 @@ public sealed partial class ProjectWorkspaceViewModel
         IsChangingPreviewQuality ? Strings["PreviewChangingQuality"] : IsPlayingPreview ? Strings["ProjectPreviewPlaying"] : DurationTicks == 0 ? Strings["ProjectFrameEmpty"] : Strings[_failedPreviewTicks == PlayheadTicks
         ? "ProjectFrameUnavailable" : PreviewFrame is null ? "ProjectFrameLoading" : "ProjectStillPreview"];
 
-    private void ClearPreview()
+    private void ClearPreview(bool keepFrame = false)
     {
         ++_previewEpoch;
         ++_scrubSequence;
         _scrubbing = false;
         _resumeAfterScrub = false;
-        PreviewFrame = null;
+        _previewNeedsRefresh = keepFrame;
+        if (!keepFrame) PreviewFrame = null;
         _previewPointerUnavailable = false;
         _failedPreviewTicks = null;
-        OnPropertyChanged(nameof(PreviewFrame));
+        if (!keepFrame) OnPropertyChanged(nameof(PreviewFrame));
         OnPropertyChanged(nameof(PreviewResolutionText));
         OnPropertyChanged(nameof(PreviewStatus));
     }
@@ -62,7 +64,7 @@ public sealed partial class ProjectWorkspaceViewModel
     {
         if (IsPlayingPreview) { await PollPlaybackAsync(); return; }
         if (!CanEdit || State.ProjectId is null || DurationTicks == 0 ||
-            PreviewFrame?.TimelineTicks == PlayheadTicks || _failedPreviewTicks == PlayheadTicks ||
+            (!_previewNeedsRefresh && PreviewFrame?.TimelineTicks == PlayheadTicks) || _failedPreviewTicks == PlayheadTicks ||
             Interlocked.CompareExchange(ref _pollingPreview, 1, 0) != 0) return;
         var state = State;
         var ticks = PlayheadTicks;
@@ -95,6 +97,7 @@ public sealed partial class ProjectWorkspaceViewModel
             { _failedPreviewTicks = ticks; return; }
             if (frame.Rgba is null) return;
             PreviewFrame = frame;
+            _previewNeedsRefresh = false;
             _previewPointerUnavailable = frame.PointerUnavailable;
             OnPropertyChanged(nameof(PreviewFrame));
             OnPropertyChanged(nameof(PreviewResolutionText));

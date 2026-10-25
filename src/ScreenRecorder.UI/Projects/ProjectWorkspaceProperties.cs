@@ -8,6 +8,10 @@ namespace ScreenRecorder.UI.Projects;
 public sealed partial class ProjectWorkspaceViewModel
 {
     private bool _resettingProperties;
+    private bool _savingProperties, _publishingPropertyClips;
+    public bool CanEditProperties => !IsChangingPreviewQuality && !StatusUnconfirmed && !IsExporting &&
+        !State.HasRecoverableDraft && State.Mode is ProjectMode.Ready or ProjectMode.Paused &&
+        (!IsBusy || _savingProperties) && SelectedClip is not null && Clips.Contains(SelectedClip);
     private CancellationTokenSource? _propertyApplyDelay;
     private static object Effects(ProjectClip c) => (c.Volume, c.Muted, c.FadeInTicks, c.FadeOutTicks, c.Scale, c.Crop, c.PositionX, c.PositionY);
     public bool HasMixedProperties => SelectedClip is { Parts.IsEmpty: false } c && c.Parts.Select(Effects).Distinct().Skip(1).Any();
@@ -53,7 +57,7 @@ public sealed partial class ProjectWorkspaceViewModel
         NotifyState();
         if (_resettingProperties) return;
         CancelPropertyApplyDelay();
-        if (!HasPropertyDraft || !CanEditSelection) return;
+        if (!HasPropertyDraft || !CanEditProperties || _savingProperties) return;
         var delay = new CancellationTokenSource();
         _propertyApplyDelay = delay;
         _ = AutoApplyPropertiesAsync(delay, State.ProjectId, SelectedClip!.Id);
@@ -115,7 +119,8 @@ public sealed partial class ProjectWorkspaceViewModel
         var project = State.ProjectId;
         var revision = State.Revision;
         if (!clip.Parts.IsEmpty && !HasEffectDraft)
-            return RenameAsync(clip.Id, ClipName);
+            return SaveInspectorAsync("RenameProjectClip", new() { ClipId = clip.Id, Name = ClipName },
+                () => CanEditSelection && State.ProjectId == project && State.Revision == revision && SelectedClip?.Id == clip.Id, true);
         var span = TimelineClips.FirstOrDefault(c => c.ClipId == clip.Id);
         var duration = span is null ? -1m : (decimal)(span.EndTicks - span.StartTicks) / TimeSpan.TicksPerSecond;
         if (string.IsNullOrWhiteSpace(ClipName) || ClipName.Length > 200 ||
@@ -129,12 +134,27 @@ public sealed partial class ProjectWorkspaceViewModel
             Error = Strings["ProjectInvalidProperties"];
             return Task.CompletedTask;
         }
-        return ExecuteAsync("ApplyProjectEdit", new() { Edit = new ProjectClipEdit.Properties(
+        return SaveInspectorAsync("ApplyProjectEdit", new() { Edit = new ProjectClipEdit.Properties(
             clip.Id, ClipName, ClipVolumePercent / 100, ClipMuted,
             checked((long)(fadeIn * TimeSpan.TicksPerSecond)),
             checked((long)(fadeOut * TimeSpan.TicksPerSecond)),
             ClipScalePercent / 100, ClipCropPercent, ClipPositionX, ClipPositionY) },
-            () => CanEditSelection && State.ProjectId == project && State.Revision == revision && SelectedClip?.Id == clip.Id);
+            () => CanEditSelection && State.ProjectId == project && State.Revision == revision && SelectedClip?.Id == clip.Id, !HasEffectDraft);
+    }
+
+    private async Task SaveInspectorAsync(string command, ScreenRecorder.Infrastructure.IPC.ProjectRequest request,
+        Func<bool> precondition, bool mediaUnchanged)
+    {
+        _savingProperties = true;
+        try { await ExecuteAsync(command, request, precondition, keepInspector: true, mediaUnchanged: mediaUnchanged); }
+        finally
+        {
+            _savingProperties = false;
+            OnPropertyChanged(nameof(CanEditProperties));
+            // A newer keystroke/slider value may have arrived while the previous snapshot was saving.
+            // Never replace it with that older acknowledgement; persist the new draft in order.
+            if (Error is null && !StatusUnconfirmed) NotifyPropertyDraft();
+        }
     }
 
     private static bool Within(double value, double min, double max) =>

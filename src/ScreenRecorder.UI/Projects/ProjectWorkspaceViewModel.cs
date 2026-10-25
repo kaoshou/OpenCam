@@ -55,7 +55,11 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     public string ClipCountText => $"{Clips.Count} / {State.ClipCount}";
     public event EventHandler? StateChanged;
 
-    partial void OnSelectedClipChanged(ProjectClip? value) { ResetProperties(); NotifyState(); }
+    partial void OnSelectedClipChanged(ProjectClip? value)
+    {
+        if (_publishingPropertyClips) return;
+        ResetProperties(); NotifyState();
+    }
     partial void OnIsBusyChanged(bool value) => NotifyState();
     partial void OnErrorChanged(string? value) => NotifyState();
     partial void OnStatusUnconfirmedChanged(bool value) => NotifyState();
@@ -65,7 +69,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
         foreach (var property in new[] { nameof(CanEdit), nameof(CanRecord), nameof(CanPause), nameof(CanFinish), nameof(CanClose),
             nameof(CanUndo), nameof(CanRedo), nameof(SaveStatus), nameof(ModeText), nameof(StartText), nameof(ClipCountText), nameof(IsExporting),
             nameof(CanExport), nameof(CanCancelExport), nameof(ExportProgress), nameof(ExportStatusText), nameof(HasEditorError), nameof(CanReturnToRecording),
-            nameof(CanEditSelection), nameof(CanMoveEarlier), nameof(CanMoveLater), nameof(CanEditTimeline), nameof(CanReplaceProject),
+            nameof(CanEditSelection), nameof(CanEditProperties), nameof(CanMoveEarlier), nameof(CanMoveLater), nameof(CanEditTimeline), nameof(CanReplaceProject),
             nameof(CanChangePreviewOptions), nameof(CanUseOriginalPreview) })
             OnPropertyChanged(property);
         StateChanged?.Invoke(this, EventArgs.Empty);
@@ -73,12 +77,19 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
         NotifyTimeline();
     }
 
-    public void ApplyReply(ProjectReply reply)
+    public void ApplyReply(ProjectReply reply) => ApplyReply(reply, false, false);
+    private void ApplyReply(ProjectReply reply, bool keepPreview, bool mediaUnchanged)
     {
         if (reply.Unconfirmed) { StatusUnconfirmed = true; Error = reply.Error; return; }
         if (reply.State.ProjectId == State.ProjectId && reply.State.Revision < State.Revision) return;
+        var sameMediaOwner = reply.State.ProjectId == State.ProjectId &&
+            reply.State.ServerInstanceId == State.ServerInstanceId && reply.State.Mode == State.Mode;
         if (reply.State.ProjectId != State.ProjectId || reply.State.Revision != State.Revision ||
-            reply.State.ServerInstanceId != State.ServerInstanceId) { ClearWaveforms(); ClearPreview(); ClearThumbnails(); }
+            reply.State.ServerInstanceId != State.ServerInstanceId)
+        {
+            if (!mediaUnchanged || !sameMediaOwner)
+            { ClearWaveforms(); ClearPreview(keepFrame: keepPreview && sameMediaOwner); ClearThumbnails(); }
+        }
         if (reply.State.Mode != State.Mode) ClearPreview();
         if (reply.State.ProjectId != State.ProjectId)
         {
@@ -241,7 +252,8 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
         finally { IsBusy = false; _gate.Release(); }
     }
 
-    private async Task ExecuteAsync(string command, ProjectRequest? request = null, Func<bool>? precondition = null)
+    private async Task ExecuteAsync(string command, ProjectRequest? request = null, Func<bool>? precondition = null,
+        bool keepInspector = false, bool mediaUnchanged = false)
     {
         if (command != "GetProjectStatus" && (IsPlayingPreview || IsChangingPreviewQuality) && !await StopPreviewAsync()) return;
         await _gate.WaitAsync();
@@ -260,19 +272,19 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
                     reply = await client.SendAsync(pending.Command, pending.Request);
                 else reply = reply with { Unconfirmed = true, Success = false };
             }
-            ApplyReply(reply);
+            ApplyReply(reply, keepInspector && reply.Success, mediaUnchanged && reply.Success);
             if (!StatusUnconfirmed)
             {
                 _pendingOperation = Guid.Empty;
                 _pendingRequest = null;
-                await LoadClipsAsync();
+                await LoadClipsAsync(keepInspector);
             }
         }
         catch (Exception ex) { Error = ex.Message; StatusUnconfirmed = true; }
         finally { IsBusy = false; _gate.Release(); }
     }
 
-    private async Task LoadClipsAsync()
+    private async Task LoadClipsAsync(bool keepInspector = false)
     {
         if (State.ProjectId is null) return;
         var snapshot = State;
@@ -309,9 +321,24 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
         }
         // Publish only a complete, same-revision snapshot. Failed refresh leaves the previous list intact.
         var selection = SelectedClip?.Id;
-        Clips.Clear();
-        foreach (var clip in loaded) Clips.Add(clip);
-        SelectedClip = Clips.FirstOrDefault(c => c.Id == selection) ?? Clips.FirstOrDefault();
+        if (keepInspector && Clips.Select(c => c.Id).SequenceEqual(loaded.Select(c => c.Id)))
+        {
+            _publishingPropertyClips = true;
+            try
+            {
+                for (var i = 0; i < loaded.Count; i++) if (Clips[i] != loaded[i]) Clips[i] = loaded[i];
+                SelectedClip = Clips.FirstOrDefault(c => c.Id == selection) ?? Clips.FirstOrDefault();
+            }
+            finally { _publishingPropertyClips = false; }
+            OnPropertyChanged(nameof(HasPropertyDraft));
+            OnPropertyChanged(nameof(HasMixedProperties));
+        }
+        else
+        {
+            Clips.Clear();
+            foreach (var clip in loaded) Clips.Add(clip);
+            SelectedClip = Clips.FirstOrDefault(c => c.Id == selection) ?? Clips.FirstOrDefault();
+        }
         PublishTimeline(missingTiming ? [] : spans.AsReadOnly());
         if (_bookmarksEnabled) await RefreshBookmarksAsync();
         OnPropertyChanged(nameof(ClipCountText));

@@ -47,7 +47,7 @@ footer{color:#536174}
 <script src="opencam-player.js" defer></script>
 </head>
 <body>
-<nav aria-label="快速導覽" data-i18n-aria-label="quick"><a class="skip-link" id="skip-player" href="#stage" data-jump="player"><span data-i18n="skipPlayer">跳至播放器</span></a><a class="skip-link" id="skip-chapters" href="#chapter-tab" data-jump="chapters"><span data-i18n="skipChapters">跳至章節</span></a><a class="skip-link" id="skip-transcript" href="#transcript-tab" data-jump="transcript"><span data-i18n="skipTranscript">跳至逐字稿</span></a></nav>
+<nav aria-label="快速導覽" data-i18n-aria-label="quick"><a class="skip-link" id="skip-player" href="#stage" accesskey="c" data-jump="player"><span aria-hidden="true">::: C · </span><span data-i18n="skipPlayer">跳至播放器</span></a><a class="skip-link" id="skip-chapters" href="#chapter-tab" accesskey="l" data-jump="chapters"><span aria-hidden="true">::: L · </span><span data-i18n="skipChapters">跳至章節</span></a><a class="skip-link" id="skip-transcript" href="#transcript-tab" accesskey="t" data-jump="transcript" hidden><span aria-hidden="true">::: T · </span><span data-i18n="skipTranscript">跳至逐字稿</span></a></nav>
 <main id="main">
 <header><span class="mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="26" height="20" rx="4"/><path d="M13 10l8 4-8 4z" fill="currentColor" stroke="none"/><path d="M11 29h10"/></svg></span><div class="heading"><h1 id="title">%%TITLE%%</h1><div class="subtitle" id="summary"><span data-i18n="webPlayer">OpenCam · 網頁播放器</span></div></div><label id="ui-language-control" class="ui-language-control"><span class="sr-only" data-i18n="uiLanguage">介面語言</span><select id="ui-language" aria-label="介面語言" data-i18n-aria-label="uiLanguage"></select></label></header>
 <div class="layout" id="layout">
@@ -82,7 +82,7 @@ footer{color:#536174}
 <div class="error" id="error" role="status" hidden></div>
 </section>
 <aside class="chapters" id="sidebar">
-<div class="index-tabs" role="tablist" aria-label="教材索引" data-i18n-aria-label="index"><button id="chapter-tab" role="tab" aria-selected="true" aria-controls="chapter-panel"><span data-i18n="chapters">章節</span></button><button id="transcript-tab" role="tab" aria-selected="false" aria-controls="transcript-panel"><span data-i18n="transcript">逐字稿</span></button></div>
+<div class="index-tabs" role="tablist" aria-label="教材索引" data-i18n-aria-label="index"><button id="chapter-tab" role="tab" aria-selected="true" aria-controls="chapter-panel"><span data-i18n="chapters">章節</span></button><button id="transcript-tab" role="tab" aria-selected="false" aria-controls="transcript-panel" hidden><span data-i18n="transcript">逐字稿</span></button></div>
 <div class="index-panel" id="chapter-panel" role="tabpanel" aria-labelledby="chapter-tab"><nav class="list" id="chapters" aria-label="影片章節" data-i18n-aria-label="videoChapters"></nav></div>
 <div class="index-panel" id="transcript-panel" role="tabpanel" aria-labelledby="transcript-tab" hidden>
 <div class="transcript-tools"><div class="reading-toolbar"><button id="reading-button" class="reading-toggle" type="button" aria-expanded="false" aria-controls="reading-menu" aria-haspopup="dialog"><span class="reading-arrow" aria-hidden="true">▶</span><span data-i18n="reading">閱讀設定</span></button></div>
@@ -103,11 +103,12 @@ footer{color:#536174}
 </div></aside>
 </div>
 <details class="keyboard-help"><summary><span data-i18n="keyboard">鍵盤操作說明</span></summary>
-<nav class="keyboard-jumps" aria-label="移至操作區" data-i18n-aria-label="goControls"><a href="#stage" data-jump="player"><span data-i18n="player">播放器</span></a><a href="#chapter-tab" data-jump="chapters"><span data-i18n="chapters">章節</span></a><a href="#transcript-tab" data-jump="transcript"><span data-i18n="transcript">逐字稿</span></a></nav>
+<p data-i18n="accessModifiers">Accesskey 定位：Windows Chrome／Edge 使用 Alt + 字母；Windows Firefox 使用 Alt + Shift + 字母；macOS 使用 Control + Option + 字母，部分瀏覽器需再加 Shift。若只聚焦定位連結，再按 Enter。若與輔助工具快捷鍵衝突，可改用 Tab 導覽。</p>
+<p><kbd>C</kbd>：<span data-i18n="player">播放器</span> · <kbd>L</kbd>：<span data-i18n="chapters">章節</span><span id="transcript-key-help" hidden> · <kbd>T</kbd>：<span data-i18n="transcript">逐字稿</span></span></p>
 <div class="keyboard-groups">
-<section class="keyboard-group"><h3><span data-i18n="navigation">頁面導覽</span></h3><dl><dt><kbd>Tab</kbd> / <kbd>Shift + Tab</kbd></dt><dd><span data-i18n="nextHelp">下一項／上一項控制。頁首先提供三個快速入口。</span></dd><dt><kbd>Enter</kbd></dt><dd><span data-i18n="activateHelp">啟動目前的連結或按鈕。</span></dd></dl></section>
-<section class="keyboard-group"><h3><span data-i18n="videoArea">影片區</span></h3><p><span data-i18n="focusHelp">先用上方「播放器」連結移入影片區，看到焦點框後操作。</span></p><dl><dt><kbd>Space</kbd></dt><dd><span data-i18n="playPauseHelp">播放／暫停</span></dd><dt><kbd>←</kbd> / <kbd>→</kbd></dt><dd><span data-i18n="seekHelp">後退／前進 5 秒</span></dd><dt><kbd>F</kbd></dt><dd><span data-i18n="fullscreenHelp">切換全螢幕</span></dd></dl></section>
-<section class="keyboard-group"><h3><span data-i18n="indexHelp">章節與逐字稿</span></h3><dl><dt><span data-i18n="onTabs">分頁上：</span><kbd>←</kbd> <kbd>→</kbd></dt><dd><span data-i18n="tabsHelp">切換章節／逐字稿。</span></dd><dt><kbd>Home</kbd> / <kbd>End</kbd></dt><dd><span data-i18n="homeHelp">選擇第一／最後分頁。</span></dd><dt><span data-i18n="onEntry">項目上：</span><kbd>Enter</kbd></dt><dd><span data-i18n="entryHelp">章節：跳轉並播放。逐字稿：跳轉並保留播放／暫停狀態。</span></dd></dl></section>
+<section class="keyboard-group"><h3><span data-i18n="navigation">頁面導覽</span></h3><dl><dt><kbd>Tab</kbd> / <kbd>Shift + Tab</kbd></dt><dd><span data-i18n="nextHelp">下一項／上一項控制。頁首提供可用區塊的定位連結。</span></dd><dt><kbd>Enter</kbd></dt><dd><span data-i18n="activateHelp">啟動目前的連結或按鈕。</span></dd></dl></section>
+<section class="keyboard-group"><h3><span data-i18n="videoArea">影片區</span></h3><p><span data-i18n="focusHelp">使用 Accesskey C 或 Tab 移入影片區，看到焦點框後操作；焦點在滑桿或選單時，按鍵只調整該控制。</span></p><dl><dt><kbd>Space</kbd></dt><dd><span data-i18n="playPauseHelp">播放／暫停</span></dd><dt><kbd>←</kbd> / <kbd>→</kbd></dt><dd><span data-i18n="seekHelp">後退／前進 5 秒</span></dd><dt><kbd>F</kbd></dt><dd><span data-i18n="fullscreenHelp">切換全螢幕</span></dd></dl></section>
+<section class="keyboard-group"><h3><span data-i18n="indexHelp">章節與逐字稿</span></h3><p data-i18n="transcriptAvailability">逐字稿僅在影片附有字幕時顯示。</p><dl><dt><span data-i18n="onTabs">分頁上：</span><kbd>←</kbd> <kbd>→</kbd></dt><dd><span data-i18n="tabsHelp">切換可用分頁，再按 Tab 移至內容。</span></dd><dt><kbd>Home</kbd> / <kbd>End</kbd></dt><dd><span data-i18n="homeHelp">選擇第一／最後分頁。</span></dd><dt><span data-i18n="onEntry">項目上：</span><kbd>Enter</kbd></dt><dd><span data-i18n="entryHelp">章節：跳轉並播放。逐字稿：跳轉並保留播放／暫停狀態。</span></dd></dl></section>
 <section class="keyboard-group"><h3><span data-i18n="settingsControls">設定與控制</span></h3><dl><dt><kbd>Esc</kbd></dt><dd><span data-i18n="escapeHelp">關閉閱讀／字幕設定並回到開啟按鈕；無設定視窗時離開全螢幕。</span></dd><dt><span data-i18n="onLists">滑桿／選單上：</span><kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd></dt><dd><span data-i18n="adjustHelp">調整該項數值；搜尋框正常輸入，不觸發影片快捷鍵。</span></dd></dl></section>
 </div></details>
 <footer><span data-i18n="createdBefore">以</span> <a href="https://github.com/kaoshou/OpenCam" target="_blank" rel="noopener noreferrer">OpenCam</a> <span data-i18n="createdAfter">製作</span></footer>
@@ -165,16 +166,18 @@ window.addEventListener('DOMContentLoaded',()=>{
     "keyboard": "鍵盤操作說明",
     "player": "播放器",
     "navigation": "頁面導覽",
-    "nextHelp": "下一項／上一項控制。頁首先提供三個快速入口。",
+    "nextHelp": "下一項／上一項控制。頁首提供可用區塊的定位連結。",
+    "accessModifiers": "Accesskey 定位：Windows Chrome／Edge 使用 Alt + 字母；Windows Firefox 使用 Alt + Shift + 字母；macOS 使用 Control + Option + 字母，部分瀏覽器需再加 Shift。若只聚焦定位連結，再按 Enter。若與輔助工具快捷鍵衝突，可改用 Tab 導覽。",
+    "transcriptAvailability": "逐字稿僅在影片附有字幕時顯示。",
     "activateHelp": "啟動目前的連結或按鈕。",
     "videoArea": "影片區",
-    "focusHelp": "先用上方「播放器」連結移入影片區，看到焦點框後操作。",
+    "focusHelp": "使用 Accesskey C 或 Tab 移入影片區，看到焦點框後操作；焦點在滑桿或選單時，按鍵只調整該控制。",
     "playPauseHelp": "播放／暫停",
     "seekHelp": "後退／前進 5 秒",
     "fullscreenHelp": "切換全螢幕",
     "indexHelp": "章節與逐字稿",
     "onTabs": "分頁上：",
-    "tabsHelp": "切換章節／逐字稿。",
+    "tabsHelp": "切換可用分頁，再按 Tab 移至內容。",
     "homeHelp": "選擇第一／最後分頁。",
     "onEntry": "項目上：",
     "entryHelp": "章節：跳轉並播放。逐字稿：跳轉並保留播放／暫停狀態。",
@@ -273,16 +276,18 @@ window.addEventListener('DOMContentLoaded',()=>{
     "keyboard": "Keyboard help",
     "player": "Player",
     "navigation": "Navigation",
-    "nextHelp": "Next / previous control. Three skip links appear first.",
+    "nextHelp": "Next / previous control. Skip links for available regions appear first.",
+    "accessModifiers": "Accesskeys: Windows Chrome / Edge: Alt + letter; Windows Firefox: Alt + Shift + letter; macOS: Control + Option + letter (some browsers also require Shift). If only the skip link receives focus, press Enter. Use Tab instead if a shortcut conflicts with assistive technology.",
+    "transcriptAvailability": "The transcript appears only when the video includes subtitles.",
     "activateHelp": "Activate the focused link or button.",
     "videoArea": "Video area",
-    "focusHelp": "Use the Player link above to focus the video area first.",
+    "focusHelp": "Use Accesskey C or Tab to focus the video area and check the focus outline. When a slider or menu has focus, keys adjust that control instead.",
     "playPauseHelp": "Play / pause",
     "seekHelp": "Seek back / forward 5 seconds",
     "fullscreenHelp": "Toggle fullscreen",
     "indexHelp": "Chapters and transcript",
     "onTabs": "On tabs:",
-    "tabsHelp": "Switch Chapters / Transcript.",
+    "tabsHelp": "Switch available tabs, then press Tab to reach their content.",
     "homeHelp": "Select the first / last tab.",
     "onEntry": "On an entry:",
     "entryHelp": "Chapter: seek and play. Transcript: seek, keeping play / pause state.",
@@ -381,16 +386,18 @@ window.addEventListener('DOMContentLoaded',()=>{
     "keyboard": "キーボード操作",
     "player": "プレーヤー",
     "navigation": "ページ内移動",
-    "nextHelp": "次／前の操作項目へ移動します。ページの先頭に 3 つのスキップリンクがあります。",
+    "nextHelp": "次／前の操作項目へ移動します。ページ先頭には利用可能な領域へのスキップリンクがあります。",
+    "accessModifiers": "アクセスキー：Windows Chrome／Edge は Alt + 文字、Windows Firefox は Alt + Shift + 文字、macOS は Control + Option + 文字（一部のブラウザーでは Shift も必要）。スキップリンクにフォーカスするだけの場合は Enter を押します。支援技術のキーと競合する場合は Tab で移動できます。",
+    "transcriptAvailability": "文字起こしは字幕付きの動画でのみ表示されます。",
     "activateHelp": "フォーカス中のリンクやボタンを実行します。",
     "videoArea": "動画エリア",
-    "focusHelp": "上の「プレーヤー」リンクで動画エリアに移動し、フォーカス枠を確認してから操作してください。",
+    "focusHelp": "アクセスキー C または Tab で動画エリアに移動し、フォーカス枠を確認して操作してください。スライダーやメニューにフォーカスがある場合は、その項目だけを操作します。",
     "playPauseHelp": "再生／一時停止",
     "seekHelp": "5 秒戻る／進む",
     "fullscreenHelp": "全画面を切り替え",
     "indexHelp": "チャプターと文字起こし",
     "onTabs": "タブ上：",
-    "tabsHelp": "チャプター／文字起こしを切り替えます。",
+    "tabsHelp": "利用可能なタブを切り替え、Tab で内容に移動します。",
     "homeHelp": "最初／最後のタブを選択します。",
     "onEntry": "項目上：",
     "entryHelp": "チャプターは移動して再生します。文字起こしは再生／一時停止の状態を保って移動します。",
@@ -557,6 +564,8 @@ window.addEventListener('DOMContentLoaded',()=>{
     transcriptLanguage=document.getElementById('transcript-language'),transcriptSearch=document.getElementById('transcript-search'),
     transcriptList=document.getElementById('transcript-list'),transcriptStatus=document.getElementById('transcript-status'),
     transcriptMore=document.getElementById('transcript-more'),transcriptFollow=document.getElementById('transcript-follow');
+  const hasTranscript=subtitleTracks.length>0;
+  for(const id of ['transcript-tab','skip-transcript','transcript-key-help'])document.getElementById(id).hidden=!hasTranscript;
   let transcriptCues=[],transcriptMatches=[],transcriptRows=[],transcriptStart=0,transcriptLimit=100,searchTimer,lastFollow=-1;
   transcriptFollow.checked=true;
   const readingButton=document.getElementById('reading-button'),readingMenu=document.getElementById('reading-menu');
@@ -629,6 +638,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   subtitleTracks.forEach(t=>{const option=document.createElement('option');option.value=t.id;option.textContent=subtitleLanguageLabel(t);transcriptLanguage.append(option)});
   transcriptLanguage.value=defaultTrack?.id||'';transcriptLanguage.disabled=transcriptSearch.disabled=transcriptFollow.disabled=!subtitleTracks.length;
   const showIndex=transcript=>{
+    transcript=transcript&&hasTranscript;
     closeReading();
     document.getElementById('chapter-panel').hidden=transcript;document.getElementById('transcript-panel').hidden=!transcript;
     syncSidebarHeight();
@@ -638,13 +648,15 @@ window.addEventListener('DOMContentLoaded',()=>{
   chapterTab.addEventListener('click',()=>showIndex(false));transcriptTab.addEventListener('click',()=>showIndex(true));
   document.querySelectorAll('[data-jump]').forEach(link=>link.addEventListener('click',async e=>{
     e.preventDefault();closeReading();
+    if(link.dataset.jump==='transcript'&&!hasTranscript)return;
     if(link.dataset.jump==='player'){stage.focus();return;}
     if(document.fullscreenElement===stage)try{await document.exitFullscreen();}catch{return;}
     exitFrame();document.getElementById('layout').classList.remove('wide');wide.setAttribute('aria-pressed','false');wide.title=t('wide');
     const transcript=link.dataset.jump==='transcript';showIndex(transcript);(transcript?transcriptTab:chapterTab).focus();
   }));
   [chapterTab,transcriptTab].forEach(tab=>tab.addEventListener('keydown',e=>{
-    if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();const next=e.key==='End'||(e.key!=='Home'&&tab===chapterTab);showIndex(next);(next?transcriptTab:chapterTab).focus?.();}
+    if(e.altKey||e.ctrlKey||e.metaKey)return;
+    if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();const next=hasTranscript&&(e.key==='End'||(e.key!=='Home'&&tab===chapterTab));showIndex(next);(next?transcriptTab:chapterTab).focus?.();}
   }));
   transcriptLanguage.addEventListener('change',setTranscriptLanguage);
   transcriptSearch.addEventListener('input',()=>{window.clearTimeout(searchTimer);searchTimer=window.setTimeout(searchTranscript,120)});

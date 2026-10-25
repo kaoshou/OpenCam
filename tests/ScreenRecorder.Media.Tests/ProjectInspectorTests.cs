@@ -2,11 +2,87 @@
 using ScreenRecorder.Core.Projects;
 using ScreenRecorder.Infrastructure.IPC;
 using ScreenRecorder.UI.Projects;
+using Avalonia.Controls;
+using Avalonia.Headless.XUnit;
+using Avalonia.VisualTree;
+using System.Collections.Specialized;
 
 namespace ScreenRecorder.Media.Tests;
 
 public sealed class ProjectInspectorTests
 {
+    [AvaloniaFact]
+    public async Task SavingInspectorKeepsTypingEnabledAndPreservesFocusCaretAndNewerText()
+    {
+        var client = new InspectorClient();
+        var vm = new ProjectWorkspaceViewModel(client);
+        await vm.RefreshAsync();
+        var window = new ProjectWorkspaceView { DataContext = vm, Width = 1440, Height = 900 };
+        var release = new TaskCompletionSource();
+        Task saving = Task.CompletedTask;
+        try
+        {
+            window.Show(); window.UpdateLayout();
+            if (!window.FindControl<Border>("InspectorPane")!.IsVisible)
+                window.FindControl<Button>("PropertiesToggle")!.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+            window.UpdateLayout();
+            var input = window.FindControl<Border>("InspectorPane")!.GetVisualDescendants()
+                .OfType<TextBox>().Single(t => t.MaxLength == 200);
+            Assert.True(input.IsEffectivelyVisible, $"Inspector visibility at {window.ClientSize}");
+            Assert.True(input.IsEffectivelyEnabled);
+            Assert.True(input.Focus(), $"Focusable={input.Focusable}, visible={input.IsEffectivelyVisible}");
+            Assert.True(input.IsFocused);
+            input.Text = "First"; input.CaretIndex = 5;
+            client.EditRelease = release;
+            saving = vm.ApplyPropertiesAsync();
+            Assert.True(vm.IsBusy);
+            Assert.True(input.IsEffectivelyEnabled);
+            Assert.True(input.IsFocused);
+            input.Text = "First still typing"; input.CaretIndex = 7;
+            release.SetResult(); await saving;
+            Assert.Equal("First still typing", input.Text);
+            Assert.Equal(7, input.CaretIndex);
+            Assert.True(input.IsFocused);
+            await WaitForAsync(() => !vm.HasPropertyDraft && !vm.IsBusy);
+            Assert.Equal("First still typing", client.Clip.Name);
+            Assert.True(input.IsFocused);
+            Assert.Equal(7, input.CaretIndex);
+        }
+        finally { release.TrySetResult(); await saving; await window.RequestCloseAsync(); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PropertySaveDoesNotBlankPreviewOrResetClipList(bool effect)
+    {
+        var client = new InspectorClient(); var vm = new ProjectWorkspaceViewModel(client);
+        await vm.RefreshAsync(); await vm.PollPreviewAsync();
+        var before = vm.PreviewFrame; Assert.NotNull(before);
+        var resets = 0; vm.Clips.CollectionChanged += (_, e) => { if(e.Action == NotifyCollectionChangedAction.Reset) resets++; };
+        if (effect) vm.ClipScalePercent = 125; else vm.ClipName = "Renamed";
+        await vm.ApplyPropertiesAsync();
+        Assert.Same(before, vm.PreviewFrame);
+        Assert.Equal(0, resets);
+        await vm.PollPreviewAsync();
+        if(effect) Assert.Equal(vm.State.Revision, vm.PreviewFrame!.Revision);
+        else Assert.Equal(1, client.FrameRequests);
+    }
+
+    [Fact]
+    public async Task RejectedPropertySaveRetainsDraftAndAllowsCorrection()
+    {
+        var client = new InspectorClient { RejectNextEdit = true };
+        var vm = new ProjectWorkspaceViewModel(client); await vm.RefreshAsync();
+        vm.ClipName = "Keep this draft"; await vm.ApplyPropertiesAsync();
+        Assert.Equal("Keep this draft", vm.ClipName);
+        Assert.True(vm.HasPropertyDraft); Assert.True(vm.CanEditProperties);
+        Assert.Equal("Original", client.Clip.Name); Assert.NotNull(vm.Error);
+        vm.ClipName = "Corrected";
+        await WaitForAsync(() => !vm.IsBusy && !vm.HasPropertyDraft);
+        Assert.Equal("Corrected", client.Clip.Name); Assert.Null(vm.Error);
+    }
+
     [Fact]
     public async Task PropertyChangesAutomaticallyApplyAsOneEditingBurst()
     {
@@ -180,11 +256,22 @@ public sealed class ProjectInspectorTests
         public ProjectSnapshot State = new(Guid.NewGuid(), "Test", "/test", 0, 0, ProjectMode.Ready, 1, false, false);
         public List<ProjectClipEdit> Edits = [];
         public List<string> Mutations = [];
-        public Task<ProjectReply> SendAsync(string command, ProjectRequest request, CancellationToken ct = default)
+        public TaskCompletionSource? EditRelease;
+        public int FrameRequests;
+        public bool RejectNextEdit;
+        public async Task<ProjectReply> SendAsync(string command, ProjectRequest request, CancellationToken ct = default)
         {
+            if(command == "GetProjectFrame")
+            {
+                FrameRequests++;
+                return new(true, null, State) { Frame = new(State.Revision, request.TimelineTicks, Clip.Id, new byte[ProjectFrameReply.ByteCount]) };
+            }
             if (command is "ApplyProjectEdit" or "SaveProject") Mutations.Add(command);
             if (request.Edit is { } edit)
             {
+                if (RejectNextEdit) { RejectNextEdit = false; return new(false, "Save rejected", State); }
+                var release = EditRelease; EditRelease = null;
+                if(release is not null) await release.Task;
                 Edits.Add(edit);
                 if (edit is ProjectClipEdit.Properties p)
                 {
@@ -194,8 +281,8 @@ public sealed class ProjectInspectorTests
                     State = State with { Revision = State.Revision + 1 };
                 }
             }
-            return Task.FromResult(new ProjectReply(true, null, State, [Clip]) {
-                TimelineClips = [new(Clip.Id, 0, 20_000_000)] });
+            return new ProjectReply(true, null, State, [Clip]) {
+                TimelineClips = [new(Clip.Id, 0, 20_000_000)] };
         }
     }
 }

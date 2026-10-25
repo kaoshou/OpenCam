@@ -43,6 +43,8 @@
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
             <Button Content="{Binding [ReturnToRecording]}"
                     Click="OnReturnClicked"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
                     MinWidth="150"
                     Padding="18,9"
                     Background="#2563EB"
@@ -52,6 +54,8 @@
             <Button Name="ForceQuitButton"
                     Content="{Binding [ForceQuitButton]}"
                     Click="OnForceQuitClicked"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
                     IsVisible="False"
                     MinWidth="150"
                     Padding="18,9"

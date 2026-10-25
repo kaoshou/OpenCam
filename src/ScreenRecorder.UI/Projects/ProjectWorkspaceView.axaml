@@ -340,8 +340,8 @@
         <StackPanel Spacing="10" Margin="0,0,16,0">
           <TextBlock Text="{Binding Strings[ProjectProperties]}" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,10"/>
           <TextBlock Text="{Binding Strings[ProjectClipName]}" FontWeight="SemiBold"/>
-          <TextBox Text="{Binding ClipName}" IsEnabled="{Binding CanEditSelection}" MaxLength="200"/>
-          <StackPanel Spacing="8" IsEnabled="{Binding CanEditSelection}">
+          <TextBox Text="{Binding ClipName}" IsEnabled="{Binding CanEditProperties}" MaxLength="200"/>
+          <StackPanel Spacing="8" IsEnabled="{Binding CanEditProperties}">
             <TextBlock Text="{Binding Strings[ProjectAudioProperties]}" FontWeight="SemiBold" Margin="0,10,0,2"/>
             <Grid ColumnDefinitions="*,Auto">
               <TextBlock Text="{Binding Strings[ProjectVolume]}" FontSize="12" VerticalAlignment="Center"/>

@@ -26,7 +26,7 @@ function setup(data = {format:'opencam.web-player',schemaVersion:1,title:'教材
     'caption-button','caption-menu','caption-language','caption-overlay','caption-text','caption-size','caption-size-value',
     'caption-theme','caption-opacity','caption-position','caption-reset','chapter-tab','transcript-tab','chapter-panel',
     'transcript-panel','transcript-language','transcript-search','transcript-list','transcript-status','transcript-more','transcript-follow','sidebar','player',
-    'reading-button','reading-menu','reading-close','reading-size','reading-size-value','reading-spacing','reading-theme','reading-reset','reading-timestamps','download-html','download-txt','download-status','caption-close','skip-transcript','skip-player','skip-chapters'].map(id=>[id,new Element()]));
+    'reading-button','reading-menu','reading-close','reading-size','reading-size-value','reading-spacing','reading-theme','reading-reset','reading-timestamps','download-html','download-txt','download-status','caption-close','skip-transcript','skip-player','skip-chapters','transcript-key-help'].map(id=>[id,new Element()]));
   ids.player.getBoundingClientRect=()=>({height:480});
   ids['ui-language']=new Element();ids['ui-language-control']=new Element();
   Object.assign(ids.video,{controls:true,readyState:1,currentTime:0,duration:12,playbackRate:1,paused:true,ended:false,volume:1,muted:false,
@@ -143,6 +143,35 @@ test('downloads contain the whole selected language despite search and paging an
 });
 test('missing captions disable downloads rather than producing an empty transcript',()=>{
   const ids=setup();assert.equal(ids['download-html'].disabled,true);assert.equal(ids['download-txt'].disabled,true);
+});
+test('without usable subtitles transcript tab and quick entry stay hidden and cannot be selected',()=>{
+  for(const subtitles of [undefined,{tracks:[]},{tracks:[{id:'invalid'}]}]){
+    const lesson=subtitleLesson();lesson.subtitles=subtitles;const ids=setup(lesson);
+    assert.equal(ids['transcript-tab'].hidden,true);
+    assert.equal(ids['skip-transcript'].hidden,true);
+    ids['chapter-tab'].dispatch('keydown',{key:'End',preventDefault(){}});
+    assert.equal(ids.document.activeElement,ids['chapter-tab']);
+    ids['transcript-tab'].dispatch('click');
+    assert.equal(ids['transcript-panel'].hidden,true);
+    ids['skip-transcript'].dispatch('click',{preventDefault(){}});
+    assert.equal(ids.document.activeElement,ids['chapter-tab']);
+  }
+});
+test('subtitles keep transcript navigation available even when captions are off or search is empty',()=>{
+  const ids=setup(subtitleLesson());
+  assert.equal(ids['transcript-tab'].hidden,false);assert.equal(ids['skip-transcript'].hidden,false);
+  ids['caption-language'].value='off';ids['caption-language'].dispatch('change');
+  ids['transcript-search'].value='no matching cue';ids['transcript-search'].dispatch('input');ids.runTimers();
+  assert.equal(ids['transcript-tab'].hidden,false);
+  ids['skip-transcript'].dispatch('click',{preventDefault(){}});
+  assert.equal(ids['transcript-panel'].hidden,false);
+});
+test('native accesskeys have unique focus destinations and keyboard help has no jump links',()=>{
+  const keys=[...html.matchAll(/<a\b([^>]*\baccesskey="([^"]+)"[^>]*)>/g)];
+  assert.deepEqual(keys.map(([,attrs,key])=>[key,/data-jump="([^"]+)"/.exec(attrs)?.[1]]),
+    [['c','player'],['l','chapters'],['t','transcript']]);
+  const help=html.match(/<details class="keyboard-help">([\s\S]*?)<\/details>/)[1];
+  assert.ok(!/<a\b/.test(help));assert.ok(help.includes('data-i18n="accessModifiers"'));
 });
 test('playback never replaces or scrolls focused transcript rows',()=>{
   const data=subtitleLesson();data.subtitles.tracks[0].cues=Array.from({length:1000},(_,i)=>({start:i,end:i+1,text:'Cue '+i}));

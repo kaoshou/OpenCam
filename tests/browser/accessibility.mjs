@@ -132,13 +132,32 @@ try{
   assert.equal(await page.locator('#transcript-search').inputValue(),'f ');
   assert.equal(await page.locator('#video').evaluate(v=>v.paused),true);
   await page.locator('.keyboard-help summary').click();
-  await page.locator('.keyboard-jumps [data-jump="chapters"]').focus();await page.keyboard.press('Enter');
-  assert.equal(await page.evaluate(()=>document.activeElement.id),'chapter-tab','help links move actual keyboard focus');
+  assert.equal(await page.locator('.keyboard-help a').count(),0,'help describes accesskeys without repeating links');
+  assert.equal(await page.locator('#skip-player').getAttribute('accesskey'),'c');
+  assert.equal(await page.locator('#skip-chapters').getAttribute('accesskey'),'l');
+  assert.equal(await page.locator('#skip-transcript').getAttribute('accesskey'),'t');
   const data=structuredClone(lesson);data.subtitles.tracks=[];
   await page.route('**/opencam-player.js',r=>r.fulfill({body:safeData(data),contentType:'text/javascript'}));
-  await goto('/player/');await page.locator('#skip-transcript').focus();await page.keyboard.press('Enter');
-  assert.equal(await page.evaluate(()=>document.activeElement.id),'transcript-tab');
-  assert(await page.locator('#transcript-status').isVisible());assert(await page.locator('#transcript-search').isDisabled());
+  await goto('/player/');
+  assert.equal(await page.locator('#transcript-tab').isVisible(),false);
+  assert.equal(await page.locator('#skip-transcript').isVisible(),false);
+  assert.equal(await page.locator('#transcript-key-help').isVisible(),false);
+  await page.locator('#chapter-tab').focus();await page.keyboard.press('End');
+  assert.equal(await page.evaluate(()=>document.activeElement.id),'chapter-tab');
+  assert.equal(await page.locator('#transcript-panel').isVisible(),false);
+  assert.deepEqual(await axe(),[]);
+ });
+ if(process.platform==='darwin'){
+  // CDP key events do not reproduce macOS native accesskey dispatch. Do not fake a pass:
+  // verify these separately with native desktop input (recorded in the verification report).
+  checks.push({name:'native accesskey activation via browser automation',result:'SKIP',reason:'macOS requires native desktop input; manual verification is separate'});
+ }else await check('native accesskey activation via browser automation',async()=>{
+  await goto('/player/');await page.locator('#transcript-tab').click();
+  for(const [key,target] of [['c','stage'],['l','chapter-tab'],['t','transcript-tab']]){
+   await page.locator('#play').focus();await page.keyboard.press('Alt+'+key);
+   if((await page.evaluate(()=>document.activeElement.id)).startsWith('skip-'))await page.keyboard.press('Enter');
+   assert.equal(await page.evaluate(()=>document.activeElement.id),target);
+  }
  });
  await check('compact reading disclosure and grouped keyboard help reflow',async()=>{
   for(const width of [1440,768,390,320]){
@@ -256,8 +275,9 @@ try{
   const denied=await browser.newContext();await denied.addInitScript(()=>{Object.defineProperty(window,'localStorage',{get(){throw Error('blocked')}})});
   const p=await denied.newPage();await p.goto(base+'/player/');await p.locator('#transcript-tab').click();await p.locator('#reading-button').click();await p.locator('#reading-size').fill('200');
   assert.equal(await p.locator('#reading-size').inputValue(),'200');
-  await p.route('**/opencam-player.js',r=>r.fulfill({body:safeData({...lesson,subtitles:null})}));await p.reload();await p.locator('#transcript-tab').click();
-  assert(await p.locator('#download-html').isDisabled());await denied.close();
+  await p.route('**/opencam-player.js',r=>r.fulfill({body:safeData({...lesson,subtitles:null})}));await p.reload();
+  assert(await p.locator('#transcript-tab').isHidden());assert(await p.locator('#skip-transcript').isHidden());
+  assert(await p.locator('#download-html').isDisabled());await p.locator('#play').click();await p.waitForFunction(()=>!document.querySelector('#video').paused);await denied.close();
  });
  await check('player axe and narrow reading layout',async()=>{
   await goto('/player/');await page.locator('#transcript-tab').click();await page.locator('#reading-button').click();
