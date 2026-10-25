@@ -19,6 +19,7 @@ public sealed class ObsScreenRecorderEngine : IScreenRecorderEngine, IBoundRecor
     private readonly CaptureSelection? _pinnedCapture;
     private readonly TimeSpan _startupTimeout;
     private readonly TimeSpan _stopTimeout;
+    private readonly bool _allowCompatibilityFallback;
     private readonly SemaphoreSlim _lifecycle = new(1, 1);
     private readonly object _state = new();
     private Process? _process;
@@ -40,6 +41,8 @@ public sealed class ObsScreenRecorderEngine : IScreenRecorderEngine, IBoundRecor
     private long _reportedBytes;
     private long _writtenBytes;
     private string? _setupErrorCode;
+    private ObsStartupDiagnostics? _startup;
+    private ObsRenderDiagnostics? _render;
     private bool _copyFailed;
     private bool _cleanupTimedOut;
     private AudioLevelSample? _systemLevel;
@@ -54,7 +57,7 @@ public sealed class ObsScreenRecorderEngine : IScreenRecorderEngine, IBoundRecor
     public ObsScreenRecorderEngine(string helperPath, string runtimeRoot,
         Func<RecordingConfiguration, CaptureRegion, CaptureSelection?, MonitorInfo?> resolveMonitor,
         HardwareEncoderType pinnedEncoder = HardwareEncoderType.SoftwareCpu, CaptureSelection? pinnedCapture = null,
-        TimeSpan? startupTimeout = null, TimeSpan? stopTimeout = null)
+        TimeSpan? startupTimeout = null, TimeSpan? stopTimeout = null, bool allowCompatibilityFallback = true)
     {
         _helperPath = Path.GetFullPath(helperPath);
         _runtimeRoot = Path.GetFullPath(runtimeRoot);
@@ -64,6 +67,7 @@ public sealed class ObsScreenRecorderEngine : IScreenRecorderEngine, IBoundRecor
         _pinnedCapture = pinnedCapture;
         _startupTimeout = startupTimeout ?? TimeSpan.FromSeconds(15);
         _stopTimeout = stopTimeout ?? TimeSpan.FromSeconds(8);
+        _allowCompatibilityFallback = allowCompatibilityFallback;
         if (_startupTimeout <= TimeSpan.Zero || _stopTimeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(startupTimeout));
     }
 
@@ -151,14 +155,14 @@ public sealed class ObsScreenRecorderEngine : IScreenRecorderEngine, IBoundRecor
             if (_pinnedCapture is null && !_ready.Task.IsCompletedSuccessfully && Interlocked.Read(ref _writtenBytes) == 0 &&
                 !_copyFailed && !_cleanupTimedOut)
             {
-                if (_setupErrorCode is "display_identity" or "audio_device_identity" or "capture_source" or
-                    "capture_start_timeout" or "graphics_startup" or "runtime_module")
+                if (_allowCompatibilityFallback && _setupErrorCode is ("display_identity" or "audio_device_identity" or "capture_source" or
+                    "capture_start_timeout" or "graphics_startup" or "runtime_module"))
                     throw new CaptureStartupException("Native capture setup is unsupported; no recording bytes were written.",
                         OperatingSystem.IsWindows() ? CaptureBackend.Gdi : CaptureBackend.PlatformDefault);
                 if (_setupErrorCode is "encoder_unavailable" or "encoder_start")
                     throw new EncoderStartupException("Native encoder setup failed; no recording bytes were written.");
             }
-            throw new IOException("Recording helper startup failed; retain any existing recording bytes.",
+            throw new IOException($"Recording helper startup failed ({_setupErrorCode ?? (error is TimeoutException ? "managed_start_timeout" : "native_failure")}; stage={_startup?.Stage ?? "unreported"}); retain any existing recording bytes.",
                 error is TimeoutException ? new IOException("Recording helper startup timed out.") : null);
         }
         finally { _lifecycle.Release(); }
@@ -300,6 +304,7 @@ public sealed class ObsScreenRecorderEngine : IScreenRecorderEngine, IBoundRecor
                 ActiveCapture = new(captureBackend, CaptureFallbackReason.None, monitor.DeviceName, null, null,
                     new(_request.X, _request.Y, _request.Width, _request.Height))
                     { OutputBounds = monitor.Bounds, RecordingCore = "libobs-v1" };
+                ReadStartup(value, "ready");
                 _ready.TrySetResult(true);
                 break;
             case "progress":
@@ -321,6 +326,7 @@ public sealed class ObsScreenRecorderEngine : IScreenRecorderEngine, IBoundRecor
                     _microphoneLevel = _request.Audio is "microphone" or "both" ? microphoneLevel : null;
                 }
                 _reportedBytes = bytes;
+                _render = ObsRenderDiagnostics.Read(value);
                 _performance.ReadNativeProgress(frames, mediaUs);
                 Interlocked.Exchange(ref _mediaUs, mediaUs);
                 Interlocked.Exchange(ref _frames, frames);
@@ -339,17 +345,33 @@ public sealed class ObsScreenRecorderEngine : IScreenRecorderEngine, IBoundRecor
                 _stoppedEvent = true;
                 break;
             case "error":
-                var code = value.GetProperty("code").GetString();
+                var code = ObsStartupDiagnostics.SafeCode(value.GetProperty("code").GetString());
                 _setupErrorCode = code;
+                ReadStartup(value, code);
                 if (code == "audio_device_lost")
                 {
                     AudioDeviceLost?.Invoke(this, EventArgs.Empty);
                     EngineWarningOccurred?.Invoke(this, "A selected recording audio device was lost.");
                 }
-                Fail("capture_failed");
+                Fail(code);
                 break;
             default: throw new JsonException();
         }
+    }
+
+    private void ReadStartup(JsonElement value, string code)
+    {
+        _startup = ObsStartupDiagnostics.Read(value);
+        if (code == "ready" && _startup is { } ready &&
+            (ready.Stage != "first_frame" || ready.Frames == 0 || ready.Bytes == 0 ||
+             ready.SourceWidth != _request!.MonitorWidth || ready.SourceHeight != _request.MonitorHeight ||
+             ready.ExpectedWidth != _request.MonitorWidth || ready.ExpectedHeight != _request.MonitorHeight ||
+             ready.SystemSelected != (_request.Audio is "system" or "both") ||
+             ready.MicrophoneSelected != (_request.Audio is "microphone" or "both") ||
+             ready.SystemSelected && !ready.SystemSamples || ready.MicrophoneSelected && !ready.MicrophoneSamples))
+            throw new JsonException();
+        if (_startup is not null)
+            Log.Information("Recording native startup: code={Code}, readiness={@Readiness}", code, _startup);
     }
 
     private static AudioLevelSample? Level(JsonElement value, string ageKey, double peak, DateTimeOffset now)
@@ -378,7 +400,8 @@ public sealed class ObsScreenRecorderEngine : IScreenRecorderEngine, IBoundRecor
                     _request.Width, _request.Height, _request.Encoder, _request.Quality,
                     BoundOutput = _performanceBoundOutput, Synthetic = UseSyntheticCaptureSource, Failed = _failure is not null
                 },
-                Metrics = _performance.Snapshot(elapsed)
+                Metrics = _performance.Snapshot(elapsed),
+                Render = _render
             });
             Log.Information("Recording performance: {Measurement:l}", measurement);
         }
@@ -406,7 +429,7 @@ public sealed class ObsScreenRecorderEngine : IScreenRecorderEngine, IBoundRecor
         lock (_state)
         {
             if (_failure is not null) return;
-            _failure = new IOException("Recording helper failed (" + code + "); retain the working recording.");
+            _failure = new IOException("Recording helper failed (" + code + "; stage=" + (_startup?.Stage ?? "unreported") + "); retain the working recording.");
             _running = false;
             _ready.TrySetException(_failure);
             _firstByte.TrySetException(_failure);

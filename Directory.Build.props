@@ -6,4 +6,10 @@
     <FileVersion>$(OpenCamVersion).0</FileVersion>
     <InformationalVersion>$(OpenCamVersion)</InformationalVersion>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(OpenCamNativeOnlyTest)' == 'true'">
+    <DefineConstants>$(DefineConstants);OPENCAM_OBS_ONLY_TEST</DefineConstants>
+    <BaseOutputPath>bin/native-only/</BaseOutputPath>
+    <BaseIntermediateOutputPath>obj/native-only/</BaseIntermediateOutputPath>
+    <DefaultItemExcludes>$(DefaultItemExcludes);bin/**;obj/**</DefaultItemExcludes>
+  </PropertyGroup>
 </Project>

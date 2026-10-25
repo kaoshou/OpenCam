@@ -18,6 +18,32 @@ public sealed class ObsRecordingEngineRouterTests : IDisposable
     public ObsRecordingEngineRouterTests() => Directory.CreateDirectory(_root);
 
     [Fact]
+    public async Task StrictNativeModeRejectsMissingRuntimeWithoutWritingLegacyOutput()
+    {
+        using var output = new MemoryStream();
+        await using var engine = new ObsRecordingEngineRouter(null, () => new LegacyEngine(),
+            (_, _, _) => Display, HardwareEncoderType.SoftwareCpu, requireNative: true) { OutputStream = output };
+        await Assert.ThrowsAsync<IOException>(() => engine.StartRecordingAsync("unused", Config(), Display.Bounds));
+        Assert.False(engine.IsRunning);
+        Assert.Equal(0, output.Length);
+        Assert.Null(engine.ActiveCapture);
+    }
+
+    [MacOsOnlyFact]
+    public async Task StrictNativeModeRejectsChangedRuntimeInsteadOfCreatingCompatibilityRecording()
+    {
+        var runtime = WriteRuntime();
+        await File.AppendAllTextAsync(runtime.HelperPath, "changed");
+        using var output = new MemoryStream();
+        await using var engine = new ObsRecordingEngineRouter(runtime, () => new LegacyEngine(),
+            (_, _, _) => Display with { DeviceName = NativeId }, HardwareEncoderType.SoftwareCpu,
+            requireNative: true) { OutputStream = output };
+        await Assert.ThrowsAsync<IOException>(() => engine.StartRecordingAsync("unused", Config(), Display.Bounds));
+        Assert.False(engine.IsRunning);
+        Assert.Equal(0, output.Length);
+    }
+
+    [Fact]
     public void ResolvesExactIdentityAndRejectsTopologyIndexGuessingOrMissingIdentity()
     {
         var config = new RecordingConfiguration { MonitorIndex = 4 };

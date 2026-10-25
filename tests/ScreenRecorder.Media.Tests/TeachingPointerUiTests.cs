@@ -101,7 +101,7 @@ public class TeachingPointerUiTests
             vm.Strings.CurrentLanguage=AppLanguage.EnUs;
             Assert.Equal(options,vm.BuildProjectConfiguration().PresentationPointer);
             Assert.Equal("High-contrast gold",vm.SelectedPresentationPointerStyle!.DisplayName);
-            vm.SelectedFps=20;
+            vm.SelectedFps=30;
             for(var i=0;i<100&&service.CurrentSettings.PresentationPointer!=options;i++)await Task.Delay(10);
             Assert.Equal(options,service.CurrentSettings.PresentationPointer);
             var settings=new SettingsViewModel(service);

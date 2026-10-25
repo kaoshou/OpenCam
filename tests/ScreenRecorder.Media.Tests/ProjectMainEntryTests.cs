@@ -13,7 +13,7 @@ public sealed class ProjectMainEntryTests
         var vm = new MainViewModel(forScreenshot: true);
         try
         {
-            Assert.Equal(10, vm.SelectedFps);
+            Assert.Equal(20, vm.SelectedFps);
             Assert.Equal(new[] { 5, 10, 20, 30, 40 }, vm.FpsOptions);
             foreach (var fps in vm.FpsOptions)
             {

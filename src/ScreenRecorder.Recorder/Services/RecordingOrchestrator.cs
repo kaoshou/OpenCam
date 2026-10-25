@@ -314,7 +314,7 @@ public partial class RecordingOrchestrator : IAsyncDisposable
                 await StartSegmentAttemptAsync(session, bounds, selection, token, capture);
                 return;
             }
-            catch (CaptureStartupException error) when (!token.IsCancellationRequested &&
+            catch (CaptureStartupException error) when (!RecordingBuildProfile.NativeOnlyTest && !token.IsCancellationRequested &&
                 session.SegmentFilePaths.Count == 0 && !captureRetried)
             {
                 captureRetried = true;

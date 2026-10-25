@@ -30,7 +30,7 @@ public class RecordingConfiguration
 
     public CaptureRegion Region { get; set; } = CaptureRegion.Empty;
 
-    public int Fps { get; set; } = 10;
+    public int Fps { get; set; } = 20;
 
     public AudioSourceType AudioSource { get; set; } = AudioSourceType.SystemAndMicrophone;
 

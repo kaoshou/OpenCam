@@ -28,6 +28,21 @@ public class MockSettingsService : ISettingsService
 public class SettingsViewModelTests
 {
     [Avalonia.Headless.XUnit.AvaloniaFact]
+    public void FirstWindowSelectsTwentyFpsAndAllowsAnotherChoice()
+    {
+        var main = new MainViewModel(forScreenshot: true);
+        try
+        {
+            Assert.Contains(20,main.FpsOptions);
+            Assert.Equal(20,main.SelectedFps);
+            Assert.Equal(20,main.BuildProjectConfiguration().Fps);
+            main.SelectedFps = 30;
+            Assert.Equal(30,main.BuildProjectConfiguration().Fps);
+        }
+        finally { main.Cleanup(); }
+    }
+
+    [Avalonia.Headless.XUnit.AvaloniaFact]
     public async Task MainWindowSavingRecordingPreferencesPreservesWebLanguages()
     {
         var service = new MockSettingsService();
@@ -38,7 +53,7 @@ public class SettingsViewModelTests
         {
             main.ApplyNewSettings(new UserSettings { WebPlayerLanguages = new()
                 { EnabledLanguages = ["ja"], DefaultLanguage = "ja" } });
-            main.SelectedFps = 20;
+            main.SelectedFps = 30;
             for (var i = 0; i < 100 && service.SaveCount == 0; i++) await Task.Delay(10);
             Assert.True(service.SaveCount > 0);
             Assert.Equal(new[] { "ja" }, service.CurrentSettings.WebPlayerLanguages.EnabledLanguages);

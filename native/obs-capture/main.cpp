@@ -33,7 +33,8 @@ static void logger(int level, const char *format, va_list arguments, void *) {
     // capture never logs user paths, titles or endpoint names from libobs.
     if (syntheticDiagnostics && level <= LOG_INFO) {std::lock_guard<std::mutex> hold(diagnostics);std::vfprintf(stderr,format,arguments);std::fputc('\n',stderr);}
 }
-static void error(const char *code) {event(std::string("{\"event\":\"error\",\"code\":\"") + code + "\"}");}
+static std::string startupDetails();
+static void error(const char *code) {event(std::string("{\"event\":\"error\",\"code\":\"") + code + "\"" + startupDetails() + "}");}
 static void pump() {
 #ifdef __APPLE__
     @autoreleasepool {NSEvent *ev=[NSApp nextEventMatchingMask:NSEventMaskAny untilDate:[NSDate dateWithTimeIntervalSinceNow:0.005] inMode:NSDefaultRunLoopMode dequeue:YES];if(ev)[NSApp sendEvent:ev];}
@@ -95,10 +96,25 @@ struct State {
     std::atomic<uint64_t> systemAt{0}, micAt{0};
     std::atomic<float> systemPeak{0}, micPeak{0};
     uint64_t epoch = 0;
+    uint64_t startupAt = os_gettime_ns();
+    const char *stage = "initializing";
+    uint32_t sourceWidth = 0, sourceHeight = 0;
     int64_t testFailureMs = -1;
     explicit State(Request request) : r(std::move(request)) {}
 };
 static State *state;
+// Only fixed phase names, counters and readiness facts cross the process boundary.
+// Never include source names, identifiers, paths, window titles or raw libobs logs.
+static std::string startupDetails() {
+    if(!state)return "";
+    auto &s=*state;
+    return std::string(",\"startup\":{\"stage\":\"")+s.stage+"\",\"elapsedMs\":"+std::to_string((os_gettime_ns()-s.startupAt)/1000000ULL)+
+        ",\"sourceWidth\":"+std::to_string(s.sourceWidth)+",\"sourceHeight\":"+std::to_string(s.sourceHeight)+
+        ",\"expectedWidth\":"+std::to_string(s.r.monitorWidth)+",\"expectedHeight\":"+std::to_string(s.r.monitorHeight)+
+        ",\"systemSelected\":"+(s.r.system()?"true":"false")+",\"microphoneSelected\":"+(s.r.mic()?"true":"false")+
+        ",\"systemSamples\":"+(s.systemSamples.load()?"true":"false")+",\"microphoneSamples\":"+(s.micSamples.load()?"true":"false")+
+        ",\"frames\":"+std::to_string(s.mux.frames.load())+",\"bytes\":"+std::to_string(s.mux.bytes.load())+"}";
+}
 static const char *name(void *) {return "OpenCam owned MKV output";}
 static void *create(obs_data_t *, obs_output_t *output) {state->output = output; return state;}
 static void destroy(void *) {}
@@ -133,7 +149,8 @@ static void sample(void *data, obs_source_t *, const audio_data *audio, bool) {
 }
 static void progress(State &s, uint64_t now) {
     auto age=[&](uint64_t captured)->int64_t{return captured?static_cast<int64_t>((now>=captured?now-captured:0)/1000):-1;};
-    event("{\"event\":\"progress\",\"frames\":"+std::to_string(s.mux.frames.load())+",\"mediaUs\":"+std::to_string(s.mux.mediaUs.load())+",\"bytes\":"+std::to_string(s.mux.bytes.load())+",\"systemPeak\":"+std::to_string(s.systemPeak.load())+",\"microphonePeak\":"+std::to_string(s.micPeak.load())+",\"systemAgeUs\":"+std::to_string(age(s.systemAt.load()))+",\"microphoneAgeUs\":"+std::to_string(age(s.micAt.load()))+"}");
+    event("{\"event\":\"progress\",\"frames\":"+std::to_string(s.mux.frames.load())+",\"mediaUs\":"+std::to_string(s.mux.mediaUs.load())+",\"bytes\":"+std::to_string(s.mux.bytes.load())+",\"systemPeak\":"+std::to_string(s.systemPeak.load())+",\"microphonePeak\":"+std::to_string(s.micPeak.load())+",\"systemAgeUs\":"+std::to_string(age(s.systemAt.load()))+",\"microphoneAgeUs\":"+std::to_string(age(s.micAt.load()))+
+        ",\"renderFrames\":"+std::to_string(obs_get_total_frames())+",\"laggedFrames\":"+std::to_string(obs_get_lagged_frames())+",\"averageRenderNs\":"+std::to_string(obs_get_average_frame_time_ns())+"}");
 }
 static void sourcePropertiesChanged(void *data, calldata_t *) {
     // ScreenCaptureKit signals fatal source loss while keeping its last texture
@@ -272,6 +289,7 @@ static int run(int argc,char **argv) {
     obs_encoder_t *videoEncoder=nullptr,*audioEncoder=nullptr; obs_output_t *output=nullptr;
     std::thread audioThread; int result=1;
     try {
+        s.stage="core_startup";
         if(!obs_startup("en-US",nullptr,nullptr)) throw std::runtime_error("core_startup"); initialized=true;
         if(obs_get_version()!=LIBOBS_API_VER) throw std::runtime_error("core_version");
 #ifdef __APPLE__
@@ -290,8 +308,10 @@ static int run(int argc,char **argv) {
         obs_video_info vi{}; vi.graphics_module=graphicsPath.c_str(); vi.fps_num=r.fps; vi.fps_den=1;
         vi.base_width=vi.output_width=r.width; vi.base_height=vi.output_height=r.height;
         vi.output_format=VIDEO_FORMAT_NV12; vi.colorspace=VIDEO_CS_709; vi.range=VIDEO_RANGE_PARTIAL; vi.scale_type=OBS_SCALE_BILINEAR; vi.gpu_conversion=true;
+        s.stage="graphics";
         if(obs_reset_video(&vi)!=OBS_VIDEO_SUCCESS) throw std::runtime_error("graphics_startup");
         obs_audio_info ai{48000,SPEAKERS_STEREO}; if(!obs_reset_audio(&ai))throw std::runtime_error("audio_startup");
+        s.stage="modules";
         load(root,"obs-x264"); load(root,"obs-ffmpeg");
 #ifdef __APPLE__
         if(!r.synthetic)load(root,"mac-capture"); if(r.encoder=="apple")load(root,"mac-videotoolbox");
@@ -310,6 +330,7 @@ static int run(int argc,char **argv) {
             if(failure&&std::string(failure)=="0")s.testFailureMs=0;
             if(failure&&std::string(failure)=="1200")s.testFailureMs=1200;
         }
+        s.stage="capture_source";
         auto *settings=obs_data_create();
         if(r.synthetic) {
             // Silence exercises the same device-free OBS mixer path as real
@@ -338,6 +359,7 @@ static int run(int argc,char **argv) {
 #endif
         scene=obs_scene_create_private("recording"); auto *item=obs_scene_add(scene,screen);
         obs_sceneitem_crop crop{r.cropX,r.cropY,r.monitorWidth-r.cropX-r.width,r.monitorHeight-r.cropY-r.height};obs_sceneitem_set_crop(item,&crop);
+        s.stage="audio_sources";
         if(!r.synthetic) {
             // Do not mix implicit screen-source audio in addition to the explicit source.
             obs_source_set_audio_mixers(screen,0);
@@ -390,29 +412,34 @@ static int run(int argc,char **argv) {
         signal_handler_connect(obs_output_get_signal_handler(output),"deactivate",deactivate,&s);signal_handler_connect(obs_output_get_signal_handler(output),"stop",outputError,&s);
         // Do not write black placeholder frames or a falsely initialized audio
         // track while a selected source is still being opened. An unsupported
-        // setup therefore fails before emitting media, allowing the caller's
-        // existing first-segment fresh-path compatibility fallback.
+        // setup therefore fails before emitting media. The caller decides its
+        // build policy; a native-only build must never switch recording cores.
+        s.stage="source_wait";
         const uint64_t sourceDeadline=os_gettime_ns()+10000000000ULL;
         for(;;) {
+            s.sourceWidth=obs_source_get_width(screen);s.sourceHeight=obs_source_get_height(screen);
             if(s.sourcePropertiesChanged.exchange(false)&&sourceFailed(screen,sourceStatusRequired))throw std::runtime_error("capture_source");
-            bool geometry=obs_source_get_width(screen)==static_cast<uint32_t>(r.monitorWidth)&&obs_source_get_height(screen)==static_cast<uint32_t>(r.monitorHeight);
+            bool geometry=s.sourceWidth==static_cast<uint32_t>(r.monitorWidth)&&s.sourceHeight==static_cast<uint32_t>(r.monitorHeight);
             bool sound=(!r.system()||s.systemSamples)&&(!r.mic()||s.micSamples);
             if(geometry&&sound)break;
             if(stopRequested())throw std::runtime_error("capture_cancelled");
             if(os_gettime_ns()>sourceDeadline)throw std::runtime_error("capture_start_timeout");
             pump();
         }
+        s.stage="encoder_start";
         if(!obs_output_start(output))throw std::runtime_error("encoder_start");
+        s.stage="first_frame";
         // stdin is the ownership lease. EOF after the request is also a stop.
         bool ready=false;uint64_t last=0,geometryLostAt=0;bool systemWarned=false,micWarned=false;const uint64_t deadline=os_gettime_ns()+10000000000ULL;
         while(!s.stopped) {
             if(stopRequested())s.commandStop=true;
             pump();
             uint64_t now=os_gettime_ns();
+            s.sourceWidth=obs_source_get_width(screen);s.sourceHeight=obs_source_get_height(screen);
             if(r.synthetic&&s.testFailureMs>=0&&now-s.epoch>=static_cast<uint64_t>(s.testFailureMs)*1000000ULL)s.sourcePropertiesChanged=true;
             if(s.sourcePropertiesChanged.exchange(false)&&sourceFailed(screen,sourceStatusRequired))throw std::runtime_error("capture_source_lost");
             if(s.failed||s.mux.failed)throw std::runtime_error("recording_output");
-            bool geometry=obs_source_get_width(screen)==static_cast<uint32_t>(r.monitorWidth)&&obs_source_get_height(screen)==static_cast<uint32_t>(r.monitorHeight);
+            bool geometry=s.sourceWidth==static_cast<uint32_t>(r.monitorWidth)&&s.sourceHeight==static_cast<uint32_t>(r.monitorHeight);
             bool sound=(!r.system()||s.systemSamples)&&(!r.mic()||s.micSamples);
             if(ready&&!geometry) {if(!geometryLostAt)geometryLostAt=now;else if(now-geometryLostAt>2000000000ULL)throw std::runtime_error("capture_geometry_lost");}else geometryLostAt=0;
             if(!ready&&s.mux.frames&&geometry&&sound) {
@@ -422,7 +449,8 @@ static int run(int argc,char **argv) {
 #else
                 const char *backend=r.synthetic?"synthetic":"wgc";
 #endif
-                event(std::string("{\"event\":\"ready\",\"protocol\":1,\"backend\":\"")+backend+"\",\"encoder\":\""+r.encoder+"\"}");
+                event(std::string("{\"event\":\"ready\",\"protocol\":1,\"backend\":\"")+backend+"\",\"encoder\":\""+r.encoder+"\""+startupDetails()+"}");
+                s.stage="recording";
             }
             if(!ready&&now>deadline)throw std::runtime_error("capture_start_timeout");
             auto age=[&](uint64_t captured)->int64_t{return captured?static_cast<int64_t>((now>=captured?now-captured:0)/1000):-1;};
@@ -430,7 +458,7 @@ static int run(int argc,char **argv) {
             auto warn=[&](bool selected,int64_t since,bool &warned,const char *name) {bool late=selected&&(since<0||since>2000000);if(ready&&late&&!warned)event(std::string("{\"event\":\"warning\",\"code\":\"audio_source_stalled\",\"source\":\"")+name+"\"}");warned=late;};
             warn(r.system(),systemAge,systemWarned,"system");warn(r.mic(),micAge,micWarned,"microphone");
             if(ready&&now-last>500000000ULL) {last=now;progress(s,now);}
-            if(s.commandStop&&!s.stopping){obs_output_stop(output);}
+            if(s.commandStop&&!s.stopping){s.stage="stopping";obs_output_stop(output);}
         }
         s.mux.finish(); if(s.mux.failed)throw std::runtime_error("mux_finalize");
         // Pause/stop seals the segment using these counters, including the last

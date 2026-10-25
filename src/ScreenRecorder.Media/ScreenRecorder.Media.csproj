@@ -17,4 +17,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup Condition="'$(OpenCamNativeOnlyTest)' == 'true'">
+    <Compile Remove="Capture/FFmpegScreenRecorderEngine.cs" />
+  </ItemGroup>
 </Project>

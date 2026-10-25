@@ -15,6 +15,9 @@ public sealed class PreflightCaptureFactory(IFFmpegPlatformProvider provider, IE
     public PreflightCaptureResources Create(HardwareEncoderType? pinnedEncoder = null, CaptureSelection? pinnedCapture = null,
         bool livePreview = false)
     {
+#if OPENCAM_OBS_ONLY_TEST
+        throw new NotSupportedException("Native-only test uses the independent audio-only preflight; legacy video preflight is not included.");
+#else
         ISystemAudioLoopbackCapture? system = null;
         IMicrophoneCapture? microphone = null;
         IMicrophoneLevelObserver? observer = null;
@@ -33,6 +36,7 @@ public sealed class PreflightCaptureFactory(IFFmpegPlatformProvider provider, IE
             microphoneLevelObserver: observer, encoderSelectionService: encoders, capturePlanProvider: capturePlan,
             pinnedEncoder: pinnedEncoder, pinnedCapture: pinnedCapture, livePreviewOutput: livePreview);
         return new(engine, [..new IAsyncDisposable?[] { system, microphone, observer }.OfType<IAsyncDisposable>()]);
+#endif
     }
 }
 

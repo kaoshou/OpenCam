@@ -37,7 +37,8 @@ public partial class SettingsViewModel : ObservableObject
     public bool SupportsMacOsCapture => !SupportsWindowsCapture && OperatingSystem.IsMacOS();
     public bool SupportsNativeCapture => SupportsMacOsCapture;
     public bool SupportsCaptureSelection => SupportsWindowsCapture || SupportsMacOsCapture;
-    public string CaptureModeNotice => Strings[SupportsWindowsCapture ? "CaptureModeNotice" : "MacCaptureModeNotice"];
+    public string CaptureModeNotice => Strings[SupportsWindowsCapture
+        ? (RecordingBuildProfile.NativeOnlyTest ? "NativeOnlyCaptureNotice" : "CaptureModeNotice") : "MacCaptureModeNotice"];
     [ObservableProperty] private bool _nativeCaptureEnabled;
     [ObservableProperty] private bool _editablePointerEnabled;
     public bool SupportsEditablePointer => false;
@@ -261,7 +262,8 @@ public partial class SettingsViewModel : ObservableObject
         SelectedBookmarkModifier = AvailableModifiers.FirstOrDefault(m => m.Value == _currentSettings.BookmarkHotkeyModifiers) ?? AvailableModifiers.Single(m => m.Value == 6);
         SelectedBookmarkKey = AvailableKeys.FirstOrDefault(k => k.KeyName == _currentSettings.BookmarkHotkeyKey) ?? AvailableKeys.Single(k => k.KeyName == "M");
         SelectedCaptureMode = AvailableCaptureModes.Single(o => SupportsMacOsCapture
-            ? o.Native == NativeCaptureEnabled : o.Mode == _currentSettings.WindowsCaptureMode);
+            ? o.Native == NativeCaptureEnabled : o.Mode == (RecordingBuildProfile.NativeOnlyTest
+                ? WindowsCaptureMode.Automatic : _currentSettings.WindowsCaptureMode));
 
         SelectedStartStopModifier = AvailableModifiers.FirstOrDefault(m => m.Value == _currentSettings.StartStopHotkeyModifiers)
                                     ?? AvailableModifiers[0];
@@ -414,6 +416,11 @@ public partial class SettingsViewModel : ObservableObject
         AvailableCaptureModes.Clear();
         if (!SupportsMacOsCapture)
             AvailableCaptureModes.Add(new(WindowsCaptureMode.Automatic, Strings["CaptureModeAutomatic"]));
+        if (RecordingBuildProfile.NativeOnlyTest && !SupportsMacOsCapture)
+        {
+            SelectedCaptureMode = AvailableCaptureModes.Single();
+            return;
+        }
         AvailableCaptureModes.Add(new(WindowsCaptureMode.CompatibleGdi, Strings[SupportsMacOsCapture ? "MacCaptureStandard" : "CaptureModeGdi"]));
         AvailableCaptureModes.Add(new(WindowsCaptureMode.ModernExperimental,
             Strings[SupportsMacOsCapture ? "MacCaptureScreenCaptureKit" : "CaptureModeModern"], SupportsMacOsCapture));

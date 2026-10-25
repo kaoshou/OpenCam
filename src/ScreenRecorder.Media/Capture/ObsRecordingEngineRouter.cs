@@ -14,6 +14,7 @@ public sealed class ObsRecordingEngineRouter : IScreenRecorderEngine, IBoundReco
     private readonly Func<RecordingConfiguration, CaptureRegion, CaptureSelection?, MonitorInfo?> _resolveMonitor;
     private readonly HardwareEncoderType _encoder;
     private readonly CaptureSelection? _pinnedCapture;
+    private readonly bool _requireNative;
     private IScreenRecorderEngine? _inner;
     private CaptureRegion? _bounds;
     private bool _legacy;
@@ -21,13 +22,14 @@ public sealed class ObsRecordingEngineRouter : IScreenRecorderEngine, IBoundReco
 
     public ObsRecordingEngineRouter(ObsRuntime? runtime, Func<IScreenRecorderEngine> createLegacy,
         Func<RecordingConfiguration, CaptureRegion, CaptureSelection?, MonitorInfo?> resolveMonitor,
-        HardwareEncoderType encoder, CaptureSelection? pinnedCapture = null)
+        HardwareEncoderType encoder, CaptureSelection? pinnedCapture = null, bool requireNative = false)
     {
         _runtime = runtime;
         _createLegacy = createLegacy;
         _resolveMonitor = resolveMonitor;
         _encoder = encoder;
         _pinnedCapture = pinnedCapture;
+        _requireNative = requireNative;
     }
 
     public Stream? OutputStream { get; set; }
@@ -80,9 +82,12 @@ public sealed class ObsRecordingEngineRouter : IScreenRecorderEngine, IBoundReco
         }
         if (pinnedObs && (currentRuntime is null || monitor is null || UseSyntheticCaptureSource || config.EditablePointerEnabled))
             throw new IOException("The pinned recording runtime or source is unavailable; the session cannot switch recording cores.");
-        _legacy = currentRuntime is null || monitor is null || pinnedLegacy || UseSyntheticCaptureSource || config.EditablePointerEnabled;
+        var legacy = currentRuntime is null || monitor is null || pinnedLegacy || UseSyntheticCaptureSource || config.EditablePointerEnabled;
+        if (_requireNative && legacy)
+            throw new IOException("Native-only test: the verified runtime or selected configuration is unavailable; recording did not start. No compatibility core is included.");
+        _legacy = legacy;
         _inner = _legacy ? _createLegacy() : new ObsScreenRecorderEngine(currentRuntime!.HelperPath, currentRuntime.Root,
-            (_, _, _) => monitor, _encoder, _pinnedCapture);
+            (_, _, _) => monitor, _encoder, _pinnedCapture, allowCompatibilityFallback: !_requireNative);
         _inner.UseSyntheticCaptureSource = UseSyntheticCaptureSource;
         if (_inner is IBoundRecordingOutput bound) bound.OutputStream = OutputStream;
         else if (OutputStream is not null) throw new InvalidOperationException("Recording core cannot accept owned output.");

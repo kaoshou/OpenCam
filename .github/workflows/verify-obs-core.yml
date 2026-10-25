@@ -54,21 +54,17 @@ jobs:
       - name: Test managed ownership, routing and actual synthetic core adapter
         shell: pwsh
         run: |
-          dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release -m:1 /nodeReuse:false --filter 'FullyQualifiedName~ScreenRecorder.Media.Tests.Obs' --logger trx --results-directory obs-results/managed
+          dotnet test tests/ScreenRecorder.Core.Tests/ScreenRecorder.Core.Tests.csproj -c Release -m:1 /nodeReuse:false --filter 'FullyQualifiedName~SettingsServiceTests' --logger trx --results-directory obs-results/managed
+          if ($LASTEXITCODE -ne 0) { throw 'First-launch/default settings tests failed.' }
+          dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release -m:1 /nodeReuse:false --filter 'FullyQualifiedName~ScreenRecorder.Media.Tests.Obs|FullyQualifiedName~SettingsViewModelTests|FullyQualifiedName~ProjectMainEntryTests|FullyQualifiedName~TeachingPointerUiTests' --logger trx --results-directory obs-results/managed
           if ($LASTEXITCODE -ne 0) { throw 'Managed OBS adapter tests failed.' }
       - name: Test explicit user-test runtime staging safeguards
         run: node --test tests/scripts/obs-user-test-package.test.mjs
       - name: Publish Windows portable user-test application
         shell: pwsh
         run: |
-          dotnet publish src/ScreenRecorder.UI/ScreenRecorder.UI.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o user-test-package
+          dotnet publish src/ScreenRecorder.UI/ScreenRecorder.UI.csproj -c Release -r win-x64 --self-contained true -p:OpenCamNativeOnlyTest=true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o user-test-package
           if ($LASTEXITCODE -ne 0) { throw 'Windows user-test application publish failed.' }
-          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-          $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-          if (-not $vs) { throw 'Visual C++ toolchain unavailable.' }
-          $dev = Join-Path $vs 'Common7\Tools\VsDevCmd.bat'
-          cmd /d /c "`"$dev`" -arch=x64 && pwsh -NoProfile -File scripts\build-windows-capture.ps1 -OutputDirectory compatibility-native-results -PublishDirectory user-test-package"
-          if ($LASTEXITCODE -ne 0) { throw 'Compatibility helper build/package failed.' }
           Copy-Item "$env:OPENCAM_VALIDATION_FFMPEG\ffmpeg.exe", "$env:OPENCAM_VALIDATION_FFMPEG\ffprobe.exe" user-test-package
           Copy-Item "$env:OPENCAM_VALIDATION_FFMPEG\ffmpeg-notices" user-test-package -Recurse
           Copy-Item LICENSE user-test-package/LICENSE
@@ -81,16 +77,20 @@ jobs:
           "@ | Set-Content user-test-package/SOURCE.txt -Encoding utf8
           node scripts/assemble-third-party-notices.mjs user-test-package win-x64 user-test-package/ffmpeg-notices
           if ($LASTEXITCODE -ne 0) { throw 'User-test application notices failed.' }
-          node scripts/prepare-obs-user-test-package.mjs obs-results/runtime user-test-package $env:GITHUB_SHA $version --enable-user-test-only
+          node scripts/prepare-obs-user-test-package.mjs obs-results/runtime user-test-package $env:GITHUB_SHA $version --enable-user-test-only --native-only
           if ($LASTEXITCODE -ne 0) { throw 'Explicit user-test runtime staging failed.' }
           Add-Content user-test-package/THIRD-PARTY-NOTICES.md "`n## User-test recording core`nAdditional full notices and corresponding sources: obs-runtime/licenses/SOURCE-INFO.md and obs-runtime/licenses/inventory.json."
           Copy-Item docs/testing/windows-obs-test.zh-TW.txt user-test-package/README-TEST.zh-TW.txt
           node scripts/check-release-notices.mjs user-test-package $env:GITHUB_SHA $version
           if ($LASTEXITCODE -ne 0) { throw 'User-test source/license verification failed.' }
-          foreach ($name in @('OpenCam.exe','OpenCam.ScreenCapture.exe','ffmpeg.exe','ffprobe.exe','obs-runtime/OpenCam.ObsCapture.exe')) {
+          foreach ($name in @('OpenCam.exe','ffmpeg.exe','ffprobe.exe','obs-runtime/OpenCam.ObsCapture.exe')) {
             $path = Join-Path user-test-package $name
             if (!(Test-Path -LiteralPath $path -PathType Leaf) -or (Get-Item $path).Length -le 0) { throw "Missing packaged executable: $name" }
           }
+          dotnet build tests/ScreenRecorder.NativeOnlyProbe/ScreenRecorder.NativeOnlyProbe.csproj -c Release -p:OpenCamNativeOnlyTest=true -m:1 /nodeReuse:false
+          if ($LASTEXITCODE -ne 0) { throw 'Native-only policy probe build failed.' }
+          dotnet tests/ScreenRecorder.NativeOnlyProbe/bin/native-only/Release/net8.0/ScreenRecorder.NativeOnlyProbe.dll user-test-package
+          if ($LASTEXITCODE -ne 0) { throw 'Native-only assembly/runtime policy verification failed.' }
       - name: Verify actual packaged runtime through production loader and owned media output
         shell: pwsh
         run: |
@@ -99,14 +99,14 @@ jobs:
           $env:OPENCAM_OBS_HELPER = Join-Path $env:OPENCAM_OBS_RUNTIME 'OpenCam.ObsCapture.exe'
           dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release --no-build --no-restore --filter 'FullyQualifiedName~ObsPackageDeploymentTests|FullyQualifiedName~ObsNativeAcceptanceTests' --logger trx --results-directory obs-results/packaged-managed
           if ($LASTEXITCODE -ne 0) { throw 'Actual packaged runtime validation failed.' }
-          $name = "OpenCam_v$((Get-Content VERSION -Raw).Trim())_Windows_x64_OBS_Test_$($env:GITHUB_SHA.Substring(0,7)).zip"
+          $name = "OpenCam_v$((Get-Content VERSION -Raw).Trim())_Windows_x64_NativeOnly_Test_$($env:GITHUB_SHA.Substring(0,7)).zip"
           Compress-Archive -Path user-test-package/* -DestinationPath $name
           Get-FileHash -LiteralPath $name -Algorithm SHA256 | ConvertTo-Json | Set-Content obs-results/user-test-zip-sha256.json -Encoding utf8
       - name: Upload Windows portable user-test ZIP (not a Release)
         uses: actions/upload-artifact@v4
         with:
-          name: OpenCam-Windows-OBS-User-Test-${{ github.sha }}
-          path: OpenCam_v*_Windows_x64_OBS_Test_*.zip
+          name: OpenCam-Windows-NativeOnly-User-Test-${{ github.sha }}
+          path: OpenCam_v*_Windows_x64_NativeOnly_Test_*.zip
           if-no-files-found: error
           retention-days: 14
       - name: Preserve diagnostics and owned native build evidence
@@ -170,7 +170,9 @@ jobs:
       - name: Record bounded portable FFmpeg and SDK versions
         run: node scripts/collect-test-environment.mjs obs-managed-results/environment.json
       - name: Test cross-platform managed OBS contracts without physical devices
-        run: dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release -m:1 /nodeReuse:false --filter 'FullyQualifiedName~ScreenRecorder.Media.Tests.Obs&FullyQualifiedName!~ObsNativeAcceptanceTests' --logger trx --results-directory obs-managed-results
+        run: |
+          dotnet test tests/ScreenRecorder.Core.Tests/ScreenRecorder.Core.Tests.csproj -c Release -m:1 /nodeReuse:false --filter 'FullyQualifiedName~SettingsServiceTests' --logger trx --results-directory obs-managed-results
+          dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release -m:1 /nodeReuse:false --filter 'FullyQualifiedName~ScreenRecorder.Media.Tests.Obs&FullyQualifiedName!~ObsNativeAcceptanceTests' --logger trx --results-directory obs-managed-results
       - name: Preserve portable managed diagnostics
         if: always()
         uses: actions/upload-artifact@v4

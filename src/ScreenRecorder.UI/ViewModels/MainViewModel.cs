@@ -156,7 +156,7 @@ public partial class MainViewModel : ObservableObject
     private int _regionHeight = 720;
 
     [ObservableProperty]
-    private int _selectedFps = 10;
+    private int _selectedFps = 20;
 
     public ObservableCollection<int> FpsOptions { get; } = new() { 5, 10, 20, 30, 40 };
 
@@ -981,7 +981,7 @@ public partial class MainViewModel : ObservableObject
             _bookmarkHotkeyModifiers = s.BookmarkHotkeyModifiers;
             _bookmarkHotkeyKey = s.BookmarkHotkeyKey;
             _videoQualityPreset = s.VideoQualityPreset;
-            _windowsCaptureMode = s.WindowsCaptureMode;
+            _windowsCaptureMode = RecordingBuildProfile.NativeOnlyTest ? WindowsCaptureMode.Automatic : s.WindowsCaptureMode;
             _nativeCaptureEnabled = !OperatingSystem.IsWindows() && s.NativeCaptureEnabled;
             OnPropertyChanged(nameof(ShowCaptureStatus));
             _openFolderOnFinished = s.OpenFolderOnFinished;
@@ -1212,7 +1212,8 @@ public partial class MainViewModel : ObservableObject
         _bookmarkHotkeyModifiers = newSettings.BookmarkHotkeyModifiers;
         _bookmarkHotkeyKey = newSettings.BookmarkHotkeyKey;
         _videoQualityPreset = newSettings.VideoQualityPreset;
-        if (CanEditRecordingSettings) _windowsCaptureMode = newSettings.WindowsCaptureMode;
+        if (CanEditRecordingSettings) _windowsCaptureMode = RecordingBuildProfile.NativeOnlyTest
+            ? WindowsCaptureMode.Automatic : newSettings.WindowsCaptureMode;
         if (CanEditRecordingSettings) _nativeCaptureEnabled = !OperatingSystem.IsWindows() && newSettings.NativeCaptureEnabled;
         OnPropertyChanged(nameof(ShowCaptureStatus));
         _openFolderOnFinished = newSettings.OpenFolderOnFinished;

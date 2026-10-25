@@ -23,6 +23,15 @@ public sealed class RecordingEngineFactory(
     public IScreenRecorderEngine Create(HardwareEncoderType? pinnedEncoder, CaptureSelection? pinnedCapture = null)
     {
         var runtime = ObsRuntime.TryLoad(Path.Combine(AppContext.BaseDirectory, "obs-runtime"));
+#if OPENCAM_OBS_ONLY_TEST
+        if (runtime is null)
+            throw new IOException("Native-only test: verified recording runtime is missing or damaged; recording did not start.");
+        return new ObsRecordingEngineRouter(runtime,
+            () => throw new IOException("Native-only test does not include a compatibility recording core."),
+            (config, bounds, capture) => displayService is null ? null : ObsRecordingEngineRouter.ResolveMonitor(config,
+                bounds, capture, displayService.GetMonitors(), nativeIdentity ?? ResolveIdentity),
+            pinnedEncoder ?? HardwareEncoderType.SoftwareCpu, pinnedCapture, requireNative: true);
+#else
         return new ObsRecordingEngineRouter(runtime, () => new FFmpegScreenRecorderEngine(
             provider, systemAudioLoopbackCapture, microphoneCapture: microphoneCapture,
             microphoneLevelObserver: microphoneLevelObserver,
@@ -32,6 +41,7 @@ public sealed class RecordingEngineFactory(
             (config, bounds, capture) => displayService is null ? null : ObsRecordingEngineRouter.ResolveMonitor(config,
                 bounds, capture, displayService.GetMonitors(), nativeIdentity ?? ResolveIdentity),
             pinnedEncoder ?? HardwareEncoderType.SoftwareCpu, pinnedCapture);
+#endif
     }
 
     private string? ResolveIdentity(MonitorInfo monitor) => displayService is IRecordingDisplayIdentityService native

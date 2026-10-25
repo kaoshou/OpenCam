@@ -72,7 +72,13 @@ test('source failure cannot keep encoding a stale texture as a healthy recording
 test('source failure before startup emits no black placeholder media',async()=>{
   const result=await record(request,{seconds:2,env:{OPENCAM_OBS_TEST_SOURCE_FAILURE_MS:'0'}});
   assert.notEqual(result.code,0,result.log);assert.equal(result.bytes.length,0);
-  assert.ok(result.events.some(e=>e.event==='error'&&e.code==='capture_source'),result.log);
+  const failure=result.events.find(e=>e.event==='error'&&e.code==='capture_source');
+  assert.ok(failure,result.log);
+  assert.equal(failure.startup?.stage,'source_wait');
+  assert.equal(failure.startup?.frames,0);
+  assert.equal(failure.startup?.bytes,0);
+  assert.equal(failure.startup?.expectedWidth,320);
+  assert.equal(failure.startup?.expectedHeight,180);
 });
 
 test('actual libobs produces changing decodable H264/AAC with preserved clock',async()=>{
@@ -91,6 +97,14 @@ test('actual libobs produces changing decodable H264/AAC with preserved clock',a
   const video=data.packets.filter(p=>p.codec_type==='video'); const audio=data.packets.filter(p=>p.codec_type==='audio');
   assert.ok(video.length>=(seconds-1.5)*request.fps,`${video.length} video packets in ${seconds}s`);
   const finalProgress=result.events.filter(e=>e.event==='progress').at(-1);
+  const ready=result.events.find(e=>e.event==='ready');
+  assert.equal(ready.startup?.stage,'first_frame');
+  assert.equal(ready.startup?.systemSamples,true);
+  assert.equal(ready.startup?.sourceWidth,320);
+  assert.ok(ready.startup?.frames>0);
+  assert.ok(finalProgress.renderFrames>0);
+  assert.ok(finalProgress.laggedFrames>=0&&finalProgress.laggedFrames<=finalProgress.renderFrames);
+  assert.ok(finalProgress.averageRenderNs>=0);
   assert.equal(finalProgress?.frames,video.length,'Final segment counters must include every encoded frame');
   // Matroska may shift every stream by AAC encoder priming. The video
   // duration is its full span, not the muxer's common starting offset.
@@ -132,6 +146,21 @@ for(const audio of ['none','microphone','both','silence']) test(`audio mode ${au
     assert.equal(pcm.status,0,pcm.stderr.toString());assert.ok(pcm.stdout.length>48000);
     assert.ok(pcm.stdout.every(byte=>byte===0),'Recovery silence must not contain generated beeps');
   }
+});
+
+for(const fps of [20,30]) test(`CPU encoder records full-HD ${fps} FPS without hardware video encoding`,async()=>{
+  const result=await record({...request,width:1920,height:1080,monitorWidth:1920,monitorHeight:1080,fps,encoder:'cpu'}, {seconds:6});
+  assert.equal(result.code,0,result.log);
+  assert.equal(result.events.find(e=>e.event==='ready')?.encoder,'cpu');
+  const progress=result.events.filter(e=>e.event==='progress').at(-1);
+  assert.ok(progress?.frames>=fps*4,`Insufficient full-HD CPU output: ${JSON.stringify(progress)}`);
+  const root=mkdtempSync(join(tmpdir(),'opencam-obs-cpu-')),path=join(root,'recording.mkv');
+  writeFileSync(path,result.bytes);
+  const decode=spawnSync(ffmpeg,['-v','error','-i',path,'-map','0:v:0','-map','0:a:0','-f','null','-'],{encoding:'utf8'});
+  assert.equal(decode.status,0,decode.stderr);assert.equal(decode.stderr,'');
+  // Keep measured lag visible even when a hosted runner is temporarily busy.
+  // Generated content does not establish physical desktop/YouTube performance.
+  console.log(JSON.stringify({fullHdCpu:{fps,...progress,lagRatio:progress.laggedFrames/Math.max(1,progress.renderFrames)}}));
 });
 
 test('Apple hardware encoder preserves a decodable synthetic video', {skip:process.platform!=='darwin'},async()=>{

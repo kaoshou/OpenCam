@@ -291,6 +291,78 @@ public sealed class ObsScreenRecorderEngineTests : IDisposable
     }
 
     [UnixOnlyFact]
+    public async Task StrictNativeStartupFailureCannotRequestCompatibilityFallback()
+    {
+        await using var engine = Engine("printf '%s\\n' 'OCOBS {\"event\":\"error\",\"code\":\"capture_start_timeout\"}' >&2\nexit 2\n",
+            allowCompatibilityFallback: false);
+        using var output = new MemoryStream();
+        engine.OutputStream = output;
+        await Assert.ThrowsAsync<IOException>(() => engine.StartRecordingAsync("unused", Config(), Monitor.Bounds));
+        Assert.False(engine.IsRunning);
+        Assert.Equal(0, output.Length);
+    }
+
+    [UnixOnlyFact]
+    public async Task StrictStartupReportsSafeReasonAndSourceReadinessWithoutLeakingHelperText()
+    {
+        var sink = new PerformanceSink();
+        var previous = Log.Logger;
+        using var logger = new LoggerConfiguration().WriteTo.Sink(sink).CreateLogger();
+        Log.Logger = logger;
+        try
+        {
+            const string details = "{\"stage\":\"source_wait\",\"elapsedMs\":10001,\"sourceWidth\":640,\"sourceHeight\":480,\"expectedWidth\":640,\"expectedHeight\":480,\"systemSelected\":true,\"microphoneSelected\":true,\"systemSamples\":true,\"microphoneSamples\":false,\"frames\":0,\"bytes\":0,\"private\":\"private-device-path\"}";
+            await using var engine = Engine("printf '%s\\n' 'OCOBS {\"event\":\"error\",\"code\":\"capture_start_timeout\",\"startup\":" + details + "}' >&2\nexit 2\n", allowCompatibilityFallback: false);
+            using var output = new MemoryStream();
+            engine.OutputStream = output;
+            var error = await Assert.ThrowsAsync<IOException>(() => engine.StartRecordingAsync("unused", Config(), Monitor.Bounds));
+            Assert.Contains("capture_start_timeout", error.Message);
+            Assert.Contains("source_wait", error.Message);
+            var log = string.Join("\n", sink.Events.Select(e => e.RenderMessage()));
+            Assert.Contains("MicrophoneSamples", log);
+            Assert.DoesNotContain("private-device-path", log + error);
+            Assert.False(engine.IsRunning);
+            Assert.Equal(0, output.Length);
+        }
+        finally { Log.Logger = previous; }
+    }
+
+    [UnixOnlyFact]
+    public async Task UnknownNativeErrorCannotExposeArbitraryDeviceText()
+    {
+        await using var engine = Engine("printf '%s\\n' 'OCOBS {\"event\":\"error\",\"code\":\"private-device-path\"}' >&2\nexit 2\n", allowCompatibilityFallback: false);
+        var errors = new List<string>();
+        engine.EngineErrorOccurred += (_, value) => errors.Add(value);
+        using var output = new MemoryStream(); engine.OutputStream = output;
+        var error = await Assert.ThrowsAsync<IOException>(() => engine.StartRecordingAsync("unused", Config(), Monitor.Bounds));
+        Assert.Contains("native_failure", error.Message);
+        Assert.DoesNotContain("private-device-path", error.ToString() + string.Join("\n", errors));
+    }
+
+    [ObsUnixOnlyTheory]
+    [InlineData("\"frames\":0")]
+    [InlineData("\"microphoneSamples\":false")]
+    [InlineData("\"sourceWidth\":0")]
+    [InlineData("\"elapsedMs\":-1")]
+    [InlineData("\"stage\":\"private-device-path\"")]
+    public async Task ReadyDiagnosticsCannotContradictRealSourceAndFrameReadiness(string invalid)
+    {
+        var fields = new Dictionary<string,object> { ["stage"]="first_frame",["elapsedMs"]=20,
+            ["sourceWidth"]=640,["sourceHeight"]=480,["expectedWidth"]=640,["expectedHeight"]=480,
+            ["systemSelected"]=true,["microphoneSelected"]=true,["systemSamples"]=true,["microphoneSamples"]=true,
+            ["frames"]=1,["bytes"]=10 };
+        using var replacement = JsonDocument.Parse("{" + invalid + "}");
+        var property = replacement.RootElement.EnumerateObject().Single();
+        fields[property.Name] = property.Value.Clone();
+        var ready = Ready.Replace("\"encoder\":\"cpu\"}","\"encoder\":\"cpu\",\"startup\":" + JsonSerializer.Serialize(fields) + "}");
+        await using var engine = Engine("printf 'MKV-prefix'\n" + ready + Stop);
+        using var output = new MemoryStream();engine.OutputStream = output;
+        await Assert.ThrowsAsync<IOException>(() => engine.StartRecordingAsync("unused", Config(), Monitor.Bounds));
+        Assert.False(engine.IsRunning);
+        Assert.Equal("MKV-prefix",Encoding.ASCII.GetString(output.ToArray()));
+    }
+
+    [UnixOnlyFact]
     public async Task NativePerformanceLogsOwnedWriteMetricsWithoutPrivatePathsOrInventedFfmpegCounters()
     {
         var sink = new PerformanceSink();
@@ -339,14 +411,15 @@ public sealed class ObsScreenRecorderEngineTests : IDisposable
         public void Emit(LogEvent item) => Events.Enqueue(item);
     }
 
-    private ObsScreenRecorderEngine Engine(string body, TimeSpan? stopTimeout = null)
+    private ObsScreenRecorderEngine Engine(string body, TimeSpan? stopTimeout = null, bool allowCompatibilityFallback = true)
     {
         var path = Path.Combine(_root, "helper");
         File.WriteAllText(path, "#!/bin/sh\nIFS= read -r request\nprintf '%s' \"$request\" > \"$0.request\"\n" + body);
         if (!OperatingSystem.IsWindows())
             File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         return new ObsScreenRecorderEngine(path, _root, (_, _, _) => Monitor,
-            pinnedEncoder: HardwareEncoderType.SoftwareCpu, startupTimeout: TimeSpan.FromSeconds(2), stopTimeout: stopTimeout)
+            pinnedEncoder: HardwareEncoderType.SoftwareCpu, startupTimeout: TimeSpan.FromSeconds(2), stopTimeout: stopTimeout,
+            allowCompatibilityFallback: allowCompatibilityFallback)
             { UseSyntheticCaptureSource = true };
     }
 

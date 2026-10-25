@@ -32,7 +32,7 @@ public class UserSettings
         get => _presentationPointer;
         set => _presentationPointer = TeachingPointerOptions.Normalize(value);
     }
-    private int _fps = 10;
+    private int _fps = 20;
     public int Fps
     {
         get => _fps;

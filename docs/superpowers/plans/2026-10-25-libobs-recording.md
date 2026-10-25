@@ -30,26 +30,28 @@
 **Files:** native/obs-capture/{CMakeLists.txt,main.cpp,mux.hpp}; tests/native/obs-capture.test.mjs; scripts/build-obs-capture.sh.
 **Interfaces:** consume JSON request v1; produce stdout MKV and stderr OCOBS events from spec.
 
-- [ ] Write executable integration tests for missing helper, invalid input/no output, synthetic changing-frame/AAC output, successful stop and forced-kill recovery; watch RED.
-- [ ] Implement pinned module loading, input validation, synthetic clocked source, platform display/audio source adapters, bounded mature mux and safe shutdown.
-- [ ] Build against official pinned runtime, run synthetic tests and inspect actual decoded content/timing.
-- [ ] Record exact sources, artifact hashes and limitations; do not commit unrelated combined work.
+- [x] Write executable integration tests for missing helper, invalid input/no output, synthetic changing-frame/AAC output, successful stop and forced-kill recovery; watch RED.
+- [x] Implement pinned module loading, input validation, synthetic clocked source, platform display/audio source adapters, bounded mature mux and safe shutdown.
+- [x] Build against official pinned runtime, run synthetic tests and inspect actual decoded content/timing.
+- [x] Record exact sources, artifact hashes and limitations; do not commit unrelated combined work.
 
 ### Task 2: Managed ownership / capability routing
 
 **Files:** src/ScreenRecorder.Media/Capture/Obs*.cs; src/ScreenRecorder.Recorder/Services/RecordingEngineFactory.cs; tests/ScreenRecorder.Media.Tests/Obs*.cs.
 **Interfaces:** IScreenRecorderEngine / IBoundRecordingOutput / IRecordingAudioLevelSource; consumes native contract v1.
 
-- [ ] Write RED tests for request validation, runtime digest/capability validation, startup/EOF/STOP/error/output-ownership behavior using real subprocess where possible.
-- [ ] Implement managed adapter and conservative routing; preserve legacy engines for unsupported configurations and synthetic existing tests.
-- [ ] Verify actual native helper through adapter and run recorder lifecycle regressions.
+- [x] Write RED tests for request validation, runtime digest/capability validation, startup/EOF/STOP/error/output-ownership behavior using real subprocess where possible.
+- [x] Implement managed adapter and conservative routing; preserve legacy engines for unsupported configurations and synthetic existing tests.
+- [x] Verify actual native helper through adapter and run recorder lifecycle regressions.
 
 ### Task 3: Distribution and regression evidence
 
 **Files:** scripts/obs runtime packaging tools, native dependency lock/notice material; docs/verification/2026-10-25-libobs-recording.md.
 **Interfaces:** runtime.json capability and digest manifest consumed by managed selector.
 
-- [ ] Test package validation against damaged/missing/wrong-platform/runtime files before implementing assembler.
-- [ ] Assemble isolated runtime, complete source/license inventory, test native and managed pipeline from staged package.
-- [ ] Run .NET full tests/build, relevant web/native regressions; preserve exact logs and honestly mark physical/long-duration acceptance BLOCKED where unavailable.
-- [ ] Fresh final code review and evidence-based corrections, leaving source changes unmerged/unpublished.
+- [x] Test package validation against damaged/missing/wrong-platform/runtime files before implementing assembler.
+- [x] Assemble isolated runtime, complete source/license inventory, test native and managed pipeline from staged package.
+- [x] Run .NET full tests/build, relevant web/native regressions; preserve exact logs and honestly mark physical/long-duration acceptance BLOCKED where unavailable.
+- [x] Fresh final code review and evidence-based corrections, leaving source changes unmerged/unpublished.
+
+Implementation is gated independently from physical acceptance: generated-content/native/managed checks do not authorize enabling the runtime for distribution. Detailed retained failures, corrections and final evidence are tracked in `docs/verification/2026-10-25-libobs-recording.md`.

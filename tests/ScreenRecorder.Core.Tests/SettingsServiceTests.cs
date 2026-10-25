@@ -53,12 +53,23 @@ public class SettingsServiceTests : IDisposable
         var settings = await service.LoadSettingsAsync();
 
         Assert.NotNull(settings);
-        Assert.Equal(10, settings.Fps);
+        Assert.Equal(20, settings.Fps);
         Assert.Equal(AppLanguage.ZhTw, settings.Language);
         Assert.Equal(HardwareEncoderType.Auto, settings.EncoderType);
         Assert.Equal(CursorEffectMode.Default, settings.CursorEffect);
         Assert.True(settings.RecordSystemAudio);
         Assert.False(settings.RecordMicrophone);
+    }
+
+    [Fact]
+    public async Task MissingFpsPreferenceAndNewRecordingDefaultToTwentyWithoutOverwritingStoredChoice()
+    {
+        await File.WriteAllTextAsync(_tempFile,"{}");
+        var service = new SettingsService(_tempFile);
+        Assert.Equal(20,(await service.LoadSettingsAsync()).Fps);
+        Assert.Equal(20,new RecordingConfiguration().Fps);
+        await service.SaveSettingsAsync(new UserSettings { Fps = 30 });
+        Assert.Equal(30,(await service.LoadSettingsAsync()).Fps);
     }
 
     [Fact]
@@ -131,7 +142,7 @@ public class SettingsServiceTests : IDisposable
         var loaded = await service.LoadSettingsAsync();
 
         Assert.NotNull(loaded);
-        Assert.Equal(10, loaded.Fps);
+        Assert.Equal(20, loaded.Fps);
         Assert.Equal(AppLanguage.ZhTw, loaded.Language);
     }
 }

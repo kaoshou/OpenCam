@@ -493,6 +493,7 @@ public partial class LocalizationService
         ["CaptureModeGdi"] = "互換キャプチャ（GDI）",
         ["CaptureModeModern"] = "デスクトップキャプチャ（Desktop Duplication）",
         ["CaptureModeNotice"] = "自動は検証済みの録画コアを利用し、利用できない場合は GDI を使用します。手動の GDI と Desktop Duplication の選択は維持されます。録画開始後に実際の方式を確認できます。設定した FPS を保証するものではありません。",
+        ["NativeOnlyCaptureNotice"] = "このテスト版は新しい録画コアのみを含み、以前のキャプチャ設定は使用しません。映像と選択した音声入力の準備が完了してから開始します。失敗時は停止して原因を表示し、GDI に切り替えません。",
         ["CaptureFallbackFilter"] = "FFmpeg に必要なキャプチャ機能がありません",
         ["CaptureFallbackMapping"] = "モニターを安全に対応付けできません",
         ["CaptureFallbackTopology"] = "このモニター構成では互換モードを使用します",
