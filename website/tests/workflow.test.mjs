@@ -39,6 +39,7 @@ test('desktop releases are gated by tests and reproducible FFmpeg inputs', async
   assert.doesNotMatch(windowsInstaller, /BtbN\/FFmpeg-Builds\/releases\/download\/latest\//);
   assert.ok(windowsInstaller.includes(pinnedUrl));
   assert.ok(windowsInstaller.includes(sha256));
+  assert.match(windowsInstaller,/\$ProgressPreference\s*=\s*"SilentlyContinue"/);
 
   const hashCheck = windowsInstaller.indexOf('Get-FileHash -Algorithm SHA256');
   const extraction = windowsInstaller.indexOf('Expand-Archive');

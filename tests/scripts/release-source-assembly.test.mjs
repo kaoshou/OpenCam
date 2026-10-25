@@ -5,7 +5,7 @@ import {mkdtemp,mkdir,writeFile,rm} from 'node:fs/promises';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {createHash} from 'node:crypto';
-import {verifyPinnedSources} from '../../scripts/assemble-release-sources.mjs';
+import {verifyPinnedSources,verifySourceRecipe} from '../../scripts/assemble-release-sources.mjs';
 test('source delivery verifies exact archive bytes and safe names rather than trusting a completed label',async t=>{
   const root=await mkdtemp(join(tmpdir(),'opencam-release-source-'));t.after(()=>rm(root,{recursive:true,force:true}));
   await mkdir(join(root,'sources'));const bytes=Buffer.from('exact source archive');
@@ -15,4 +15,13 @@ test('source delivery verifies exact archive bytes and safe names rather than tr
   await assert.rejects(verifyPinnedSources(join(root,'sources'),[{...entries[0],name:'../outside'}]),/Unsafe/);
   await writeFile(join(root,'sources/source.archive'),'changed');
   await assert.rejects(verifyPinnedSources(join(root,'sources'),entries),/Changed/);
+});
+test('recipe comparison permits only checkout CRLF differences and preserves raw archives',async t=>{
+  const root=await mkdtemp(join(tmpdir(),'opencam-source-recipe-'));t.after(()=>rm(root,{recursive:true,force:true}));
+  const expected=join(root,'expected'),actual=join(root,'actual');
+  await writeFile(expected,'line one\nline two\n');
+  await writeFile(actual,'line one\r\nline two\r\n');
+  await verifySourceRecipe(actual,expected);
+  await writeFile(actual,'line one\r\nchanged\r\n');
+  await assert.rejects(verifySourceRecipe(actual,expected),/Wrong source build recipe/);
 });

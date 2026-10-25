@@ -10,6 +10,12 @@ import {checkReleaseSources} from './check-release-source-provision.mjs';
 const repository=resolve(fileURLToPath(new URL('..',import.meta.url)));
 const nameIsSafe=n=>typeof n==='string'&&/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(n)&&!n.includes('..');
 async function hash(path){const d=createHash('sha256');for await(const b of createReadStream(path))d.update(b);return d.digest('hex');}
+export async function verifySourceRecipe(actual,expected){
+  // Keep the actual executed source bytes in the archive. Git's Windows
+  // checkout may use CRLF; only that line-ending difference is equivalent.
+  const normalized=async path=>(await readFile(path,'utf8')).replace(/\r\n/g,'\n');
+  if(await normalized(actual)!==await normalized(expected))throw Error('Wrong source build recipe');
+}
 export async function verifyPinnedSources(root,entries){
   for(const entry of entries){
     if(!nameIsSafe(entry.name)||!/^[a-f0-9]{64}$/.test(entry.sha256))throw Error('Unsafe source archive record');
@@ -47,8 +53,8 @@ export async function assembleReleaseSources(destination,obs,windows,mac){
     const winLock=JSON.parse(await readFile(join(repository,'scripts/windows-media-sources.lock.json')));
     await verifyPinnedSources(join(winNotices,'sources'),winLock.sources.map(s=>({name:s.id+'.archive',sha256:s.sha256})));
     for(const name of ['build-ffmpeg-windows.sh','windows-media-sources.lock.json'])
-      if(await hash(join(winNotices,'sources',name))!==await hash(join(repository,'scripts',name)))throw Error('Wrong Windows source build recipe');
-    if(await hash(join(winNotices,'sources/libvpl-mingw-secure-functions.patch'))!==await hash(join(repository,'scripts/patches/libvpl-mingw-secure-functions.patch')))throw Error('Missing source patch');
+      await verifySourceRecipe(join(winNotices,'sources',name),join(repository,'scripts',name));
+    await verifySourceRecipe(join(winNotices,'sources/libvpl-mingw-secure-functions.patch'),join(repository,'scripts/patches/libvpl-mingw-secure-functions.patch'));
     execFileSync('tar',['-czf',join(destination,'Windows-Media-SOURCES.tar.gz'),'-C',windows,'ffmpeg-notices']);
     archives.push({name:'Windows-Media-SOURCES.tar.gz',sha256:await hash(join(destination,'Windows-Media-SOURCES.tar.gz')),covers:['ffmpeg-tools-windows']});
     const macBundle=join(mac,'macOS-Media-SOURCES.tar.gz'),macUnpacked=join(temp,'mac');await mkdir(macUnpacked);

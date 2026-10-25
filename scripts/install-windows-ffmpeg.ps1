@@ -5,6 +5,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+# Windows PowerShell 5's per-chunk progress rendering can dominate large CI downloads.
+$ProgressPreference = "SilentlyContinue"
 # Pin a month-end build (upstream retains these for two years; daily builds expire).
 # Keep the URL, SHA-256 and archive layout pinned together; never fall back to latest.
 $FfmpegUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-09-30-13-08/ffmpeg-n8.1.3-9-g29e619e767-win64-gpl-8.1.zip"
