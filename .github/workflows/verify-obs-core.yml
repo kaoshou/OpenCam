@@ -56,6 +56,59 @@ jobs:
         run: |
           dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release -m:1 /nodeReuse:false --filter 'FullyQualifiedName~ScreenRecorder.Media.Tests.Obs' --logger trx --results-directory obs-results/managed
           if ($LASTEXITCODE -ne 0) { throw 'Managed OBS adapter tests failed.' }
+      - name: Test explicit user-test runtime staging safeguards
+        run: node --test tests/scripts/obs-user-test-package.test.mjs
+      - name: Publish Windows portable user-test application
+        shell: pwsh
+        run: |
+          dotnet publish src/ScreenRecorder.UI/ScreenRecorder.UI.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o user-test-package
+          if ($LASTEXITCODE -ne 0) { throw 'Windows user-test application publish failed.' }
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $vs) { throw 'Visual C++ toolchain unavailable.' }
+          $dev = Join-Path $vs 'Common7\Tools\VsDevCmd.bat'
+          cmd /d /c "`"$dev`" -arch=x64 && pwsh -NoProfile -File scripts\build-windows-capture.ps1 -OutputDirectory compatibility-native-results -PublishDirectory user-test-package"
+          if ($LASTEXITCODE -ne 0) { throw 'Compatibility helper build/package failed.' }
+          Copy-Item "$env:OPENCAM_VALIDATION_FFMPEG\ffmpeg.exe", "$env:OPENCAM_VALIDATION_FFMPEG\ffprobe.exe" user-test-package
+          Copy-Item "$env:OPENCAM_VALIDATION_FFMPEG\ffmpeg-notices" user-test-package -Recurse
+          Copy-Item LICENSE user-test-package/LICENSE
+          Copy-Item NOTICE.md user-test-package/NOTICE.md
+          $version = (Get-Content VERSION -Raw).Trim()
+          @"
+          OpenCam $version
+          SPDX-License-Identifier: AGPL-3.0-or-later
+          Corresponding source: https://github.com/kaoshou/OpenCam/tree/$env:GITHUB_SHA
+          "@ | Set-Content user-test-package/SOURCE.txt -Encoding utf8
+          node scripts/assemble-third-party-notices.mjs user-test-package win-x64 user-test-package/ffmpeg-notices
+          if ($LASTEXITCODE -ne 0) { throw 'User-test application notices failed.' }
+          node scripts/prepare-obs-user-test-package.mjs obs-results/runtime user-test-package $env:GITHUB_SHA $version --enable-user-test-only
+          if ($LASTEXITCODE -ne 0) { throw 'Explicit user-test runtime staging failed.' }
+          Add-Content user-test-package/THIRD-PARTY-NOTICES.md "`n## User-test recording core`nAdditional full notices and corresponding sources: obs-runtime/licenses/SOURCE-INFO.md and obs-runtime/licenses/inventory.json."
+          Copy-Item docs/testing/windows-obs-test.zh-TW.txt user-test-package/README-TEST.zh-TW.txt
+          node scripts/check-release-notices.mjs user-test-package $env:GITHUB_SHA $version
+          if ($LASTEXITCODE -ne 0) { throw 'User-test source/license verification failed.' }
+          foreach ($name in @('OpenCam.exe','OpenCam.ScreenCapture.exe','ffmpeg.exe','ffprobe.exe','obs-runtime/OpenCam.ObsCapture.exe')) {
+            $path = Join-Path user-test-package $name
+            if (!(Test-Path -LiteralPath $path -PathType Leaf) -or (Get-Item $path).Length -le 0) { throw "Missing packaged executable: $name" }
+          }
+      - name: Verify actual packaged runtime through production loader and owned media output
+        shell: pwsh
+        run: |
+          $env:OPENCAM_OBS_ENABLED_RUNTIME = (Resolve-Path user-test-package/obs-runtime).Path
+          $env:OPENCAM_OBS_RUNTIME = $env:OPENCAM_OBS_ENABLED_RUNTIME
+          $env:OPENCAM_OBS_HELPER = Join-Path $env:OPENCAM_OBS_RUNTIME 'OpenCam.ObsCapture.exe'
+          dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release --no-build --no-restore --filter 'FullyQualifiedName~ObsPackageDeploymentTests|FullyQualifiedName~ObsNativeAcceptanceTests' --logger trx --results-directory obs-results/packaged-managed
+          if ($LASTEXITCODE -ne 0) { throw 'Actual packaged runtime validation failed.' }
+          $name = "OpenCam_v$((Get-Content VERSION -Raw).Trim())_Windows_x64_OBS_Test_$($env:GITHUB_SHA.Substring(0,7)).zip"
+          Compress-Archive -Path user-test-package/* -DestinationPath $name
+          Get-FileHash -LiteralPath $name -Algorithm SHA256 | ConvertTo-Json | Set-Content obs-results/user-test-zip-sha256.json -Encoding utf8
+      - name: Upload Windows portable user-test ZIP (not a Release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenCam-Windows-OBS-User-Test-${{ github.sha }}
+          path: OpenCam_v*_Windows_x64_OBS_Test_*.zip
+          if-no-files-found: error
+          retention-days: 14
       - name: Preserve diagnostics and owned native build evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -73,6 +126,7 @@ jobs:
             obs-results/*.log
             obs-results/native/
             obs-results/managed/
+            obs-results/packaged-managed/
             obs-results/build/CMakeCache.txt
             obs-results/build/CMakeFiles/CMakeConfigureLog.yaml
             obs-results/build/Release/OpenCam.ObsCapture.exe
