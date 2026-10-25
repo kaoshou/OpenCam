@@ -141,6 +141,8 @@ These illustrations show v0.3.5. See this guide for current features. Select an 
 
 ## 2. Quick Start
 
+First-launch notice: this version does not provide Windows publisher signing or Apple Developer ID notarization. Verify that a download comes from the official Releases before proceeding with a security prompt; see [Apple's safe-opening guidance](https://support.apple.com/en-us/102445) for macOS. Do not disable system protection. Stop and report damaged-file or malware warnings.
+
 1. Under **Capture Range**, select **Monitor** or **Custom Rectangle**.
 2. Select the FPS (5, 10, 20, 30 or 40; default 20), encoder, and cursor style. If needed, choose the default quality in Preferences first.
 3. Choose whether to record system audio and the microphone.

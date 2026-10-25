@@ -46,7 +46,7 @@ OpenCam 是 Windows 與 macOS 桌面螢幕錄影工具，讓你錄影、剪輯�
 - **Windows 安裝版**：執行 `OpenCam_v1.0.0_Windows_x64_Setup.exe`。
 - **Windows 便攜版**：完整解壓 `OpenCam_v1.0.0_Windows_x64_Portable.zip`，保留同資料夾的所有檔案，再執行 `OpenCam.exe`。
 - **macOS**：打開 `OpenCam_v1.0.0_macOS_arm64.dmg`，將 OpenCam 拖入「應用程式」。首次使用時，在「系統設定 → 隱私權與安全性」允許螢幕／系統音訊錄製及麥克風權限；變更權限後可重新啟動程式。
-- 如作業系統顯示開啟提醒，請先確認檔案來自本專案的官方 Releases，再依系統提示操作。
+- 此版未提供 Windows 發行者簽章或 Apple Developer ID 公證，首次開啟可能出現安全性提示。請先確認來自本專案官方 Releases；macOS 可參閱 [Apple 的安全開啟說明](https://support.apple.com/zh-tw/102445)。不要停用系統防護；若提示檔案損毀或惡意內容，請停止開啟並回報。
 
 ## 開始使用
 
@@ -138,7 +138,7 @@ Download from the [latest Release](https://github.com/kaoshou/OpenCam/releases/l
 - **Windows installer**: Run `OpenCam_v1.0.0_Windows_x64_Setup.exe`.
 - **Windows portable**: Fully extract `OpenCam_v1.0.0_Windows_x64_Portable.zip`, keep all companion files together, then run `OpenCam.exe`.
 - **macOS**: Open `OpenCam_v1.0.0_macOS_arm64.dmg` and drag OpenCam into Applications. Allow screen/system-audio recording and microphone access in System Settings → Privacy & Security. Restart OpenCam after changing permissions if needed.
-- If the operating system shows an opening prompt, confirm the download came from this project's official Releases and follow the system instructions.
+- This version does not provide Windows publisher signing or Apple Developer ID notarization, so first launch may show a security warning. Confirm the download came from this project's official Releases; see [Apple's safe-opening guidance](https://support.apple.com/en-us/102445) on macOS. Do not disable system protection. Stop and report warnings about damaged files or malware.
 
 ### Getting started
 

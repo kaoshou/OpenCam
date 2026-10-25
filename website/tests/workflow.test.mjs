@@ -28,7 +28,7 @@ test('desktop releases are gated by tests and reproducible FFmpeg inputs', async
   assert.match(yaml, /publish-release:[\s\S]*?permissions:\s*\n\s*contents: write/);
   assert.match(yaml, /dotnet test ScreenRecorder\.sln/);
   assert.match(yaml, /verify-portable:[\s\S]*?runs-on: ubuntu-latest[\s\S]*?npm test --prefix website/);
-  assert.match(yaml, /verify-portable:[\s\S]*?apt-get install -y ffmpeg[\s\S]*?dotnet test ScreenRecorder\.sln/);
+  assert.match(yaml, /verify-portable:[\s\S]*?apt-get[^\n]*install -y --no-install-recommends ffmpeg[\s\S]*?dotnet test ScreenRecorder\.sln/);
   assert.match(yaml, /verify-windows:[\s\S]*?install-windows-ffmpeg\.ps1[\s\S]*?GITHUB_PATH[\s\S]*?dotnet test ScreenRecorder\.sln/);
   assert.match(yaml, /verify-macos:[\s\S]*?runs-on: macos-15[\s\S]*?npm test --prefix website/);
   assert.match(yaml, /verify-macos:[\s\S]*?brew install ffmpeg[\s\S]*?dotnet test ScreenRecorder\.sln/);
