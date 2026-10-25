@@ -48,6 +48,7 @@ minimum_version="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$
 
 if [[ "$(/usr/libexec/PlistBuddy -c 'Print :OpenCamNativeOnlyTest' "$plist" 2>/dev/null || true)" == true ]]; then
   [[ ! -e "$macos/OpenCam.ScreenCapture" ]] || fail "native-only bundle contains the legacy screen helper"
+  [[ -x "$macos/obs-runtime/Contents/MacOS/OpenCam.ObsCapture" ]] || fail "native-only recording helper is not executable"
   node --input-type=module - "$macos" <<'NODE'
 import {readFile,readdir,lstat} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
