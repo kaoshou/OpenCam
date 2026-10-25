@@ -208,7 +208,8 @@ public partial class MainViewModel
         if (vm.Error is not null) StatusMessage = vm.Error;
         else if (vm.State.Export is not null) StatusMessage = vm.ExportStatusText;
         else if (vm.State.Mode == ProjectMode.Ready && vm.State.ClipCount > 0 && !vm.State.AutoExportOnStop) StatusMessage = Strings["ProjectSavedWithoutExport"];
-        else if (IsPreparing) StatusMessage = PreparationBadgeText;
+        else if (IsPreparing) StatusMessage = _openingContent || _content.Operation == RecordingContentOperation.Starting
+            ? Strings["RecordingPreparing"] : PreparationBadgeText;
         else if (IsRecording) StatusMessage = Strings["StatusRecordingActive"];
         else if (IsPaused) StatusMessage = Strings["StatusPausedMsg"];
         else StatusMessage = Strings["StatusReady"];
@@ -251,7 +252,7 @@ public partial class MainViewModel
         _content?.Workspace.IsExporting == true ? "ProjectExportRunning" :
         _content?.Operation is RecordingContentOperation.Pausing or RecordingContentOperation.Stopping ||
             _content?.Workspace.State.Mode == ProjectMode.SavingSegment ? "ProjectModeSavingSegment" :
-        _openingContent || _content?.Operation == RecordingContentOperation.Starting ? "RecordingPreparing" : "ProjectSaving"];
+        _openingContent || _content?.Operation == RecordingContentOperation.Starting || _content is null ? "StartingBadge" : "ProjectSaving"];
 
     private async Task CaptureContentAsync(bool newContent, long? insertionTicks = null, long? revision = null)
     {
