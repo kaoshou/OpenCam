@@ -30,15 +30,39 @@ public class PreflightTrialTests
         var session = new PreflightTrialSession(new(() => new(new FFmpegScreenRecorderEngine(
             new MacOsFFmpegProvider(displays), pinnedEncoder: HardwareEncoderType.SoftwareCpu) { UseSyntheticCaptureSource = true }, []), displays, executable),
             (_, _) => new(trialEngine, []), () => new(root.FullName), new(() => new TrialPipeMediaProcess(executable), () => new MeasuringAudio()));
-        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(20));
         try
         {
-            await session.StartAsync(new() { AudioSource = selection, Fps = 10 }, deadline.Token);
-            while (!session.ReadStatus(DateTimeOffset.UtcNow).HasFrame) await Task.Delay(30, deadline.Token);
+            // Check startup and the trial transition are separate operations. The sample assertions
+            // below need their own cancellation budget after the check has produced its first frame.
+            using (var checking = new CancellationTokenSource(TimeSpan.FromSeconds(20)))
+            {
+                try
+                {
+                    var startup = PrepareCheckAsync();
+                    using (var startupProbe = new IndependentDelayProbe(startup,
+                        observation => Serilog.Log.Debug("Independent task observation: {Observation}", observation), "preflight-check-setup"))
+                        await startup;
+
+                    async Task PrepareCheckAsync()
+                    {
+                        await session.StartAsync(new() { AudioSource = selection, Fps = 10 }, checking.Token);
+                        Serilog.Log.Debug("Preflight test setup engine started: elapsedMs={ElapsedMs}", elapsed.Elapsed.TotalMilliseconds);
+                        while (!session.ReadStatus(DateTimeOffset.UtcNow).HasFrame) await Task.Delay(30, checking.Token);
+                        checking.Token.ThrowIfCancellationRequested();
+                    }
+                }
+                catch (Exception error)
+                {
+                    throw new Xunit.Sdk.XunitException($"Check setup failed before trial: selection={selection}, " +
+                        $"elapsedMs={elapsed.Elapsed.TotalMilliseconds:R}, phase={session.ReadStatus(DateTimeOffset.UtcNow).Phase}\n" +
+                        $"{error}\n{diagnostics.Snapshot()}");
+                }
+            }
             var checkingReadyMs = elapsed.Elapsed.TotalMilliseconds;
             // Observe the trial transition independently of the scheduler under test.
             // Existing CI-only helper uses bounded dotnet-stack output, not dumps.
             using var observer = new DelayedHeartbeatStackObserver(() => Volatile.Read(ref trialEngine.Reads) == 0);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(20));
             using var cancel = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
             var recording = session.RecordTrialAsync(cancel.Token);
             PreflightStatus? status = null;

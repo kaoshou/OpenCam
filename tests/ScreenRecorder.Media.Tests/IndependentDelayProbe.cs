@@ -10,7 +10,7 @@ internal sealed class IndependentDelayProbe : IDisposable
     private readonly ManualResetEventSlim _stop = new();
     private readonly Thread _thread;
 
-    public IndependentDelayProbe(Task delay, Action<string> trace)
+    public IndependentDelayProbe(Task delay, Action<string> trace, string label = "fault-delay")
     {
         var started = Stopwatch.GetTimestamp();
         var ticks = Environment.TickCount64;
@@ -24,7 +24,7 @@ internal sealed class IndependentDelayProbe : IDisposable
                     var completed = delay.IsCompleted;
                     if (!completed && elapsed < nextReport) continue;
                     ThreadPool.GetAvailableThreads(out var available, out _);
-                    trace($"fault-delay independent observation: elapsedMs={elapsed:F1}, " +
+                    trace($"{label} independent observation: elapsedMs={elapsed:F1}, " +
                         $"tickMs={Environment.TickCount64 - ticks}, status={delay.Status}, " +
                         $"workers={ThreadPool.ThreadCount}, available={available}, pending={ThreadPool.PendingWorkItemCount}");
                     if (completed || elapsed >= 20000) return;

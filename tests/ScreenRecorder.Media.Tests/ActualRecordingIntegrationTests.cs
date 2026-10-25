@@ -380,7 +380,7 @@ public class ActualRecordingIntegrationTests : IDisposable
 
         using var stackObserver = new DelayedHeartbeatStackObserver(() =>
             sessionStore.LastPersistedHeartbeatTicks <= started.LastHeartbeatTime.UtcTicks);
-        await Task.Delay(2500);
+        await WaitForDurableHeartbeatAsync(started.LastHeartbeatTime);
         var whileRecording = await sessionStore.LoadSessionAsync(sessionDirectory);
         Assert.NotNull(whileRecording);
         Assert.True(whileRecording.LastHeartbeatTime > started.LastHeartbeatTime,
@@ -393,13 +393,28 @@ public class ActualRecordingIntegrationTests : IDisposable
         var paused = await sessionStore.LoadSessionAsync(sessionDirectory);
         Assert.NotNull(paused);
 
-        await Task.Delay(2500);
+        await WaitForDurableHeartbeatAsync(paused.LastHeartbeatTime);
         var whilePaused = await sessionStore.LoadSessionAsync(sessionDirectory);
         Assert.NotNull(whilePaused);
         Assert.True(whilePaused.LastHeartbeatTime > paused.LastHeartbeatTime);
 
         var (stopSuccess, stopError, _) = await orchestrator.StopRecordingAsync();
         Assert.True(stopSuccess, stopError);
+
+        async Task WaitForDurableHeartbeatAsync(DateTimeOffset previous)
+        {
+            try
+            {
+                using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                await sessionStore.WaitForHeartbeatAfterAsync(previous, deadline.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                throw new Xunit.Sdk.XunitException($"Durable heartbeat did not complete; memory={orchestrator.CurrentSession?.LastHeartbeatTime:O}; " +
+                    $"store events before cleanup:\n{string.Join("\n", sessionStore.Events)}\n" +
+                    $"Scheduling diagnostics before cleanup:\n{string.Join("\n", _diagnostics.Entries)}");
+            }
+        }
     }
 
     [Fact]
@@ -981,7 +996,18 @@ public class ActualRecordingIntegrationTests : IDisposable
         private int _failNextSave;
         private int _failureInjected;
         private long _lastPersistedHeartbeatTicks;
+        private TaskCompletionSource _saveCompleted = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public long LastPersistedHeartbeatTicks => Interlocked.Read(ref _lastPersistedHeartbeatTicks);
+        public async Task WaitForHeartbeatAfterAsync(DateTimeOffset previous, CancellationToken cancellationToken)
+        {
+            while (LastPersistedHeartbeatTicks <= previous.UtcTicks)
+            {
+                var completion = Volatile.Read(ref _saveCompleted);
+                // Recheck after subscribing so a save between the first check and subscription is not lost.
+                if (LastPersistedHeartbeatTicks > previous.UtcTicks) return;
+                await completion.Task.WaitAsync(cancellationToken);
+            }
+        }
         public TaskCompletionSource SavedAfterFailure { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public System.Collections.Concurrent.ConcurrentQueue<string> Events { get; } = new();
         public void Trace(string message)
@@ -1016,6 +1042,7 @@ public class ActualRecordingIntegrationTests : IDisposable
             var heartbeatTicks = session.LastHeartbeatTime.UtcTicks;
             await _inner.SaveSessionAsync(session, cancellationToken);
             Interlocked.Exchange(ref _lastPersistedHeartbeatTicks, heartbeatTicks);
+            Interlocked.Exchange(ref _saveCompleted, new(TaskCreationOptions.RunContinuationsAsynchronously)).TrySetResult();
             Trace($"save persisted; isRetry={isRetry}");
             if (isRetry) SavedAfterFailure.TrySetResult();
         }
