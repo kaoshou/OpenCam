@@ -9,8 +9,8 @@ public static class WindowsRecordingPrerequisites
         var missing = new[] { "vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll" }
             .Where(name => !exists(name)).ToArray();
         if (missing.Length != 0)
-            throw new IOException("Microsoft Visual C++ v14 Redistributable (x64) is required for recording. " +
-                "Install or repair it from https://aka.ms/vc14/vc_redist.x64.exe and restart OpenCam. Missing: " +
+            throw new IOException("The bundled Microsoft Visual C++ recording runtime is missing. " +
+                "Re-extract or reinstall the complete OpenCam package. Do not download individual DLLs. Missing: " +
                 string.Join(", ", missing));
     }
 }

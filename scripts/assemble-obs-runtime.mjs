@@ -66,7 +66,7 @@ function macDependencies(data, rpaths = []) {
   }
   return deps;
 }
-function windowsDependencies(data) {
+export function windowsDependencies(data) {
   if (data.length < 64 || data.toString('ascii', 0, 2) !== 'MZ') throw new Error('Invalid Windows platform binary');
   const p = data.readUInt32LE(60);
   if (p + 264 > data.length || data.readUInt32LE(p) !== 0x4550 || data.readUInt16LE(p + 4) !== 0x8664 || data.readUInt16LE(p + 24) !== 0x20b)

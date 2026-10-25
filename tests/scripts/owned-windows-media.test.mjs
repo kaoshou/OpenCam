@@ -22,4 +22,5 @@ test('release profile uses checksum-pinned source builds rather than third-party
   assert.match(script,/--disable-autodetect/);
   assert.match(script,/--enable-libvpl/);
   assert.match(script,/sources/);
+  assert.match(script,/libvpl-mingw-secure-functions\.patch/);
 });

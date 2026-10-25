@@ -1,0 +1,17 @@
+From: OpenCam build integration
+Subject: Use the old MSVC secure-function fallback only with old MSVC
+
+MinGW defines no _MSC_VER; treating it as zero incorrectly defines statement
+macros over MinGW's existing wcscpy_s/wcscat_s declarations in stralign.h.
+The pinned Intel source is MIT licensed; preserve this patch with its source.
+--- a/libvpl/src/windows/mfx_dispatcher_defs.h
++++ b/libvpl/src/windows/mfx_dispatcher_defs.h
+@@ -17,7 +17,7 @@
+ #define MAX_PLUGIN_PATH 4096
+ #define MAX_PLUGIN_NAME 4096
+ 
+-#if _MSC_VER < 1400
++#if defined(_MSC_VER) && _MSC_VER < 1400
+     #define wcscpy_s(to, to_size, from) \
+         (void)(to_size);                \
+         wcscpy(to, from)

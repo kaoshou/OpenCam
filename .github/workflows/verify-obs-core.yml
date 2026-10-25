@@ -27,7 +27,7 @@ jobs:
           update: true
           path-type: inherit
           install: >-
-            make diffutils git
+            make diffutils git patch
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-pkgconf
             mingw-w64-ucrt-x86_64-nasm
@@ -38,7 +38,7 @@ jobs:
         id: owned-tools-cache
         with:
           path: owned-media-tools
-          key: owned-media-windows2022-${{ hashFiles('scripts/build-ffmpeg-windows.sh', 'scripts/windows-media-sources.lock.json', 'scripts/check-owned-media-tools.mjs') }}
+          key: owned-media-windows2022-${{ hashFiles('scripts/build-ffmpeg-windows.sh', 'scripts/windows-media-sources.lock.json', 'scripts/check-owned-media-tools.mjs', 'scripts/patches/**') }}
       - name: Build checksum-pinned Windows media tools and preserve source
         if: steps.owned-tools-cache.outputs.cache-hit != 'true'
         shell: msys2 {0}

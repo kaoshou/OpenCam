@@ -55,6 +55,25 @@ async function record(input, { kill = false, seconds = 3, env = {} } = {}) {
   finally {clearTimeout(stop);clearTimeout(deadline);}
 }
 
+test('Windows recording helper loads app-local Microsoft CRT instead of the runner system copies', {
+  skip: process.platform!=='win32'||!helper||!runtime||process.env.OPENCAM_VALIDATE_APPLOCAL_CRT!=='1',
+}, async()=>{
+  const child=spawn(helper,['--runtime',runtime],{stdio:['pipe','pipe','pipe']});
+  child.stdout.resume();child.stderr.resume();
+  const closed=new Promise(resolve=>child.once('close',resolve));
+  try{
+    child.stdin.write(JSON.stringify(request)+'\n');
+    const shell=join(process.env.SystemRoot,'System32','WindowsPowerShell','v1.0','powershell.exe');
+    const script=`$ErrorActionPreference='Stop'; $deadline=[DateTime]::UtcNow.AddSeconds(8); do { $m=@((Get-Process -Id ${child.pid}).Modules | Where-Object {$_.ModuleName -in @('vcruntime140.dll','vcruntime140_1.dll','msvcp140.dll')}); if($m.Count -eq 3){$m | Select-Object ModuleName,FileName | ConvertTo-Json -Compress; exit 0}; Start-Sleep -Milliseconds 50 } while([DateTime]::UtcNow -lt $deadline); throw 'Missing loaded CRT modules'`;
+    const query=spawn(shell,['-NoProfile','-NonInteractive','-Command',script]);
+    let out='',err='';query.stdout.on('data',b=>out+=b);query.stderr.on('data',b=>err+=b);
+    const code=await new Promise((resolve,reject)=>{query.once('error',reject);query.once('close',resolve)});
+    assert.equal(code,0,err);const modules=JSON.parse(out);assert.equal(modules.length,3);
+    const normalize=p=>p.replaceAll('\\','/').toLowerCase();
+    for(const module of modules)assert.equal(normalize(module.FileName),normalize(join(runtime,module.ModuleName)));
+  }finally{child.stdin.end('STOP\n');const timeout=setTimeout(()=>child.kill('SIGKILL'),5000);await closed;clearTimeout(timeout);}
+});
+
 test('invalid request never emits media',async()=>{
   const result=await record({...request,width:0},{seconds:0.2});
   assert.equal(result.code,2,result.log); assert.equal(result.bytes.length,0);

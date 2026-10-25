@@ -15,6 +15,7 @@ notice="$output_dir/ffmpeg-notices"
 mkdir -p "$notice/sources" "$notice/licenses" "$prefix"
 cp "$repo_root/scripts/windows-media-sources.lock.json" "$notice/sources/"
 cp "$0" "$notice/sources/"
+cp "$repo_root/scripts/patches/libvpl-mingw-secure-functions.patch" "$notice/sources/"
 while IFS=$'\t' read -r name url digest; do
   curl -fL --retry 3 "$url" -o "$notice/sources/$name.archive"
   printf '%s  %s\n' "$digest" "$notice/sources/$name.archive" | sha256sum -c -
@@ -37,6 +38,7 @@ meson install -C "$build_root/dav1d-build"
 make -C "$build_root/nvcodec" PREFIX="$prefix" install
 mkdir -p "$prefix/include/AMF"
 cp -R "$build_root/amf/amf/public/include/"* "$prefix/include/AMF/"
+patch -p1 -d "$build_root/vpl" < "$repo_root/scripts/patches/libvpl-mingw-secure-functions.patch"
 cmake -S "$build_root/vpl" -B "$build_root/vpl-build" -G Ninja \
   -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$prefix" -DCMAKE_INSTALL_LIBDIR=lib \
   -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF \
@@ -64,6 +66,6 @@ done
 cp -R /ucrt64/share/licenses/gcc-libs /ucrt64/share/licenses/headers /ucrt64/share/licenses/crt "$notice/licenses/"
 pacman -Q > "$notice/build-packages.txt"
 gcc --version > "$notice/compiler.txt"
-printf 'OpenCam-owned Windows FFmpeg build. Source archives and build recipe: sources/.\nNo upstream source patches applied.\nGCC runtime libraries use their bundled Runtime Library Exception; Windows system libraries are not redistributed.\n' > "$notice/SOURCE-STATUS.txt"
+printf 'OpenCam-owned Windows FFmpeg build. Source archives, recipe and VPL MinGW compatibility patch: sources/.\nGCC runtime libraries use their bundled Runtime Library Exception; Windows system libraries are not redistributed.\n' > "$notice/SOURCE-STATUS.txt"
 node "$repo_root/scripts/check-owned-media-tools.mjs" "$output_dir" win-x64
 printf 'Built self-contained Windows media tools in %s\n' "$output_dir"

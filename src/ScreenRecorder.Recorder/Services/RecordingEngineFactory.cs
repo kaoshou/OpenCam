@@ -32,10 +32,10 @@ public sealed class RecordingEngineFactory(
         Serilog.Log.Information("Recording startup stage: Stage={Stage}, ElapsedMs={ElapsedMs}, Available={Available}",
             "runtime_factory_validation", clock.Elapsed.TotalMilliseconds, runtime is not null);
 #if OPENCAM_OBS_ONLY_TEST
-        if (OperatingSystem.IsWindows())
-            WindowsRecordingPrerequisites.Validate(name => File.Exists(Path.Combine(Environment.SystemDirectory, name)));
         if (runtime is null)
             throw new IOException("The recording core is missing or damaged. Recording did not start; reinstall the complete application package.");
+        if (OperatingSystem.IsWindows())
+            WindowsRecordingPrerequisites.Validate(name => File.Exists(Path.Combine(runtime.Root, name)));
         return new ObsRecordingEngineRouter(runtime,
             () => throw new IOException("The legacy recording core is not available in this build."),
             (config, bounds, capture) => displayService is null ? null : ObsRecordingEngineRouter.ResolveMonitor(config,

@@ -18,17 +18,12 @@ foreach ($tool in @('cl','dumpbin','lib','cmake','node')) { if (-not (Get-Comman
 foreach ($tool in @('ffmpeg.exe','ffprobe.exe')) { if (-not (Test-Path -LiteralPath (Join-Path $FFmpegDirectory $tool) -PathType Leaf)) { throw "Missing validation tool: $tool" } }
 New-Item -ItemType Directory -Path $OutputDirectory | Out-Null
 $OutputDirectory = (Resolve-Path -LiteralPath $OutputDirectory).Path
-$prerequisites = foreach ($name in @('vcruntime140.dll','vcruntime140_1.dll','msvcp140.dll')) {
-    $file = Join-Path ([Environment]::SystemDirectory) $name
-    if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { throw "Microsoft VC redistributable prerequisite missing from SystemDirectory: $name" }
-    $item = Get-Item -LiteralPath $file
-    @{ name = $name; fileVersion = $item.VersionInfo.FileVersion; sha256 = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant(); redistributed = $false }
-}
-$prerequisites | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath (Join-Path $OutputDirectory 'vc-runtime-prerequisites.json') -Encoding utf8
 $build = Join-Path $OutputDirectory 'build'
 $stage = Join-Path $OutputDirectory 'runtime'
 & (Join-Path $PSScriptRoot 'build-obs-capture.ps1') -ObsSource $inputs.sources.obs -ObsRuntime $inputs.runtime -FFmpegHeaders $inputs.sources.ffmpeg -BuildDirectory $build -StageDirectory $stage -LicenseDirectory $inputs.notices *>&1 | Tee-Object -FilePath (Join-Path $OutputDirectory 'native-build.log')
 if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath (Join-Path $stage 'runtime.json'))) { throw 'Pinned native build or disabled runtime staging failed' }
+& (Join-Path $PSScriptRoot 'stage-windows-crt.ps1') -RuntimeDirectory $stage
+if ($LASTEXITCODE -ne 0) { throw 'App-local VC runtime staging failed.' }
 $manifest = Get-Content -LiteralPath (Join-Path $stage 'runtime.json') -Raw | ConvertFrom-Json
 if ($manifest.enabled -ne $false -or $manifest.protocol -ne 1 -or $manifest.platform -cne 'win-x64') { throw 'Staged runtime must remain disabled with the expected protocol and platform' }
 Copy-Item -LiteralPath (Join-Path $stage 'runtime.json') -Destination (Join-Path $OutputDirectory 'runtime-manifest.json')
@@ -51,6 +46,7 @@ $env:OPENCAM_TEST_FFMPEG = Join-Path $FFmpegDirectory 'ffmpeg.exe'
 $env:OPENCAM_TEST_FFPROBE = Join-Path $FFmpegDirectory 'ffprobe.exe'
 $env:OPENCAM_OBS_TEST_ARTIFACTS = Join-Path $OutputDirectory 'native'
 $env:OPENCAM_OBS_SYNTHETIC_DIAGNOSTICS = '1'
+$env:OPENCAM_VALIDATE_APPLOCAL_CRT = '1'
 New-Item -ItemType Directory -Path $env:OPENCAM_OBS_TEST_ARTIFACTS | Out-Null
 $savedPath = $env:PATH
 $started = Get-Date

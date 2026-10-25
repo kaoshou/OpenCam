@@ -7,12 +7,13 @@ namespace ScreenRecorder.Media.Tests;
 public class WindowsRecordingPrerequisitesTests
 {
     [Fact]
-    public void MissingRuntimeExplainsRequiredInstallerWithoutStartingCapture()
+    public void MissingBundledRuntimeExplainsCompletePackageRepairWithoutManualDllInstall()
     {
         var error = Assert.Throws<IOException>(() => WindowsRecordingPrerequisites.Validate(_ => false));
         Assert.Contains("Visual C++", error.Message);
         Assert.Contains("vcruntime140.dll", error.Message);
-        Assert.Contains("https://aka.ms/vc14/vc_redist.x64.exe", error.Message);
+        Assert.Contains("complete OpenCam package", error.Message);
+        Assert.DoesNotContain("vc_redist.x64.exe", error.Message);
     }
 
     [Fact]
