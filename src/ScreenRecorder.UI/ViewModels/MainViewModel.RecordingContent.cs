@@ -201,11 +201,14 @@ public partial class MainViewModel
         IsPreparing = _openingContent || _content.IsBusy || vm.IsBusy || vm.StatusUnconfirmed || vm.IsExporting || vm.State.Mode == ProjectMode.SavingSegment;
         IsRecording = vm.State.Mode == ProjectMode.Recording;
         IsPaused = vm.State.Mode is ProjectMode.Paused or ProjectMode.SaveFailed;
+        OnPropertyChanged(nameof(PreparationBadgeText));
+        if (!IsRecording && vm.State.RecordedSourceBytes is >= 0)
+            FileSizeText = $"{vm.State.RecordedSourceBytes.Value / (1024.0 * 1024.0):F1} MB";
         OnPropertyChanged(nameof(CanChangeProjectExportPolicy));
         if (vm.Error is not null) StatusMessage = vm.Error;
         else if (vm.State.Export is not null) StatusMessage = vm.ExportStatusText;
         else if (vm.State.Mode == ProjectMode.Ready && vm.State.ClipCount > 0 && !vm.State.AutoExportOnStop) StatusMessage = Strings["ProjectSavedWithoutExport"];
-        else if (IsPreparing) StatusMessage = Strings["StatusInitializing"];
+        else if (IsPreparing) StatusMessage = PreparationBadgeText;
         else if (IsRecording) StatusMessage = Strings["StatusRecordingActive"];
         else if (IsPaused) StatusMessage = Strings["StatusPausedMsg"];
         else StatusMessage = Strings["StatusReady"];
@@ -243,6 +246,12 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(CanForceQuitUnconfirmed));
         CancelContentExportCommand.NotifyCanExecuteChanged();
     }
+
+    public string PreparationBadgeText => Strings[
+        _content?.Workspace.IsExporting == true ? "ProjectExportRunning" :
+        _content?.Operation is RecordingContentOperation.Pausing or RecordingContentOperation.Stopping ||
+            _content?.Workspace.State.Mode == ProjectMode.SavingSegment ? "ProjectModeSavingSegment" :
+        _openingContent || _content?.Operation == RecordingContentOperation.Starting ? "RecordingPreparing" : "ProjectSaving"];
 
     private async Task CaptureContentAsync(bool newContent, long? insertionTicks = null, long? revision = null)
     {

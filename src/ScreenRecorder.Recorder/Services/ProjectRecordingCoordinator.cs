@@ -262,7 +262,7 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
             var update = await recorder.UpdatePausedConfigurationAsync(config, ct);
             if (!update.Success) throw new IOException(update.ErrorMessage);
             var resume = await recorder.ResumeRecordingAsync(ct);
-            if (!resume.Success) throw new IOException(resume.ErrorMessage);
+            if (!resume.Success) { Mode = ProjectMode.SaveFailed; throw new IOException(resume.ErrorMessage); }
         }
         else
         {
@@ -274,7 +274,11 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
                 _session = recorder.CurrentSession;
             if (!start.Success)
             {
-                if (_session is not null) Mode = ProjectMode.SaveFailed;
+                if (_session is not null)
+                {
+                    if (recorder.IsReleasedEmptyStartup(_session)) { _session = null; Mode = ProjectMode.Ready; }
+                    else Mode = ProjectMode.SaveFailed;
+                }
                 throw new IOException(start.ErrorMessage);
             }
         }
@@ -324,7 +328,7 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
     {
         RequireNoExport();
         await FinishCoreAsync(operationId, ct);
-        if (Current!.AutoExportOnStop) BeginExport();
+        if (Current!.AutoExportOnStop && !Current.Clips.IsEmpty) BeginExport();
         else { _export?.Dispose(); _export = null; }
     }, operationId, "finish-export", ct);
 

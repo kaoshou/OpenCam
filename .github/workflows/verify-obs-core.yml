@@ -54,9 +54,9 @@ jobs:
       - name: Test managed ownership, routing and actual synthetic core adapter
         shell: pwsh
         run: |
-          dotnet test tests/ScreenRecorder.Core.Tests/ScreenRecorder.Core.Tests.csproj -c Release -m:1 /nodeReuse:false --filter 'FullyQualifiedName~SettingsServiceTests' --logger trx --results-directory obs-results/managed
+          dotnet test tests/ScreenRecorder.Core.Tests/ScreenRecorder.Core.Tests.csproj -c Release -m:1 /nodeReuse:false --filter 'FullyQualifiedName~SettingsServiceTests|FullyQualifiedName~IpcTests' --logger trx --results-directory obs-results/managed
           if ($LASTEXITCODE -ne 0) { throw 'First-launch/default settings tests failed.' }
-          dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release -m:1 /nodeReuse:false --filter 'FullyQualifiedName~ScreenRecorder.Media.Tests.Obs|FullyQualifiedName~SettingsViewModelTests|FullyQualifiedName~ProjectMainEntryTests|FullyQualifiedName~TeachingPointerUiTests' --logger trx --results-directory obs-results/managed
+          dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release -m:1 /nodeReuse:false --filter 'FullyQualifiedName~ScreenRecorder.Media.Tests.Obs|FullyQualifiedName~SettingsViewModelTests|FullyQualifiedName~ProjectMainEntryTests|FullyQualifiedName~TeachingPointerUiTests|FullyQualifiedName~RecordingContent|FullyQualifiedName~EmptyStartupFailure|FullyQualifiedName~StartupWithBytes|FullyQualifiedName~FailedResumePreserves' --logger trx --results-directory obs-results/managed
           if ($LASTEXITCODE -ne 0) { throw 'Managed OBS adapter tests failed.' }
       - name: Test explicit user-test runtime staging safeguards
         run: node --test tests/scripts/obs-user-test-package.test.mjs tests/scripts/third-party-notice-profile.test.mjs

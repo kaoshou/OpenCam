@@ -29,6 +29,7 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
         { NeedsRecoveryConfirmation = coordinator.NeedsRecoveryConfirmation, ServerInstanceId = _instanceId, Export = coordinator.ExportStatus,
             Canvas = coordinator.Current?.Canvas, HasUnsavedEdits = coordinator.IsDirty,
             TotalRecordingTicks = times.Total, SessionRecordingTicks = times.Session,
+            RecordedSourceBytes = coordinator.Current?.Sources.Sum(source => source.FileSize),
             HasRecoverableDraft = coordinator.HasRecoverableDraft, DraftError = coordinator.DraftError,
             AutoExportOnStop = coordinator.Current?.AutoExportOnStop ?? true,
             Subtitles = coordinator.Current?.Subtitles ?? ProjectSubtitleSettings.Empty,

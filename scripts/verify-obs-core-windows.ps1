@@ -32,6 +32,9 @@ if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath (Join-Path $stage 'runt
 $manifest = Get-Content -LiteralPath (Join-Path $stage 'runtime.json') -Raw | ConvertFrom-Json
 if ($manifest.enabled -ne $false -or $manifest.protocol -ne 1 -or $manifest.platform -cne 'win-x64') { throw 'Staged runtime must remain disabled with the expected protocol and platform' }
 Copy-Item -LiteralPath (Join-Path $stage 'runtime.json') -Destination (Join-Path $OutputDirectory 'runtime-manifest.json')
+& (Join-Path $build 'Release/OpenCamAudioKeepaliveTests.exe') *>&1 | Tee-Object -FilePath (Join-Path $OutputDirectory 'physical-wasapi-keepalive.log')
+if ($LASTEXITCODE -eq 77) { Write-Warning 'Physical WASAPI keepalive test requires a real render endpoint; recorded as SKIP.' }
+elseif ($LASTEXITCODE -ne 0) { throw 'Physical WASAPI keepalive regression failed.' }
 $identity = Join-Path $OutputDirectory 'obs-device-identity-tests.exe'
 & cl /nologo /std:c++17 /EHsc /utf-8 /W4 (Join-Path $PSScriptRoot '../tests/native/obs-device-identity-tests.cpp') "/Fe:$identity" "/Fo:$(Join-Path $OutputDirectory 'obs-device-identity-tests.obj')" *>&1 | Tee-Object -FilePath (Join-Path $OutputDirectory 'device-identity-build.log')
 if ($LASTEXITCODE -ne 0) { throw 'C++ audio endpoint identity test compilation failed' }

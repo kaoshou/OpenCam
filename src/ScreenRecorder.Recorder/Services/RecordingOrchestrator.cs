@@ -68,6 +68,19 @@ public partial class RecordingOrchestrator : IAsyncDisposable
     public RecordingState CurrentState => _stateMachine.CurrentState;
     public RecordingSession? CurrentSession => _currentSession;
 
+    // Only a fully released, empty failed startup may return to Ready. Keep all
+    // files for diagnosis; nonempty/unreadable attempts still require recovery.
+    internal bool IsReleasedEmptyStartup(RecordingSession expected)
+    {
+        if (!ReferenceEquals(expected, _currentSession) || CurrentState != RecordingState.Failed ||
+            _engine is not null || _captureOwnership is not null || _unconfirmedAttemptPath is not null ||
+            expected.SegmentFilePaths.Count != 0) return false;
+        try { return !Directory.EnumerateFiles(expected.WorkingDirectory, "*.mkv")
+            .Any(path => new FileInfo(path).Length > 0); }
+        catch (IOException) { return false; }
+        catch (UnauthorizedAccessException) { return false; }
+    }
+
     public event EventHandler<string>? WatchdogWarningOccurred;
     public event EventHandler<string>? EmergencyStopTriggered;
 

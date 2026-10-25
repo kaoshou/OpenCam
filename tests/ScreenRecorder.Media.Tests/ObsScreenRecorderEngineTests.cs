@@ -12,6 +12,12 @@ using System.Collections.Concurrent;
 
 namespace ScreenRecorder.Media.Tests;
 
+[CollectionDefinition("OBS process diagnostics", DisableParallelization = true)]
+public sealed class ObsProcessDiagnosticsCollection { }
+
+// These tests replace the process-wide logger and exercise bounded child-process
+// deadlines. Do not race them with other media/decoder process fixtures.
+[Collection("OBS process diagnostics")]
 public sealed class ObsScreenRecorderEngineTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "opencam-obs-engine-" + Guid.NewGuid().ToString("N"));
@@ -207,6 +213,53 @@ public sealed class ObsScreenRecorderEngineTests : IDisposable
         Assert.Null(levels.SystemAudio);
         Assert.Equal(0.75, levels.Microphone?.Peak);
         Assert.True(now - levels.Microphone!.Value.CapturedAt >= TimeSpan.FromMilliseconds(200));
+    }
+
+    [UnixOnlyFact]
+    public async Task TransportInitializationDoesNotAcknowledgeRecordingWithoutNativeReady()
+    {
+        using var output = new MemoryStream();
+        await using var engine = Engine(
+            "printf '%s\\n' 'OCOBS {\"event\":\"audio_transport\",\"state\":\"initialized\",\"hresult\":0}' >&2\n" +
+            "while IFS= read -r line; do :; done\n");
+        engine.OutputStream = output;
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            engine.StartRecordingAsync("unused", Config(), Monitor.Bounds, cancellation.Token));
+        Assert.False(engine.IsRunning);
+        Assert.Empty(output.ToArray());
+    }
+
+    [ObsUnixOnlyTheory]
+    [InlineData("initialized")]
+    [InlineData("source_initialized")]
+    public async Task TransportDiagnosticsAllowNormalNativeReadyAndOutput(string state)
+    {
+        using var output = new MemoryStream();
+        await using var engine = Engine(
+            "printf '%s\\n' 'OCOBS {\"event\":\"audio_transport\",\"state\":\"" + state + "\",\"hresult\":0}' >&2\n" +
+            "printf 'MKV-prefix'\n" + Ready + Progress + Stop);
+        engine.OutputStream = output;
+        await engine.StartRecordingAsync("unused", Config(), Monitor.Bounds);
+        Assert.True(engine.IsRunning);
+        await engine.StopRecordingAsync();
+        Assert.NotEmpty(output.ToArray());
+    }
+
+    [UnixOnlyFact]
+    public async Task AudioDeviceLossFailsBeforeLegacyRecoveryNotification()
+    {
+        using var output = new MemoryStream();
+        await using var engine = Engine("printf 'MKV-prefix'\n" + Ready + Progress +
+            "sleep 0.1\nprintf '%s\\n' 'OCOBS {\"event\":\"error\",\"code\":\"audio_device_lost\"}' >&2\n" + Stop);
+        engine.OutputStream = output;
+        var failed = false;
+        var notified = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        engine.EngineErrorOccurred += (_, _) => failed = true;
+        engine.AudioDeviceLost += (_, _) => notified.TrySetResult(failed && !engine.IsRunning);
+        await engine.StartRecordingAsync("unused", Config(), Monitor.Bounds);
+        Assert.True(await notified.Task.WaitAsync(TimeSpan.FromSeconds(3)));
+        Assert.NotEmpty(output.ToArray());
     }
 
     [UnixOnlyFact]

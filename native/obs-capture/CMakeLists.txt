@@ -26,8 +26,11 @@ if(APPLE)
     set_target_properties(${target} PROPERTIES BUILD_RPATH "${frameworks}" INSTALL_RPATH "@loader_path/Contents/Frameworks")
   endforeach()
 else()
+  add_executable(OpenCamAudioKeepaliveTests ../../tests/native/windows-audio-keepalive-tests.cpp)
+  target_compile_definitions(OpenCamAudioKeepaliveTests PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+  target_link_libraries(OpenCamAudioKeepaliveTests PRIVATE ole32 uuid)
   target_compile_definitions(OpenCam.ObsCapture PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0A00)
-  target_link_libraries(OpenCam.ObsCapture PRIVATE "${OBS_IMPORT_LIBS}/obs.lib" "${OBS_IMPORT_LIBS}/avformat.lib" "${OBS_IMPORT_LIBS}/avcodec.lib" "${OBS_IMPORT_LIBS}/avutil.lib" user32 dxgi)
+  target_link_libraries(OpenCam.ObsCapture PRIVATE "${OBS_IMPORT_LIBS}/obs.lib" "${OBS_IMPORT_LIBS}/avformat.lib" "${OBS_IMPORT_LIBS}/avcodec.lib" "${OBS_IMPORT_LIBS}/avutil.lib" user32 dxgi ole32 uuid)
   add_library(OpenCamObsDisplay MODULE windows-display-module.c
     "${OBS_SOURCE}/plugins/win-capture/duplicator-monitor-capture.c"
     "${OBS_SOURCE}/plugins/win-capture/cursor-capture.c")

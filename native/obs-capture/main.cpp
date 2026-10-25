@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #include "mux.hpp"
 #include "device-identity.hpp"
+#include "windows-audio-keepalive.hpp"
 #include <util/platform.h>
 #include <algorithm>
 #include <chrono>
@@ -32,6 +33,31 @@ static void logger(int level, const char *format, va_list arguments, void *) {
     // Raw upstream diagnostics are opt-in for generated fixtures only. Normal
     // capture never logs user paths, titles or endpoint names from libobs.
     if (syntheticDiagnostics && level <= LOG_INFO) {std::lock_guard<std::mutex> hold(diagnostics);std::vfprintf(stderr,format,arguments);std::fputc('\n',stderr);}
+    // Retain bounded machine-readable WASAPI failures without endpoint names,
+    // window titles, paths or arbitrary upstream text in normal recordings.
+#ifdef _WIN32
+    if(!syntheticDiagnostics && level==LOG_INFO && std::string(format).find("initialized (source: %s)")!=std::string::npos) {
+        char text[4096]{}; va_list copy; va_copy(copy,arguments);
+        std::vsnprintf(text,sizeof(text),format,copy); va_end(copy);
+        std::string message(text); const auto suffix=message.rfind("(source: ");
+        const auto role=suffix==std::string::npos?std::string():message.substr(suffix);
+        if(role=="(source: system)" || role=="(source: microphone)")
+            event("{\"event\":\"audio_transport\",\"state\":\"source_initialized\",\"source\":\""+
+                std::string(role=="(source: system)"?"system":"microphone")+"\",\"hresult\":0}");
+    }
+    if(!syntheticDiagnostics && level<=LOG_WARNING &&
+        (std::string(format).find("WASAPISource::TryInitialize")!=std::string::npos ||
+         std::string(format).find("WASAPISource::ProcessCaptureData")!=std::string::npos)) {
+        char text[4096]{}; va_list copy; va_copy(copy,arguments);
+        std::vsnprintf(text,sizeof(text),format,copy); va_end(copy);
+        std::string message(text); auto split=message.find_last_of(" \r\n\t");
+        auto code=split==std::string::npos?std::string():message.substr(split+1);
+        uint32_t hr=0;
+        if(!code.empty()&&code.size()<=8&&code.find_first_not_of("0123456789abcdefABCDEF")==std::string::npos)
+            hr=static_cast<uint32_t>(std::stoul(code,nullptr,16));
+        event("{\"event\":\"audio_transport\",\"state\":\"source_warning\",\"hresult\":"+std::to_string(hr)+"}");
+    }
+#endif
 }
 static std::string startupDetails();
 static void error(const char *code) {event(std::string("{\"event\":\"error\",\"code\":\"") + code + "\"" + startupDetails() + "}");}
@@ -281,6 +307,9 @@ static obs_sceneitem_crop captureCrop(const Request &r,uint32_t width,uint32_t h
 }
 
 static int run(int argc,char **argv) {
+#ifdef _WIN32
+    WindowsAudioKeepalive systemClock;
+#endif
     base_set_log_handler(logger,nullptr);
 #ifdef _WIN32
     _setmode(_fileno(stdout),_O_BINARY);
@@ -388,7 +417,16 @@ static int run(int argc,char **argv) {
                 if(!r.systemDevice.empty()&&r.systemDevice!="default_system"&&r.systemDevice!="default")throw std::runtime_error("audio_device_identity");
                 obs_data_set_int(a,"type",0);system=source("sck_audio_capture","system",a);
 #else
-                auto id=exactDevice("wasapi_output_capture",r.systemDevice);obs_data_set_string(a,"device_id",id.c_str());obs_data_set_bool(a,"use_device_timing",true);system=source("wasapi_output_capture","system",a);
+                auto id=exactDevice("wasapi_output_capture",r.systemDevice);
+                // Resolve once and bind OBS and the silent renderer to the same endpoint.
+                // A successful renderer alone is not capture readiness: sample() is still required.
+                try { id=systemClock.start(id); }
+                catch(...) {
+                    event("{\"event\":\"audio_transport\",\"state\":\"failed\",\"hresult\":"+std::to_string(static_cast<uint32_t>(systemClock.error()))+"}");
+                    throw;
+                }
+                event("{\"event\":\"audio_transport\",\"state\":\"initialized\",\"hresult\":0}");
+                obs_data_set_string(a,"device_id",id.c_str());obs_data_set_bool(a,"use_device_timing",true);system=source("wasapi_output_capture","system",a);
 #endif
                 obs_data_release(a);obs_set_output_source(1,system);
             }
@@ -436,6 +474,9 @@ static int run(int argc,char **argv) {
         s.stage="source_wait";
         const uint64_t sourceDeadline=os_gettime_ns()+10000000000ULL;
         for(;;) {
+#ifdef _WIN32
+            if(FAILED(systemClock.error())) throw std::runtime_error("audio_device_lost");
+#endif
             s.sourceWidth=obs_source_get_width(screen);s.sourceHeight=obs_source_get_height(screen);
             if(s.sourcePropertiesChanged.exchange(false)&&sourceFailed(screen,sourceStatusRequired))throw std::runtime_error("capture_source");
             bool geometry=s.sourceWidth==s.captureWidth&&s.sourceHeight==s.captureHeight;
@@ -454,6 +495,18 @@ static int run(int argc,char **argv) {
             if(stopRequested())s.commandStop=true;
             pump();
             uint64_t now=os_gettime_ns();
+#ifdef _WIN32
+            if(FAILED(systemClock.error())) {
+                event("{\"event\":\"audio_transport\",\"state\":\"lost\",\"hresult\":"+std::to_string(static_cast<uint32_t>(systemClock.error()))+"}");
+                // Seal packets before publishing the fatal source error: the
+                // managed owner may terminate us immediately on that event.
+                obs_output_stop(output);
+                const uint64_t sealDeadline=os_gettime_ns()+3000000000ULL;
+                while(!s.stopped&&os_gettime_ns()<sealDeadline) pump();
+                if(s.stopped) { s.mux.finish(); if(ready) progress(s,os_gettime_ns()); }
+                throw std::runtime_error("audio_device_lost");
+            }
+#endif
             s.sourceWidth=obs_source_get_width(screen);s.sourceHeight=obs_source_get_height(screen);
             if(r.synthetic&&s.testFailureMs>=0&&now-s.epoch>=static_cast<uint64_t>(s.testFailureMs)*1000000ULL)s.sourcePropertiesChanged=true;
             if(s.sourcePropertiesChanged.exchange(false)&&sourceFailed(screen,sourceStatusRequired))throw std::runtime_error("capture_source_lost");
@@ -492,6 +545,9 @@ static int run(int argc,char **argv) {
     if(screen)signal_handler_disconnect(obs_source_get_signal_handler(screen),"update_properties",sourcePropertiesChanged,&s);
     for(int channel=0;channel<3;++channel)if(initialized)obs_set_output_source(channel,nullptr);
     if(scene)obs_scene_release(scene);if(screen)obs_source_release(screen);if(system)obs_source_release(system);if(mic)obs_source_release(mic);
+#ifdef _WIN32
+    systemClock.stop();
+#endif
     if(videoEncoder)obs_encoder_release(videoEncoder);if(audioEncoder)obs_encoder_release(audioEncoder);
     if(initialized)obs_shutdown();
     if(result==0)event("{\"event\":\"stopped\"}");

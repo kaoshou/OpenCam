@@ -7,6 +7,36 @@ namespace ScreenRecorder.Core.Tests;
 
 public class IpcTests
 {
+    [Fact]
+    public async Task TelemetryBehindLifecycleCommandReturnsBusyWithoutWaitingForHandler()
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var telemetryCalls = 0;
+        var name = SessionPipeNameFactory.Create(OperatingSystem.IsWindows());
+        await using var server = new NamedPipeIpcServer(name, IpcKey, async message =>
+        {
+            if (message.MessageType == "StopRecording") { entered.SetResult(); await release.Task; }
+            else if (message.MessageType == "GetTelemetry") Interlocked.Increment(ref telemetryCalls);
+            return new IpcResponse { Success = true };
+        });
+        server.Start();
+        await using var lifecycle = new NamedPipeIpcClient(name, IpcKey);
+        await using var poll = new NamedPipeIpcClient(name, IpcKey);
+        var stop = lifecycle.SendCommandAsync("StopRecording", new { }, 5000);
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(3));
+            var response = await poll.SendCommandAsync("GetTelemetry", new { }, 1000);
+            Assert.False(response.Success);
+            Assert.Equal("RecorderBusy", response.ErrorMessage);
+            Assert.Equal(0, telemetryCalls);
+        }
+        finally { release.TrySetResult(); await stop; }
+        Assert.True((await poll.SendCommandAsync("GetTelemetry", new { }, 1000)).Success);
+        Assert.Equal(1, telemetryCalls);
+    }
+
     private static readonly byte[] IpcKey = AuthenticatedIpc.CreateKey();
     [Fact]
     public void SessionPipeName_OnUnix_FitsMacOsUnixSocketPath()

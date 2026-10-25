@@ -332,6 +332,14 @@ public sealed class ObsScreenRecorderEngine : IScreenRecorderEngine, IBoundRecor
                 Interlocked.Exchange(ref _frames, frames);
                 LogPerformance("Progress");
                 break;
+            case "audio_transport":
+                var transport = value.GetProperty("state").GetString();
+                if (transport is not ("initialized" or "failed" or "lost" or "source_warning" or "source_initialized") ||
+                    !value.GetProperty("hresult").TryGetUInt32(out var hresult)) throw new JsonException();
+                var sourceRole = value.TryGetProperty("source", out var role) && role.GetString() is "system" or "microphone"
+                    ? role.GetString() : "system_or_unspecified";
+                Log.Information("Recording audio transport: State={State}, Source={Source}, HRESULT={HResult:X8}", transport, sourceRole, hresult);
+                break;
             case "warning":
                 if (!_ready.Task.IsCompletedSuccessfully || _stoppedEvent ||
                     value.GetProperty("code").GetString() != "audio_source_stalled" ||
@@ -348,12 +356,15 @@ public sealed class ObsScreenRecorderEngine : IScreenRecorderEngine, IBoundRecor
                 var code = ObsStartupDiagnostics.SafeCode(value.GetProperty("code").GetString());
                 _setupErrorCode = code;
                 ReadStartup(value, code);
+                // Publish failure before notifying device observers. The legacy
+                // observer must not silently resume this native segment without
+                // the audio source the user selected.
+                Fail(code);
                 if (code == "audio_device_lost")
                 {
                     AudioDeviceLost?.Invoke(this, EventArgs.Empty);
                     EngineWarningOccurred?.Invoke(this, "A selected recording audio device was lost.");
                 }
-                Fail(code);
                 break;
             default: throw new JsonException();
         }

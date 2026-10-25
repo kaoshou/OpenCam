@@ -26,6 +26,7 @@ public class NamedPipeIpcClient : IAsyncDisposable
 
         using var timeoutCts = new CancellationTokenSource(timeoutMs);
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+        var requestId = Guid.NewGuid();
 
         try
         {
@@ -36,6 +37,7 @@ public class NamedPipeIpcClient : IAsyncDisposable
 
             var message = new IpcMessage
             {
+                RequestId = requestId,
                 MessageType = messageType,
                 PayloadJson = JsonSerializer.Serialize(payload)
             };
@@ -45,6 +47,8 @@ public class NamedPipeIpcClient : IAsyncDisposable
         }
         catch (OperationCanceledException ex) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {
+            Serilog.Log.Debug("IPC request timed out: Request={RequestId}, Command={Command}, BudgetMs={BudgetMs}",
+                requestId.ToString("N"), messageType, timeoutMs);
             return new IpcResponse { Success = false, ErrorMessage = ex.Message, TimedOut = true };
         }
         catch (Exception ex)

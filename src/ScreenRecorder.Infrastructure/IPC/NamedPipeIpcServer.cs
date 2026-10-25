@@ -159,6 +159,9 @@ public class NamedPipeIpcServer : IAsyncDisposable
             var enteredMessageGate = false;
             var stage = "authentication";
             var elapsed = System.Diagnostics.Stopwatch.StartNew();
+            var requestId = Guid.NewGuid().ToString("N");
+            var command = "unauthenticated";
+            long gateWaitMs = 0, handlerMs = 0;
             try
             {
                 // Incomplete or unauthenticated peers must never own the command gate.
@@ -167,16 +170,36 @@ public class NamedPipeIpcServer : IAsyncDisposable
                 deadline.CancelAfter(TimeSpan.FromSeconds(2));
                 var nonce = await AuthenticatedIpc.SendChallengeAsync(pipeServer, _key, deadline.Token);
                 var message = await AuthenticatedIpc.ReadAsync<IpcMessage>(pipeServer, _key, nonce, false, deadline.Token);
+                if (message.RequestId != Guid.Empty) requestId = message.RequestId.ToString("N");
+                command = message.MessageType.Length <= 80 && message.MessageType.All(c => char.IsAsciiLetterOrDigit(c))
+                    ? message.MessageType : "invalid";
                 deadline.CancelAfter(Timeout.InfiniteTimeSpan);
                 stage = "command-gate";
-                await _messageGate.WaitAsync(cancellationToken);
+                var gateClock = System.Diagnostics.Stopwatch.StartNew();
+                // Polls are disposable snapshots. Do not queue them behind a long
+                // lifecycle command until their client has already timed out.
+                if (_mediaHandler is null && command is "GetTelemetry" or "GetAudioLevels")
+                {
+                    if (!await _messageGate.WaitAsync(0, cancellationToken))
+                    {
+                        stage = "busy-response";
+                        deadline.CancelAfter(TimeSpan.FromSeconds(2));
+                        await AuthenticatedIpc.WriteAsync(pipeServer, _key, nonce, true,
+                            new IpcResponse { Success = false, ErrorMessage = "RecorderBusy" }, deadline.Token, _mediaResponse);
+                        return;
+                    }
+                }
+                else await _messageGate.WaitAsync(cancellationToken);
+                gateWaitMs = gateClock.ElapsedMilliseconds;
                 enteredMessageGate = true;
                 ClientConnectionChanged?.Invoke(this, true);
+                var handlerClock = System.Diagnostics.Stopwatch.StartNew();
 
                 if (_mediaHandler is not null)
                 {
                     stage = "media-handler";
                     var response = await _mediaHandler(message);
+                    handlerMs = handlerClock.ElapsedMilliseconds;
                     stage = "media-response";
                     deadline.CancelAfter(AuthenticatedMediaIpc.ResponseBudget(response.Frame?.Rgba?.Length ?? response.SubtitleData?.Length ?? 0));
                     await AuthenticatedMediaIpc.WriteAsync(pipeServer, _key, nonce, response, deadline.Token);
@@ -185,6 +208,7 @@ public class NamedPipeIpcServer : IAsyncDisposable
                 {
                     stage = "command-handler";
                     var response = await _messageHandler(message);
+                    handlerMs = handlerClock.ElapsedMilliseconds;
                     stage = "command-response";
                     deadline.CancelAfter(TimeSpan.FromSeconds(2));
                     await AuthenticatedIpc.WriteAsync(pipeServer, _key, nonce, true, response, deadline.Token, _mediaResponse);
@@ -204,12 +228,14 @@ public class NamedPipeIpcServer : IAsyncDisposable
                 {
                     Log.Error(
                         ex,
-                        "IPC connection failed for pipe {PipeName} at {Stage} after {ElapsedMs} ms",
-                        _pipeName, stage, elapsed.ElapsedMilliseconds);
+                        "IPC connection failed: Request={RequestId}, Command={Command}, Stage={Stage}, GateWaitMs={GateWaitMs}, HandlerMs={HandlerMs}, ElapsedMs={ElapsedMs}",
+                        requestId, command, stage, gateWaitMs, handlerMs, elapsed.ElapsedMilliseconds);
                 }
             }
             finally
             {
+                Log.Debug("IPC request completed: Request={RequestId}, Command={Command}, Stage={Stage}, GateWaitMs={GateWaitMs}, HandlerMs={HandlerMs}, ElapsedMs={ElapsedMs}",
+                    requestId, command, stage, gateWaitMs, handlerMs, elapsed.ElapsedMilliseconds);
                 _connectionSlots.Release();
                 ClientConnectionChanged?.Invoke(this, false);
                 if (enteredMessageGate)

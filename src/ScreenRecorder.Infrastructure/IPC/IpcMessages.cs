@@ -11,6 +11,7 @@ public static class NamedPipeConstants
 
 public class IpcMessage
 {
+    public Guid RequestId { get; set; } = Guid.NewGuid();
     public string MessageType { get; set; } = string.Empty;
     public string PayloadJson { get; set; } = string.Empty;
 }

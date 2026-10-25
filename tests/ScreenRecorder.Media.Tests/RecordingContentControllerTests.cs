@@ -24,6 +24,7 @@ public partial class RecordingEncoderLifecycleTests
         Assert.NotNull(controller.Workspace.State.ProjectId);
         Assert.Single(scope.Factory.Paths);
         await controller.StopAsync();
+        Assert.Equal(coordinator.Current!.Sources.Sum(source => source.FileSize), controller.Workspace.State.RecordedSourceBytes);
         await export.Entered.Task.WaitAsync(TimeSpan.FromSeconds(3));
         Assert.Single(export.Snapshot!.Clips);
         Assert.Equal(coordinator.SavedRevision, export.Snapshot.Revision);

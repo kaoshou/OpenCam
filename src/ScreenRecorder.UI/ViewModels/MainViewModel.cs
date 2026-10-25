@@ -1881,7 +1881,7 @@ public partial class MainViewModel : ObservableObject
 
     private async Task QueryAudioLevelsAsync()
     {
-        if (!IsRecording && !IsPaused || Interlocked.Exchange(ref _audioMeterPollInFlight, 1) == 1)
+        if (IsPreparing || !IsRecording && !IsPaused || Interlocked.Exchange(ref _audioMeterPollInFlight, 1) == 1)
         {
             return;
         }
@@ -1958,11 +1958,14 @@ public partial class MainViewModel : ObservableObject
     {
         if (_content is not null)
         {
+            // Lifecycle owns the command channel during start/pause/stop. Avoid
+            // requesting stale snapshots while its state is being committed.
+            if (_openingContent || _content.IsBusy || _content.Workspace.IsBusy) return;
             await _content.Workspace.PollRecordingAsync();
             if (_content.Workspace.StatusUnconfirmed && !_content.IsBusy) await _content.RefreshAsync();
             if (_content.Workspace.StatusUnconfirmed) { NoteContentConnectionFailure(); return; }
             _telemetryFailures = 0;
-            if (!IsRecording && !IsPaused) return;
+            if (!IsRecording && !IsPaused) { UpdateDiskSpaceRemaining(); return; }
             // Capture telemetry supplies meters and health, never overwrites project ownership.
             var projectResponse = await _ipcClient.SendCommandAsync("GetTelemetry", new { }, timeoutMs: 1500);
             if (projectResponse.Success && !string.IsNullOrEmpty(projectResponse.ErrorMessage))
@@ -1972,8 +1975,9 @@ public partial class MainViewModel : ObservableObject
                 {
                     ApplyEncoderTelemetry(value);
                     // Both clocks were sampled together in the project snapshot above.
-                    FileSizeText = $"{value.CurrentFileSizeBytes / (1024.0 * 1024.0):F1} MB";
-                    DiskRemainingText = $"{value.AvailableDiskSpaceBytes / (1024.0 * 1024.0 * 1024.0):F1} GB";
+                    if (!string.IsNullOrEmpty(value.SessionId))
+                        FileSizeText = $"{value.CurrentFileSizeBytes / (1024.0 * 1024.0):F1} MB";
+                    UpdateDiskSpaceRemaining();
                     StatusMessage = ResolveRecorderHealthStatus(value, StatusMessage);
                 }
             }

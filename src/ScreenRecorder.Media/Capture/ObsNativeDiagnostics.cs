@@ -30,7 +30,7 @@ internal sealed record ObsStartupDiagnostics(string Stage, long ElapsedMs, long 
         "invalid_audio" or "invalid_encoder" or "core_startup" or "core_version" or "graphics_startup" or "audio_startup" or
         "runtime_module" or "capture_source" or "display_identity" or "audio_device_identity" or "encoder_unavailable" or
         "audio_encoder" or "mux_create" or "capture_cancelled" or "capture_start_timeout" or "encoder_start" or
-        "capture_source_lost" or "recording_output" or "capture_geometry_lost" or "audio_device_lost" or "mux_finalize"
+        "capture_source_lost" or "recording_output" or "capture_geometry_lost" or "audio_device_lost" or "audio_keepalive_init" or "mux_finalize"
         ? code : "native_failure";
 }
 

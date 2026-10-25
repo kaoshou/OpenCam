@@ -413,6 +413,7 @@ public partial class RecordingEncoderLifecycleTests
         public bool FailNext;
         public bool FailCleanup;
         public bool EmptyOutput;
+        public Exception? StartFailure;
         public bool FailStopNext;
         public Action? BeforeStart;
         public bool UseModern;
@@ -462,6 +463,7 @@ public partial class RecordingEncoderLifecycleTests
             owner.Paths.Add(path);
             if (OutputStream is not null) { if (!owner.EmptyOutput) OutputStream.Write(new byte[] { 1, 2, 3, 4 }); }
             else using (var file = new FileStream(path, FileMode.CreateNew)) file.Write(new byte[] { 1, 2, 3, 4 });
+            if (owner.StartFailure is not null) throw owner.StartFailure;
             if (owner.UseModern)
             {
                 ActiveCapture = pinned ?? new(CaptureBackend.DesktopDuplication, CaptureFallbackReason.None, "Test display", 7, 0, bounds);

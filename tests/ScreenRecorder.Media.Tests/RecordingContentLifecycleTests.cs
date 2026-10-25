@@ -9,6 +9,64 @@ namespace ScreenRecorder.Media.Tests;
 public partial class RecordingEncoderLifecycleTests
 {
     [Fact]
+    public async Task EmptyStartupFailureReturnsReadyAndCanRetryWithoutExporting()
+    {
+        await using var scope = new RecordingScope();
+        scope.Configuration.EncoderType = ScreenRecorder.Core.Enums.HardwareEncoderType.SoftwareCpu;
+        scope.Factory.EmptyOutput = true;
+        scope.Factory.StartFailure = new IOException("capture_start_timeout; source_wait");
+        await using var project = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
+        var failed = await project.StartNewContentAsync(scope.Configuration, Guid.NewGuid());
+        Assert.False(failed.Success);
+        Assert.Empty(project.Current!.Clips);
+        Assert.Equal(ProjectMode.Ready, project.Mode);
+        scope.Factory.EmptyOutput = false;
+        scope.Factory.StartFailure = null;
+        Assert.True((await project.StartAsync(scope.Configuration, Guid.NewGuid())).Success);
+        Assert.True((await project.FinishAsync(Guid.NewGuid())).Success);
+        Assert.Single(project.Current.Clips);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task StartupWithBytesOrUnconfirmedCleanupKeepsRecoveryState(bool cleanupFails)
+    {
+        await using var scope = new RecordingScope();
+        scope.Factory.EmptyOutput = cleanupFails;
+        scope.Factory.FailCleanup = cleanupFails;
+        scope.Factory.StartFailure = new IOException("source_wait");
+        await using var project = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
+        Assert.False((await project.StartNewContentAsync(scope.Configuration, Guid.NewGuid())).Success);
+        Assert.Equal(ProjectMode.SaveFailed, project.Mode);
+        Assert.NotNull(scope.Recorder.CurrentSession);
+        Assert.Empty(project.Current!.Clips);
+        Assert.All(scope.Factory.Paths, path => Assert.True(File.Exists(path)));
+        Assert.False((await project.StartAsync(scope.Configuration, Guid.NewGuid())).Success);
+        scope.Factory.FailCleanup = false;
+        await scope.Recorder.DisposeAsync(); // Retained engine must close before the project's bound handle.
+    }
+
+    [Fact]
+    public async Task FailedResumePreservesSavedClipAndCanFinish()
+    {
+        await using var scope = new RecordingScope();
+        await using var project = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
+        Assert.True((await project.StartNewContentAsync(scope.Configuration, Guid.NewGuid(), autoExportOnStop: false)).Success);
+        Assert.True((await project.PauseAsync(Guid.NewGuid())).Success);
+        var saved = project.Current!;
+        var bytes = await File.ReadAllBytesAsync(scope.Factory.Paths[0]);
+        scope.Factory.StartFailure = new IOException("source_wait");
+        Assert.False((await project.StartAsync(scope.Configuration, Guid.NewGuid())).Success);
+        Assert.Equal(ProjectMode.SaveFailed, project.Mode);
+        Assert.Equal(saved.Sources, project.Current!.Sources);
+        Assert.Equal(bytes, await File.ReadAllBytesAsync(scope.Factory.Paths[0]));
+        scope.Factory.StartFailure = null;
+        Assert.True((await project.FinishAndExportAsync(Guid.NewGuid())).Success);
+        Assert.Single(project.Current.Clips);
+    }
+
+    [Fact]
     public async Task RecordingContentLifecycleTests_StartNewContentNeedsNoNameOrManifestPath()
     {
         await using var scope = new RecordingScope();

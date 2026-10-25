@@ -6,12 +6,15 @@ using ScreenRecorder.Core.Projects;
 
 namespace ScreenRecorder.UI.Projects;
 
+public enum RecordingContentOperation { None, Starting, Pausing, Stopping }
+
 /// <summary>One recording owner shared by the home window and optional editor.</summary>
 public sealed class RecordingContentController : ObservableObject
 {
     private readonly Func<CancellationToken, Task> _stopPreview;
     private int _operation;
     private bool _isBusy;
+    public RecordingContentOperation Operation { get; private set; }
     public ProjectWorkspaceViewModel Workspace { get; }
     public bool IsBusy { get => _isBusy; private set { SetProperty(ref _isBusy, value); NotifyState(); } }
     private bool Available => !IsBusy && !Workspace.IsBusy && !Workspace.StatusUnconfirmed && !Workspace.IsExporting;
@@ -52,15 +55,15 @@ public sealed class RecordingContentController : ObservableObject
             if (!await SaveCurrentAsync()) return;
             if (startNew) await Workspace.StartNewContentAsync(snapshot, autoExportOnStop);
             else await Workspace.StartAsync(snapshot);
-        });
+        }, RecordingContentOperation.Starting);
     }
 
-    public Task PauseAsync() => !CanPause ? Task.CompletedTask : RunAsync(Workspace.PauseAsync);
+    public Task PauseAsync() => !CanPause ? Task.CompletedTask : RunAsync(Workspace.PauseAsync, RecordingContentOperation.Pausing);
     public Task StopAsync() => !CanStop ? Task.CompletedTask : RunAsync(async () =>
     {
         await StopPreviewAsync();
         if (await SaveCurrentAsync()) await Workspace.FinishAndExportAsync();
-    });
+    }, RecordingContentOperation.Stopping);
     public Task RefreshAsync() => IsBusy ? Task.CompletedTask : Workspace.RefreshAsync();
 
     public Task ReplaceProjectAsync(string path, string? name = null, bool autoExportOnStop = true) => !CanReplaceProject ? Task.CompletedTask : RunAsync(async () =>
@@ -87,12 +90,13 @@ public sealed class RecordingContentController : ObservableObject
         await _stopPreview(timeout.Token).WaitAsync(timeout.Token);
     }
 
-    private async Task RunAsync(Func<Task> action)
+    private async Task RunAsync(Func<Task> action, RecordingContentOperation operation = RecordingContentOperation.None)
     {
         if (Interlocked.CompareExchange(ref _operation, 1, 0) != 0) return;
+        Operation = operation;
         IsBusy = true;
         try { await action(); }
         catch (Exception ex) { Workspace.Error = ex.Message; }
-        finally { Interlocked.Exchange(ref _operation, 0); IsBusy = false; }
+        finally { Interlocked.Exchange(ref _operation, 0); Operation = RecordingContentOperation.None; IsBusy = false; }
     }
 }
