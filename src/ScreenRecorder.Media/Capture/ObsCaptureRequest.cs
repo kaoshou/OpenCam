@@ -34,14 +34,22 @@ public sealed record ObsCaptureRequest(int Protocol, bool Synthetic, int Fps, in
                 AudioSourceType.MicrophoneOnly => "microphone", AudioSourceType.SystemAndMicrophone => "both",
                 _ => throw new ArgumentException("Unsupported audio source.")
             };
-        var microphone = config.MicrophoneDeviceId;
-        if (string.IsNullOrWhiteSpace(microphone) || microphone == "default_mic") microphone = "default";
+        var microphone = NormalizeMicrophoneIdentity(config.MicrophoneDeviceId, OperatingSystem.IsMacOS());
         var system = config.SystemAudioDeviceId;
         if (string.IsNullOrWhiteSpace(system) || system == "default_system") system = "default";
         return new(1, synthetic, config.Fps, bounds.Width, bounds.Height, bounds.X, bounds.Y,
             monitor.DeviceName, display.Width, display.Height, checked(bounds.X - display.X), checked(bounds.Y - display.Y),
             audio, microphone, system, config.CursorEffect is not (CursorEffectMode.Hidden or CursorEffectMode.PresentationStick),
             EncoderName(encoder), config.VideoQualityValue);
+    }
+
+    internal static string NormalizeMicrophoneIdentity(string? deviceId, bool isMacOS)
+    {
+        // MacOsAudioDeviceService historically exposed only "0", its AVFoundation
+        // default-input placeholder. CoreAudio uses "default", not numeric indexes.
+        // Preserve every explicit UID (and Windows identity) so missing devices fail closed.
+        return string.IsNullOrWhiteSpace(deviceId) || deviceId == "default_mic" || isMacOS && deviceId == "0"
+            ? "default" : deviceId;
     }
 
     public byte[] Serialize()

@@ -9,7 +9,31 @@ namespace ScreenRecorder.Media.Tests;
 
 public sealed class ObsCaptureRequestTests
 {
+    [Theory]
+    [InlineData("0", true, "default")]
+    [InlineData("0", false, "0")]
+    [InlineData("1", true, "1")]
+    [InlineData("BuiltInMicrophoneDevice", true, "BuiltInMicrophoneDevice")]
+    [InlineData("default_mic", true, "default")]
+    [InlineData(null, true, "default")]
+    public void MapsOnlyKnownLegacyMacDefaultWithoutChangingExplicitDevices(string? id, bool mac, string expected)
+    {
+        Assert.Equal(expected, ObsCaptureRequest.NormalizeMicrophoneIdentity(id, mac));
+    }
+
     private static readonly MonitorInfo Display = new(7, @"\\.\DISPLAY3", new(-1920, 0, 1920, 1080), false, 1.5);
+
+    [Fact]
+    public void MacDeviceMenuDefaultReachesNativeProtocolAsCoreAudioDefault()
+    {
+        var device = Assert.Single(new ScreenRecorder.Platform.macOS.MacOsAudioDeviceService().GetRecordingDevices());
+        var request = ObsCaptureRequest.Create(new() { MicrophoneDeviceId = device.Id,
+            AudioSource = AudioSourceType.MicrophoneOnly }, new(-1800, 0, 640, 480), Display,
+            HardwareEncoderType.SoftwareCpu, false);
+        using var json = JsonDocument.Parse(request.Serialize());
+        Assert.Equal(OperatingSystem.IsMacOS() ? "default" : device.Id,
+            json.RootElement.GetProperty("microphone").GetString());
+    }
 
     [Fact]
     public void PreservesNativeDisplayAndSelectedAudioIdentityInBoundedProtocol()
