@@ -61,8 +61,11 @@ public sealed class ObsRecordingEngineRouter : IScreenRecorderEngine, IBoundReco
             throw new IOException("The recording session requires an unsupported pinned recording core.");
         // Old CaptureSelection values predate RecordingCore and describe the existing FFmpeg path.
         var pinnedLegacy = _pinnedCapture is not null && !pinnedObs;
+        var validationClock = System.Diagnostics.Stopwatch.StartNew();
         var currentRuntime = !pinnedLegacy && !UseSyntheticCaptureSource && _runtime is not null
             ? ObsRuntime.TryLoad(_runtime.Root) : null;
+        Serilog.Log.Information("Recording startup stage: Stage={Stage}, ElapsedMs={ElapsedMs}, Available={Available}",
+            "runtime_start_validation", validationClock.Elapsed.TotalMilliseconds, currentRuntime is not null);
         MonitorInfo? monitor = null;
         if (currentRuntime is not null && !config.EditablePointerEnabled && SupportsCaptureMode(config, currentRuntime.Platform))
         {
@@ -84,7 +87,7 @@ public sealed class ObsRecordingEngineRouter : IScreenRecorderEngine, IBoundReco
             throw new IOException("The pinned recording runtime or source is unavailable; the session cannot switch recording cores.");
         var legacy = currentRuntime is null || monitor is null || pinnedLegacy || UseSyntheticCaptureSource || config.EditablePointerEnabled;
         if (_requireNative && legacy)
-            throw new IOException("Native-only test: the verified runtime or selected configuration is unavailable; recording did not start. No compatibility core is included.");
+            throw new IOException("The recording core or selected source is unavailable. Recording did not start; check the installation, selected display and audio devices.");
         _legacy = legacy;
         _inner = _legacy ? _createLegacy() : new ObsScreenRecorderEngine(currentRuntime!.HelperPath, currentRuntime.Root,
             (_, _, _) => monitor, _encoder, _pinnedCapture, allowCompatibilityFallback: !_requireNative);

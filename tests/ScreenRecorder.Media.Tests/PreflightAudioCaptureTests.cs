@@ -9,6 +9,103 @@ namespace ScreenRecorder.Media.Tests;
 
 public class PreflightAudioCaptureTests
 {
+    [Fact]
+    public async Task BothSourcesInitializeBeforeEitherCompletes()
+    {
+        var system = new SystemSource { HoldStart = true };
+        var mic = new GatedMicrophone();
+        await using var capture = new FFmpegPreflightAudioCapture(new WindowsFFmpegProvider(), system, mic);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        var start = capture.StartAsync(new() { AudioSource = AudioSourceType.SystemAndMicrophone }, null, deadline.Token);
+        try
+        {
+            await system.Entered.Task.WaitAsync(deadline.Token);
+            await mic.Entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            Assert.False(capture.IsRunning);
+        }
+        finally
+        {
+            system.Release.TrySetResult();
+            mic.Release.TrySetResult();
+            await start;
+            await capture.StopAsync(deadline.Token);
+        }
+        Assert.False(system.IsCapturing);
+        Assert.False(mic.IsCapturing);
+    }
+
+    private sealed class GatedMicrophone : IMicrophoneCapture
+    {
+        public bool IsSupported => true;
+        public bool IsCapturing { get; private set; }
+        public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public event EventHandler<string>? AudioErrorOccurred { add { } remove { } }
+        public async Task<MicrophoneCaptureInfo?> StartCaptureAsync(string? deviceId, CancellationToken cancellationToken = default)
+        {
+            Entered.TrySetResult();
+            await Release.Task.WaitAsync(cancellationToken);
+            IsCapturing = true;
+            return new("", 48000, 2, "-re -f lavfi -i sine=frequency=880:sample_rate=48000");
+        }
+        public Task StopCaptureAsync(CancellationToken cancellationToken = default)
+        { IsCapturing = false; return Task.CompletedTask; }
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
+    [Fact]
+    public async Task FailedMicrophoneCancelsAndJoinsPendingSystemStart()
+    {
+        var system = new SystemSource { HoldStart = true };
+        var mic = new FailingMicrophone();
+        await using var capture = new FFmpegPreflightAudioCapture(new WindowsFFmpegProvider(), system, mic);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await Assert.ThrowsAsync<IOException>(() => capture.StartAsync(
+            new() { AudioSource = AudioSourceType.SystemAndMicrophone }, null, deadline.Token));
+        Assert.False(system.IsCapturing);
+        Assert.True(system.Stops > 0);
+        Assert.False(capture.IsRunning);
+        Assert.NotNull(capture.ErrorCode);
+    }
+
+    [Fact]
+    public async Task CancelledDualSourceStartReleasesBothSources()
+    {
+        var system = new SystemSource { HoldStart = true };
+        var mic = new GatedMicrophone();
+        await using var capture = new FFmpegPreflightAudioCapture(new WindowsFFmpegProvider(), system, mic);
+        using var cancellation = new CancellationTokenSource();
+        var start = capture.StartAsync(new() { AudioSource = AudioSourceType.SystemAndMicrophone }, null, cancellation.Token);
+        await Task.WhenAll(system.Entered.Task, mic.Entered.Task).WaitAsync(TimeSpan.FromSeconds(3));
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => start);
+        Assert.False(system.IsCapturing);
+        Assert.False(mic.IsCapturing);
+        Assert.True(system.Stops > 0);
+        Assert.False(capture.IsRunning);
+    }
+
+    [Fact]
+    public async Task FailureJoinsCancellationIgnoringSourceBeforeCleanup()
+    {
+        var system = new SystemSource { HoldStart = true, IgnoreCancellation = true };
+        var mic = new FailingMicrophone();
+        await using var capture = new FFmpegPreflightAudioCapture(new WindowsFFmpegProvider(), system, mic);
+        var start = capture.StartAsync(new() { AudioSource = AudioSourceType.SystemAndMicrophone }, null, default);
+        try
+        {
+            await system.Entered.Task.WaitAsync(TimeSpan.FromSeconds(3));
+            Assert.True(mic.Started);
+            Assert.False(start.IsCompleted);
+            Assert.Equal(0, system.Stops);
+        }
+        finally { system.Release.TrySetResult(); }
+        await Assert.ThrowsAsync<IOException>(() => start);
+        Assert.True(system.Stops > 0);
+        Assert.False(system.IsCapturing);
+        Assert.False(capture.IsRunning);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -145,6 +242,7 @@ public class PreflightAudioCaptureTests
         public bool IsSupported => true;
         public bool IsCapturing { get; private set; }
         public bool HoldStart { get; init; }
+        public bool IgnoreCancellation { get; init; }
         public int Stops, Reads;
         public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -152,7 +250,7 @@ public class PreflightAudioCaptureTests
         public async Task<SystemAudioCaptureInfo?> StartCaptureAsync(int monitorIndex, CancellationToken cancellationToken = default)
         {
             Entered.TrySetResult();
-            if (HoldStart) await Release.Task.WaitAsync(cancellationToken);
+            if (HoldStart) await Release.Task.WaitAsync(IgnoreCancellation ? CancellationToken.None : cancellationToken);
             IsCapturing = true;
             return new("", 48000, 2, "-re -f lavfi -i sine=frequency=440:sample_rate=48000");
         }

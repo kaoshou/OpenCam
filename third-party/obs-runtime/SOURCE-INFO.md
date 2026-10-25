@@ -1,6 +1,6 @@
-# Isolated OBS recording runtime (development staging)
+# OBS recording runtime source information
 
-This directory is an additional, separate runtime inventory. It does not modify the existing application notices assembler or claim that the optional recording runtime has passed device acceptance. The assembler always sets `runtime.json.enabled` to `false`. Version remains 0.4.1.
+This directory is a separate recording-runtime inventory for OpenCam 1.0.0 preparation. It does not replace the standalone media-tool notices or claim completed device acceptance. The assembler initially sets `runtime.json.enabled` to `false`; the validated packaging workflow controls activation. Exact built-source provenance belongs in the package's SOURCE.txt and runtime manifest, not a claim inferred from this document's version.
 
 OBS 33.0.0 source is pinned to `72e86655715d9a25d69ce446aa4dd44ba58e10d2`. The Apple DMG SHA-256 is recorded in `inventory.json`; it was verified against the official GitHub release asset metadata. Frameworks and plugin binaries are copied unchanged from the read-only mounted official bundle. The newly built helper alone receives a local runtime rpath and ad hoc signature in its staging copy. macOS uses standard `Contents/MacOS/OpenCam.ObsCapture` layout with an owned `Contents/Info.plist` identity `org.opencam.recordingcore`, `LSUIElement`, and microphone usage description. The rpath is `@loader_path/../Frameworks`. Application initialization tests need access to the normal user LaunchServices context; the command sandbox blocks AppKit registration before device capture.
 

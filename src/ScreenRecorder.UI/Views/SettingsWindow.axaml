@@ -382,6 +382,10 @@
                         <StackPanel Spacing="10">
                             <TextBlock Text="{Binding Strings[ThirdPartyTitle]}" FontWeight="Bold" FontSize="13" Foreground="#0F172A" />
 
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="• OBS / libobs" FontWeight="SemiBold" FontSize="11.5" Foreground="#1E293B" />
+                                <TextBlock Text="{Binding Strings[LicenseObsDesc]}" FontSize="11" TextWrapping="Wrap" Foreground="#475569" />
+                            </StackPanel>
                             <!-- FFmpeg -->
                             <StackPanel Spacing="2">
                                 <TextBlock Text="• FFmpeg &amp; ffprobe" FontWeight="SemiBold" FontSize="11.5" Foreground="#1E293B" />

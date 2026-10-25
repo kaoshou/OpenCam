@@ -16,7 +16,7 @@ public sealed class PreflightCaptureFactory(IFFmpegPlatformProvider provider, IE
         bool livePreview = false)
     {
 #if OPENCAM_OBS_ONLY_TEST
-        throw new NotSupportedException("Native-only test uses the independent audio-only preflight; legacy video preflight is not included.");
+        throw new NotSupportedException("Recording preparation uses the audio-only check; video preflight is not available in this build.");
 #else
         ISystemAudioLoopbackCapture? system = null;
         IMicrophoneCapture? microphone = null;

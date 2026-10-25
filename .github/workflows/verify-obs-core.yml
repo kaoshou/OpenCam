@@ -133,6 +133,48 @@ jobs:
             obs-results/build/Release/OpenCam.ObsCapture.pdb
             obs-results/build/Release/win-capture.dll
             obs-results/build/Release/win-capture.pdb
+  macos-package:
+    if: github.ref == 'refs/heads/codex/libobs-core-validation-20261025'
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Acquire checksum-pinned Apple Silicon runtime and sources
+        run: bash scripts/prepare-obs-macos-validation.sh "$RUNNER_TEMP/obs-inputs"
+      - name: Build owned OBS helper and stage verified runtime
+        run: |
+          bash scripts/build-obs-capture.sh "$RUNNER_TEMP/obs-inputs/obs-source" "$RUNNER_TEMP/obs-inputs/OBS.app" "$RUNNER_TEMP/obs-inputs/ffmpeg-source" "$RUNNER_TEMP/obs-inputs/simde-source" "$RUNNER_TEMP/obs-build" "$RUNNER_TEMP/obs-runtime" third-party/obs-runtime
+          cmake --build "$RUNNER_TEMP/obs-build" --target OpenCam.ObsDisplayTests --parallel 2
+          "$RUNNER_TEMP/obs-build/OpenCam.ObsDisplayTests"
+      - name: Publish OBS-only macOS application
+        run: dotnet publish src/ScreenRecorder.UI/ScreenRecorder.UI.csproj -c Release -r osx-arm64 --self-contained true -p:OpenCamNativeOnlyTest=true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o "$RUNNER_TEMP/publish"
+      - name: Build self-contained preview and export tools
+        run: bash scripts/build-ffmpeg-macos-arm64.sh "$RUNNER_TEMP/publish"
+      - name: Package and validate macOS application
+        run: |
+          bash scripts/package-macos.sh "$RUNNER_TEMP/publish" "$RUNNER_TEMP/bundle/OpenCam.app" Release --native-only-user-test "$RUNNER_TEMP/obs-runtime"
+          node scripts/check-release-notices.mjs "$RUNNER_TEMP/bundle/OpenCam.app/Contents/Resources" "$GITHUB_SHA" "$(cat VERSION)"
+          dotnet build tests/ScreenRecorder.NativeOnlyProbe/ScreenRecorder.NativeOnlyProbe.csproj -c Release -p:OpenCamNativeOnlyTest=true -m:1 /nodeReuse:false
+          dotnet tests/ScreenRecorder.NativeOnlyProbe/bin/native-only/Release/net8.0/ScreenRecorder.NativeOnlyProbe.dll "$RUNNER_TEMP/bundle/OpenCam.app/Contents/MacOS"
+          codesign --verify --deep --strict "$RUNNER_TEMP/bundle/OpenCam.app"
+          name="OpenCam_v$(cat VERSION)_macOS_arm64_Test_${GITHUB_SHA:0:7}.zip"
+          ditto -c -k --sequesterRsrc --keepParent "$RUNNER_TEMP/bundle/OpenCam.app" "$name"
+          shasum -a 256 "$name" > "$name.sha256"
+      - name: Upload macOS Apple Silicon test application (not a Release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenCam-macOS-arm64-User-Test-${{ github.sha }}
+          path: |
+            OpenCam_v*_macOS_arm64_Test_*.zip
+            OpenCam_v*_macOS_arm64_Test_*.zip.sha256
+          if-no-files-found: error
+          retention-days: 14
   managed-portable:
     if: github.ref == 'refs/heads/codex/libobs-core-validation-20261025'
     strategy:

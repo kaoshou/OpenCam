@@ -27,12 +27,15 @@ public sealed class RecordingEngineFactory(
 
     public IScreenRecorderEngine Create(HardwareEncoderType? pinnedEncoder, CaptureSelection? pinnedCapture = null)
     {
+        var clock = System.Diagnostics.Stopwatch.StartNew();
         var runtime = ObsRuntime.TryLoad(GetRuntimeDirectory(AppContext.BaseDirectory));
+        Serilog.Log.Information("Recording startup stage: Stage={Stage}, ElapsedMs={ElapsedMs}, Available={Available}",
+            "runtime_factory_validation", clock.Elapsed.TotalMilliseconds, runtime is not null);
 #if OPENCAM_OBS_ONLY_TEST
         if (runtime is null)
-            throw new IOException("Native-only test: verified recording runtime is missing or damaged; recording did not start.");
+            throw new IOException("The recording core is missing or damaged. Recording did not start; reinstall the complete application package.");
         return new ObsRecordingEngineRouter(runtime,
-            () => throw new IOException("Native-only test does not include a compatibility recording core."),
+            () => throw new IOException("The legacy recording core is not available in this build."),
             (config, bounds, capture) => displayService is null ? null : ObsRecordingEngineRouter.ResolveMonitor(config,
                 bounds, capture, displayService.GetMonitors(), nativeIdentity ?? ResolveIdentity),
             pinnedEncoder ?? HardwareEncoderType.SoftwareCpu, pinnedCapture, requireNative: true);

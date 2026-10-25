@@ -29,6 +29,8 @@ NativeAssets packages contain platform-specific assets; inclusion in the resolve
 
 ## FFmpeg, ffprobe and libx264
 
+The standalone FFmpeg/ffprobe tools support audio checks, editing preview, media validation, MP4 processing and GIF export. Their continued inclusion does not imply that the OBS recording pipeline uses the old FFmpeg screen-recording engine.
+
 FFmpeg is Copyright (c) the FFmpeg developers; x264 is Copyright (c) the x264 project contributors. FFmpeg/ffprobe run as separate executables. Official build scripts enable GPL components including libx264, so describing these binaries simply as LGPL is incorrect. FFmpeg's upstream explanation is retained in `FFmpeg-LICENSE.md`; GPL texts and x264's COPYING are also supplied. The bundled executables' `-L` and `-version` output is retained in `third-party/ffmpeg/`.
 
 - macOS build inputs: FFmpeg 7.1.2 and x264 commit `b35605ace3ddf7c1a5d67a2eb553f034aef41d55`, with checksum-verified source archives in `scripts/build-ffmpeg-macos-arm64.sh`. The configuration enables GPL and libx264, not `--enable-version3`. Package license output is authoritative for the built executable, not a generic LGPL/GPL label.
@@ -37,3 +39,15 @@ FFmpeg is Copyright (c) the FFmpeg developers; x264 is Copyright (c) the x264 pr
 **Release source-provision gate / 發布前原始碼提供檢核：** License/attribution files alone do not establish GPL distribution compliance. Before release, provide the complete corresponding FFmpeg and enabled GPL-library sources, applicable patches and build information using a license-compliant method. The macOS build preserves its downloaded source archives and build script with its notices. For the Windows third-party build, complete corresponding-source coverage still requires verification; an upstream homepage or OpenCam's own `SOURCE.txt` is not a substitute. Until that verification is recorded, do not claim this notice update completes the release licensing audit.
 
 Reference: https://ffmpeg.org/legal.html ; https://github.com/BtbN/FFmpeg-Builds ; https://code.videolan.org/videolan/x264
+
+## OBS / libobs recording runtime
+
+OBS Studio / libobs 33.0.0 is pinned to source revision `72e86655715d9a25d69ce446aa4dd44ba58e10d2`. Copyright belongs to the OBS Project contributors; OBS is distributed under GPL-2.0-or-later. Preserve its original AUTHORS, COPYING and individual source-file notices. OpenCam's license does not replace them.
+
+The recording runtime has a separate package-specific inventory: `obs-runtime/licenses/inventory.json`, `OBS-AUTHORS.txt`, `OBS-COPYING.txt` and `SOURCE-INFO.md`. On macOS this directory is beneath the app's `Contents/Resources`. `obs-runtime/runtime.json` records deployed file hashes and capabilities. Dependencies include platform-specific FFmpeg libraries and other codecs/utilities; their exact licenses and versions come from this inventory, not the standalone FFmpeg executable's inventory above. Do not interchange the Windows and macOS inventories.
+
+OBS/libobs 錄影核心及其相依元件保留原作者版權與授權。FFmpeg 除了作為獨立影音處理工具，亦可能以函式庫形式包含於錄影核心；不得宣稱本程式已完全移除 FFmpeg。OpenCam 並非 OBS Project 官方產品。
+
+Before publication, provide corresponding sources, required dependency patches and build information for the actual distributed runtime as required by its licenses. A source revision, website link or this notice alone is not completion of that release gate. Retain both runtime and standalone-tool source inventories.
+
+Upstream: https://github.com/obsproject/obs-studio/tree/72e86655715d9a25d69ce446aa4dd44ba58e10d2

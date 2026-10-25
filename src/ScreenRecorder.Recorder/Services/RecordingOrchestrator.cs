@@ -302,8 +302,11 @@ public partial class RecordingOrchestrator : IAsyncDisposable
     {
         // An unsuccessful cleanup retains ownership; never overlap it with a new encoder.
         if (_engine != null || _unconfirmedAttemptPath != null) await DisposeCurrentEngineAsync();
+        var selectionClock = System.Diagnostics.Stopwatch.StartNew();
         var selection = session.EncoderSelection ??
             await _encoderSelectionService.SelectAsync(session.Configuration.EncoderType, token);
+        Log.Information("Recording startup stage: Stage={Stage}, ElapsedMs={ElapsedMs}, Pinned={Pinned}",
+            "encoder_selection", selectionClock.Elapsed.TotalMilliseconds, session.EncoderSelection is not null);
         var capture = session.CaptureSelection;
         var captureRetried = false;
         var encoderRetried = false;

@@ -34,6 +34,7 @@ public sealed class FFmpegPreflightAudioCapture(
 
     public async Task StartAsync(RecordingConfiguration configuration, Stream? trialOutput, CancellationToken ct)
     {
+        var startupClock = Stopwatch.StartNew();
         await _lifecycle.WaitAsync(ct);
         try
         {
@@ -47,22 +48,40 @@ public sealed class FFmpegPreflightAudioCapture(
             {
                 SystemAudioCaptureInfo? sys = null;
                 MicrophoneCaptureInfo? mic = null;
-                if (_systemSelected && !synthetic)
+                using var sources = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                async Task StartSystemAsync()
                 {
-                    if (system?.IsSupported != true) throw new IOException("System audio is unavailable.");
-                    system.AudioErrorOccurred += SourceFailed;
-                    _systemStarted = true; // even a partially initialized source needs stopping
-                    sys = await system.StartCaptureAsync(configuration.MonitorIndex, ct)
-                        ?? throw new IOException("System audio did not start.");
+                    if (!_systemSelected || synthetic) return;
+                    try
+                    {
+                        sources.Token.ThrowIfCancellationRequested();
+                        if (system?.IsSupported != true) throw new IOException("System audio is unavailable.");
+                        system.AudioErrorOccurred += SourceFailed;
+                        _systemStarted = true; // even a partially initialized source needs stopping
+                        sys = await system.StartCaptureAsync(configuration.MonitorIndex, sources.Token)
+                            ?? throw new IOException("System audio did not start.");
+                    }
+                    catch { sources.Cancel(); throw; }
                 }
-                if (_micSelected && !synthetic && microphone is not null)
+                async Task StartMicrophoneAsync()
                 {
-                    if (!microphone.IsSupported) throw new IOException("Microphone is unavailable.");
-                    microphone.AudioErrorOccurred += SourceFailed;
-                    _micStarted = true;
-                    mic = await microphone.StartCaptureAsync(configuration.MicrophoneDeviceId, ct)
-                        ?? throw new IOException("Microphone did not start.");
+                    if (!_micSelected || synthetic || microphone is null) return;
+                    try
+                    {
+                        sources.Token.ThrowIfCancellationRequested();
+                        if (!microphone.IsSupported) throw new IOException("Microphone is unavailable.");
+                        microphone.AudioErrorOccurred += SourceFailed;
+                        _micStarted = true;
+                        mic = await microphone.StartCaptureAsync(configuration.MicrophoneDeviceId, sources.Token)
+                            ?? throw new IOException("Microphone did not start.");
+                    }
+                    catch { sources.Cancel(); throw; }
                 }
+                // Always join both starts before cleanup: a late start must never race StopCoreAsync.
+                await Task.WhenAll(StartSystemAsync(), StartMicrophoneAsync());
+                ct.ThrowIfCancellationRequested();
+                Log.Information("Audio startup stage: Stage={Stage}, ElapsedMs={ElapsedMs}, Trial={Trial}",
+                    "sources_ready", startupClock.Elapsed.TotalMilliseconds, trialOutput is not null);
                 if (_micSelected && !synthetic && microphone is null)
                 {
                     // FFmpeg owns the selected recording input. This separate
@@ -86,7 +105,7 @@ public sealed class FFmpegPreflightAudioCapture(
                 var process = new Process { StartInfo = new(executable ?? FFmpegDiscovery.FindFFmpegExecutable()
                     ?? throw new FileNotFoundException("FFmpeg unavailable."))
                 {
-                    Arguments = $"-hide_banner -n -progress pipe:2 -nostats {input} {PreflightAudioFormat.OutputArguments(trialOutput is not null)}",
+                    Arguments = $"-hide_banner -n -stats_period 0.1 -progress pipe:2 -nostats {input} {PreflightAudioFormat.OutputArguments(trialOutput is not null)}",
                     UseShellExecute = false, CreateNoWindow = true,
                     RedirectStandardInput = true, RedirectStandardError = true, RedirectStandardOutput = true
                 }};
@@ -104,6 +123,8 @@ public sealed class FFmpegPreflightAudioCapture(
                 if (process.HasExited || !_ack.Task.IsCompletedSuccessfully || !await _ack.Task || ErrorCode is not null)
                     throw new IOException("Audio capture did not acknowledge startup.");
                 lock (_levels) { _readLevels = true; _running = true; }
+                Log.Information("Audio startup stage: Stage={Stage}, ElapsedMs={ElapsedMs}, Trial={Trial}",
+                    "audio_confirmed", startupClock.Elapsed.TotalMilliseconds, trialOutput is not null);
             }
             catch (Exception ex)
             {
