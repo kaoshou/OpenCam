@@ -26,6 +26,11 @@ while IFS=$'\t' read -r name url digest; do
 done < <(node -e 'for(const s of require(process.argv[1]).sources)console.log([s.id,s.url,s.sha256].join("\t"))' "$repo_root/scripts/windows-media-sources.lock.json")
 jobs="$(nproc)"
 export PKG_CONFIG_PATH="$prefix/lib/pkgconfig:$prefix/lib64/pkgconfig"
+cmake -S "$build_root/zlib" -B "$build_root/zlib-build" -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$prefix" -DCMAKE_INSTALL_LIBDIR=lib \
+  -DZLIB_BUILD_SHARED=OFF -DZLIB_BUILD_STATIC=ON -DZLIB_BUILD_TESTING=OFF
+cmake --build "$build_root/zlib-build" --parallel "$jobs"
+cmake --install "$build_root/zlib-build"
 pushd "$build_root/x264"
 ./configure --prefix="$prefix" --host=x86_64-w64-mingw32 --enable-static --disable-cli --enable-win32thread
 make -j"$jobs"
@@ -48,7 +53,7 @@ cmake --install "$build_root/vpl-build"
 pushd "$build_root/ffmpeg"
 ./configure --prefix="$build_root/install" --arch=x86_64 --target-os=mingw32 --cc=gcc --cxx=g++ \
   --enable-static --disable-shared --disable-autodetect --disable-network --disable-debug --disable-doc --disable-ffplay \
-  --enable-gpl --enable-libx264 --enable-libdav1d --enable-ffnvcodec --enable-nvenc --enable-amf --enable-libvpl \
+  --enable-gpl --enable-zlib --enable-libx264 --enable-libdav1d --enable-ffnvcodec --enable-nvenc --enable-amf --enable-libvpl \
   --pkg-config-flags=--static --extra-cflags="-I$prefix/include" \
   --extra-ldflags="-L$prefix/lib -static -static-libgcc -static-libstdc++" --extra-libs=-lstdc++
 make -j"$jobs" ffmpeg.exe ffprobe.exe
