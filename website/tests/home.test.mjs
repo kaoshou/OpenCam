@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { buildSite } from '../build.mjs';
-import { mainScreenshotVersion, productVersion } from '../src/content.mjs';
+import { mainScreenshotVersion, productVersion, downloadVersion } from '../src/content.mjs';
 
 const escapedProductVersion = productVersion.replaceAll('.', '\\.');
 const escapedScreenshotVersion = mainScreenshotVersion.replaceAll('.', '\\.');
@@ -56,9 +56,9 @@ test('hero offers three localized published attachment downloads and supporting 
       const links = [...actions.matchAll(/<a\b[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)];
       assert.equal(links.length, 3);
       assert.deepEqual(links.map(m => m[1]), [
-        'https://github.com/kaoshou/OpenCam/releases/download/v0.4.1/OpenCam_v0.4.1_Windows_x64_Portable.zip',
-        'https://github.com/kaoshou/OpenCam/releases/download/v0.4.1/OpenCam_v0.4.1_Windows_x64_Setup.exe',
-        'https://github.com/kaoshou/OpenCam/releases/download/v0.4.1/OpenCam_v0.4.1_macOS_arm64.dmg',
+        `https://github.com/kaoshou/OpenCam/releases/download/v${downloadVersion}/OpenCam_v${downloadVersion}_Windows_x64_Portable.zip`,
+        `https://github.com/kaoshou/OpenCam/releases/download/v${downloadVersion}/OpenCam_v${downloadVersion}_Windows_x64_Setup.exe`,
+        `https://github.com/kaoshou/OpenCam/releases/download/v${downloadVersion}/OpenCam_v${downloadVersion}_macOS_arm64.dmg`,
       ]);
       assert.deepEqual(links.map(m => m[2]), labels);
       const notes = html.match(/<div class="download-notes">([\s\S]*?)<\/div>/)?.[1];
@@ -84,8 +84,8 @@ test('unpublished development version does not move downloads or the public vers
     const future = await import(pathToFileURL(join(root, 'website/src/content.mjs')).href);
     assert.equal(future.productVersion, '9.9.9');
     const html = future.renderHome('en-US');
-    assert.match(html, /Current version v0\.4\.1/);
-    assert.match(html, /releases\/download\/v0\.4\.1\/OpenCam_v0\.4\.1_Windows_x64_Portable\.zip/);
+    assert.ok(html.includes(`Current version v${downloadVersion}`));
+    assert.ok(html.includes(`releases/download/v${downloadVersion}/OpenCam_v${downloadVersion}_Windows_x64_Portable.zip`));
     assert.doesNotMatch(html, /releases\/download\/v9\.9\.9/);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
