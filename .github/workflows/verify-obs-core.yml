@@ -161,7 +161,7 @@ jobs:
           bash scripts/package-macos.sh "$RUNNER_TEMP/publish" "$RUNNER_TEMP/bundle/OpenCam.app" Release --native-only-user-test "$RUNNER_TEMP/obs-runtime"
           node scripts/check-release-notices.mjs "$RUNNER_TEMP/bundle/OpenCam.app/Contents/Resources" "$GITHUB_SHA" "$(cat VERSION)"
           dotnet build tests/ScreenRecorder.NativeOnlyProbe/ScreenRecorder.NativeOnlyProbe.csproj -c Release -p:OpenCamNativeOnlyTest=true -m:1 /nodeReuse:false
-          dotnet tests/ScreenRecorder.NativeOnlyProbe/bin/native-only/Release/net8.0/ScreenRecorder.NativeOnlyProbe.dll "$RUNNER_TEMP/bundle/OpenCam.app/Contents/MacOS"
+          PATH="$RUNNER_TEMP/bundle/OpenCam.app/Contents/MacOS:$PATH" dotnet tests/ScreenRecorder.NativeOnlyProbe/bin/native-only/Release/net8.0/ScreenRecorder.NativeOnlyProbe.dll "$RUNNER_TEMP/bundle/OpenCam.app/Contents/MacOS"
           codesign --verify --deep --strict "$RUNNER_TEMP/bundle/OpenCam.app"
           name="OpenCam_v$(cat VERSION)_macOS_arm64_Test_${GITHUB_SHA:0:7}.zip"
           ditto -c -k --sequesterRsrc --keepParent "$RUNNER_TEMP/bundle/OpenCam.app" "$name"
