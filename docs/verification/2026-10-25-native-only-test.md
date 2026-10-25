@@ -24,6 +24,7 @@ First launch now selects20FPS across settings defaults, recording configuration 
 - Package safeguard RED2 cases, then10/10 passed. Full packaging/provenance tests41PASS1environmentSKIP; sandbox AppKit failure was rerun with ordinary local process permissions, not changed assertions/timeouts. actionlint/diffcheck passed.
 - Pre-20FPS full normal solution: Core356PASS; Media1339PASS22OS/deviceSKIP,0fail. Final20FPS regressions and exact Windows CI/artifact results are recorded at delivery.
 - Fresh independent whole-branch safety review found no Critical/Important issue. Minor deferred: profile reflection inspects its own separately built assemblies, not assemblies extracted from the final single-file EXE. The explicit profile publish command and immutable CI provenance provide build assurance; package runtime inventory is checked independently. No claim of embedded-assembly extraction is made.
+- Initial native-only CI40149613499/8890c4d: native11PASS1AppleSKIP, WindowsFHD CPU20/30 emitted121/181frames with0compositor lag; managedCore19PASS,Media65PASS31OSfixtureSKIP, macOS84PASS1skip, Linux75PASS10skip. Packaging stopped because notice CLI selected normal obj assets instead of profile assets. Added explicit publish-assets CLI argument, regressionRED then14/14GREEN; normal default path and all license/RID/catalog/hash checks remain unchanged. No ZIP was delivered from this failed run. Final exact commit/run supersedes it.
 
 ## Acceptance limits
 

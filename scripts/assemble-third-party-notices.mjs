@@ -71,7 +71,7 @@ export async function assembleThirdPartyNotices(destination, {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  const [, , destination, rid, ffmpegDirectory] = process.argv;
-  if (!destination) throw new Error('Usage: assemble-third-party-notices destination rid ffmpeg-notices-directory');
-  await assembleThirdPartyNotices(destination, { rid, ffmpegDirectory });
+  const [, , destination, rid, ffmpegDirectory, assetsPath] = process.argv;
+  if (!destination) throw new Error('Usage: assemble-third-party-notices destination rid ffmpeg-notices-directory [publish-assets-file]');
+  await assembleThirdPartyNotices(destination, { rid, ffmpegDirectory, assetsPath });
 }

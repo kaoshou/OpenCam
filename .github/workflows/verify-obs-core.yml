@@ -59,7 +59,7 @@ jobs:
           dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release -m:1 /nodeReuse:false --filter 'FullyQualifiedName~ScreenRecorder.Media.Tests.Obs|FullyQualifiedName~SettingsViewModelTests|FullyQualifiedName~ProjectMainEntryTests|FullyQualifiedName~TeachingPointerUiTests' --logger trx --results-directory obs-results/managed
           if ($LASTEXITCODE -ne 0) { throw 'Managed OBS adapter tests failed.' }
       - name: Test explicit user-test runtime staging safeguards
-        run: node --test tests/scripts/obs-user-test-package.test.mjs
+        run: node --test tests/scripts/obs-user-test-package.test.mjs tests/scripts/third-party-notice-profile.test.mjs
       - name: Publish Windows portable user-test application
         shell: pwsh
         run: |
@@ -75,7 +75,7 @@ jobs:
           SPDX-License-Identifier: AGPL-3.0-or-later
           Corresponding source: https://github.com/kaoshou/OpenCam/tree/$env:GITHUB_SHA
           "@ | Set-Content user-test-package/SOURCE.txt -Encoding utf8
-          node scripts/assemble-third-party-notices.mjs user-test-package win-x64 user-test-package/ffmpeg-notices
+          node scripts/assemble-third-party-notices.mjs user-test-package win-x64 user-test-package/ffmpeg-notices src/ScreenRecorder.UI/obj/native-only/project.assets.json
           if ($LASTEXITCODE -ne 0) { throw 'User-test application notices failed.' }
           node scripts/prepare-obs-user-test-package.mjs obs-results/runtime user-test-package $env:GITHUB_SHA $version --enable-user-test-only --native-only
           if ($LASTEXITCODE -ne 0) { throw 'Explicit user-test runtime staging failed.' }
