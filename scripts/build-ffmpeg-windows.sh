@@ -53,7 +53,7 @@ pushd "$build_root/ffmpeg"
   --extra-ldflags="-L$prefix/lib -static -static-libgcc -static-libstdc++" --extra-libs=-lstdc++
 make -j"$jobs" ffmpeg.exe ffprobe.exe
 cp ffmpeg.exe ffprobe.exe "$output_dir/"
-cp config.h config.log ffbuild/config.mak "$notice/"
+cp config.h ffbuild/config.log ffbuild/config.mak "$notice/"
 popd
 for executable in ffmpeg ffprobe; do
   "$output_dir/$executable.exe" -hide_banner -L > "$notice/$executable-license.txt" 2>&1
@@ -63,7 +63,14 @@ for executable in ffmpeg ffprobe; do
     echo 'Unexpected external media-tool runtime dependency' >&2; exit 1
   fi
 done
-cp -R /ucrt64/share/licenses/gcc-libs /ucrt64/share/licenses/headers /ucrt64/share/licenses/crt "$notice/licenses/"
+# GCC 16 split the former gcc-libs package into runtime packages. Query the
+# installed manifests rather than assuming an obsolete license directory.
+for package in libgcc libstdc++ libwinpthread headers crt; do
+  while IFS= read -r license; do
+    cp --parents "$license" "$notice/licenses/"
+  done < <(pacman -Ql "mingw-w64-ucrt-x86_64-$package" | awk '$2 ~ /\/share\/licenses\/.+[^\/]$/ {print $2}')
+done
+find "$notice/licenses" -type f -name COPYING.RUNTIME | grep -q . || { echo 'Missing GCC Runtime Library Exception' >&2; exit 1; }
 pacman -Q > "$notice/build-packages.txt"
 gcc --version > "$notice/compiler.txt"
 printf 'OpenCam-owned Windows FFmpeg build. Source archives, recipe and VPL MinGW compatibility patch: sources/.\nGCC runtime libraries use their bundled Runtime Library Exception; Windows system libraries are not redistributed.\n' > "$notice/SOURCE-STATUS.txt"

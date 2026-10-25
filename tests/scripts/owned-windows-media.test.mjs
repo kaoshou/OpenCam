@@ -23,4 +23,7 @@ test('release profile uses checksum-pinned source builds rather than third-party
   assert.match(script,/--enable-libvpl/);
   assert.match(script,/sources/);
   assert.match(script,/libvpl-mingw-secure-functions\.patch/);
+  assert.match(script,/cp config\.h ffbuild\/config\.log ffbuild\/config\.mak/);
+  assert.match(script,/pacman -Ql/);
+  assert.doesNotMatch(script,/cp -R \/ucrt64\/share\/licenses\/gcc-libs/);
 });
