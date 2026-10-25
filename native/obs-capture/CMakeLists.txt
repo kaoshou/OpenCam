@@ -2,6 +2,13 @@ cmake_minimum_required(VERSION 3.24)
 project(OpenCamObsCapture LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# Normalize externally supplied paths. Cache STRING values from PowerShell may
+# retain backslashes, which become invalid escapes in generated source rules.
+foreach(path OBS_SOURCE OBS_RUNTIME FFMPEG_HEADERS SIMDE_HEADERS OBS_IMPORT_LIBS)
+  if(DEFINED ${path})
+    string(REPLACE "\\" "/" ${path} "${${path}}")
+  endif()
+endforeach()
 foreach(required OBS_SOURCE OBS_RUNTIME FFMPEG_HEADERS)
   if(NOT IS_DIRECTORY "${${required}}")
     message(FATAL_ERROR "${required} must be an existing pinned source/runtime directory")
