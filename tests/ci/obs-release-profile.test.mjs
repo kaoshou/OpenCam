@@ -14,4 +14,7 @@ test('official release reuses validated OBS packaging instead of legacy capture'
   assert.match(core,/--native-only-release/);
   assert.match(core,/WINDOWS_PORTABLE/);assert.match(core,/MACOS_DMG/);
   assert.match(core,/ScreenRecorder.NativeOnlyProbe/);
+  assert.match(release,/assemble-release-sources\.mjs/);
+  assert.match(release,/check-release-source-provision\.mjs/);
+  assert.match(core,/macOS-Media-SOURCES\.tar\.gz/);
 });

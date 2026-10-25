@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "provenance": "OBS 33.0.0 CMakePresets.json pins obs-deps 2026-10-23; recipes at cbf0a3d8a0a34c07e822bda22a5f8214f91801d7. Actual Windows and macOS libavutil identify n8.1.2 with --enable-gpl --enable-version3. This is a source audit inventory, not a legal compliance determination.",
+  "sources": [
+    {"id":"obs","url":"https://github.com/obsproject/obs-studio.git","revision":"72e86655715d9a25d69ce446aa4dd44ba58e10d2","excludedSubmodules":[
+      {"path":"deps/libdshowcapture/src","revision":"8878638324393815512f802640b0d5ce940161f1","reason":"DirectShow module is excluded from the selected OpenCam runtime."},
+      {"path":"plugins/obs-browser","revision":"85c7f2668936679b43329a9ee9f1e269d9bac812","reason":"Browser module and CEF are excluded from the selected OpenCam runtime."},
+      {"path":"plugins/obs-websocket","revision":"e28f84975984340e84fc4879cfc05741cc0afde1","reason":"Websocket module is excluded from the selected OpenCam runtime."}
+    ]},
+    {"id":"obs-deps","url":"https://github.com/obsproject/obs-deps.git","revision":"cbf0a3d8a0a34c07e822bda22a5f8214f91801d7","role":"Complete build recipes, utilities, checksums, vendored patches and notices for Windows and macOS."},
+    {"id":"ffmpeg-runtime","url":"https://github.com/FFmpeg/FFmpeg.git","revision":"38b88335f99e76ed89ff3c93f877fdefce736c13","version":"8.1.2","recipe":"deps.ffmpeg/99-ffmpeg.ps1; deps.ffmpeg/99-ffmpeg.zsh"},
+    {"id":"ffmpeg-headers","url":"https://github.com/FFmpeg/FFmpeg.git","revision":"1041abdc962f4cc4f394aa8de9dc5236c0c3b9e7","version":"8.1.3","role":"Helper public headers only; not runtime FFmpeg binary source."},
+    {"id":"x264","url":"https://github.com/mirror/x264.git","revision":"eaa68fad9e5d201d42fde51665f2d137ae96baf0","recipe":"deps.ffmpeg/40-x264.ps1; deps.ffmpeg/40-x264.zsh"},
+    {"id":"mbedtls","url":"https://github.com/Mbed-TLS/mbedtls.git","revision":"c765c831e5c2a0971410692f92f7a81d6ec65ec2","recipe":"deps.ffmpeg/60-mbedtls.ps1; deps.ffmpeg/60-mbedtls.zsh"},
+    {"id":"librist","url":"https://code.videolan.org/rist/librist.git","revision":"809390b3b75a259a704079d0fb4d8f1b5f7fa956","recipe":"deps.ffmpeg/70-librist.ps1; deps.ffmpeg/70-librist.zsh"},
+    {"id":"aom","url":"https://aomedia.googlesource.com/aom.git","revision":"d772e334cc724105040382a977ebb10dfd393293","recipe":"deps.ffmpeg/40-aom.ps1; deps.ffmpeg/40-aom.zsh"},
+    {"id":"svt-av1","url":"https://gitlab.com/AOMediaCodec/SVT-AV1.git","revision":"6e69def4ec283fe0b71195671245c3b768bebdef","recipe":"deps.ffmpeg/30-svt-av1.ps1","platform":"win-x64"},
+    {"id":"opus","url":"https://github.com/xiph/opus.git","revision":"ddbe48383984d56acd9e1ab6a090c54ca6b735a6","recipe":"deps.ffmpeg/20-opus.ps1; deps.ffmpeg/20-opus.zsh"},
+    {"id":"ogg","url":"https://github.com/xiph/ogg.git","revision":"fa80aae9d50096160f2b56ada35527d7aee3f746","recipe":"deps.ffmpeg/30-libogg.ps1; deps.ffmpeg/30-libogg.zsh"},
+    {"id":"vorbis","url":"https://gitlab.xiph.org/xiph/vorbis.git","revision":"2eac96b03ff67953354cb0a649c08aa3a23267ef","recipe":"deps.ffmpeg/30-libvorbis.ps1; deps.ffmpeg/30-libvorbis.zsh"},
+    {"id":"zlib","url":"https://github.com/madler/zlib.git","revision":"51b7f2abdade71cd9bb0e7a373ef2610ec6f9daf","recipe":"deps.ffmpeg/10-zlib.ps1","platform":"win-x64"},
+    {"id":"jansson","url":"https://github.com/akheron/jansson.git","revision":"96d160df90016066d04d493d1d69639474ba4f20","recipe":"deps.windows/30-jansson.ps1"},
+    {"id":"curl","url":"https://github.com/curl/curl.git","revision":"57495c64871d18905a0941db9196ef90bafe9a29","recipe":"deps.windows/30-curl.ps1","platform":"win-x64"},
+    {"id":"uthash","url":"https://github.com/troydhanson/uthash.git","revision":"e493aa90a2833b4655927598f169c31cfcdf7861","recipe":"deps.windows/60-uthash.ps1"},
+    {"id":"vpl","url":"https://github.com/intel/libvpl.git","revision":"025d43d086a3e663184cb49febe86152bf05409f","recipe":"deps.windows/70-vpl.ps1","platform":"win-x64"},
+    {"id":"amf","url":"https://github.com/GPUOpen-LibrariesAndSDKs/AMF.git","revision":"afed28d37aca1938da2eedc50599bb3535a987ec","recipe":"deps.ffmpeg/80-amf.ps1","platform":"win-x64"},
+    {"id":"nv-codec-headers","url":"https://github.com/FFmpeg/nv-codec-headers.git","revision":"e844e5b26f46bb77479f063029595293aa8f812d","recipe":"deps.ffmpeg/70-nv-codec.ps1","platform":"win-x64"},
+    {"id":"simde","url":"https://github.com/simd-everywhere/simde.git","revision":"71fd833d9666141edcd1d3c109a80e228303d8d7","recipe":"deps.windows/60-simde.ps1"},
+    {"id":"wil","url":"https://github.com/microsoft/wil.git","revision":"f0c6a81c0c9a4b23b6801f40554b8bec425a83b4","recipe":"deps.windows/80-wil.ps1","platform":"win-x64"}
+  ],
+  "archives": [
+    {"id":"srt-windows","filename":"srt-1.5.2-windows.zip","url":"https://github.com/Haivision/srt/archive/refs/tags/v1.5.2.zip","sha256":"2686f75533bd53ec917dab6129186b124b4d105eadaa6a84e83719ac3b5ae6bd","recipe":"deps.ffmpeg/60-srt.ps1"},
+    {"id":"srt-macos","filename":"srt-1.5.2-macos.tar.gz","url":"https://github.com/Haivision/srt/archive/v1.5.2.tar.gz","sha256":"463970a3f575446b3f55abb6f323d5476c963c77b3c975cd902e9c87cdd9a92c","recipe":"deps.ffmpeg/60-srt.zsh"},
+    {"id":"vpx-windows","filename":"libvpx-1.14.1-windows.zip","url":"https://github.com/webmproject/libvpx/archive/refs/tags/v1.14.1.zip","sha256":"f40e4c7e7b4025d18be17a8225f8be2f26b349715399cd36c2de573fe976dfd7","recipe":"deps.ffmpeg/30-libvpx.ps1"},
+    {"id":"vpx-macos","filename":"libvpx-1.14.1-macos.tar.gz","url":"https://github.com/webmproject/libvpx/archive/v1.14.1.tar.gz","sha256":"901747254d80a7937c933d03bd7c5d41e8e6c883e0665fadcb172542167c7977","recipe":"deps.ffmpeg/30-libvpx.zsh"},
+    {"id":"theora-windows","filename":"libtheora-1.1.1-windows.zip","url":"https://ftp.osuosl.org/pub/xiph/releases/theora/libtheora-1.1.1.zip","sha256":"f644fef154f7a80e7258c8baec5c510f594d720835855cddce322b924934ba36","recipe":"deps.ffmpeg/50-libtheora.ps1"},
+    {"id":"theora-macos","filename":"libtheora-1.1.1-macos.tar.xz","url":"https://ftp.osuosl.org/pub/xiph/releases/theora/libtheora-1.1.1.tar.xz","sha256":"f36da409947aa2b3dcc6af0a8c2e3144bc19db2ed547d64e9171c59c66561c61","recipe":"deps.ffmpeg/50-libtheora.zsh"},
+    {"id":"lame","filename":"lame-3.100.tar.gz","url":"https://downloads.sourceforge.net/project/lame/lame/3.100/lame-3.100.tar.gz","sha256":"ddfe36cab873794038ae2c1210557ad34857a4b6bdc515785d1da9e175b1da1e","recipe":"deps.ffmpeg/60-lame.ps1; deps.ffmpeg/60-lame.zsh"},
+    {"id":"png-windows","filename":"libpng-1.6.47-windows.zip","url":"https://sourceforge.net/projects/libpng/files/libpng16/1.6.47/lpng1647.zip","sha256":"883340209fccd5353e406a79e22a2d226fc61666b83e700ab1e367bc1a679101","recipe":"deps.ffmpeg/20-libpng.ps1"},
+    {"id":"png-macos","filename":"libpng-1.6.47-macos.tar.xz","url":"https://downloads.sourceforge.net/project/libpng/libpng16/1.6.47/libpng-1.6.47.tar.xz","sha256":"b213cb381fbb1175327bd708a77aab708a05adde7b471bc267bd15ac99893631","recipe":"deps.ffmpeg/20-libpng.zsh"}
+  ]
+}

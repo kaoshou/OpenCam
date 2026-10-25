@@ -9,18 +9,242 @@
     "sha256": "b36f4e9da5f2f17c733ba711c8fe0656d6b0cd573cfe96eeb3e68325cffef739"
   },
   "components": [
-    { "name": "OpenCam.ObsCapture", "version": "1.0.0 (unreleased working tree)", "license": "AGPL-3.0-or-later", "source": "https://github.com/kaoshou/OpenCam", "licenseFiles": ["OpenCam-AGPL-3.0.txt"], "notes": "Helper source and build scripts are native/obs-capture and scripts/build-obs-capture.* in the matching OpenCam source tree. No source commit or release is claimed for uncommitted changes." },
-    { "name": "OBS Studio libobs and selected official capture/encoder modules", "version": "33.0.0", "license": "GPL-2.0-or-later", "source": "https://github.com/obsproject/obs-studio/tree/72e86655715d9a25d69ce446aa4dd44ba58e10d2", "licenseFiles": ["OBS-COPYING.txt", "OBS-AUTHORS.txt", "uthash-LICENSE.txt"] },
-    { "name": "FFmpeg libavcodec/libavformat/libavutil/libavfilter/libavdevice/libswscale/libswresample", "version": "8.1.3", "license": "GPL-2.0-or-later", "source": "https://github.com/FFmpeg/FFmpeg/tree/1041abdc962f4cc4f394aa8de9dc5236c0c3b9e7", "licenseFiles": ["FFmpeg-LICENSE.md", "FFmpeg-COPYING.GPLv2.txt", "FFmpeg-COPYING.LGPLv2.1.txt"], "notes": "Official OBS FFmpeg dependency build links GPL x264. Matching headers are pinned independently. OBS dependency build options and patches are in the pinned obs-deps source." },
-    { "name": "x264", "version": "r3106 eaa68fa", "license": "GPL-2.0-or-later", "source": "https://github.com/mirror/x264/tree/eaa68fad9e5d201d42fde51665f2d137ae96baf0", "licenseFiles": ["x264-COPYING.txt", "x264-AUTHORS.txt"] },
-    { "name": "librist", "version": "0.2.7", "license": "BSD-2-Clause", "source": "https://code.videolan.org/rist/librist/-/tree/809390b3b75a259a704079d0fb4d8f1b5f7fa956", "licenseFiles": ["librist-COPYING.txt"], "notes": "Required by the official FFmpeg dylib even though no streaming plugin is packaged. No protocol or network output is enabled by OpenCam." },
-    { "name": "librist bundled cJSON", "version": "librist 809390b3b75a259a704079d0fb4d8f1b5f7fa956", "license": "MIT", "source": "https://code.videolan.org/rist/librist/-/blob/809390b3b75a259a704079d0fb4d8f1b5f7fa956/contrib/contrib_cJSON/cjson/cJSON.c", "licenseFiles": ["librist-cJSON-LICENSE.txt"] },
-    { "name": "librist bundled LZ4 and xxHash", "version": "librist 809390b3b75a259a704079d0fb4d8f1b5f7fa956", "license": "BSD-2-Clause", "source": "https://code.videolan.org/rist/librist/-/tree/809390b3b75a259a704079d0fb4d8f1b5f7fa956/contrib/lz4", "licenseFiles": ["librist-lz4-LICENSE.txt", "librist-xxhash-LICENSE.txt"] },
-    { "name": "librist fast-pbkdf2 and SHA-256 attribution", "version": "librist 809390b3b75a259a704079d0fb4d8f1b5f7fa956", "license": "CC0-1.0 AND LicenseRef-Public-Domain", "source": "https://code.videolan.org/rist/librist/-/tree/809390b3b75a259a704079d0fb4d8f1b5f7fa956/contrib", "licenseFiles": ["CC0-1.0.txt", "librist-fastpbkdf2-NOTICE.txt", "librist-sha256-NOTICE.txt"] },
-    { "name": "SRT", "version": "1.5.2", "license": "MPL-2.0", "source": "https://github.com/Haivision/srt/tree/v1.5.2", "licenseFiles": ["SRT-LICENSE.txt"], "notes": "Required by official FFmpeg dylibs; OBS patches/build scripts are preserved by the pinned obs-deps source reference." },
-    { "name": "Mbed TLS libmbedtls/libmbedcrypto/libmbedx509", "version": "3.6.4", "license": "Apache-2.0", "source": "https://github.com/Mbed-TLS/mbedtls/tree/c765c831e5c2a0971410692f92f7a81d6ec65ec2", "licenseFiles": ["MbedTLS-LICENSE.txt"], "notes": "Apache license choice; full license text is the file supplied in the pinned OBS dependency source. OBS dependency patches are referenced in SOURCE-INFO.md." },
-    { "name": "json11", "version": "vendored in OBS 33.0.0", "license": "MIT", "source": "https://github.com/obsproject/obs-studio/tree/72e86655715d9a25d69ce446aa4dd44ba58e10d2/deps/json11", "licenseFiles": ["json11-LICENSE.txt"] },
-    { "name": "uthash", "version": "obs-deps 2026-10-23", "license": "BSD-1-Clause", "source": "https://github.com/obsproject/obs-deps/tree/cbf0a3d8a0a34c07e822bda22a5f8214f91801d7", "licenseFiles": ["uthash-upstream-LICENSE.txt"] },
-    { "name": "SIMDe headers", "version": "0.8.2", "license": "MIT", "source": "https://github.com/simd-everywhere/simde/tree/71fd833d9666141edcd1d3c109a80e228303d8d7", "licenseFiles": ["SIMDe-COPYING.txt"], "notes": "Build-only compatibility headers used by libobs public includes on arm64." }
+    {
+      "name": "OpenCam.ObsCapture",
+      "version": "1.0.0 (unreleased working tree)",
+      "license": "AGPL-3.0-or-later",
+      "source": "https://github.com/kaoshou/OpenCam",
+      "licenseFiles": [
+        "OpenCam-AGPL-3.0.txt"
+      ],
+      "notes": "Helper source and build scripts are native/obs-capture and scripts/build-obs-capture.* in the matching OpenCam source tree. No source commit or release is claimed for uncommitted changes."
+    },
+    {
+      "name": "OBS Studio libobs and selected official capture/encoder modules",
+      "version": "33.0.0",
+      "license": "GPL-2.0-or-later",
+      "source": "https://github.com/obsproject/obs-studio/tree/72e86655715d9a25d69ce446aa4dd44ba58e10d2",
+      "licenseFiles": [
+        "OBS-COPYING.txt",
+        "OBS-AUTHORS.txt",
+        "uthash-LICENSE.txt"
+      ]
+    },
+    {
+      "name": "FFmpeg libavcodec/libavformat/libavutil/libavfilter/libavdevice/libswscale/libswresample",
+      "version": "8.1.2",
+      "license": "GPL-3.0-or-later",
+      "source": "https://github.com/FFmpeg/FFmpeg/tree/38b88335f99e76ed89ff3c93f877fdefce736c13",
+      "licenseFiles": [
+        "FFmpeg-LICENSE.md",
+        "FFmpeg-COPYING.GPLv2.txt",
+        "FFmpeg-COPYING.LGPLv2.1.txt",
+        "FFmpeg-COPYING.GPLv3.txt",
+        "FFmpeg-COPYING.LGPLv3.txt"
+      ],
+      "notes": "Official runtime libavutil identifies n8.1.2 and enables GPL and version3. Includes x264 plus static aom, Theora, LAME, Opus, Vorbis and VPX. Helper public headers separately use 8.1.3; see source lock and SOURCE-INFO.md."
+    },
+    {
+      "name": "x264",
+      "version": "r3106 eaa68fa",
+      "license": "GPL-2.0-or-later",
+      "source": "https://github.com/mirror/x264/tree/eaa68fad9e5d201d42fde51665f2d137ae96baf0",
+      "licenseFiles": [
+        "x264-COPYING.txt",
+        "x264-AUTHORS.txt"
+      ]
+    },
+    {
+      "name": "librist",
+      "version": "0.2.7",
+      "license": "BSD-2-Clause",
+      "source": "https://code.videolan.org/rist/librist/-/tree/809390b3b75a259a704079d0fb4d8f1b5f7fa956",
+      "licenseFiles": [
+        "librist-COPYING.txt"
+      ],
+      "notes": "Required by the official FFmpeg dylib even though no streaming plugin is packaged. No protocol or network output is enabled by OpenCam."
+    },
+    {
+      "name": "librist bundled cJSON",
+      "version": "librist 809390b3b75a259a704079d0fb4d8f1b5f7fa956",
+      "license": "MIT",
+      "source": "https://code.videolan.org/rist/librist/-/blob/809390b3b75a259a704079d0fb4d8f1b5f7fa956/contrib/contrib_cJSON/cjson/cJSON.c",
+      "licenseFiles": [
+        "librist-cJSON-LICENSE.txt"
+      ]
+    },
+    {
+      "name": "librist bundled LZ4 and xxHash",
+      "version": "librist 809390b3b75a259a704079d0fb4d8f1b5f7fa956",
+      "license": "BSD-2-Clause",
+      "source": "https://code.videolan.org/rist/librist/-/tree/809390b3b75a259a704079d0fb4d8f1b5f7fa956/contrib/lz4",
+      "licenseFiles": [
+        "librist-lz4-LICENSE.txt",
+        "librist-xxhash-LICENSE.txt"
+      ]
+    },
+    {
+      "name": "librist fast-pbkdf2 and SHA-256 attribution",
+      "version": "librist 809390b3b75a259a704079d0fb4d8f1b5f7fa956",
+      "license": "CC0-1.0 AND LicenseRef-Public-Domain",
+      "source": "https://code.videolan.org/rist/librist/-/tree/809390b3b75a259a704079d0fb4d8f1b5f7fa956/contrib",
+      "licenseFiles": [
+        "CC0-1.0.txt",
+        "librist-fastpbkdf2-NOTICE.txt",
+        "librist-sha256-NOTICE.txt"
+      ]
+    },
+    {
+      "name": "SRT",
+      "version": "1.5.2",
+      "license": "MPL-2.0",
+      "source": "https://github.com/Haivision/srt/tree/v1.5.2",
+      "licenseFiles": [
+        "SRT-LICENSE.txt"
+      ],
+      "notes": "Required by official FFmpeg dylibs; OBS patches/build scripts are preserved by the pinned obs-deps source reference."
+    },
+    {
+      "name": "Mbed TLS libmbedtls/libmbedcrypto/libmbedx509",
+      "version": "3.6.4",
+      "license": "Apache-2.0",
+      "source": "https://github.com/Mbed-TLS/mbedtls/tree/c765c831e5c2a0971410692f92f7a81d6ec65ec2",
+      "licenseFiles": [
+        "MbedTLS-LICENSE.txt"
+      ],
+      "notes": "Apache license choice; full license text is the file supplied in the pinned OBS dependency source. OBS dependency patches are referenced in SOURCE-INFO.md."
+    },
+    {
+      "name": "json11",
+      "version": "vendored in OBS 33.0.0",
+      "license": "MIT",
+      "source": "https://github.com/obsproject/obs-studio/tree/72e86655715d9a25d69ce446aa4dd44ba58e10d2/deps/json11",
+      "licenseFiles": [
+        "json11-LICENSE.txt"
+      ]
+    },
+    {
+      "name": "uthash",
+      "version": "obs-deps 2026-10-23",
+      "license": "BSD-1-Clause",
+      "source": "https://github.com/obsproject/obs-deps/tree/cbf0a3d8a0a34c07e822bda22a5f8214f91801d7",
+      "licenseFiles": [
+        "uthash-upstream-LICENSE.txt"
+      ]
+    },
+    {
+      "name": "SIMDe headers",
+      "version": "0.8.2",
+      "license": "MIT",
+      "source": "https://github.com/simd-everywhere/simde/tree/71fd833d9666141edcd1d3c109a80e228303d8d7",
+      "licenseFiles": [
+        "SIMDe-COPYING.txt"
+      ],
+      "notes": "Build-only compatibility headers used by libobs public includes on arm64."
+    },
+    {
+      "name": "aom",
+      "version": "3.13.1",
+      "license": "BSD-2-Clause",
+      "source": "https://github.com/obsproject/obs-deps/blob/cbf0a3d8a0a34c07e822bda22a5f8214f91801d7/deps.ffmpeg/40-aom.zsh",
+      "licenseFiles": [
+        "obs-deps/aom/AUTHORS",
+        "obs-deps/aom/LICENSE",
+        "obs-deps/aom/PATENTS",
+        "obs-deps/aom/fastfeat/LICENSE",
+        "obs-deps/aom/libwebm/AUTHORS.TXT",
+        "obs-deps/aom/libwebm/LICENSE.TXT",
+        "obs-deps/aom/libwebm/PATENTS.TXT",
+        "obs-deps/aom/libyuv/LICENSE",
+        "obs-deps/aom/vector/LICENSE",
+        "obs-deps/aom/x86inc/LICENSE"
+      ],
+      "notes": "Statically included by official macOS FFmpeg. Full retained nested license and patent notices; source inputs and patches are in the corresponding source bundle."
+    },
+    {
+      "name": "libtheora",
+      "version": "1.1.1",
+      "license": "BSD-3-Clause",
+      "source": "https://github.com/obsproject/obs-deps/blob/cbf0a3d8a0a34c07e822bda22a5f8214f91801d7/deps.ffmpeg/50-libtheora.zsh",
+      "licenseFiles": [
+        "obs-deps/libtheora/AUTHORS",
+        "obs-deps/libtheora/COPYING",
+        "obs-deps/libtheora/LICENSE"
+      ],
+      "notes": "Statically included by official macOS FFmpeg. Full retained nested license and patent notices; source inputs and patches are in the corresponding source bundle."
+    },
+    {
+      "name": "lame",
+      "version": "3.100",
+      "license": "LGPL-2.0-or-later",
+      "source": "https://github.com/obsproject/obs-deps/blob/cbf0a3d8a0a34c07e822bda22a5f8214f91801d7/deps.ffmpeg/60-lame.zsh",
+      "licenseFiles": [
+        "obs-deps/lame/COPYING",
+        "obs-deps/lame/mpglib/AUTHORS",
+        "obs-deps/lame/mpglib/README"
+      ],
+      "notes": "Statically included by official macOS FFmpeg. Full retained nested license and patent notices; source inputs and patches are in the corresponding source bundle."
+    },
+    {
+      "name": "opus",
+      "version": "1.5.2",
+      "license": "BSD-3-Clause",
+      "source": "https://github.com/obsproject/obs-deps/blob/cbf0a3d8a0a34c07e822bda22a5f8214f91801d7/deps.ffmpeg/20-opus.zsh",
+      "licenseFiles": [
+        "obs-deps/opus/AUTHORS",
+        "obs-deps/opus/COPYING",
+        "obs-deps/opus/LICENSE_PLEASE_READ.txt"
+      ],
+      "notes": "Statically included by official macOS FFmpeg. Full retained nested license and patent notices; source inputs and patches are in the corresponding source bundle."
+    },
+    {
+      "name": "libogg",
+      "version": "1.3.5",
+      "license": "BSD-3-Clause",
+      "source": "https://github.com/obsproject/obs-deps/blob/cbf0a3d8a0a34c07e822bda22a5f8214f91801d7/deps.ffmpeg/30-libogg.zsh",
+      "licenseFiles": [
+        "obs-deps/libogg/AUTHORS",
+        "obs-deps/libogg/COPYING"
+      ],
+      "notes": "Statically included by official macOS FFmpeg. Full retained nested license and patent notices; source inputs and patches are in the corresponding source bundle."
+    },
+    {
+      "name": "libvorbis",
+      "version": "1.3.7",
+      "license": "BSD-3-Clause",
+      "source": "https://github.com/obsproject/obs-deps/blob/cbf0a3d8a0a34c07e822bda22a5f8214f91801d7/deps.ffmpeg/30-libvorbis.zsh",
+      "licenseFiles": [
+        "obs-deps/libvorbis/AUTHORS",
+        "obs-deps/libvorbis/COPYING"
+      ],
+      "notes": "Statically included by official macOS FFmpeg. Full retained nested license and patent notices; source inputs and patches are in the corresponding source bundle."
+    },
+    {
+      "name": "libvpx",
+      "version": "1.14.1",
+      "license": "BSD-3-Clause",
+      "source": "https://github.com/obsproject/obs-deps/blob/cbf0a3d8a0a34c07e822bda22a5f8214f91801d7/deps.ffmpeg/30-libvpx.zsh",
+      "licenseFiles": [
+        "obs-deps/libvpx/AUTHORS",
+        "obs-deps/libvpx/LICENSE",
+        "obs-deps/libvpx/PATENTS",
+        "obs-deps/libvpx/libwebm/AUTHORS.TXT",
+        "obs-deps/libvpx/libwebm/LICENSE.TXT",
+        "obs-deps/libvpx/libwebm/PATENTS.TXT",
+        "obs-deps/libvpx/libyuv/LICENSE",
+        "obs-deps/libvpx/x86inc/LICENSE"
+      ],
+      "notes": "Statically included by official macOS FFmpeg. Full retained nested license and patent notices; source inputs and patches are in the corresponding source bundle."
+    },
+    {
+      "name": "jansson",
+      "version": "2.14.1",
+      "license": "MIT",
+      "source": "https://github.com/akheron/jansson/tree/96d160df90016066d04d493d1d69639474ba4f20",
+      "licenseFiles": [
+        "obs-deps/jansson/LICENSE"
+      ],
+      "notes": "libobs links Jansson; matching macOS recipe is deps.macos/30-jansson.zsh in the pinned obs-deps source."
+    }
   ]
 }

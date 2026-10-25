@@ -34,11 +34,11 @@ The standalone FFmpeg/ffprobe tools support audio checks, editing preview, media
 FFmpeg is Copyright (c) the FFmpeg developers; x264 is Copyright (c) the x264 project contributors. FFmpeg/ffprobe run as separate executables. Official build scripts enable GPL components including libx264, so describing these binaries simply as LGPL is incorrect. FFmpeg's upstream explanation is retained in `FFmpeg-LICENSE.md`; GPL texts and x264's COPYING are also supplied. The bundled executables' `-L` and `-version` output is retained in `third-party/ffmpeg/`.
 
 - macOS build inputs: FFmpeg 7.1.2 and x264 commit `b35605ace3ddf7c1a5d67a2eb553f034aef41d55`, with checksum-verified source archives in `scripts/build-ffmpeg-macos-arm64.sh`. The configuration enables GPL and libx264, not `--enable-version3`. Package license output is authoritative for the built executable, not a generic LGPL/GPL label.
-- Windows input: the pinned BtbN `ffmpeg-n8.1.3-9-g29e619e767-win64-gpl-8.1.zip` build in `scripts/install-windows-ffmpeg.ps1`. Its enabled external libraries can differ from macOS. Preserve the upstream archive's notices and inspect its actual configuration; the macOS x264 source pin does not describe this Windows binary.
+- Windows release inputs: OpenCam builds FFmpeg 8.1.3 from the checksummed inputs in `scripts/windows-media-sources.lock.json`, with x264, dav1d, nv-codec-headers, AMF headers and libvpl. The source bundle retains each input, the MinGW libvpl patch, build recipe, configuration and license output. NVENC/QSV/AMF probing remains available; actual hardware support depends on the installed driver. The older BtbN installer script is a legacy CI prerequisite, not the Windows release binary supplier.
 
-**Release source-provision gate / 發布前原始碼提供檢核：** License/attribution files alone do not establish GPL distribution compliance. Before release, provide the complete corresponding FFmpeg and enabled GPL-library sources, applicable patches and build information using a license-compliant method. The macOS build preserves its downloaded source archives and build script with its notices. For the Windows third-party build, complete corresponding-source coverage still requires verification; an upstream homepage or OpenCam's own `SOURCE.txt` is not a substitute. Until that verification is recorded, do not claim this notice update completes the release licensing audit.
+**Release source-provision gate / 發布前原始碼提供檢核：** The release workflow verifies actual source archives and their hashes before publishing. `Windows-Media-SOURCES.tar.gz` and `macOS-Media-SOURCES.tar.gz` retain the corresponding standalone-tool inputs and recipes. `SOURCE-COVERAGE.json` and `SOURCE-INDEX.txt` identify these assets and their coverage. User packages keep license/configuration evidence and source-download information without embedding the large source archives. Attribution or a source homepage alone is not a substitute for this delivery; automated checks are not a legal certification.
 
-Reference: https://ffmpeg.org/legal.html ; https://github.com/BtbN/FFmpeg-Builds ; https://code.videolan.org/videolan/x264
+Reference: https://ffmpeg.org/legal.html ; https://code.videolan.org/videolan/x264
 
 ## OBS / libobs recording runtime
 
@@ -48,6 +48,8 @@ The recording runtime has a separate package-specific inventory: `obs-runtime/li
 
 OBS/libobs 錄影核心及其相依元件保留原作者版權與授權。FFmpeg 除了作為獨立影音處理工具，亦可能以函式庫形式包含於錄影核心；不得宣稱本程式已完全移除 FFmpeg。OpenCam 並非 OBS Project 官方產品。
 
-Before publication, provide corresponding sources, required dependency patches and build information for the actual distributed runtime as required by its licenses. A source revision, website link or this notice alone is not completion of that release gate. Retain both runtime and standalone-tool source inventories.
+`OBS-SOURCES.tar.gz` supplies the pinned OBS/dependency recipes, patches, source archives and required recursive submodule sources. The deployed OBS FFmpeg libraries identify n8.1.2 (GPL-3.0-or-later); the separate 8.1.3 helper-header source pin does not describe those libraries. The runtime inventory also identifies static codec dependencies. Publication requires the generated source-coverage manifest and verified archive hashes, not this notice alone.
+
+Windows packages also carry the required unmodified, authenticated Microsoft Visual C++ release runtime beside the OBS helper. Its separate Microsoft license and provenance are retained in `obs-runtime/licenses/`; OpenCam's AGPL and OBS's GPL do not relicense these DLLs. Users do not need to locate or install them separately.
 
 Upstream: https://github.com/obsproject/obs-studio/tree/72e86655715d9a25d69ce446aa4dd44ba58e10d2

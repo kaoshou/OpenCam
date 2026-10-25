@@ -2,6 +2,8 @@
 
 Status: **NOT RELEASED / NOT MERGED**. Version remains 1.0.0. Preparation does not authorize bypassing source-delivery requirements.
 
+This is the earlier preparation snapshot. Subsequent remediation is tracked in `docs/superpowers/plans/2026-10-26-self-contained-release.md`: owned Windows FFmpeg, bundled authenticated Microsoft CRT, corresponding-source archives, immutable upload resumption and formal package metadata have been implemented. Their final build/review/publication results must be recorded separately; the historical findings below are not current unresolved-status assertions.
+
 ## Completed preparation
 
 - README and generated website/manual replace the 0.4 introductions with OBS/libobs recording, direct teaching pointers, accessible Web player and transcripts.

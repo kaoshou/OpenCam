@@ -41,7 +41,7 @@ OpenCam 是 Windows 與 macOS 桌面螢幕錄影工具，讓你錄影、剪輯�
 | Windows | Windows 10／11，x64 | Setup 安裝版、Portable 便攜版 |
 | macOS | macOS 13 以上，Apple Silicon／arm64 | DMG；不適用 Intel Mac |
 
-到 [最新 Release](https://github.com/kaoshou/OpenCam/releases/latest) 下載。套件包含 .NET Runtime 與媒體工具。Windows 錄影另需 [Microsoft Visual C++ v14 Redistributable x64](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist)；缺少時會顯示安裝／修復指引，請勿從非官方網站單獨下載 DLL。
+到 [最新 Release](https://github.com/kaoshou/OpenCam/releases/latest) 下載。套件包含 .NET Runtime 與媒體工具。Windows 錄影所需的 Microsoft Visual C++ 執行階段隨套件附上，不需另外安裝或尋找 DLL。
 
 - **Windows 安裝版**：執行 `OpenCam_v1.0.0_Windows_x64_Setup.exe`。
 - **Windows 便攜版**：完整解壓 `OpenCam_v1.0.0_Windows_x64_Portable.zip`，保留同資料夾的所有檔案，再執行 `OpenCam.exe`。
@@ -133,7 +133,7 @@ OpenCam is a desktop screen recorder for Windows and macOS. Record, edit, and co
 | Windows | Windows 10/11, x64 | Setup installer or Portable ZIP |
 | macOS | macOS 13+, Apple Silicon/arm64 | DMG; not for Intel Macs |
 
-Download from the [latest Release](https://github.com/kaoshou/OpenCam/releases/latest). Packages include .NET Runtime and media tools. Windows recording also requires [Microsoft Visual C++ v14 Redistributable x64](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist). Missing DLLs produce an install/repair diagnostic; do not download individual DLLs from unofficial sites.
+Download from the [latest Release](https://github.com/kaoshou/OpenCam/releases/latest). Packages include .NET Runtime and media tools. The required Windows Microsoft Visual C++ recording runtime is bundled app-locally; no separate runtime installation or DLL download is needed.
 
 - **Windows installer**: Run `OpenCam_v1.0.0_Windows_x64_Setup.exe`.
 - **Windows portable**: Fully extract `OpenCam_v1.0.0_Windows_x64_Portable.zip`, keep all companion files together, then run `OpenCam.exe`.

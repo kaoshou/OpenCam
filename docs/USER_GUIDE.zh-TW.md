@@ -123,7 +123,7 @@ Windows 與 macOS 使用 OBS／libobs 核心：Windows 使用 Windows Graphics C
 
 ### Windows 畫面擷取
 
-Windows 錄影需 [Microsoft Visual C++ v14 Redistributable x64](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist)。未安裝時會在錄影前提示缺少的執行階段檔案與官方安裝連結；安裝或修復後重新開啟 OpenCam，不要單獨從第三方網站下載 DLL。
+Windows 錄影所需的 Microsoft Visual C++ 執行階段隨套件提供；安裝版安裝完成即可使用，免安裝版完整解壓即可執行，不需另外安裝編碼器或下載 DLL。若提示套件缺檔，請重新下載並完整解壓，不要單獨替換 DLL。
 
 由 OBS 核心處理選定螢幕與音源，不需選 GDI／桌面擷取模式。顯示器配置或裝置變更前先停止錄影；若擷取中斷，保留專案與 MKV，依錯誤訊息處理，不要覆蓋原始素材。
 

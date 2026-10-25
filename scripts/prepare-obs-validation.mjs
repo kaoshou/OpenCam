@@ -75,24 +75,26 @@ export async function assembleWindowsObsNotices(destination,{obsSource,ffmpegSou
   if(await exists(destination))throw new Error('Notice destination already exists');
   const common=join(repository,'third-party/obs-runtime');
   const inventory=JSON.parse(await readFile(join(common,'inventory.json'),'utf8'));
+  // Platform recipes differ; replace macOS static codec entries below with Windows recipes.
+  inventory.components=inventory.components.filter(c=>!['aom','libtheora','lame','opus','libogg','libvorbis','libvpx','jansson'].includes(c.name));
   await mkdir(destination);
   for(const name of await readdir(common))if(name.endsWith('.txt')||name==='FFmpeg-LICENSE.md')await copyTree(join(common,name),join(destination,name));
   for(const name of ['COPYING.GPLv3','COPYING.LGPLv3'])await copyTree(join(ffmpegSource,name),join(destination,`FFmpeg-${name}.txt`));
   inventory.platform='win-x64';inventory.runtimeArtifact=dependencyLock.windowsRuntime;
   inventory.components.find(c=>c.name.startsWith('FFmpeg ')).license='GPL-3.0-or-later';
   const ffmpeg=inventory.components.find(c=>c.name.startsWith('FFmpeg '));
-  ffmpeg.licenseFiles.push('FFmpeg-COPYING.GPLv3.txt','FFmpeg-COPYING.LGPLv3.txt');
+  ffmpeg.licenseFiles=[...new Set([...ffmpeg.licenseFiles,'FFmpeg-COPYING.GPLv3.txt','FFmpeg-COPYING.LGPLv3.txt'])];
   ffmpeg.notes='Official Windows x64 DLL configure string enables GPL and version3, with static aom, SVT-AV1, Theora, LAME, Opus, Vorbis and VPX. Their complete notice trees are copied below.';
   const depsRevision=dependencyLock.sources.obsDeps.revision;
   const packages=[
-    ['aom','3.13.1','BSD-2-Clause','deps.ffmpeg/40-aom.zsh'],
-    ['svt-av1','2.3.0','BSD-3-Clause-Clear','deps.ffmpeg/30-svt-av1.zsh'],
-    ['libtheora','1.1.1','BSD-3-Clause','deps.ffmpeg/50-libtheora.zsh'],
-    ['lame','3.100','LGPL-2.0-or-later','deps.ffmpeg/60-lame.zsh'],
-    ['opus','1.5.2','BSD-3-Clause','deps.ffmpeg/20-opus.zsh'],
-    ['libogg','1.3.5','BSD-3-Clause','deps.ffmpeg/30-libogg.zsh'],
-    ['libvorbis','1.3.7','BSD-3-Clause','deps.ffmpeg/30-libvorbis.zsh'],
-    ['libvpx','1.14.1','BSD-3-Clause','deps.ffmpeg/30-libvpx.zsh'],
+    ['aom','3.13.1','BSD-2-Clause','deps.ffmpeg/40-aom.ps1'],
+    ['svt-av1','2.3.0','BSD-3-Clause-Clear','deps.ffmpeg/30-svt-av1.ps1'],
+    ['libtheora','1.1.1','BSD-3-Clause','deps.ffmpeg/50-libtheora.ps1'],
+    ['lame','3.100','LGPL-2.0-or-later','deps.ffmpeg/60-lame.ps1'],
+    ['opus','1.5.2','BSD-3-Clause','deps.ffmpeg/20-opus.ps1'],
+    ['libogg','1.3.5','BSD-3-Clause','deps.ffmpeg/30-libogg.ps1'],
+    ['libvorbis','1.3.7','BSD-3-Clause','deps.ffmpeg/30-libvorbis.ps1'],
+    ['libvpx','1.14.1','BSD-3-Clause','deps.ffmpeg/30-libvpx.ps1'],
     ['amf','obs-deps 2026-10-23','MIT','deps.ffmpeg/80-amf.ps1'],
     ['nv-codec-headers','obs-deps 2026-10-23','MIT','deps.ffmpeg/70-nv-codec.ps1'],
     ['vpl','obs-deps 2026-10-23','MIT','deps.windows/70-vpl.ps1'],
@@ -113,7 +115,7 @@ export async function assembleWindowsObsNotices(destination,{obsSource,ffmpegSou
     'Microsoft VC runtime vcruntime140.dll, vcruntime140_1.dll and msvcp140.dll installed in SystemDirectory; these DLLs are not redistributed by this validation runtime'];
   inventory.components[1].notes='Selected libobs modules; full upstream Windows win-capture entry is excluded. OpenCam builds only pinned duplicator-monitor-capture.c and cursor-capture.c with its owned display-only module entry, excluding game hooks/updaters.';
   await writeFile(join(destination,'inventory.json'),JSON.stringify(inventory,null,2)+'\n',{flag:'wx'});
-  await writeFile(join(destination,'SOURCE-INFO.md'),`# Windows OBS core validation provenance\n\nDevelopment validation only; runtime remains disabled.\n\nOBS binary: ${dependencyLock.windowsRuntime.url}\nSHA-256: ${dependencyLock.windowsRuntime.sha256}\n\nOBS/dependency source pins and upstream recipe links are in inventory.json and scripts/obs-dependencies.lock.json. Preserve corresponding source and patches with any later binary distribution. The host-installed Microsoft VC redistributable is a prerequisite, not an included payload.\n\nThe display-only capture module is compiled from the two pinned OBS display/cursor source files plus native/obs-capture/windows-display-module.c in the exact OpenCam validation commit. It never links the upstream hook/updater module entry. GPU probe executables and their exact imported DLL closure are explicit inputs. No OBS UI, browser or game injection payload is staged.\n`,{flag:'wx'});
+  await writeFile(join(destination,'SOURCE-INFO.md'),`# Windows OBS core validation provenance\n\nRuntime source provenance. Assembly produces a disabled stage; verified application packaging activates its own copy.\n\nOBS binary: ${dependencyLock.windowsRuntime.url}\nSHA-256: ${dependencyLock.windowsRuntime.sha256}\n\nOBS/dependency source pins and upstream recipe links are in inventory.json and scripts/obs-dependencies.lock.json. Preserve corresponding source and patches with any later binary distribution. Official packages include authenticated, unmodified app-local Microsoft release CRT files beside the helper; their full VS2022 license and signed-file provenance are inventoried separately. No SystemDirectory DLLs are copied.\n\nThe display-only capture module is compiled from the two pinned OBS display/cursor source files plus native/obs-capture/windows-display-module.c in the exact OpenCam validation commit. It never links the upstream hook/updater module entry. GPU probe executables and their exact imported DLL closure are explicit inputs. No OBS UI, browser or game injection payload is staged.\n`,{flag:'wx'});
   return inventory;
 }
 export async function prepareObsValidation(destination,{archivePath}={}) {

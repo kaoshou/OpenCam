@@ -38,6 +38,7 @@ jobs:
         cache-dependency-path: website/package-lock.json
     - name: Install FFmpeg test prerequisites
       run: |
+        if command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null; then exit 0; fi
         sudo apt-get update
         sudo apt-get install -y ffmpeg
     - name: Record test environment
@@ -190,8 +191,22 @@ jobs:
         name: OpenCam-v${{ env.OPENCAM_VERSION }}-macOS-arm64
         path: release-assets/macos
 
+    - uses: actions/download-artifact@v4
+      with:
+        name: obs-corresponding-sources-${{ github.sha }}
+        path: source-inputs/obs
+    - uses: actions/download-artifact@v4
+      with:
+        name: owned-windows-media-${{ github.sha }}
+        path: source-inputs/windows
+    - uses: actions/download-artifact@v4
+      with:
+        name: macos-media-sources-${{ github.sha }}
+        path: source-inputs/macos
     - name: Require reviewed corresponding-source delivery before publication
-      run: node scripts/check-release-source-provision.mjs release-assets/sources
+      run: |
+        node scripts/assemble-release-sources.mjs release-assets/sources source-inputs/obs source-inputs/windows source-inputs/macos
+        node scripts/check-release-source-provision.mjs release-assets/sources
 
     - name: Create or Update GitHub Release
       shell: bash
@@ -209,7 +224,7 @@ jobs:
         upload_asset() {
           local asset="$1"
           for attempt in 1 2 3; do
-            if gh release upload "$RELEASE_TAG" "$asset" ; then
+            if node scripts/upload-release-asset.mjs "$RELEASE_TAG" "$asset"; then
               return 0
             fi
             if [ "$attempt" -eq 3 ]; then
@@ -222,4 +237,5 @@ jobs:
         upload_asset "release-assets/windows/installer/Output/$WINDOWS_SETUP"
         upload_asset "release-assets/windows/$WINDOWS_PORTABLE"
         upload_asset "release-assets/macos/$MACOS_DMG"
+        for source in release-assets/sources/*; do upload_asset "$source"; done
         gh release edit "$RELEASE_TAG" --draft=false --latest

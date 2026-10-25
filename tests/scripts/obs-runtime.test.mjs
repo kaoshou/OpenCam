@@ -86,6 +86,9 @@ test('stages dependency closure with exhaustive hashes and no browser/frontend r
   }
   await check(f.destination);
   assert.deepEqual(JSON.parse(await readFile(join(f.destination, 'runtime.json'), 'utf8')), manifest);
+  const plist=await readFile(join(f.destination,'Contents/Info.plist'),'utf8');
+  const version=(await readFile(new URL('../../VERSION',import.meta.url),'utf8')).trim();
+  assert.ok(plist.includes(`<key>CFBundleShortVersionString</key><string>${version}</string>`));
 });
 test('refuses to overwrite an existing runtime directory', async t => {
   const f = await fixture(t); await mkdir(f.destination); await writeFile(join(f.destination, 'sentinel'), 'original');

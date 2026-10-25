@@ -30,3 +30,6 @@ Goal: verified, easy-to-use Windows/macOS Release packages with actual correspon
 
 - User explicitly approved controlled Windows FFmpeg distribution and all necessary release completion work.
 - Main implements Windows tools/runtime/publication; independent source agent implements collector/OBS inventory. No overlapping files.
+- Implemented owned media tools, app-local CRT, recursive source collection and release archive validation. Local website tests: 43 passed; script/player tests: 113 passed, 2 skipped. Windows owned-tool compilation and full managed verification are still pending; no release or merge has occurred.
+- Final read-only review requested before integration. Official packages and actual source assembly must pass before publication; source policy approval alone does not satisfy this gate.
+- Final read-only review found no confirmed Critical/Important issue. Fresh local full managed result: Core 358 passed, Media 1378 passed / 23 skipped / 0 failed. NuGet audit reported no known vulnerable packages. AppKit relocation test requires normal desktop execution and passed outside the filesystem sandbox; its sandbox SIGABRT was retained in the run log, not hidden by a test change.

@@ -50,6 +50,8 @@ Source: ".\publish\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: ".\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [InstallDelete]
+; Known obsolete executable only; never remove recordings or project files.
+Type: files; Name: "{app}\OpenCam.ScreenCapture.exe"
 ; 僅移除舊版安裝程式建立的捷徑，避免升級後同時出現兩種名稱
 Type: files; Name: "{autoprograms}\OpenCam 螢幕錄影工具\OpenCam 螢幕錄影工具.lnk"
 Type: files; Name: "{autoprograms}\OpenCam 螢幕錄影工具\解除安裝 OpenCam 螢幕錄影工具.lnk"

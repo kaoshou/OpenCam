@@ -8,11 +8,42 @@ on:
         type: boolean
         default: false
   workflow_dispatch:
+    inputs:
+      release_package:
+        description: Build official packages without publishing a Release
+        type: boolean
+        default: false
   push:
     branches: [codex/libobs-core-validation-20261025]
 permissions:
   contents: read
 jobs:
+  obs-source-delivery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - uses: actions/cache@v4
+        id: source-cache
+        with:
+          path: |
+            obs-sources/OBS-SOURCES.tar.gz
+            obs-sources/OBS-SOURCES.json
+          key: obs-source-${{ hashFiles('scripts/collect-obs-corresponding-sources.mjs', 'scripts/obs-corresponding-sources.lock.json') }}
+      - name: Preserve pinned OBS dependency source recipes patches and recursive submodules
+        if: steps.source-cache.outputs.cache-hit != 'true'
+        run: node scripts/collect-obs-corresponding-sources.mjs obs-sources
+      - uses: actions/upload-artifact@v4
+        with:
+          name: obs-corresponding-sources-${{ github.sha }}
+          path: |
+            obs-sources/OBS-SOURCES.tar.gz
+            obs-sources/OBS-SOURCES.json
+          if-no-files-found: error
+          retention-days: 14
   windows-media-tools:
     runs-on: windows-2022
     timeout-minutes: 60
@@ -107,6 +138,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Managed OBS adapter tests failed.' }
       - name: Test explicit user-test runtime staging safeguards
         run: node --test tests/scripts/obs-user-test-package.test.mjs tests/scripts/third-party-notice-profile.test.mjs tests/web-player/player.test.mjs
+      - name: Run full Windows regression using the owned media tools
+        shell: pwsh
+        run: |
+          dotnet test ScreenRecorder.sln -c Release -m:1 /nodeReuse:false --logger trx --results-directory obs-results/full-managed
+          if ($LASTEXITCODE -ne 0) { throw 'Owned media full Windows regression failed.' }
       - name: Publish Windows portable user-test application
         shell: pwsh
         run: |
@@ -114,6 +150,9 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Windows user-test application publish failed.' }
           Copy-Item "$env:OPENCAM_VALIDATION_FFMPEG\ffmpeg.exe", "$env:OPENCAM_VALIDATION_FFMPEG\ffprobe.exe" user-test-package
           Copy-Item "$env:OPENCAM_VALIDATION_FFMPEG\ffmpeg-notices" user-test-package -Recurse
+          # Full source archives have their own Release download; keep user packages compact.
+          Get-ChildItem user-test-package/ffmpeg-notices/sources -File -Filter '*.archive' | Remove-Item
+          Add-Content user-test-package/ffmpeg-notices/SOURCE-STATUS.txt "`nFull corresponding archives: Windows-Media-SOURCES.tar.gz on the matching OpenCam Release."
           Copy-Item LICENSE user-test-package/LICENSE
           Copy-Item NOTICE.md user-test-package/NOTICE.md
           $version = (Get-Content VERSION -Raw).Trim()
@@ -126,7 +165,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'User-test application notices failed.' }
           node scripts/prepare-obs-user-test-package.mjs obs-results/runtime user-test-package $env:GITHUB_SHA $version --enable-user-test-only --native-only
           if ($LASTEXITCODE -ne 0) { throw 'Explicit user-test runtime staging failed.' }
-          Add-Content user-test-package/THIRD-PARTY-NOTICES.md "`n## User-test recording core`nAdditional full notices and corresponding sources: obs-runtime/licenses/SOURCE-INFO.md and obs-runtime/licenses/inventory.json."
+          Add-Content user-test-package/THIRD-PARTY-NOTICES.md "`n## OBS recording core`nAdditional full notices and corresponding sources: obs-runtime/licenses/SOURCE-INFO.md and obs-runtime/licenses/inventory.json."
           Copy-Item docs/testing/windows-obs-test.zh-TW.txt user-test-package/README-TEST.zh-TW.txt
           node scripts/check-release-notices.mjs user-test-package $env:GITHUB_SHA $version
           if ($LASTEXITCODE -ne 0) { throw 'User-test source/license verification failed.' }
@@ -205,6 +244,7 @@ jobs:
             obs-results/*.log
             obs-results/native/
             obs-results/managed/
+            obs-results/full-managed/
             obs-results/packaged-managed/
             obs-results/build/CMakeCache.txt
             obs-results/build/CMakeFiles/CMakeConfigureLog.yaml
@@ -234,8 +274,18 @@ jobs:
         run: dotnet publish src/ScreenRecorder.UI/ScreenRecorder.UI.csproj -c Release -r osx-arm64 --self-contained true -p:OpenCamNativeOnlyTest=true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o "$RUNNER_TEMP/publish"
       - name: Build self-contained preview and export tools
         run: bash scripts/build-ffmpeg-macos-arm64.sh "$RUNNER_TEMP/publish"
+      - name: Preserve exact macOS media-tool sources independently
+        run: tar -czf macOS-Media-SOURCES.tar.gz -C "$RUNNER_TEMP/publish" ffmpeg-notices
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-media-sources-${{ github.sha }}
+          path: macOS-Media-SOURCES.tar.gz
+          if-no-files-found: error
+          retention-days: 14
       - name: Package and validate macOS application
         run: |
+          find "$RUNNER_TEMP/publish/ffmpeg-notices/sources" -type f \( -name '*.tar.gz' -o -name '*.tar.xz' \) -delete
+          printf '\nFull corresponding archives: macOS-Media-SOURCES.tar.gz on the matching OpenCam Release.\n' > "$RUNNER_TEMP/publish/ffmpeg-notices/SOURCE-STATUS.txt"
           profile=--native-only-user-test
           if [ "${{ inputs.release_package }}" = true ]; then profile=--native-only-release; fi
           bash scripts/package-macos.sh "$RUNNER_TEMP/publish" "$RUNNER_TEMP/bundle/OpenCam.app" Release "$profile" "$RUNNER_TEMP/obs-runtime"
@@ -296,6 +346,7 @@ jobs:
       - name: Install Ubuntu FFmpeg test prerequisites
         if: runner.os == 'Linux'
         run: |
+          if command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null; then exit 0; fi
           sudo apt-get update
           sudo apt-get install -y ffmpeg
       - name: Install macOS FFmpeg test prerequisites

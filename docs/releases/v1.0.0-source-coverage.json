@@ -1,11 +1,12 @@
 {
   "version": "1.0.0",
-  "status": "pending",
-  "reviewedBy": null,
-  "archives": [],
-  "remaining": [
-    "OBS Windows and macOS: preserve full matching dependency sources, applied upstream patches and build material beside binary downloads.",
-    "Windows standalone BtbN FFmpeg: verify exact sources and patches of enabled GPL libraries; upstream release has binary assets and checksums but no corresponding-source asset.",
-    "macOS standalone FFmpeg: preserve and index the source archives already bundled by build-ffmpeg-macos-arm64.sh."
+  "status": "policy-approved",
+  "reviewedBy": "OpenCam 2026-10-26 pinned recipe/source inventory review",
+  "deliveryManifest": "SOURCE-COVERAGE.json",
+  "checks": [
+    "OBS Windows/macOS actual n8.1.2 runtime versus n8.1.3 helper-header source roles verified independently.",
+    "OBS dependency recipes, patches, archive hashes and recursive source gitlinks are delivered.",
+    "Windows media tools are owned source builds with preserved inputs, VPL patch, configuration and toolchain license exceptions.",
+    "macOS media source archives and matching recipe are delivered. Per-build archive SHA-256 values are checked before publication."
   ]
 }

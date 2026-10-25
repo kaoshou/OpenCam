@@ -239,6 +239,7 @@ export async function assembleObsRuntime(destination, { source, helper, licenses
   }
   await addTree(licenseRoot, 'licenses', licenseRoot);
   if (platform === 'osx-arm64') {
+    const productVersion=(await readFile(new URL('../VERSION',import.meta.url),'utf8')).trim();
     // AppKit requires standard Contents/MacOS layout and owned main-bundle metadata.
     inputs.set('Contents/Info.plist', { mode: 0o644, data: Buffer.from(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -247,8 +248,8 @@ export async function assembleObsRuntime(destination, { source, helper, licenses
 <key>CFBundleName</key><string>OpenCam Recording Helper</string>
 <key>CFBundleExecutable</key><string>OpenCam.ObsCapture</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.4.1</string>
-<key>CFBundleVersion</key><string>0.4.1</string>
+<key>CFBundleShortVersionString</key><string>${productVersion}</string>
+<key>CFBundleVersion</key><string>${productVersion}</string>
 <key>LSUIElement</key><true/>
 <key>NSHighResolutionCapable</key><true/>
 <key>NSMicrophoneUsageDescription</key><string>OpenCam records the microphone you select for your recording.</string>

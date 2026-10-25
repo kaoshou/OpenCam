@@ -124,7 +124,7 @@ These illustrations show v0.3.5. See this guide for current features. Select an 
 ### Windows
 
 - Windows 10 or Windows 11, x64.
-- Installer and portable packages include .NET and media tools. Windows recording additionally requires [Microsoft Visual C++ v14 Redistributable x64](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist). Missing files are diagnosed before recording; install or repair the official package and restart OpenCam.
+- Installer and portable packages include .NET and media tools. The required Microsoft Visual C++ recording runtime is included app-locally on Windows. Install normally or fully extract the portable ZIP; no separate codec/runtime installation is needed. If package files are missing, re-download the complete package rather than replacing individual DLLs.
 - Download `OpenCam_v1.0.0_Windows_x64_Setup.exe` or `OpenCam_v1.0.0_Windows_x64_Portable.zip` from [Releases](https://github.com/kaoshou/OpenCam/releases). Filenames identify the version, Windows platform, and x64 architecture.
 - System audio uses Windows loopback capture. A microphone can be selected in OpenCam.
 

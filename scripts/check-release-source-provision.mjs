@@ -8,7 +8,12 @@ import { pathToFileURL } from 'node:url';
 // This validates a recorded source-delivery review, not legal sufficiency.
 export async function checkReleaseSources(coverage, artifactRoot = 'release-assets/sources') {
   const version = (await readFile(new URL('../VERSION',import.meta.url),'utf8')).trim();
-  coverage ??= JSON.parse(await readFile(new URL(`../docs/releases/v${version}-source-coverage.json`,import.meta.url),'utf8'));
+  if(!coverage){
+    const policy=JSON.parse(await readFile(new URL(`../docs/releases/v${version}-source-coverage.json`,import.meta.url),'utf8'));
+    if(policy.status!=='policy-approved')throw Error('Release source coverage is pending.');
+    coverage=JSON.parse(await readFile(join(artifactRoot,policy.deliveryManifest)));
+    if(coverage.reviewedBy!==policy.reviewedBy)throw Error('Wrong source delivery review policy');
+  }
   if (coverage.status !== 'reviewed' || coverage.version !== version || !coverage.reviewedBy)
     throw Error('Release source coverage is pending: verify actual corresponding sources and patches before publishing binaries.');
   const required = new Set(['obs-windows','obs-macos','ffmpeg-tools-windows','ffmpeg-tools-macos']);
