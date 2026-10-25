@@ -30,7 +30,7 @@ if [[ ! -d "$obs_runtime/Contents/Frameworks/libobs.framework" ]]; then echo 'Ex
 if [[ $# -eq 7 && -e "$6" ]]; then echo 'Stage directory already exists' >&2; exit 1; fi
 script_directory=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 cmake -S "$script_directory/../native/obs-capture" -B "$build_directory" \
-  -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 \
+  -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
   -DOBS_SOURCE="$obs_source" -DOBS_RUNTIME="$obs_runtime" \
   -DFFMPEG_HEADERS="$ffmpeg_headers" -DSIMDE_HEADERS="$simde_headers"
 cmake --build "$build_directory" --config Release --parallel 2

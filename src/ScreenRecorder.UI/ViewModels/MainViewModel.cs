@@ -98,7 +98,7 @@ public partial class MainViewModel : ObservableObject
     private string _bookmarkHotkeyKey = "M";
     private string _videoQualityPreset = "Standard";
     private WindowsCaptureMode _windowsCaptureMode = WindowsCaptureMode.Automatic;
-    private bool _nativeCaptureEnabled;
+    private bool _nativeCaptureEnabled = OperatingSystem.IsMacOS() && RecordingBuildProfile.NativeOnlyTest;
     private double _diskWarningThresholdGb = 2.0;
     private double _diskCriticalThresholdMb = 500.0;
     private long _activeDiskWarningThresholdBytes = RecordingConfiguration.DefaultDiskWarningThresholdBytes;
@@ -982,7 +982,7 @@ public partial class MainViewModel : ObservableObject
             _bookmarkHotkeyKey = s.BookmarkHotkeyKey;
             _videoQualityPreset = s.VideoQualityPreset;
             _windowsCaptureMode = RecordingBuildProfile.NativeOnlyTest ? WindowsCaptureMode.Automatic : s.WindowsCaptureMode;
-            _nativeCaptureEnabled = !OperatingSystem.IsWindows() && s.NativeCaptureEnabled;
+            _nativeCaptureEnabled = NormalizeNativeCapturePreference(s.NativeCaptureEnabled);
             OnPropertyChanged(nameof(ShowCaptureStatus));
             _openFolderOnFinished = s.OpenFolderOnFinished;
             _deleteWorkingFileAfterRemux = s.DeleteWorkingFileAfterSuccessfulRemux;
@@ -1200,6 +1200,9 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    private static bool NormalizeNativeCapturePreference(bool requested) => !OperatingSystem.IsWindows() &&
+        (requested || OperatingSystem.IsMacOS() && RecordingBuildProfile.NativeOnlyTest);
+
     public void ApplyNewSettings(UserSettings newSettings)
     {
         _webPlayerLanguages = newSettings.WebPlayerLanguages;
@@ -1214,7 +1217,7 @@ public partial class MainViewModel : ObservableObject
         _videoQualityPreset = newSettings.VideoQualityPreset;
         if (CanEditRecordingSettings) _windowsCaptureMode = RecordingBuildProfile.NativeOnlyTest
             ? WindowsCaptureMode.Automatic : newSettings.WindowsCaptureMode;
-        if (CanEditRecordingSettings) _nativeCaptureEnabled = !OperatingSystem.IsWindows() && newSettings.NativeCaptureEnabled;
+        if (CanEditRecordingSettings) _nativeCaptureEnabled = NormalizeNativeCapturePreference(newSettings.NativeCaptureEnabled);
         OnPropertyChanged(nameof(ShowCaptureStatus));
         _openFolderOnFinished = newSettings.OpenFolderOnFinished;
         _deleteWorkingFileAfterRemux = newSettings.DeleteWorkingFileAfterSuccessfulRemux;

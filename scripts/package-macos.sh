@@ -6,6 +6,8 @@ repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 publish_input="${1:-}"
 app_input="${2:-}"
 configuration="${3:-Release}"
+test_profile="${4:-}"
+runtime_stage="${5:-}"
 version_text="$(cat "$repo_root/VERSION"; printf x)"
 version_text="${version_text%x}"
 [[ "$version_text" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'\n'$ ]] || {
@@ -21,6 +23,11 @@ fail() {
 
 [[ -n "$publish_input" && -n "$app_input" ]] || \
   fail "usage: $0 /path/to/publish /path/to/OpenCam.app [configuration]"
+[[ -z "$test_profile" || "$test_profile" == "--native-only-user-test" ]] || fail "unknown package profile"
+if [[ -n "$test_profile" ]]; then
+  [[ -n "$runtime_stage" && -d "$runtime_stage" ]] || fail "native-only runtime stage is required"
+  [[ ! -e "$app_input" && ! -L "$app_input" ]] || fail "native-only output already exists"
+fi
 [[ -d "$publish_input" ]] || fail "publish directory does not exist: $publish_input"
 if [[ -n "$(git -C "$repo_root" status --porcelain --untracked-files=no)" ]] || \
    [[ -n "$(git -C "$repo_root" ls-files --others --exclude-standard -- src scripts installer .github third-party THIRD-PARTY-NOTICES.md)" ]]; then
@@ -64,8 +71,14 @@ cp -R "$publish_dir"/. "$app_path/Contents/MacOS/"
 cp "$temp_root/OpenCam.icns" "$app_path/Contents/Resources/OpenCam.icns"
 cp "$repo_root/LICENSE" "$app_path/Contents/Resources/LICENSE"
 cp "$repo_root/NOTICE.md" "$app_path/Contents/Resources/NOTICE.md"
-node "$repo_root/scripts/assemble-third-party-notices.mjs" \
-  "$app_path/Contents/Resources" osx-arm64 "$publish_dir/ffmpeg-notices"
+if [[ -n "$test_profile" ]]; then
+  node "$repo_root/scripts/assemble-third-party-notices.mjs" \
+    "$app_path/Contents/Resources" osx-arm64 "$publish_dir/ffmpeg-notices" \
+    "$repo_root/src/ScreenRecorder.UI/obj/native-only/project.assets.json"
+else
+  node "$repo_root/scripts/assemble-third-party-notices.mjs" \
+    "$app_path/Contents/Resources" osx-arm64 "$publish_dir/ffmpeg-notices"
+fi
 
 source_revision="${GITHUB_SHA:-}"
 if [[ ! "$source_revision" =~ ^[0-9a-fA-F]{40}$ ]]; then
@@ -102,9 +115,12 @@ preview_audio_helper="$app_path/Contents/MacOS/OpenCam.ProjectAudio"
 xcrun swiftc "$preview_audio_source" -O -target arm64-apple-macos13.0 -framework AVFoundation -o "$preview_audio_helper"
 
 screen_capture_helper="$app_path/Contents/MacOS/OpenCam.ScreenCapture"
-xcrun swiftc "$screen_capture_source" -parse-as-library -O -target arm64-apple-macos13.0 \
-  -framework ScreenCaptureKit -framework VideoToolbox -framework CoreMedia -framework CoreGraphics \
-  -o "$screen_capture_helper"
+if [[ -z "$test_profile" ]]; then
+  xcrun swiftc "$screen_capture_source" -parse-as-library -O -target arm64-apple-macos13.0 \
+    -framework ScreenCaptureKit -framework VideoToolbox -framework CoreMedia -framework CoreGraphics \
+    -o "$screen_capture_helper"
+  chmod +x "$screen_capture_helper"
+fi
 
 chmod +x \
   "$app_path/Contents/MacOS/OpenCam" \
@@ -113,8 +129,7 @@ chmod +x \
   "$helper" \
   "$microphone_helper" \
   "$cursor_helper" \
-  "$preview_audio_helper" \
-  "$screen_capture_helper"
+  "$preview_audio_helper"
 
 plist="$app_path/Contents/Info.plist"
 plutil -create xml1 "$plist"
@@ -135,7 +150,33 @@ plist_buddy=/usr/libexec/PlistBuddy
 "$plist_buddy" -c 'Add :NSHighResolutionCapable bool true' "$plist"
 "$plist_buddy" -c "Add :OpenCamBuildConfiguration string $configuration" "$plist"
 
-codesign --force --deep --sign - "$app_path"
+if [[ -n "$test_profile" ]]; then
+  "$plist_buddy" -c 'Add :OpenCamNativeOnlyTest bool true' "$plist"
+  node "$repo_root/scripts/prepare-obs-user-test-package.mjs" "$runtime_stage" \
+    "$app_path/Contents/MacOS" "$source_revision" "$product_version" --enable-user-test-only --native-only
+  printf '\n## User-test recording core\nFull notices and corresponding sources: ../MacOS/obs-runtime/licenses/SOURCE-INFO.md and inventory.json.\n' >> "$app_path/Contents/Resources/THIRD-PARTY-NOTICES.md"
+  # The verified runtime is already signed. Re-signing it would invalidate
+  # its immutable SHA256 inventory. Sign only our other Mach-O files first.
+  node --input-type=module - "$app_path/Contents/MacOS" <<'NODE'
+import {readdir,readFile} from 'node:fs/promises';
+import {join} from 'node:path';
+import {execFileSync} from 'node:child_process';
+async function sign(dir){for(const e of await readdir(dir,{withFileTypes:true})){
+  if(e.name==='obs-runtime')continue;
+  const p=join(dir,e.name);
+  if(e.isDirectory())await sign(p);
+  else if(e.isFile()){
+    const b=await readFile(p);
+    if(b.length>=4&&[0xfeedfacf,0xfeedface,0xcafebabe,0xbebafeca].includes(b.readUInt32LE(0)))
+      execFileSync('codesign',['--force','--sign','-',p],{stdio:'inherit'});
+  }
+}}
+await sign(process.argv[2]);
+NODE
+  codesign --force --sign - "$app_path"
+else
+  codesign --force --deep --sign - "$app_path"
+fi
 "$repo_root/scripts/verify-macos-bundle.sh" "$app_path"
 
 printf 'Created macOS app bundle: %s\n' "$app_path"

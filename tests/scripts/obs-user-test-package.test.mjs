@@ -46,6 +46,25 @@ test('native-only packaging explicitly records no compatibility recording core',
   const info=JSON.parse(await readFile(join(f.publish,'OBS-TEST-INFO.json')));
   assert.equal(info.nativeOnly,true);assert.equal(info.compatibilityFallback,false);
 });
+test('macOS native-only staging validates the nested helper and enables only the copy',async t=>{
+  const f=await fixture(t);
+  await rm(join(f.stage,'OpenCam.ObsCapture.exe'));
+  await mkdir(join(f.stage,'Contents/MacOS'),{recursive:true});
+  await writeFile(join(f.stage,'Contents/MacOS/OpenCam.ObsCapture'),'abc',{mode:0o755});
+  f.manifest.platform='osx-arm64';f.manifest.files={'Contents/MacOS/OpenCam.ObsCapture':digest};
+  await writeFile(join(f.stage,'runtime.json'),JSON.stringify(f.manifest));
+  const result=f.run('--enable-user-test-only','--native-only');
+  assert.equal(result.status,0,result.stderr);
+  assert.equal(JSON.parse(await readFile(join(f.publish,'obs-runtime/runtime.json'))).enabled,true);
+  assert.equal(JSON.parse(await readFile(join(f.stage,'runtime.json'))).enabled,false);
+  assert.equal(await readFile(join(f.publish,'obs-runtime/Contents/MacOS/OpenCam.ObsCapture'),'utf8'),'abc');
+});
+test('macOS native-only staging rejects an old screen helper',async t=>{
+  const f=await fixture(t);await writeFile(join(f.publish,'OpenCam.ScreenCapture'),'abc');
+  const result=f.run('--enable-user-test-only','--native-only');
+  assert.notEqual(result.status,0);assert.match(result.stderr,/Legacy screen capture helper/);
+  await assert.rejects(lstat(join(f.publish,'obs-runtime')),{code:'ENOENT'});
+});
 test('without explicit user-test authorization nothing is enabled or copied',async t=>{
   const f=await fixture(t),result=f.run('--release');assert.notEqual(result.status,0);
   assert.match(result.stderr,/explicit user-test/);await assert.rejects(lstat(join(f.publish,'obs-runtime')),{code:'ENOENT'});

@@ -30,10 +30,33 @@ foreach (var previousMode in Enum.GetValues<WindowsCaptureMode>())
     await model.SaveAsync();
     Check(settings.Settings.WindowsCaptureMode == WindowsCaptureMode.Automatic,"Saving settings re-enabled legacy capture.");
 }
+if (OperatingSystem.IsMacOS())
+{
+    foreach (var previousNative in new[] { false, true })
+    {
+        var settings = new SettingsFixture { Settings = new() { NativeCaptureEnabled = previousNative } };
+        var model = new SettingsViewModel(settings, supportsWindowsCapture: false);
+        await model.LoadSettingsAsync();
+        Check(model.AvailableCaptureModes.Count == 1 && model.SelectedCaptureMode?.Native == true && model.NativeCaptureEnabled,
+            "Mac native-only profile must ignore old standard-capture preferences.");
+        model.ResetToDefaults();
+        model.NativeCaptureEnabled = false;
+        await model.SaveAsync();
+        Check(settings.Settings.NativeCaptureEnabled && model.NativeCaptureEnabled,
+            "Mac reset/save must not select the removed recording core.");
+    }
+    var main = new MainViewModel(forScreenshot: true);
+    Check(main.BuildProjectConfiguration().NativeCaptureEnabled && main.SelectedFps == 20,
+        "Mac first-launch recording configuration must use the new core at 20 FPS.");
+    main.ApplyNewSettings(new UserSettings { NativeCaptureEnabled = false });
+    Check(main.BuildProjectConfiguration().NativeCaptureEnabled,
+        "Applying an old Mac setting must not re-enable removed capture.");
+}
 if (args.Length == 1)
 {
     var root = Path.GetFullPath(args[0]);
     Check(!File.Exists(Path.Combine(root,"OpenCam.ScreenCapture.exe")),"Legacy native helper is still packaged.");
+    Check(!File.Exists(Path.Combine(root,"OpenCam.ScreenCapture")),"Legacy Mac screen helper is still packaged.");
     Check(ObsRuntime.TryLoad(Path.Combine(root,"obs-runtime")) is not null,"Packaged native runtime is not accepted.");
 }
 Console.WriteLine("PASS: legacy screen-recorder type absent; native-only profile active; missing runtime fails closed.");

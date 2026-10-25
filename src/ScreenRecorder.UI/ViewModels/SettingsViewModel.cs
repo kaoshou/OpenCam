@@ -37,8 +37,9 @@ public partial class SettingsViewModel : ObservableObject
     public bool SupportsMacOsCapture => !SupportsWindowsCapture && OperatingSystem.IsMacOS();
     public bool SupportsNativeCapture => SupportsMacOsCapture;
     public bool SupportsCaptureSelection => SupportsWindowsCapture || SupportsMacOsCapture;
-    public string CaptureModeNotice => Strings[SupportsWindowsCapture
-        ? (RecordingBuildProfile.NativeOnlyTest ? "NativeOnlyCaptureNotice" : "CaptureModeNotice") : "MacCaptureModeNotice"];
+    public string CaptureModeNotice => Strings[RecordingBuildProfile.NativeOnlyTest
+        ? (SupportsMacOsCapture ? "MacNativeOnlyCaptureNotice" : "NativeOnlyCaptureNotice")
+        : SupportsWindowsCapture ? "CaptureModeNotice" : "MacCaptureModeNotice"];
     [ObservableProperty] private bool _nativeCaptureEnabled;
     [ObservableProperty] private bool _editablePointerEnabled;
     public bool SupportsEditablePointer => false;
@@ -50,6 +51,7 @@ public partial class SettingsViewModel : ObservableObject
     public bool CanEnableEditablePointer => SupportsEditablePointer && SupportsNativeCapture && CanEditCaptureMode && NativeCaptureEnabled;
     partial void OnNativeCaptureEnabledChanged(bool value)
     {
+        if (RecordingBuildProfile.NativeOnlyTest && SupportsMacOsCapture && !value) { NativeCaptureEnabled = true; return; }
         if (SupportsWindowsCapture && value) { NativeCaptureEnabled = false; return; }
         if (!value) EditablePointerEnabled = false;
         OnPropertyChanged(nameof(CanEnableEditablePointer));
@@ -257,7 +259,7 @@ public partial class SettingsViewModel : ObservableObject
     {
         _currentSettings = await _settingsService.LoadSettingsAsync();
         LoadWebLanguages(_currentSettings.WebPlayerLanguages);
-        NativeCaptureEnabled = SupportsMacOsCapture && _currentSettings.NativeCaptureEnabled;
+        NativeCaptureEnabled = SupportsMacOsCapture && (RecordingBuildProfile.NativeOnlyTest || _currentSettings.NativeCaptureEnabled);
         EditablePointerEnabled = SupportsEditablePointer && NativeCaptureEnabled && _currentSettings.EditablePointerEnabled;
         SelectedBookmarkModifier = AvailableModifiers.FirstOrDefault(m => m.Value == _currentSettings.BookmarkHotkeyModifiers) ?? AvailableModifiers.Single(m => m.Value == 6);
         SelectedBookmarkKey = AvailableKeys.FirstOrDefault(k => k.KeyName == _currentSettings.BookmarkHotkeyKey) ?? AvailableKeys.Single(k => k.KeyName == "M");
@@ -414,6 +416,12 @@ public partial class SettingsViewModel : ObservableObject
         var selected = SelectedCaptureMode?.Mode ?? WindowsCaptureMode.Automatic;
         var native = NativeCaptureEnabled;
         AvailableCaptureModes.Clear();
+        if (RecordingBuildProfile.NativeOnlyTest && SupportsMacOsCapture)
+        {
+            AvailableCaptureModes.Add(new(WindowsCaptureMode.ModernExperimental, Strings["MacCaptureScreenCaptureKit"], true));
+            SelectedCaptureMode = AvailableCaptureModes.Single();
+            return;
+        }
         if (!SupportsMacOsCapture)
             AvailableCaptureModes.Add(new(WindowsCaptureMode.Automatic, Strings["CaptureModeAutomatic"]));
         if (RecordingBuildProfile.NativeOnlyTest && !SupportsMacOsCapture)
