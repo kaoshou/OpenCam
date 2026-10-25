@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "sources": [
+    {"id":"ffmpeg","url":"https://ffmpeg.org/releases/ffmpeg-8.1.3.tar.xz","sha256":"7138d28c96d9d3e3af4ee3d8cad72741f8ffb40da90c1112235dea3ecd3178a3","license":"GPL-2.0-or-later"},
+    {"id":"x264","url":"https://codeload.github.com/mirror/x264/tar.gz/b35605ace3ddf7c1a5d67a2eb553f034aef41d55","sha256":"cd71a7515b0e9a012e1ac9b1f8415bebcaf6fc97d4db32286642ac4c0fbe24f9","license":"GPL-2.0-or-later"},
+    {"id":"dav1d","url":"https://codeload.github.com/videolan/dav1d/tar.gz/b546257f770768b2c88258c533da38b91a06f737","sha256":"c5b7428c3f5b28db0aee0c62f6ffb2b42f4b08e7be5ce49d7ad046aaf0dc151d","license":"BSD-2-Clause"},
+    {"id":"nvcodec","url":"https://codeload.github.com/FFmpeg/nv-codec-headers/tar.gz/e844e5b26f46bb77479f063029595293aa8f812d","sha256":"42d72fbcca46e05a1c05a79f1cda1fedd68ba686b21adf917e05d908153645d9","license":"MIT"},
+    {"id":"amf","url":"https://codeload.github.com/GPUOpen-LibrariesAndSDKs/AMF/tar.gz/afed28d37aca1938da2eedc50599bb3535a987ec","sha256":"79ca6faacc982a49a23be0b3a58c4e57e8dc5c8f87b59605831ee77412e8a5b4","license":"MIT"},
+    {"id":"vpl","url":"https://codeload.github.com/intel/libvpl/tar.gz/025d43d086a3e663184cb49febe86152bf05409f","sha256":"5314d04c5894fe0b464d1afe1c356d34a4685e9e8e08fa30ddff3392d0e7de41","license":"MIT"}
+  ]
+}

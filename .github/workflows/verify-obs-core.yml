@@ -13,8 +13,47 @@ on:
 permissions:
   contents: read
 jobs:
+  windows-media-tools:
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e
+        with:
+          msystem: UCRT64
+          update: true
+          path-type: inherit
+          install: >-
+            make diffutils git
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-nasm
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-meson
+      - uses: actions/cache@v4
+        id: owned-tools-cache
+        with:
+          path: owned-media-tools
+          key: owned-media-windows2022-${{ hashFiles('scripts/build-ffmpeg-windows.sh', 'scripts/windows-media-sources.lock.json', 'scripts/check-owned-media-tools.mjs') }}
+      - name: Build checksum-pinned Windows media tools and preserve source
+        if: steps.owned-tools-cache.outputs.cache-hit != 'true'
+        shell: msys2 {0}
+        run: bash scripts/build-ffmpeg-windows.sh owned-media-tools
+      - name: Verify owned tools and real MP4 GIF output
+        run: node scripts/check-owned-media-tools.mjs owned-media-tools win-x64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: owned-windows-media-${{ github.sha }}
+          path: owned-media-tools/
+          if-no-files-found: error
+          retention-days: 14
   windows-core:
-    runs-on: windows-latest
+    needs: windows-media-tools
+    runs-on: windows-2022
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -38,10 +77,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/prepare-obs-validation.mjs obs-inputs
-      - name: Install pinned FFmpeg decoding test tools
+      - uses: actions/download-artifact@v4
+        with:
+          name: owned-windows-media-${{ github.sha }}
+          path: owned-media-tools
+      - name: Use the owned media tools for core and package tests
         shell: pwsh
         run: |
-          $bin = & .\scripts\install-windows-ffmpeg.ps1 -Destination "$env:RUNNER_TEMP\opencam-obs-test-ffmpeg"
+          $bin = (Resolve-Path owned-media-tools).Path
           $bin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           "OPENCAM_VALIDATION_FFMPEG=$bin" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Record validation environment
