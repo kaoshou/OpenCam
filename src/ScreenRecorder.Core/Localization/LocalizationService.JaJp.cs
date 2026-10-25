@@ -387,6 +387,7 @@ public partial class LocalizationService
         ["SafeContainerNotice"] = "MKV で安全に保存 · 停止後に MP4 を自動出力",
         ["StatusReady"] = "準備完了。「録画開始」をクリックしてください",
         ["StatusInitializing"] = "録画処理を初期化しています。画面を操作せずにお待ちください…",
+        ["StatusRegionNeedsReselection"] = "前回の範囲が現在の画面に収まらないか、サイズが無効です。「範囲を調整」で確認してください。録画はまだ開始されていません。",
         ["StatusStartUnconfirmed"] = "録画の開始を確認できません。アプリを開いたまま待つか、「停止」で安全に終了してください。",
         ["StatusScreenPermissionRequired"] = "macOS の画面収録の許可が必要です。「システム設定 → プライバシーとセキュリティ → 画面とシステムオーディオ録音」で OpenCam を許可し、再起動してください。",
         ["StatusRecordingActive"] = "録画中（安全な MKV ファイルに継続して書き込み中）",

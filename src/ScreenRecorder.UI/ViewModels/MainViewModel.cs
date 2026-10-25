@@ -104,6 +104,15 @@ public partial class MainViewModel : ObservableObject
     private long _activeDiskWarningThresholdBytes = RecordingConfiguration.DefaultDiskWarningThresholdBytes;
 
     private bool _isLoadingSettings = true;
+    private bool _updatingCapturePreferences;
+    private Task _settingsSaveTail = Task.CompletedTask;
+    internal bool HasPendingUserSettings => !_settingsSaveTail.IsCompleted;
+    internal async Task FlushPendingUserSettingsAsync()
+    {
+        Task pending;
+        do { pending = _settingsSaveTail; await pending; }
+        while (!ReferenceEquals(pending, _settingsSaveTail));
+    }
     private WebPlayerLanguageOptions _webPlayerLanguages = new();
     private bool _isDiskSpaceWarningActive;
     private bool _startupStatusUnconfirmed;
@@ -1003,6 +1012,10 @@ public partial class MainViewModel : ObservableObject
             RegionWidth = s.RegionWidth;
             RegionHeight = s.RegionHeight;
 
+            // The selected monitor is also meaningful for a restored custom region.
+            SelectedMonitor = AvailableMonitors.FirstOrDefault(m => m.Index == s.SelectedMonitorIndex)
+                ?? SelectedMonitor;
+
             if (s.CaptureRangeMode == "CustomRegion")
             {
                 IsCustomRegion = true;
@@ -1012,10 +1025,6 @@ public partial class MainViewModel : ObservableObject
             {
                 IsMonitorSelected = true;
                 IsCustomRegion = false;
-                if (s.SelectedMonitorIndex >= 0 && s.SelectedMonitorIndex < AvailableMonitors.Count)
-                {
-                    SelectedMonitor = AvailableMonitors[s.SelectedMonitorIndex];
-                }
             }
 
             if (!string.IsNullOrWhiteSpace(s.SelectedMicrophoneId))
@@ -1149,7 +1158,7 @@ public partial class MainViewModel : ObservableObject
 
     public void PersistUserSettings()
     {
-        if (_isLoadingSettings || _refreshingTeachingPointerOptions) return;
+        if (_isLoadingSettings || _refreshingTeachingPointerOptions || _updatingCapturePreferences) return;
         try
         {
             var rangeMode = "Monitor";
@@ -1192,12 +1201,22 @@ public partial class MainViewModel : ObservableObject
                 DiskWarningThresholdGb = _diskWarningThresholdGb,
                 DiskCriticalThresholdMb = _diskCriticalThresholdMb
             };
-            _ = Task.Run(() => _settingsService.SaveSettingsAsync(settings));
+            _settingsSaveTail = SaveUserSettingsInOrderAsync(_settingsSaveTail, settings);
         }
         catch (Exception ex)
         {
             Log.Warning(ex, "建立使用者設定快照失敗");
         }
+    }
+
+    private async Task SaveUserSettingsInOrderAsync(Task previous, UserSettings snapshot)
+    {
+        try
+        {
+            await previous.ConfigureAwait(false);
+            await _settingsService.SaveSettingsAsync(snapshot).ConfigureAwait(false);
+        }
+        catch (Exception ex) { Log.Warning(ex, "儲存使用者設定失敗"); }
     }
 
     private static bool NormalizeNativeCapturePreference(bool requested) => !OperatingSystem.IsWindows() &&
@@ -1719,6 +1738,7 @@ public partial class MainViewModel : ObservableObject
         if (height % 2 != 0) height--;
 
         var region = new CaptureRegion(x, y, width, height);
+        MonitorDisplayOption? regionMonitor = null;
         if (OperatingSystem.IsMacOS())
         {
             var centerX = region.X + region.Width / 2;
@@ -1737,18 +1757,35 @@ public partial class MainViewModel : ObservableObject
             if (monitor is not null)
             {
                 region = RegionSelectionGeometry.ClampToBounds(region, monitor.Bounds);
-                SelectedMonitor = AvailableMonitors.FirstOrDefault(candidate =>
+                regionMonitor = AvailableMonitors.FirstOrDefault(candidate =>
                                       candidate.Index == monitor.Index) ??
                                   SelectedMonitor;
             }
         }
 
-        RegionX = region.X;
-        RegionY = region.Y;
-        RegionWidth = region.Width;
-        RegionHeight = region.Height;
-        IsCustomRegion = true;
-        IsMonitorSelected = false;
+        // Coordinate setters normally persist preferences. Publish this selection as
+        // one snapshot so an older/intermediate rectangle cannot win a background write.
+        _updatingCapturePreferences = true;
+        try
+        {
+            if (regionMonitor is not null) SelectedMonitor = regionMonitor;
+            if (OperatingSystem.IsWindows())
+            {
+                var containing = _displayService.GetMonitors().Where(m =>
+                    region.X >= m.Bounds.X && region.Y >= m.Bounds.Y &&
+                    (long)region.X + region.Width <= (long)m.Bounds.X + m.Bounds.Width &&
+                    (long)region.Y + region.Height <= (long)m.Bounds.Y + m.Bounds.Height).ToArray();
+                if (containing.Length == 1)
+                    SelectedMonitor = AvailableMonitors.FirstOrDefault(m => m.Index == containing[0].Index) ?? SelectedMonitor;
+            }
+            RegionX = region.X;
+            RegionY = region.Y;
+            RegionWidth = region.Width;
+            RegionHeight = region.Height;
+            IsCustomRegion = true;
+            IsMonitorSelected = false;
+        }
+        finally { _updatingCapturePreferences = false; }
         PersistUserSettings();
     }
 

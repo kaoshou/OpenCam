@@ -459,6 +459,7 @@ public partial class LocalizationService : ILocalizationService
         // 狀態列動態訊息
         ["StatusReady"] = "準備就緒，點擊「開始錄影」即可錄製",
         ["StatusInitializing"] = "正在初始化錄影管線，請稍候並暫勿操作畫面...",
+        ["StatusRegionNeedsReselection"] = "上次的自訂選區已超出目前螢幕或尺寸不適用。請按「調整選區」重新確認；尚未開始錄影。",
         ["StatusStartUnconfirmed"] = "尚無法確認錄影是否已開始；請保持程式開啟，或按「停止」安全結束。",
         ["StatusScreenPermissionRequired"] = "需要 macOS 螢幕錄製權限；請在「系統設定 → 隱私權與安全性 → 螢幕與系統音訊錄製」允許 OpenCam，然後重新啟動。",
         ["StatusRecordingActive"] = "正在錄影中 (安全工作容器 MKV 連續寫入)",
@@ -1056,6 +1057,7 @@ public partial class LocalizationService : ILocalizationService
         // 狀態列動態訊息
         ["StatusReady"] = "Ready. Click 'Record' to start capturing.",
         ["StatusInitializing"] = "Initializing recording pipeline, please wait...",
+        ["StatusRegionNeedsReselection"] = "The saved region no longer fits one current display or has unsupported dimensions. Adjust the recording region before starting. Recording has not begun.",
         ["StatusStartUnconfirmed"] = "Recording startup is not yet confirmed. Keep OpenCam open, or press Stop to end it safely.",
         ["StatusScreenPermissionRequired"] = "macOS screen-recording permission is required. Allow OpenCam in System Settings > Privacy & Security > Screen & System Audio Recording, then restart the app.",
         ["StatusRecordingActive"] = "Recording in progress (Continuous write to safe MKV)",

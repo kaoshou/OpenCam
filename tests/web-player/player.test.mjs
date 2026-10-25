@@ -26,7 +26,7 @@ function setup(data = {format:'opencam.web-player',schemaVersion:1,title:'教材
     'caption-button','caption-menu','caption-language','caption-overlay','caption-text','caption-size','caption-size-value',
     'caption-theme','caption-opacity','caption-position','caption-reset','chapter-tab','transcript-tab','chapter-panel',
     'transcript-panel','transcript-language','transcript-search','transcript-list','transcript-status','transcript-more','transcript-follow','sidebar','player',
-    'reading-button','reading-menu','reading-close','reading-size','reading-size-value','reading-spacing','reading-theme','reading-reset','reading-timestamps','download-html','download-txt','download-status','caption-close','skip-transcript','skip-player','skip-chapters','transcript-key-help'].map(id=>[id,new Element()]));
+    'reading-button','reading-menu','reading-close','reading-size','reading-size-value','reading-spacing','reading-theme','reading-reset','reading-timestamps','download-html','download-txt','download-status','caption-close','skip-transcript','skip-player','skip-chapters','transcript-key-help','localized-credit'].map(id=>[id,new Element()]));
   ids.player.getBoundingClientRect=()=>({height:480});
   ids['ui-language']=new Element();ids['ui-language-control']=new Element();
   Object.assign(ids.video,{controls:true,readyState:1,currentTime:0,duration:12,playbackRate:1,paused:true,ended:false,volume:1,muted:false,
@@ -171,7 +171,18 @@ test('native accesskeys have unique focus destinations and keyboard help has no 
   assert.deepEqual(keys.map(([,attrs,key])=>[key,/data-jump="([^"]+)"/.exec(attrs)?.[1]]),
     [['c','player'],['l','chapters'],['t','transcript']]);
   const help=html.match(/<details class="keyboard-help">([\s\S]*?)<\/details>/)[1];
-  assert.ok(!/<a\b/.test(help));assert.ok(help.includes('data-i18n="accessModifiers"'));
+  assert.ok(!/<a\b/.test(help));assert.ok(help.includes('class="access-platforms"'));
+});
+test('English credit always appears and localized credit follows interface language',()=>{
+  const ids=setup(subtitleLesson(),{},'en-US');
+  assert.equal(ids['localized-credit'].hidden,true);
+  for(const language of ['zh-TW','ja','en']){
+    ids['ui-language'].value=language;ids['ui-language'].dispatch('change');
+    assert.equal(ids['localized-credit'].hidden,language==='en');
+  }
+  const footer=html.match(/<footer>([\s\S]*?)<\/footer>/)[1];
+  assert.ok(footer.includes('Created with'));
+  assert.equal([...footer.matchAll(/href="https:\/\/github.com\/kaoshou\/OpenCam"/g)].length,2);
 });
 test('playback never replaces or scrolls focused transcript rows',()=>{
   const data=subtitleLesson();data.subtitles.tracks[0].cues=Array.from({length:1000},(_,i)=>({start:i,end:i+1,text:'Cue '+i}));

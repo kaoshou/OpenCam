@@ -34,6 +34,7 @@ input:focus-visible,summary:focus-visible,.list:focus-visible,.stage:focus-visib
 .transcript-tools{max-height:min(65%,calc(100% - 124px));min-height:0;overflow-y:auto}.transcript-copy{font-size:.8125em;line-height:inherit}.transcript-row{line-height:inherit}.transcript-time{color:inherit;opacity:.85}.transcript-row:focus-visible{outline-offset:-3px}#transcript-list{line-height:1.5;min-height:80px}#transcript-list[data-theme=dark]{background:#101827;color:#f8fafc}#transcript-list[data-theme=warm]{background:#fff6e6;color:#3f3020}#transcript-list[data-theme=dark] .transcript-row{color:#f8fafc}#transcript-list[data-theme=dark] .transcript-row:hover,#transcript-list[data-theme=dark] .transcript-row[aria-current=true]{background:#253652}#transcript-list[data-theme=warm] .transcript-row{color:#3f3020}#transcript-list[data-theme=warm] .transcript-row:hover,#transcript-list[data-theme=warm] .transcript-row[aria-current=true]{background:#f1e2c5}#transcript-list[data-theme=dark] :focus-visible{outline-color:#93c5fd}
 .keyboard-help{margin-top:14px;color:#475569;font-size:13px}.keyboard-help summary{cursor:pointer;width:fit-content;padding:6px 0}.keyboard-help p{max-width:85ch}.keyboard-help kbd{font:inherit;white-space:nowrap;background:white;border:1px solid #cbd5e1;border-radius:4px;padding:1px 4px}.keyboard-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px;margin-top:12px}.keyboard-group{padding:14px;background:white;border:1px solid #e2e8f0;border-radius:10px;min-width:0}.keyboard-group h3{margin:0 0 8px;font-size:14px;color:#334155}.keyboard-group dl{margin:0}.keyboard-group dt{margin-top:12px;font-weight:600}.keyboard-group dd{margin:4px 0 0;overflow-wrap:anywhere}.keyboard-group p{margin:6px 0}.keyboard-jumps{display:flex;flex-wrap:wrap;gap:6px 16px}.keyboard-jumps a{padding:4px 0}
 .reading-toggle{min-height:28px;padding:3px 5px;border:0;border-radius:4px;background:transparent;font-size:12px;font-weight:500}.reading-toggle:hover,.reading-toggle[aria-expanded=true]{background:#eff6ff}.reading-toggle .reading-arrow{display:inline-block;margin-right:4px;font-size:10px}.reading-toggle[aria-expanded=true] .reading-arrow{transform:rotate(90deg)}
+.access-guide{margin-top:12px;padding:16px;background:#fff;border:1px solid #e2e8f0;border-radius:10px}.access-guide h3{margin:0 0 12px;font-size:14px;color:#334155}.access-platforms{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px}.access-platform{padding:12px 14px;background:#f8fafc;border-radius:8px;min-width:0}.access-platform h4{font-size:13px;color:#334155;margin:0 0 10px}.keyboard-help .access-platform p{margin:6px 0;max-width:none;line-height:1.8}.access-extra{font-size:12px}.access-targets{display:flex;flex-wrap:wrap;gap:12px 24px;margin:16px 0 12px}.access-targets>div{display:flex;align-items:baseline;gap:8px}.access-targets dt,.access-targets dd{margin:0}.keyboard-help .access-note{max-width:none;line-height:1.8;margin:0;color:#536174}
 footer{color:#536174}
 .number{color:#536174}.chapter[aria-current=true] .times{color:#fff}
 /* Reserve the reading area before laying out the optional controls. */
@@ -103,15 +104,23 @@ footer{color:#536174}
 </div></aside>
 </div>
 <details class="keyboard-help"><summary><span data-i18n="keyboard">鍵盤操作說明</span></summary>
-<p data-i18n="accessModifiers">Accesskey 定位：Windows Chrome／Edge 使用 Alt + 字母；Windows Firefox 使用 Alt + Shift + 字母；macOS 使用 Control + Option + 字母，部分瀏覽器需再加 Shift。若只聚焦定位連結，再按 Enter。若與輔助工具快捷鍵衝突，可改用 Tab 導覽。</p>
-<p><kbd>C</kbd>：<span data-i18n="player">播放器</span> · <kbd>L</kbd>：<span data-i18n="chapters">章節</span><span id="transcript-key-help" hidden> · <kbd>T</kbd>：<span data-i18n="transcript">逐字稿</span></span></p>
+<section class="access-guide" aria-labelledby="access-title">
+<h3 id="access-title" data-i18n="accessTitle">快速定位（Accesskey）</h3>
+<div class="access-platforms">
+<div class="access-platform"><h4>Windows · Chrome / Edge</h4><p><kbd>Alt</kbd> + <span data-i18n="accessLetter">字母</span></p></div>
+<div class="access-platform"><h4>Windows · Firefox</h4><p><kbd>Alt</kbd> + <kbd>Shift</kbd> + <span data-i18n="accessLetter">字母</span></p></div>
+<div class="access-platform"><h4>macOS</h4><p><kbd>Control</kbd> + <kbd>Option</kbd> + <span data-i18n="accessLetter">字母</span></p><p class="access-extra" data-i18n="accessMacExtra">部分瀏覽器需再加 Shift。</p></div>
+</div>
+<dl class="access-targets"><div><dt><kbd>C</kbd></dt><dd data-i18n="player">播放器</dd></div><div><dt><kbd>L</kbd></dt><dd data-i18n="chapters">章節</dd></div><div id="transcript-key-help" hidden><dt><kbd>T</kbd></dt><dd data-i18n="transcript">逐字稿</dd></div></dl>
+<p class="access-note" data-i18n="accessNote">若只聚焦定位連結，再按 Enter。若與輔助工具快捷鍵衝突，可改用 Tab 導覽。</p>
+</section>
 <div class="keyboard-groups">
 <section class="keyboard-group"><h3><span data-i18n="navigation">頁面導覽</span></h3><dl><dt><kbd>Tab</kbd> / <kbd>Shift + Tab</kbd></dt><dd><span data-i18n="nextHelp">下一項／上一項控制。頁首提供可用區塊的定位連結。</span></dd><dt><kbd>Enter</kbd></dt><dd><span data-i18n="activateHelp">啟動目前的連結或按鈕。</span></dd></dl></section>
 <section class="keyboard-group"><h3><span data-i18n="videoArea">影片區</span></h3><p><span data-i18n="focusHelp">使用 Accesskey C 或 Tab 移入影片區，看到焦點框後操作；焦點在滑桿或選單時，按鍵只調整該控制。</span></p><dl><dt><kbd>Space</kbd></dt><dd><span data-i18n="playPauseHelp">播放／暫停</span></dd><dt><kbd>←</kbd> / <kbd>→</kbd></dt><dd><span data-i18n="seekHelp">後退／前進 5 秒</span></dd><dt><kbd>F</kbd></dt><dd><span data-i18n="fullscreenHelp">切換全螢幕</span></dd></dl></section>
 <section class="keyboard-group"><h3><span data-i18n="indexHelp">章節與逐字稿</span></h3><p data-i18n="transcriptAvailability">逐字稿僅在影片附有字幕時顯示。</p><dl><dt><span data-i18n="onTabs">分頁上：</span><kbd>←</kbd> <kbd>→</kbd></dt><dd><span data-i18n="tabsHelp">切換可用分頁，再按 Tab 移至內容。</span></dd><dt><kbd>Home</kbd> / <kbd>End</kbd></dt><dd><span data-i18n="homeHelp">選擇第一／最後分頁。</span></dd><dt><span data-i18n="onEntry">項目上：</span><kbd>Enter</kbd></dt><dd><span data-i18n="entryHelp">章節：跳轉並播放。逐字稿：跳轉並保留播放／暫停狀態。</span></dd></dl></section>
 <section class="keyboard-group"><h3><span data-i18n="settingsControls">設定與控制</span></h3><dl><dt><kbd>Esc</kbd></dt><dd><span data-i18n="escapeHelp">關閉閱讀／字幕設定並回到開啟按鈕；無設定視窗時離開全螢幕。</span></dd><dt><span data-i18n="onLists">滑桿／選單上：</span><kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd></dt><dd><span data-i18n="adjustHelp">調整該項數值；搜尋框正常輸入，不觸發影片快捷鍵。</span></dd></dl></section>
 </div></details>
-<footer><span data-i18n="createdBefore">以</span> <a href="https://github.com/kaoshou/OpenCam" target="_blank" rel="noopener noreferrer">OpenCam</a> <span data-i18n="createdAfter">製作</span></footer>
+<footer><span id="localized-credit"><span data-i18n="createdBefore">以</span> <a href="https://github.com/kaoshou/OpenCam" target="_blank" rel="noopener noreferrer">OpenCam</a> <span data-i18n="createdAfter">製作</span> ‧ </span>Created with <a href="https://github.com/kaoshou/OpenCam" target="_blank" rel="noopener noreferrer">OpenCam</a></footer>
 <noscript>請啟用 JavaScript 以使用章節跳播。影片仍可使用上方控制列播放。</noscript>
 </main>
 <script>
@@ -164,6 +173,10 @@ window.addEventListener('DOMContentLoaded',()=>{
     "transcriptLanguage": "逐字稿語言",
     "more": "載入更多",
     "keyboard": "鍵盤操作說明",
+    "accessTitle": "快速定位（Accesskey）",
+    "accessLetter": "字母",
+    "accessMacExtra": "部分瀏覽器需再加 Shift。",
+    "accessNote": "若只聚焦定位連結，再按 Enter。若與輔助工具快捷鍵衝突，可改用 Tab 導覽。",
     "player": "播放器",
     "navigation": "頁面導覽",
     "nextHelp": "下一項／上一項控制。頁首提供可用區塊的定位連結。",
@@ -274,6 +287,10 @@ window.addEventListener('DOMContentLoaded',()=>{
     "transcriptLanguage": "Transcript language",
     "more": "Load more",
     "keyboard": "Keyboard help",
+    "accessTitle": "Quick navigation (Accesskey)",
+    "accessLetter": "letter",
+    "accessMacExtra": "Some browsers also require Shift.",
+    "accessNote": "If only the skip link receives focus, press Enter. Use Tab instead if a shortcut conflicts with assistive technology.",
     "player": "Player",
     "navigation": "Navigation",
     "nextHelp": "Next / previous control. Skip links for available regions appear first.",
@@ -384,6 +401,10 @@ window.addEventListener('DOMContentLoaded',()=>{
     "transcriptLanguage": "文字起こしの言語",
     "more": "さらに表示",
     "keyboard": "キーボード操作",
+    "accessTitle": "領域への移動（アクセスキー）",
+    "accessLetter": "文字",
+    "accessMacExtra": "一部のブラウザーでは Shift も必要です。",
+    "accessNote": "スキップリンクにフォーカスするだけの場合は Enter を押します。支援技術のキーと競合する場合は Tab で移動できます。",
     "player": "プレーヤー",
     "navigation": "ページ内移動",
     "nextHelp": "次／前の操作項目へ移動します。ページ先頭には利用可能な領域へのスキップリンクがあります。",
@@ -474,6 +495,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   const t=(key,parameters={})=>(catalogs[uiLanguage][key]??catalogs['en'][key]??key).replace(/\{(\w+)\}/g,(match,name)=>String(parameters[name]??match));
   const translateStatic=()=>{
     document.documentElement.lang=uiLanguage;
+    document.getElementById('localized-credit').hidden=uiLanguage==='en';
     document.querySelectorAll('[data-i18n]').forEach(el=>{el.textContent=t(el.dataset.i18n)});
     for(const attr of ['aria-label','title','placeholder'])
       document.querySelectorAll('[data-i18n-'+attr+']').forEach(el=>el.setAttribute(attr,t(el.getAttribute('data-i18n-'+attr))));

@@ -71,6 +71,10 @@ try{
    assert.equal(await page.locator('html').getAttribute('lang'),language);
    assert.equal(await page.locator('#chapter-tab').innerText(),chapterLabel);
    assert.equal(await page.locator('#play').getAttribute('aria-label'),playLabel);
+   assert.equal(await page.locator('footer a:visible').count(),language==='en'?1:2);
+   assert((await page.locator('footer').innerText()).includes('Created with OpenCam'));
+   if(language==='zh-TW')assert.equal((await page.locator('footer').innerText()).trim(),'以 OpenCam 製作 ‧ Created with OpenCam');
+   for(const link of await page.locator('footer a').all())assert.equal(await link.getAttribute('href'),'https://github.com/kaoshou/OpenCam');
    assert.equal(await page.locator('#transcript-search').inputValue(),'學習');
    assert.equal(await page.locator('#transcript-language').inputValue(),'tw');
    assert.equal(await page.locator('#caption-language').inputValue(),'tw');
@@ -158,6 +162,20 @@ try{
    if((await page.evaluate(()=>document.activeElement.id)).startsWith('skip-'))await page.keyboard.press('Enter');
    assert.equal(await page.evaluate(()=>document.activeElement.id),target);
   }
+ });
+ await check('accesskey platform instructions fill available width and reflow',async()=>{
+  for(const width of [1440,768,390,320]){
+   await page.setViewportSize({width,height:1000});await goto('/player/');
+   await page.locator('#ui-language').selectOption('zh-TW');
+   await page.locator('.keyboard-help summary').click();
+   const cards=page.locator('.access-platform');assert.equal(await cards.count(),3);
+   const boxes=await cards.evaluateAll(els=>els.map(e=>e.getBoundingClientRect().toJSON()));
+   if(width===1440){assert.equal(boxes[0].y,boxes[2].y);assert(boxes[2].right>width*.8);}
+   if(width<=390)assert(boxes[1].y>=boxes[0].bottom);
+   await noOverflow();assert.deepEqual(await axe(),[]);
+   await page.screenshot({path:join(out,'screens/accesskey-platforms-'+width+'.png'),fullPage:true});
+  }
+  await page.setViewportSize({width:1440,height:1000});
  });
  await check('compact reading disclosure and grouped keyboard help reflow',async()=>{
   for(const width of [1440,768,390,320]){

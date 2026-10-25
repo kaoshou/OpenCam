@@ -23,6 +23,22 @@ public partial class MainViewModel
     private async Task<ScreenRecorder.Core.Models.RecordingConfiguration?> CheckBeforeRecordingAsync(
         ScreenRecorder.Core.Models.RecordingConfiguration configuration, bool resuming)
     {
+        if (configuration.CaptureSource == ScreenRecorder.Core.Enums.CaptureSourceType.CustomRegion)
+        {
+            var r = configuration.Region;
+            var matches = _displayService.GetMonitors().Count(m =>
+                r.X >= m.Bounds.X && r.Y >= m.Bounds.Y &&
+                (long)r.X + r.Width <= (long)m.Bounds.X + m.Bounds.Width &&
+                (long)r.Y + r.Height <= (long)m.Bounds.Y + m.Bounds.Height);
+            if (r.Width < 2 || r.Height < 2 || r.Width % 2 != 0 || r.Height % 2 != 0 || matches != 1)
+            {
+                StatusMessage = Strings["StatusRegionNeedsReselection"];
+                if (_content is not null) _content.Workspace.Error = StatusMessage;
+                Serilog.Log.Warning("Saved custom region requires re-selection: X={X}, Y={Y}, Width={Width}, Height={Height}, MatchingDisplays={MatchingDisplays}",
+                    r.X, r.Y, r.Width, r.Height, matches);
+                return null;
+            }
+        }
         // Skip only the optional UI check. Permission, recorder ownership, output
         // validation and the actual start acknowledgement remain on the normal path.
         var shouldCheck = _recordingPreflightMode == ScreenRecorder.Core.Enums.RecordingPreflightMode.StartAndResume ||

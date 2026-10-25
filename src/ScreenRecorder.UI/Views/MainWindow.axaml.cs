@@ -17,6 +17,7 @@ public partial class MainWindow : Window
         new(new AvaloniaDisplayBadgePresenter(), new AvaloniaDisplayIdentificationTimer());
     private MainViewModel? _identificationViewModel;
     private bool _projectCloseAuthorized, _closingProject;
+    private bool _settingsCloseAuthorized, _closingSettings;
     private bool _initialSizeApplied;
     private ScreenRecorder.Infrastructure.IPC.PreflightRequest? _lastPreflight;
     private ScreenRecorder.UI.Preflight.RecordingPreflightWindow? _preparationWindow;
@@ -199,6 +200,8 @@ public partial class MainWindow : Window
 
     protected override void OnClosing(WindowClosingEventArgs e)
     {
+        var settingsCloseAuthorized = _settingsCloseAuthorized;
+        _settingsCloseAuthorized = false;
         _displayIdentification.Close();
         base.OnClosing(e);
 
@@ -218,6 +221,25 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (!settingsCloseAuthorized && DataContext is MainViewModel { HasPendingUserSettings: true } preferences)
+        {
+            e.Cancel = true;
+            _ = SavePreferencesAndCloseAsync(preferences);
+        }
+
+    }
+
+    private async Task SavePreferencesAndCloseAsync(MainViewModel vm)
+    {
+        if (_closingSettings) return;
+        _closingSettings = true;
+        try
+        {
+            await vm.FlushPendingUserSettingsAsync();
+            _settingsCloseAuthorized = true;
+            Close(); // Recheck recording/project guards; saving preferences never authorizes a recording shutdown.
+        }
+        finally { _closingSettings = false; }
     }
 
     private async Task CloseProjectAndMainAsync()
