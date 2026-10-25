@@ -347,8 +347,8 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           if command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null; then exit 0; fi
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 install -y --no-install-recommends ffmpeg
       - name: Install macOS FFmpeg test prerequisites
         if: runner.os == 'macOS'
         run: brew install ffmpeg
