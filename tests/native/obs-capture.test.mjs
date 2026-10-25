@@ -57,8 +57,8 @@ async function record(input, { kill = false, seconds = 3, env = {} } = {}) {
 
 test('invalid request never emits media',async()=>{
   const result=await record({...request,width:0},{seconds:0.2});
-  assert.notEqual(result.code,0,result.log); assert.equal(result.bytes.length,0);
-  assert.ok(result.events.some(e=>e.event==='error'),result.log);
+  assert.equal(result.code,2,result.log); assert.equal(result.bytes.length,0);
+  assert.ok(result.events.some(e=>e.event==='error'&&e.code==='invalid_request'),result.log);
 });
 
 test('source failure cannot keep encoding a stale texture as a healthy recording',async()=>{

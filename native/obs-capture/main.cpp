@@ -99,8 +99,9 @@ struct State {
     uint64_t startupAt = os_gettime_ns();
     const char *stage = "initializing";
     uint32_t sourceWidth = 0, sourceHeight = 0;
+    uint32_t captureWidth, captureHeight;
     int64_t testFailureMs = -1;
-    explicit State(Request request) : r(std::move(request)) {}
+    explicit State(Request request) : r(std::move(request)), captureWidth(r.monitorWidth), captureHeight(r.monitorHeight) {}
 };
 static State *state;
 // Only fixed phase names, counters and readiness facts cross the process boundary.
@@ -110,7 +111,7 @@ static std::string startupDetails() {
     auto &s=*state;
     return std::string(",\"startup\":{\"stage\":\"")+s.stage+"\",\"elapsedMs\":"+std::to_string((os_gettime_ns()-s.startupAt)/1000000ULL)+
         ",\"sourceWidth\":"+std::to_string(s.sourceWidth)+",\"sourceHeight\":"+std::to_string(s.sourceHeight)+
-        ",\"expectedWidth\":"+std::to_string(s.r.monitorWidth)+",\"expectedHeight\":"+std::to_string(s.r.monitorHeight)+
+        ",\"expectedWidth\":"+std::to_string(s.captureWidth)+",\"expectedHeight\":"+std::to_string(s.captureHeight)+
         ",\"systemSelected\":"+(s.r.system()?"true":"false")+",\"microphoneSelected\":"+(s.r.mic()?"true":"false")+
         ",\"systemSamples\":"+(s.systemSamples.load()?"true":"false")+",\"microphoneSamples\":"+(s.micSamples.load()?"true":"false")+
         ",\"frames\":"+std::to_string(s.mux.frames.load())+",\"bytes\":"+std::to_string(s.mux.bytes.load())+"}";
@@ -227,7 +228,8 @@ static std::string exactDevice(const char *sourceId, const std::string &requeste
     return opencam::resolveAudioIdentity(candidates,requested,false);
 #endif
 }
-static std::string monitorId(const Request &r) {
+struct CaptureDisplay {std::string id; uint32_t width,height;};
+static CaptureDisplay monitorId(const Request &r) {
 #ifdef __APPLE__
     uint32_t count=0; CGDirectDisplayID ids[64];
     if(CGGetActiveDisplayList(64,ids,&count)!=kCGErrorSuccess) throw std::runtime_error("display_identity");
@@ -237,9 +239,13 @@ static std::string monitorId(const Request &r) {
         char buffer[128]={0}; bool valid=text&&CFStringGetCString(text,buffer,sizeof(buffer),kCFStringEncodingUTF8); if(text)CFRelease(text);
         if(valid&&r.monitor==buffer) {
             auto b=CGDisplayBounds(ids[i]); auto mode=CGDisplayCopyDisplayMode(ids[i]); if(!mode)break;
-            size_t w=CGDisplayModeGetPixelWidth(mode),h=CGDisplayModeGetPixelHeight(mode); CGDisplayModeRelease(mode);
+            // Managed enumeration uses desktop coordinate pixels. Scaled Retina
+            // modes have a different backing texture size; validate the former,
+            // then pin the latter for source readiness and crop conversion.
+            size_t captureW=CGDisplayModeGetPixelWidth(mode),captureH=CGDisplayModeGetPixelHeight(mode); CGDisplayModeRelease(mode);
+            size_t w=CGDisplayPixelsWide(ids[i]),h=CGDisplayPixelsHigh(ids[i]);
             double scale=b.size.width>0?w/b.size.width:1;
-            if(r.monitorWidth==static_cast<int>(w)&&r.monitorHeight==static_cast<int>(h)&&r.x-r.cropX==static_cast<int>(std::round(b.origin.x*scale))&&r.y-r.cropY==static_cast<int>(std::round(b.origin.y*scale))) return buffer;
+            if(captureW>0&&captureH>0&&r.monitorWidth==static_cast<int>(w)&&r.monitorHeight==static_cast<int>(h)&&r.x-r.cropX==static_cast<int>(std::round(b.origin.x*scale))&&r.y-r.cropY==static_cast<int>(std::round(b.origin.y*scale))) return {buffer,static_cast<uint32_t>(captureW),static_cast<uint32_t>(captureH)};
         }
     }
 #else
@@ -261,17 +267,22 @@ static std::string monitorId(const Request &r) {
         if(static_cast<int>(m.width)!=r.monitorWidth||static_cast<int>(m.height)!=r.monitorHeight||m.position.x!=r.x-r.cropX||m.position.y!=r.y-r.cropY)break;
         // The OBS module can resolve the exact current GDI name without any
         // case-sensitive mismatch between two equivalent interface-path APIs.
-        return device;
+        return {device,m.width,m.height};
     }
 #endif
     throw std::runtime_error("display_identity");
 }
+static obs_sceneitem_crop captureCrop(const Request &r,uint32_t width,uint32_t height) {
+    // Round shared edges rather than widths independently, avoiding gaps at a
+    // fractional scale and ensuring a full-display crop keeps every pixel.
+    auto x=[&](int edge){return static_cast<int>(std::round(static_cast<double>(edge)*width/r.monitorWidth));};
+    auto y=[&](int edge){return static_cast<int>(std::round(static_cast<double>(edge)*height/r.monitorHeight));};
+    return {x(r.cropX),y(r.cropY),static_cast<int>(width)-x(r.cropX+r.width),static_cast<int>(height)-y(r.cropY+r.height)};
+}
 
 static int run(int argc,char **argv) {
     base_set_log_handler(logger,nullptr);
-#ifdef __APPLE__
-    [NSApplication sharedApplication];
-#else
+#ifdef _WIN32
     _setmode(_fileno(stdout),_O_BINARY);
 #endif
 #ifndef _WIN32
@@ -281,6 +292,11 @@ static int run(int argc,char **argv) {
     std::string input; if(!line(input)) {error("invalid_request");return 2;}
     auto *data=obs_data_create_from_json(input.c_str());
     Request r{}; try {r=request(data);}catch(const std::exception &e){obs_data_release(data);error(e.what());return 2;} obs_data_release(data);
+#ifdef __APPLE__
+    // Reject malformed protocol input before contacting WindowServer/AppKit.
+    // Invalid requests must emit a bounded error, not initialize capture UI.
+    [NSApplication sharedApplication];
+#endif
     State s(r); state=&s;
     syntheticDiagnostics=r.synthetic && std::getenv("OPENCAM_OBS_SYNTHETIC_DIAGNOSTICS");
     fs::path root=fs::u8path(argv[2]);
@@ -341,12 +357,13 @@ static int run(int argc,char **argv) {
             if(r.mic())mic=obs_source_get_ref(screen);
         }else {
             auto monitor=monitorId(r);
+            s.captureWidth=monitor.width;s.captureHeight=monitor.height;
 #ifdef __APPLE__
-            obs_data_set_string(settings,"display_uuid",monitor.c_str());obs_data_set_int(settings,"type",0);obs_data_set_bool(settings,"show_cursor",r.cursor);obs_data_set_bool(settings,"hide_obs",false);
+            obs_data_set_string(settings,"display_uuid",monitor.id.c_str());obs_data_set_int(settings,"type",0);obs_data_set_bool(settings,"show_cursor",r.cursor);obs_data_set_bool(settings,"hide_obs",false);
             screen=source("screen_capture","display",settings);
 #else
             if(!wgcSupported())throw std::runtime_error("capture_source");
-            obs_data_set_string(settings,"monitor_id",monitor.c_str());obs_data_set_int(settings,"method",2);obs_data_set_bool(settings,"capture_cursor",r.cursor);obs_data_set_bool(settings,"force_sdr",true);
+            obs_data_set_string(settings,"monitor_id",monitor.id.c_str());obs_data_set_int(settings,"method",2);obs_data_set_bool(settings,"capture_cursor",r.cursor);obs_data_set_bool(settings,"force_sdr",true);
             screen=source("monitor_capture","display",settings);
 #endif
         }
@@ -358,7 +375,9 @@ static int run(int argc,char **argv) {
         const bool sourceStatusRequired=r.synthetic;
 #endif
         scene=obs_scene_create_private("recording"); auto *item=obs_scene_add(scene,screen);
-        obs_sceneitem_crop crop{r.cropX,r.cropY,r.monitorWidth-r.cropX-r.width,r.monitorHeight-r.cropY-r.height};obs_sceneitem_set_crop(item,&crop);
+        auto crop=captureCrop(r,s.captureWidth,s.captureHeight);obs_sceneitem_set_crop(item,&crop);
+        vec2 outputBounds;vec2_set(&outputBounds,static_cast<float>(r.width),static_cast<float>(r.height));
+        obs_sceneitem_set_bounds_type(item,OBS_BOUNDS_STRETCH);obs_sceneitem_set_bounds(item,&outputBounds);
         s.stage="audio_sources";
         if(!r.synthetic) {
             // Do not mix implicit screen-source audio in addition to the explicit source.
@@ -419,7 +438,7 @@ static int run(int argc,char **argv) {
         for(;;) {
             s.sourceWidth=obs_source_get_width(screen);s.sourceHeight=obs_source_get_height(screen);
             if(s.sourcePropertiesChanged.exchange(false)&&sourceFailed(screen,sourceStatusRequired))throw std::runtime_error("capture_source");
-            bool geometry=s.sourceWidth==static_cast<uint32_t>(r.monitorWidth)&&s.sourceHeight==static_cast<uint32_t>(r.monitorHeight);
+            bool geometry=s.sourceWidth==s.captureWidth&&s.sourceHeight==s.captureHeight;
             bool sound=(!r.system()||s.systemSamples)&&(!r.mic()||s.micSamples);
             if(geometry&&sound)break;
             if(stopRequested())throw std::runtime_error("capture_cancelled");
@@ -439,7 +458,7 @@ static int run(int argc,char **argv) {
             if(r.synthetic&&s.testFailureMs>=0&&now-s.epoch>=static_cast<uint64_t>(s.testFailureMs)*1000000ULL)s.sourcePropertiesChanged=true;
             if(s.sourcePropertiesChanged.exchange(false)&&sourceFailed(screen,sourceStatusRequired))throw std::runtime_error("capture_source_lost");
             if(s.failed||s.mux.failed)throw std::runtime_error("recording_output");
-            bool geometry=s.sourceWidth==static_cast<uint32_t>(r.monitorWidth)&&s.sourceHeight==static_cast<uint32_t>(r.monitorHeight);
+            bool geometry=s.sourceWidth==s.captureWidth&&s.sourceHeight==s.captureHeight;
             bool sound=(!r.system()||s.systemSamples)&&(!r.mic()||s.micSamples);
             if(ready&&!geometry) {if(!geometryLostAt)geometryLostAt=now;else if(now-geometryLostAt>2000000000ULL)throw std::runtime_error("capture_geometry_lost");}else geometryLostAt=0;
             if(!ready&&s.mux.frames&&geometry&&sound) {
