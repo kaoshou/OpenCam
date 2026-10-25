@@ -52,15 +52,17 @@ minimum_version="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$
 if [[ "$native_only" == true ]]; then
   [[ ! -e "$macos/OpenCam.ScreenCapture" ]] || fail "native-only bundle contains the legacy screen helper"
   [[ -x "$resources/obs-runtime/Contents/MacOS/OpenCam.ObsCapture" ]] || fail "native-only recording helper is not executable"
-  node --input-type=module - "$resources" <<'NODE'
+  release_profile="$(/usr/libexec/PlistBuddy -c 'Print :OpenCamRelease' "$plist" 2>/dev/null || true)"
+  node --input-type=module - "$resources" "$release_profile" <<'NODE'
 import {readFile,readdir,lstat} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {join} from 'node:path';
 import {execFileSync} from 'node:child_process';
 const root=join(process.argv[2],'obs-runtime');
-const info=JSON.parse(await readFile(join(process.argv[2],'OBS-TEST-INFO.json')));
+const release=process.argv[3]==='true';
+const info=JSON.parse(await readFile(join(process.argv[2],release?'OBS-RECORDING-INFO.json':'OBS-TEST-INFO.json')));
 const m=JSON.parse(await readFile(join(root,'runtime.json')));
-if(!info.nativeOnly||info.compatibilityFallback!==false||!info.testOnly||!m.enabled||m.platform!=='osx-arm64'||
+if(!info.nativeOnly||info.compatibilityFallback!==false||info.testOnly!==!release||!m.enabled||m.platform!=='osx-arm64'||
   m.protocol!==1||m.obsVersion!=='33.0.0'||m.sourceRevision!=='72e86655715d9a25d69ce446aa4dd44ba58e10d2')throw Error('Wrong native-only runtime');
 const found=new Set();
 async function check(dir,prefix=''){

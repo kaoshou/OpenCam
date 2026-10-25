@@ -1,5 +1,26 @@
 # OpenCam Complete User Guide (English)
 
+## v1.0.0 major update
+
+Windows and macOS recording now uses OBS/libobs to address low achieved FPS, stutter and A/V synchronization in the previous pipeline. FFmpeg remains for audio trials, preview, editing and export, not recording fallback. Performance depends on hardware, resolution and load; first launch defaults to 20 FPS while existing preferences remain.
+
+## Familiar workflows: quick start
+
+### For oCam users: record to MP4
+
+For a familiar record-to-file workflow, enable **Auto-export MP4 on stop**, then wait for export to finish after stopping. GIF export is also available without audio. OpenCam additionally preserves the project and original MKV media for editing and continued recording.
+
+### For EverCam users: segmented teaching videos
+
+1. Create and name a recording project before recording.
+2. Choose **Presentation stick** in cursor styles, then select its style and size.
+3. Start recording, pause/resume freely, or stop and start again. OpenCam creates segments automatically.
+4. Open **Edit recording** to split, merge, trim and reorder clips, and import multiple SRT/VTT subtitle tracks.
+5. Export MP4 or a Web player with chapters, captions and transcripts.
+
+Choose Warm ivory, Teal silver, Round short stick or High-contrast gold in Small, Standard or Large. Pointers are recorded into the video and cannot be replaced afterwards. Make a short test and check picture, sound and synchronization first. These workflows do not imply project-format compatibility or affiliation with oCam/EverCam.
+
+
 ## Web player: reading preferences and transcript downloads
 
 The exported player keeps its existing layout and CC appearance controls. Transcript initially shows language and search; use **Reading settings** at the top right to open an overlay for follow playback, 100–200% reading text, spacing, dark contrast/warm backgrounds, reset and full transcript downloads. The overlay does not shrink the transcript; close it with its close button, Escape or an outside click. On phones and tablets its contents scroll within the viewport. It starts closed on every page load. These settings affect only the reading list, not video or source captions. Preferences are remembered when browser storage is available and can be reset.
@@ -58,27 +79,13 @@ v0.3.5 multilingual captions: attach SRT/VTT by selection or drop; unique projec
 
 ## Screen capture
 
-Both platforms use Settings → Video Quality & Actions → Screen capture, without a separate high-performance checkbox. Windows offers Automatic (recommended), Compatible capture (GDI), and Desktop capture (Desktop Duplication); macOS offers Standard capture (default) and ScreenCaptureKit. Check Actual capture after startup.
+Windows and macOS use OBS/libobs recording: Windows Graphics Capture and ScreenCaptureKit respectively. There is no GDI/FFmpeg recording fallback. Capture one display or a rectangle within one display, and stop before changing displays or devices. Grant macOS screen/system-audio and microphone permissions; restart after permission changes. The main screen reports actual capture and encoder.
 
-ScreenCaptureKit records one display or a rectangle within it. Select Auto or Apple hardware encoding and grant screen-recording permission; return to Standard capture if startup fails or motion is less smooth. Existing Mac preferences are preserved. An old Windows high-performance preference no longer overrides the capture dropdown.
-
-For video, animation or teaching-pointer motion, compare capture methods using the same region, 30 FPS and Standard quality. Do not increase resolution and FPS together. Capture technology does not enhance picture quality or guarantee the requested FPS. OpenCam records the selected screen area, not a dedicated game-hook recording mode.
-
-Mac Standard capture retains FFmpeg/AVFoundation; ScreenCaptureKit uses Apple hardware encoding. Both platforms share the setting location and interaction, while retaining their platform-specific capture methods. Stop recording before switching capture methods.
-
-Higher frame rates, full Retina resolution and simultaneous high-resolution playback increase load. ScreenCaptureKit uses SDR H.264; HDR colours may differ. Stop before changing display configuration. Enabling a teaching pointer does not automatically change FPS, quality or audio sources.
-
-## Windows screen capture
-
-Settings → Video Quality & Actions → Screen capture offers **Automatic (recommended)**, **Compatible capture (GDI)**, and **Desktop capture (Desktop Duplication)**. New preferences default to Automatic; existing manual choices are preserved. Automatic uses an accepted recording core when available and otherwise uses GDI. The new core remains disabled until its platform acceptance checks are complete; selecting Automatic does not enable an unvalidated runtime.
-
-After recording starts, **Actual capture** shows GDI or Desktop Duplication. Desktop capture supports unrotated displays on a single hardware graphics adapter, recording one display or a region within it at a time. Multiple GPUs, cross-display regions, rotated displays or uncertain GPU mapping use GDI and show the reason.
-
-Change capture mode only while idle, not while paused. Audio/cursor controls remain available during pause. Recording keeps the same capture method and encoder after it starts. If a display or desktop change prevents capture, recording stops and preserves working files for recovery.
+Higher FPS, Retina resolution and simultaneous video playback increase load. Begin at 20 FPS, or test 30 FPS for motion-heavy content. Check a short recording before a full lesson.
 
 OpenCam lets you record, edit, and resume recording. It writes MKV sources, retains them alongside a reopenable editing project, and exports MP4 when needed. Crash Recovery can attempt to preserve successfully written recordings; project recovery drafts protect interrupted unsaved edits.
 
-> This guide covers OpenCam v0.4.1: recording, editing, audio trials and MP4/GIF/Web export. See [what changed in this version](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.4.1.md).
+> This guide covers OpenCam v1.0.0: recording, editing, audio trials and MP4/GIF/Web export. See [what changed in this version](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v1.0.0.md).
 
 v0.3.3 replaces manual export with an **Export…** menu offering MP4 video or Web player. MP4 accepts a filename; Web player creates a unique folder containing index.html, media.mp4 and opencam-player.js. Chapters follow saved clips and show start times and durations in a scrollable index. Overlay controls provide seeking, volume, speed, wide-screen and fullscreen. Move the complete folder together and use an H.264/AAC-capable browser. See [the web export format](https://github.com/kaoshou/OpenCam/blob/master/docs/WEB_PLAYER_EXPORT.md).
 
@@ -117,15 +124,15 @@ These illustrations show v0.3.5. See this guide for current features. Select an 
 ### Windows
 
 - Windows 10 or Windows 11, x64.
-- Both the installer and portable package include the required runtime components.
-- Download `OpenCam_v0.4.1_Windows_x64_Setup.exe` or `OpenCam_v0.4.1_Windows_x64_Portable.zip` from [Releases](https://github.com/kaoshou/OpenCam/releases). Filenames identify the version, Windows platform, and x64 architecture.
+- Installer and portable packages include .NET and media tools. Windows recording additionally requires [Microsoft Visual C++ v14 Redistributable x64](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist). Missing files are diagnosed before recording; install or repair the official package and restart OpenCam.
+- Download `OpenCam_v1.0.0_Windows_x64_Setup.exe` or `OpenCam_v1.0.0_Windows_x64_Portable.zip` from [Releases](https://github.com/kaoshou/OpenCam/releases). Filenames identify the version, Windows platform, and x64 architecture.
 - System audio uses Windows loopback capture. A microphone can be selected in OpenCam.
 
 ### macOS
 
 - macOS 13 Ventura or later.
 - The official build currently supports Apple Silicon (arm64). An Intel Mac (x64) build is not currently provided.
-- Download `OpenCam_v0.4.1_macOS_arm64.dmg` from [Releases](https://github.com/kaoshou/OpenCam/releases); arm64 identifies Apple Silicon.
+- Download `OpenCam_v1.0.0_macOS_arm64.dmg` from [Releases](https://github.com/kaoshou/OpenCam/releases); arm64 identifies Apple Silicon.
 - After first launch, open **System Settings → Privacy & Security** and allow OpenCam to use:
   - Screen & System Audio Recording
   - Microphone, when microphone recording is needed
@@ -135,7 +142,7 @@ These illustrations show v0.3.5. See this guide for current features. Select an 
 ## 2. Quick Start
 
 1. Under **Capture Range**, select **Monitor** or **Custom Rectangle**.
-2. Select the FPS (5, 10, 20, 30 or 40; default 10), encoder, and cursor style. If needed, choose the default quality in Preferences first.
+2. Select the FPS (5, 10, 20, 30 or 40; default 20), encoder, and cursor style. If needed, choose the default quality in Preferences first.
 3. Choose whether to record system audio and the microphone.
 4. Confirm that the output location has at least 1 GB of free space.
    You can set **Export MP4 automatically after stopping** before your first recording. The choice applies to newly created recording projects; opening an existing project uses that project's saved setting.
@@ -174,8 +181,9 @@ OpenCam converts the region to physical screen pixels and, when necessary, adjus
 
 ### FPS
 
-- **5/10 FPS**: Suitable for slides, step-by-step instructions and screens with little motion. The default is 10 FPS.
-- **30 FPS**: Recommended for tutorials, presentations, meetings, and long recordings. It uses fewer resources and produces smaller files.
+- **5/10 FPS**: Suitable for slides, step-by-step instructions and screens with little motion. First launch defaults to 20 FPS.
+- **20 FPS**: First-launch default for general teaching, balancing motion and load.
+- **30 FPS**: Try for motion-heavy content; usually requires more resources.
 - **20/40 FPS**: Adjust for the content and system load. 40 FPS requires more processing and is not guaranteed to be smoother than 30 FPS.
 
 The recording selector no longer offers 60 FPS. An old 60 FPS preference migrates to 30 FPS; existing project and video timing metadata is not rewritten.

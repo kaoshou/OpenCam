@@ -152,3 +152,9 @@ a { color: inherit; }
 .language-switch:lang(zh-TW) { word-break: keep-all; }
 @media (max-width: 650px) { .nav-wrap { row-gap: 8px; }.nav-links { gap: 8px; } }
 @media (forced-colors: active) { :focus-visible { outline: 3px solid Highlight; }.button,.github-link,.language-switch { border: 1px solid ButtonText; }.window-halo { display: none; } }
+/* Familiar workflows and the application's actual pointer artwork. */
+.onboarding-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.5rem;margin-block:2rem}
+.pointer-showcase{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;list-style:none;padding:0}
+.pointer-showcase img{display:block;object-fit:contain;width:96px;height:96px;margin:0 auto 1rem}
+@media(max-width:760px){.onboarding-grid{grid-template-columns:1fr}.pointer-showcase{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:380px){.pointer-showcase{grid-template-columns:1fr}}

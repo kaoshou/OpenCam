@@ -34,8 +34,8 @@ test('desktop releases are gated by tests and reproducible FFmpeg inputs', async
   assert.match(yaml, /verify-macos:[\s\S]*?brew install ffmpeg[\s\S]*?dotnet test ScreenRecorder\.sln/);
   assert.match(yaml, /verify-macos:[\s\S]*?tests\/native\/OpenCamSystemAudioTests\.sh/);
   assert.ok(yaml.includes('scripts/check-nuget-vulnerabilities.mjs'));
-  assert.match(yaml, /build-windows:\s*\n\s*needs:\s*\[[^\]]*verify-portable[^\]]*verify-windows[^\]]*\]/);
-  assert.match(yaml, /build-macos:\s*\n\s*needs:\s*\[[^\]]*verify-portable[^\]]*verify-macos[^\]]*\]/);
+  assert.match(yaml, /build-obs:[\s\S]*?needs: \[verify-portable, verify-windows, verify-macos\]/);
+  assert.match(yaml, /uses: \.\/.github\/workflows\/verify-obs-core.yml/);
   assert.doesNotMatch(windowsInstaller, /BtbN\/FFmpeg-Builds\/releases\/download\/latest\//);
   assert.ok(windowsInstaller.includes(pinnedUrl));
   assert.ok(windowsInstaller.includes(sha256));

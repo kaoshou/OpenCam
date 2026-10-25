@@ -23,7 +23,7 @@ fail() {
 
 [[ -n "$publish_input" && -n "$app_input" ]] || \
   fail "usage: $0 /path/to/publish /path/to/OpenCam.app [configuration]"
-[[ -z "$test_profile" || "$test_profile" == "--native-only-user-test" ]] || fail "unknown package profile"
+[[ -z "$test_profile" || "$test_profile" == "--native-only-user-test" || "$test_profile" == "--native-only-release" ]] || fail "unknown package profile"
 if [[ -n "$test_profile" ]]; then
   [[ -n "$runtime_stage" && -d "$runtime_stage" ]] || fail "native-only runtime stage is required"
   [[ ! -e "$app_input" && ! -L "$app_input" ]] || fail "native-only output already exists"
@@ -152,9 +152,14 @@ plist_buddy=/usr/libexec/PlistBuddy
 
 if [[ -n "$test_profile" ]]; then
   "$plist_buddy" -c 'Add :OpenCamNativeOnlyTest bool true' "$plist"
+  staging_authorization=--enable-user-test-only
+  if [[ "$test_profile" == "--native-only-release" ]]; then
+    staging_authorization=--enable-release
+    "$plist_buddy" -c 'Add :OpenCamRelease bool true' "$plist"
+  fi
   node "$repo_root/scripts/prepare-obs-user-test-package.mjs" "$runtime_stage" \
-    "$app_path/Contents/MacOS" "$source_revision" "$product_version" --enable-user-test-only --native-only
-  printf '\n## User-test recording core\nFull notices and corresponding sources: obs-runtime/licenses/SOURCE-INFO.md and inventory.json.\n' >> "$app_path/Contents/Resources/THIRD-PARTY-NOTICES.md"
+    "$app_path/Contents/MacOS" "$source_revision" "$product_version" "$staging_authorization" --native-only
+  printf '\n## OBS recording core\nFull notices and corresponding sources: obs-runtime/licenses/SOURCE-INFO.md and inventory.json.\n' >> "$app_path/Contents/Resources/THIRD-PARTY-NOTICES.md"
   # The verified runtime is already signed. Re-signing it would invalidate
   # its immutable SHA256 inventory. Sign only our other Mach-O files first.
   node "$repo_root/scripts/sign-macos-native-only.mjs" "$app_path"

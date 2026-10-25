@@ -75,7 +75,7 @@ test('unpublished development version does not move downloads or the public vers
   try {
     await mkdir(join(root, 'website/src'), { recursive: true });
     await mkdir(join(root, 'docs/images'), { recursive: true });
-    for (const name of ['content.mjs', 'layout.mjs', 'paths.mjs']) {
+    for (const name of ['content.mjs', 'onboarding.mjs', 'layout.mjs', 'paths.mjs']) {
       await copyFile(new URL('../src/' + name, import.meta.url), join(root, 'website/src', name));
     }
     await copyFile(new URL('../downloads.json', import.meta.url), join(root, 'website/downloads.json'));

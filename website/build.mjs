@@ -8,6 +8,8 @@ import { escapeHtml } from './src/layout.mjs';
 
 const websiteRoot = fileURLToPath(new URL('.', import.meta.url));
 const requiredAssets = [
+  ...['WarmIvory', 'TealSilver', 'RoundShort', 'HighContrast'].map(id =>
+    [`src/ScreenRecorder.Core/Assets/TeachingPointers/${id}.png`, `pointer-${id}.png`]),
   ['src/ScreenRecorder.UI/Assets/app_icon.png', 'app_icon.png'],
   ['docs/images/preview_main_zhtw.png', 'preview_main_zhtw.png'],
   ['docs/images/preview_main_enus.png', 'preview_main_enus.png'],

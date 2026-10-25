@@ -1,0 +1,11 @@
+{
+  "version": "1.0.0",
+  "status": "pending",
+  "reviewedBy": null,
+  "archives": [],
+  "remaining": [
+    "OBS Windows and macOS: preserve full matching dependency sources, applied upstream patches and build material beside binary downloads.",
+    "Windows standalone BtbN FFmpeg: verify exact sources and patches of enabled GPL libraries; upstream release has binary assets and checksums but no corresponding-source asset.",
+    "macOS standalone FFmpeg: preserve and index the source archives already bundled by build-ffmpeg-macos-arm64.sh."
+  ]
+}

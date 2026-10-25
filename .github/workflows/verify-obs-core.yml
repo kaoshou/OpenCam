@@ -2,6 +2,11 @@
 # Independent development validation. No package-release, deployment or Release writes.
 name: Verify pinned OBS recording core
 on:
+  workflow_call:
+    inputs:
+      release_package:
+        type: boolean
+        default: false
   workflow_dispatch:
   push:
     branches: [codex/libobs-core-validation-20261025]
@@ -9,7 +14,6 @@ permissions:
   contents: read
 jobs:
   windows-core:
-    if: github.ref == 'refs/heads/codex/libobs-core-validation-20261025'
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -56,7 +60,7 @@ jobs:
         run: |
           dotnet test tests/ScreenRecorder.Core.Tests/ScreenRecorder.Core.Tests.csproj -c Release -m:1 /nodeReuse:false --filter 'FullyQualifiedName~SettingsServiceTests|FullyQualifiedName~IpcTests' --logger trx --results-directory obs-results/managed
           if ($LASTEXITCODE -ne 0) { throw 'First-launch/default settings tests failed.' }
-          dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release -m:1 /nodeReuse:false --filter 'FullyQualifiedName~ScreenRecorder.Media.Tests.Obs|FullyQualifiedName~SettingsViewModelTests|FullyQualifiedName~ProjectMainEntryTests|FullyQualifiedName~TeachingPointerUiTests|FullyQualifiedName~RecordingContent|FullyQualifiedName~EmptyStartupFailure|FullyQualifiedName~StartupWithBytes|FullyQualifiedName~FailedResumePreserves|FullyQualifiedName~CustomRegionPreferencesTests|FullyQualifiedName~ProjectInspectorTests|FullyQualifiedName~RecordingCloseWarningLayoutTests|FullyQualifiedName~ProjectEditorChromeTests|FullyQualifiedName~WebPlayerExportTests' --logger trx --results-directory obs-results/managed
+          dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release -m:1 /nodeReuse:false --filter 'FullyQualifiedName~ScreenRecorder.Media.Tests.Obs|FullyQualifiedName~WindowsRecordingPrerequisitesTests|FullyQualifiedName~SettingsViewModelTests|FullyQualifiedName~ProjectMainEntryTests|FullyQualifiedName~TeachingPointerUiTests|FullyQualifiedName~RecordingContent|FullyQualifiedName~EmptyStartupFailure|FullyQualifiedName~StartupWithBytes|FullyQualifiedName~FailedResumePreserves|FullyQualifiedName~CustomRegionPreferencesTests|FullyQualifiedName~ProjectInspectorTests|FullyQualifiedName~RecordingCloseWarningLayoutTests|FullyQualifiedName~ProjectEditorChromeTests|FullyQualifiedName~WebPlayerExportTests' --logger trx --results-directory obs-results/managed
           if ($LASTEXITCODE -ne 0) { throw 'Managed OBS adapter tests failed.' }
       - name: Test explicit user-test runtime staging safeguards
         run: node --test tests/scripts/obs-user-test-package.test.mjs tests/scripts/third-party-notice-profile.test.mjs tests/web-player/player.test.mjs
@@ -102,7 +106,39 @@ jobs:
           $name = "OpenCam_v$((Get-Content VERSION -Raw).Trim())_Windows_x64_NativeOnly_Test_$($env:GITHUB_SHA.Substring(0,7)).zip"
           Compress-Archive -Path user-test-package/* -DestinationPath $name
           Get-FileHash -LiteralPath $name -Algorithm SHA256 | ConvertTo-Json | Set-Content obs-results/user-test-zip-sha256.json -Encoding utf8
+      - name: Assemble verified official Windows assets
+        if: inputs.release_package
+        shell: pwsh
+        run: |
+          node scripts/release-artifact-names.mjs | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          if ($LASTEXITCODE -ne 0) { throw 'Artifact names failed.' }
+          $names = node scripts/release-artifact-names.mjs
+          foreach ($line in $names) { $key,$value = $line -split '=',2; Set-Item "env:$key" $value }
+          New-Item -ItemType Directory -Force installer/publish | Out-Null
+          Copy-Item user-test-package/* installer/publish -Recurse
+          Remove-Item installer/publish/OBS-TEST-INFO.json, installer/publish/README-TEST.zh-TW.txt
+          Remove-Item installer/publish/obs-runtime -Recurse
+          node scripts/prepare-obs-user-test-package.mjs obs-results/runtime installer/publish $env:GITHUB_SHA $env:OPENCAM_VERSION --enable-release --native-only
+          if ($LASTEXITCODE -ne 0) { throw 'Official runtime staging failed.' }
+          Copy-Item LICENSE installer/publish/LICENSE.txt
+          node scripts/check-release-notices.mjs installer/publish $env:GITHUB_SHA $env:OPENCAM_VERSION --installer
+          if ($LASTEXITCODE -ne 0) { throw 'Official notices failed.' }
+          dotnet tests/ScreenRecorder.NativeOnlyProbe/bin/native-only/Release/net8.0/ScreenRecorder.NativeOnlyProbe.dll installer/publish
+          if ($LASTEXITCODE -ne 0) { throw 'Official native-only policy failed.' }
+          Compress-Archive -Path installer/publish/* -DestinationPath $env:WINDOWS_PORTABLE
+          & "C:\Program Files (x86)\Inno Setup 6\iscc.exe" "/DMyAppVersion=$env:OPENCAM_VERSION" installer/OpenCam.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Installer failed.' }
+      - name: Upload official Windows installer and portable
+        if: inputs.release_package
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenCam-v${{ env.OPENCAM_VERSION }}-Windows-x64
+          if-no-files-found: error
+          path: |
+            installer/Output/${{ env.WINDOWS_SETUP }}
+            ${{ env.WINDOWS_PORTABLE }}
       - name: Upload Windows portable user-test ZIP (not a Release)
+        if: ${{ !inputs.release_package }}
         uses: actions/upload-artifact@v4
         with:
           name: OpenCam-Windows-NativeOnly-User-Test-${{ github.sha }}
@@ -134,7 +170,6 @@ jobs:
             obs-results/build/Release/win-capture.dll
             obs-results/build/Release/win-capture.pdb
   macos-package:
-    if: github.ref == 'refs/heads/codex/libobs-core-validation-20261025'
     runs-on: macos-15
     timeout-minutes: 60
     steps:
@@ -158,7 +193,9 @@ jobs:
         run: bash scripts/build-ffmpeg-macos-arm64.sh "$RUNNER_TEMP/publish"
       - name: Package and validate macOS application
         run: |
-          bash scripts/package-macos.sh "$RUNNER_TEMP/publish" "$RUNNER_TEMP/bundle/OpenCam.app" Release --native-only-user-test "$RUNNER_TEMP/obs-runtime"
+          profile=--native-only-user-test
+          if [ "${{ inputs.release_package }}" = true ]; then profile=--native-only-release; fi
+          bash scripts/package-macos.sh "$RUNNER_TEMP/publish" "$RUNNER_TEMP/bundle/OpenCam.app" Release "$profile" "$RUNNER_TEMP/obs-runtime"
           node scripts/check-release-notices.mjs "$RUNNER_TEMP/bundle/OpenCam.app/Contents/Resources" "$GITHUB_SHA" "$(cat VERSION)"
           dotnet build tests/ScreenRecorder.NativeOnlyProbe/ScreenRecorder.NativeOnlyProbe.csproj -c Release -p:OpenCamNativeOnlyTest=true -m:1 /nodeReuse:false
           PATH="$RUNNER_TEMP/bundle/OpenCam.app/Contents/MacOS:$PATH" dotnet tests/ScreenRecorder.NativeOnlyProbe/bin/native-only/Release/net8.0/ScreenRecorder.NativeOnlyProbe.dll "$RUNNER_TEMP/bundle/OpenCam.app/Contents/MacOS"
@@ -166,7 +203,29 @@ jobs:
           name="OpenCam_v$(cat VERSION)_macOS_arm64_Test_${GITHUB_SHA:0:7}.zip"
           ditto -c -k --sequesterRsrc --keepParent "$RUNNER_TEMP/bundle/OpenCam.app" "$name"
           shasum -a 256 "$name" > "$name.sha256"
+      - name: Create official macOS disk image
+        if: inputs.release_package
+        run: |
+          node scripts/release-artifact-names.mjs >> "$GITHUB_ENV"
+          eval "$(node scripts/release-artifact-names.mjs)"
+          mkdir -p "$RUNNER_TEMP/dmg-release"
+          ditto "$RUNNER_TEMP/bundle/OpenCam.app" "$RUNNER_TEMP/dmg-release/OpenCam.app"
+          ln -s /Applications "$RUNNER_TEMP/dmg-release/Applications"
+          for attempt in 1 2 3; do
+            if hdiutil create -volname OpenCam -srcfolder "$RUNNER_TEMP/dmg-release" -ov -format UDZO "$MACOS_DMG"; then break; fi
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            sleep 5
+          done
+          hdiutil verify "$MACOS_DMG"
+      - name: Upload official macOS disk image
+        if: inputs.release_package
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenCam-v${{ env.OPENCAM_VERSION }}-macOS-arm64
+          if-no-files-found: error
+          path: ${{ env.MACOS_DMG }}
       - name: Upload macOS Apple Silicon test application (not a Release)
+        if: ${{ !inputs.release_package }}
         uses: actions/upload-artifact@v4
         with:
           name: OpenCam-macOS-arm64-User-Test-${{ github.sha }}
@@ -176,7 +235,6 @@ jobs:
           if-no-files-found: error
           retention-days: 14
   managed-portable:
-    if: github.ref == 'refs/heads/codex/libobs-core-validation-20261025'
     strategy:
       fail-fast: false
       matrix:

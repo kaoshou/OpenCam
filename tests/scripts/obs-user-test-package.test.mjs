@@ -46,6 +46,19 @@ test('native-only packaging explicitly records no compatibility recording core',
   const info=JSON.parse(await readFile(join(f.publish,'OBS-TEST-INFO.json')));
   assert.equal(info.nativeOnly,true);assert.equal(info.compatibilityFallback,false);
 });
+test('authorized release staging records production provenance without test branding',async t=>{
+  const f=await fixture(t),result=f.run('--enable-release','--native-only');
+  assert.equal(result.status,0,result.stderr);
+  const info=JSON.parse(await readFile(join(f.publish,'OBS-RECORDING-INFO.json')));
+  assert.equal(info.testOnly,false);assert.equal(info.nativeOnly,true);
+  assert.equal(info.compatibilityFallback,false);assert.equal(info.sourceRevision,revision);
+  await assert.rejects(lstat(join(f.publish,'OBS-TEST-INFO.json')),{code:'ENOENT'});
+});
+test('release staging cannot enable a compatibility recording fallback',async t=>{
+  const f=await fixture(t),result=f.run('--enable-release');
+  assert.notEqual(result.status,0);assert.match(result.stderr,/native-only/);
+  await assert.rejects(lstat(join(f.publish,'obs-runtime')),{code:'ENOENT'});
+});
 test('macOS native-only staging validates the nested helper and enables only the copy',async t=>{
   const f=await fixture(t);
   await rm(join(f.stage,'OpenCam.ObsCapture.exe'));

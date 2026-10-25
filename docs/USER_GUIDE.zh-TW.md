@@ -1,5 +1,26 @@
 # OpenCam 完整使用說明（繁體中文）
 
+## v1.0.0 重大更新
+
+Windows 與 macOS 正式錄影改用 OBS／libobs，針對舊流程影音不同步、實際 FPS 偏低與卡頓改善擷取及時間軸。FFmpeg 仍用於聲音試錄、預覽、剪輯與輸出，不作錄影備援。效能依硬體、解析度及負載而異；首次啟動預設 20 FPS，升級保留既有設定。
+
+## 熟悉的使用方式：快速上手
+
+### oCam 使用者：錄完自動產出影片
+
+oCam 是輕巧好用、錄完即產出影片的工具。若希望類似體驗，勾選「停止錄影後自動輸出 MP4」，停止後等待自動輸出完成；亦可手動匯出 GIF（沒有音訊）。OpenCam 另外保留專案與 MKV 原始素材，方便續錄及編輯。
+
+### EverCam 使用者：分段教學與剪輯
+
+1. 錄製前新增錄製專案，命名並確認保存位置。
+2. 游標樣式選「虛擬教鞭」，再選樣式與大小。
+3. 開始錄影，可暫停／繼續，或停止後再開始，程式自動分段。
+4. 「編輯錄製內容」可分割、合併、修剪、重排，並匯入多重 SRT／VTT 字幕。
+5. 輸出 MP4 或含章節、字幕與逐字稿的網頁播放器。
+
+教鞭提供暖白橙端、藍綠銀白、圓頭短棒與高對比黑金，各可選較小／標準／加大。效果直接錄入影片，事後不能更換；正式講解前先短錄並回放，確認畫面、聲音與同步。上述是相近工作流程，不代表與 oCam／EverCam 專案格式相容或具關聯。
+
+
 ## 網頁播放器：閱讀設定與逐字稿下載
 
 輸出的網頁播放器保留原有版面與 CC 字幕設定。切換右側「逐字稿」，預設保留語言與搜尋，按右上角「閱讀設定」才開啟設定浮層，調整跟隨播放、閱讀字級（100–200%）、行距、深色高對比／暖白背景，或下載完整逐字稿。浮層不占用逐字稿高度，可按關閉、Esc 或點外側關閉；手機和平板上可在浮層內捲動。重新開啟網頁時預設關閉。這些設定只影響閱讀清單，不改影片或字幕原檔；瀏覽器允許時會記住偏好，也可重設。
@@ -58,7 +79,7 @@ v0.3.5 多語字幕：編輯器的「附加影片字幕」可選取或拖放 SRT
 
 OpenCam 讓你錄影、剪輯，再繼續錄影。錄影期間先寫入 MKV，剪輯以專案保存並保留原始素材，可稍後重新開啟、追加錄影及輸出 MP4。若遇到中斷，「修復救援」可嘗試保留已成功寫入的錄影；未儲存剪輯則使用專案復原草稿。
 
-> 本說明適用於 OpenCam v0.4.1，介紹錄影、剪輯、聲音試錄及 MP4／GIF／網頁輸出。詳見 [本版更新內容](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v0.4.1.md)。
+> 本說明適用於 OpenCam v1.0.0，介紹錄影、剪輯、聲音試錄及 MP4／GIF／網頁輸出。詳見 [本版更新內容](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v1.0.0.md)。
 
 v0.3.3 將手動輸出改為「輸出…」選單，可選 MP4 影片或網頁播放器。MP4 可指定檔名；網頁選擇存放位置後建立含 index.html、media.mp4、opencam-player.js 的獨立資料夾，章節依保存的片段生成。影片內提供進度、音量、速度、寬螢幕及全螢幕，章節顯示起始時間及長度並可捲動。請整個資料夾一起搬移，使用支援 H.264／AAC 的瀏覽器。詳見 [網頁輸出格式](https://github.com/kaoshou/OpenCam/blob/master/docs/WEB_PLAYER_EXPORT.md)。
 
@@ -96,36 +117,28 @@ Windows 下載與免安裝使用步驟請見 [README](../README.md)。錄製內�
 
 ### 畫面擷取
 
-Windows 與 macOS 都在「設定 → 錄影品質與行為 → 畫面擷取」選擇擷取方式，不另設「高效能擷取」勾選。Windows 提供自動（建議）、相容擷取（GDI）與桌面擷取（Desktop Duplication）；macOS 提供一般擷取（預設）與 ScreenCaptureKit。開始錄影後可查看實際採用的方式。
+Windows 與 macOS 使用 OBS／libobs 核心：Windows 使用 Windows Graphics Capture，macOS 使用 ScreenCaptureKit。正式版不使用 GDI 或 FFmpeg 錄影備援；啟動失敗時顯示原因並保留已寫入內容。可在主畫面查看實際擷取與編碼器。
 
-ScreenCaptureKit 適用單一螢幕或該螢幕內的矩形範圍；請選「自動」或 Apple 硬體編碼，並允許螢幕錄製權限。若無法啟動或較卡，可改選一般擷取。原有 macOS 選擇會保留；Windows 的舊高效能勾選不再覆蓋畫面擷取選單。
+選擇單一螢幕或位於同一螢幕內的矩形範圍。macOS 需允許螢幕與系統音訊錄製、麥克風權限；更改權限後重新開啟程式。高解析度、較高 FPS 及同時播放影片會增加負載，預設 20 FPS 是一般教學的起點；動態內容可試 30 FPS，先短錄回放確認。
 
-錄製影片、動畫或教鞭移動時，可先用相同範圍、30 FPS、標準畫質比較不同擷取方式。不要同時提高解析度與 FPS。擷取方式不是畫質增強，也不保證達到指定 FPS；OpenCam 錄製選定的螢幕範圍，並非獨立的遊戲掛鉤錄製模式。
+### Windows 畫面擷取
 
-macOS 一般擷取沿用 FFmpeg／AVFoundation；ScreenCaptureKit 搭配 Apple 硬體編碼。兩系統介面位置與操作一致，底層依作業系統提供合適的擷取方式。切換前請先停止錄影。
+Windows 錄影需 [Microsoft Visual C++ v14 Redistributable x64](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist)。未安裝時會在錄影前提示缺少的執行階段檔案與官方安裝連結；安裝或修復後重新開啟 OpenCam，不要單獨從第三方網站下載 DLL。
 
-較高 FPS、Retina 原始解析度及同時播放高畫質影片會增加負載。ScreenCaptureKit 使用 SDR H.264；HDR 色彩可能不同，切換顯示器配置前請先停止錄影。程式不會為了教鞭自動改動 FPS、畫質或音源。
-
-### Windows 畫面擷取選項
-
-「設定 → 錄影品質與行為 → 畫面擷取」提供「自動（建議）」、「相容擷取（GDI）」及「桌面擷取（Desktop Duplication）」。新設定預設為自動，既有的手動選擇會保留。自動模式使用已通過驗收的錄影核心，未提供時使用 GDI。新核心在各平台驗收完成前保持停用；選擇自動不會啟用尚未驗證的執行環境。
-
-開始錄影後查看右側「實際擷取」，確認使用 GDI 或 Desktop Duplication。桌面擷取支援單一硬體顯卡上的未旋轉螢幕，每次選一台或其內部選區；多顯卡、跨螢幕、旋轉螢幕或無法確認顯卡對應時，會使用 GDI 並顯示原因。擷取方式可於待機時修改；暫停時可調整音源與游標。
-
-桌面擷取無法啟動時可使用 GDI 備援；錄影成功開始後會維持同一擷取方式。若顯示器或桌面狀態改變而無法繼續，會停止並保留片段，必要時可使用修復救援處理工作檔。
+由 OBS 核心處理選定螢幕與音源，不需選 GDI／桌面擷取模式。顯示器配置或裝置變更前先停止錄影；若擷取中斷，保留專案與 MKV，依錯誤訊息處理，不要覆蓋原始素材。
 
 ### Windows
 
 - Windows 10 或 Windows 11，x64。
 - 安裝版與免安裝版都已包含執行所需元件。
-- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v0.4.1_Windows_x64_Setup.exe` 或 `OpenCam_v0.4.1_Windows_x64_Portable.zip`。檔名會標示版本、Windows 及 x64 架構。
+- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v1.0.0_Windows_x64_Setup.exe` 或 `OpenCam_v1.0.0_Windows_x64_Portable.zip`。檔名會標示版本、Windows 及 x64 架構。
 - 系統音訊使用 Windows 音訊回送擷取；麥克風可在 OpenCam 中選擇。
 
 ### macOS
 
 - macOS 13 Ventura 或以上。
 - 官方版本目前支援 Apple Silicon（arm64）；尚未提供 Intel Mac（x64）版本。
-- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v0.4.1_macOS_arm64.dmg`；檔名中的 arm64 表示 Apple Silicon。
+- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v1.0.0_macOS_arm64.dmg`；檔名中的 arm64 表示 Apple Silicon。
 - 第一次啟動後，請到「系統設定 → 隱私權與安全性」允許 OpenCam 使用：
   - 螢幕與系統音訊錄製
   - 麥克風（需要錄製麥克風時）
@@ -135,7 +148,7 @@ macOS 一般擷取沿用 FFmpeg／AVFoundation；ScreenCaptureKit 搭配 Apple �
 ## 2. 快速開始
 
 1. 在「錄製範圍」選擇「指定螢幕」或「自訂矩形區域」。
-2. 選擇 FPS（5、10、20、30 或 40，預設 10）、編碼器與游標樣式；如有需要，先在偏好設定選擇預設畫質。
+2. 選擇 FPS（5、10、20、30 或 40，預設 20）、編碼器與游標樣式；如有需要，先在偏好設定選擇預設畫質。
 3. 決定是否錄製系統聲音及麥克風。
 4. 確認儲存位置至少有 1 GB 可用空間。
    首次錄影前即可設定「停止錄影後自動輸出 MP4」，選擇會套用到新建立的錄製專案；開啟既有專案時則使用該專案的設定。
@@ -174,8 +187,9 @@ OpenCam 會將選區轉換成實際畫面像素，並在必要時調整成編碼
 
 ### FPS
 
-- **5／10 FPS**：適合簡報、操作步驟及變動較少的畫面；預設為 10 FPS。
-- **30 FPS**：一般教學、簡報、會議及長時間錄影的建議值，資源與檔案大小較低。
+- **5／10 FPS**：適合簡報、操作步驟及變動較少的畫面；首次啟動預設為 20 FPS。
+- **20 FPS**：首次啟動預設，兼顧一般教學流暢度與負載。
+- **30 FPS**：動態內容較多時可嘗試，通常需要更多資源。
 - **20／40 FPS**：依畫面內容與電腦負載調整；40 FPS 的處理負載較高，不保證比 30 FPS 更流暢。
 
 錄製選單不提供 60 FPS；舊偏好若為 60 FPS，會改為 30 FPS。既有專案與影片的幀率資料不會因此被改寫。

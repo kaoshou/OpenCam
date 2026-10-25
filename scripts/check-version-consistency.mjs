@@ -34,7 +34,11 @@ export async function checkVersionConsistency(repositoryRoot) {
   })));
 
   for (const file of files) {
-    if (file.text.includes(version)) {
+    // assemblyIdentity is a Windows manifest schema identity, not the product
+    // version (which MSBuild supplies from VERSION). Its fixed 1.0.0.0 is valid.
+    const text = file.relativePath.endsWith('/app.manifest')
+      ? file.text.replace(/<assemblyIdentity\b[^>]*\/>/, '') : file.text;
+    if (text.includes(version)) {
       throw new Error(`${file.relativePath} contains independent product version ${version}`);
     }
   }
