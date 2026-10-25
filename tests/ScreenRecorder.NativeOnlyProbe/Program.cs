@@ -32,6 +32,8 @@ foreach (var previousMode in Enum.GetValues<WindowsCaptureMode>())
 }
 if (OperatingSystem.IsMacOS())
 {
+    Check(RecordingEngineFactory.GetRuntimeDirectory("/tmp/NativeTest.app/Contents/MacOS") ==
+        "/tmp/NativeTest.app/Contents/Resources/obs-runtime", "Mac native-only bundle must load the byte-preserved runtime from Resources.");
     foreach (var previousNative in new[] { false, true })
     {
         var settings = new SettingsFixture { Settings = new() { NativeCaptureEnabled = previousNative } };
@@ -57,7 +59,7 @@ if (args.Length == 1)
     var root = Path.GetFullPath(args[0]);
     Check(!File.Exists(Path.Combine(root,"OpenCam.ScreenCapture.exe")),"Legacy native helper is still packaged.");
     Check(!File.Exists(Path.Combine(root,"OpenCam.ScreenCapture")),"Legacy Mac screen helper is still packaged.");
-    Check(ObsRuntime.TryLoad(Path.Combine(root,"obs-runtime")) is not null,"Packaged native runtime is not accepted.");
+    Check(ObsRuntime.TryLoad(RecordingEngineFactory.GetRuntimeDirectory(root)) is not null,"Packaged native runtime is not accepted.");
 }
 Console.WriteLine("PASS: legacy screen-recorder type absent; native-only profile active; missing runtime fails closed.");
 

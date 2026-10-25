@@ -20,9 +20,14 @@ public sealed class RecordingEngineFactory(
     IDisplayService? displayService = null,
     Func<MonitorInfo, string?>? nativeIdentity = null) : IRecordingEngineFactory
 {
+    public static string GetRuntimeDirectory(string executableDirectory) =>
+        RecordingBuildProfile.NativeOnlyTest && OperatingSystem.IsMacOS()
+            ? Path.GetFullPath(Path.Combine(executableDirectory, "..", "Resources", "obs-runtime"))
+            : Path.Combine(executableDirectory, "obs-runtime");
+
     public IScreenRecorderEngine Create(HardwareEncoderType? pinnedEncoder, CaptureSelection? pinnedCapture = null)
     {
-        var runtime = ObsRuntime.TryLoad(Path.Combine(AppContext.BaseDirectory, "obs-runtime"));
+        var runtime = ObsRuntime.TryLoad(GetRuntimeDirectory(AppContext.BaseDirectory));
 #if OPENCAM_OBS_ONLY_TEST
         if (runtime is null)
             throw new IOException("Native-only test: verified recording runtime is missing or damaged; recording did not start.");

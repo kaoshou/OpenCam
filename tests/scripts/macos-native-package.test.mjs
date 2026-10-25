@@ -28,13 +28,13 @@ test('Mac bundle verification rejects missing execute permission on the sole rec
   const root=await mkdtemp(join(tmpdir(),'opencam-mac-permission-test-'));
   t.after(()=>rm(root,{recursive:true,force:true}));
   const app=join(root,'OpenCam.app'),mac=join(app,'Contents/MacOS'),res=join(app,'Contents/Resources');
-  await mkdir(join(mac,'obs-runtime/Contents/MacOS'),{recursive:true});await mkdir(res,{recursive:true});
-  await mkdir(join(mac,'TeachingPointers'));
+  await mkdir(mac,{recursive:true});await mkdir(join(res,'obs-runtime/Contents/MacOS'),{recursive:true});
+  await mkdir(join(res,'TeachingPointers'));
   for(const name of ['OpenCam','ffmpeg','ffprobe','OpenCam.SystemAudio','OpenCam.Microphone','OpenCam.CursorOverlay'])
     await writeFile(join(mac,name),'fixture',{mode:0o755});
-  for(const name of ['WarmIvory','TealSilver','RoundShort','HighContrast'])await writeFile(join(mac,'TeachingPointers',name+'.png'),'fixture');
-  await writeFile(join(mac,'PresentationPointer.png'),'fixture');
-  await writeFile(join(mac,'obs-runtime/Contents/MacOS/OpenCam.ObsCapture'),'fixture',{mode:0o644});
+  for(const name of ['WarmIvory','TealSilver','RoundShort','HighContrast'])await writeFile(join(res,'TeachingPointers',name+'.png'),'fixture');
+  await writeFile(join(res,'PresentationPointer.png'),'fixture');
+  await writeFile(join(res,'obs-runtime/Contents/MacOS/OpenCam.ObsCapture'),'fixture',{mode:0o644});
   await copyFile(fileURLToPath(new URL('../../LICENSE',import.meta.url)),join(res,'LICENSE'));
   for(const name of ['NOTICE.md','OpenCam.icns'])await writeFile(join(res,name),'fixture');
   await writeFile(join(res,'SOURCE.txt'),'SPDX-License-Identifier: AGPL-3.0-or-later\nCorresponding source: https://github.com/kaoshou/OpenCam/tree/'+'a'.repeat(40));

@@ -24,9 +24,12 @@ for executable in OpenCam ffmpeg ffprobe OpenCam.SystemAudio OpenCam.Microphone 
   [[ -x "$macos/$executable" ]] || fail "missing executable: Contents/MacOS/$executable"
 done
 
-[[ -s "$macos/PresentationPointer.png" ]] || fail "missing presentation pointer image"
+native_only="$(/usr/libexec/PlistBuddy -c 'Print :OpenCamNativeOnlyTest' "$plist" 2>/dev/null || true)"
+asset_root="$macos"
+[[ "$native_only" != true ]] || asset_root="$resources"
+[[ -s "$asset_root/PresentationPointer.png" ]] || fail "missing presentation pointer image"
 for style in WarmIvory TealSilver RoundShort HighContrast; do
-  [[ -s "$macos/TeachingPointers/$style.png" ]] || fail "missing teaching pointer: $style"
+  [[ -s "$asset_root/TeachingPointers/$style.png" ]] || fail "missing teaching pointer: $style"
 done
 
 [[ -f "$resources/OpenCam.icns" ]] || fail "missing Resources/OpenCam.icns"
@@ -46,10 +49,10 @@ icon_name="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$plist" 2>/de
 minimum_version="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$plist" 2>/dev/null || true)"
 [[ "$minimum_version" == "13.0" ]] || fail "LSMinimumSystemVersion must be 13.0"
 
-if [[ "$(/usr/libexec/PlistBuddy -c 'Print :OpenCamNativeOnlyTest' "$plist" 2>/dev/null || true)" == true ]]; then
+if [[ "$native_only" == true ]]; then
   [[ ! -e "$macos/OpenCam.ScreenCapture" ]] || fail "native-only bundle contains the legacy screen helper"
-  [[ -x "$macos/obs-runtime/Contents/MacOS/OpenCam.ObsCapture" ]] || fail "native-only recording helper is not executable"
-  node --input-type=module - "$macos" <<'NODE'
+  [[ -x "$resources/obs-runtime/Contents/MacOS/OpenCam.ObsCapture" ]] || fail "native-only recording helper is not executable"
+  node --input-type=module - "$resources" <<'NODE'
 import {readFile,readdir,lstat} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {join} from 'node:path';

@@ -118,9 +118,15 @@ private final class CursorOverlayController: NSObject, NSApplicationDelegate {
             DispatchQueue.main.async { NSApp.terminate(nil) }
         }
         if mode == .stick {
-            let url = URL(fileURLWithPath:CommandLine.arguments[0]).deletingLastPathComponent()
+            let executableDirectory = URL(fileURLWithPath:CommandLine.arguments[0]).deletingLastPathComponent()
+            let url = executableDirectory
                 .appendingPathComponent("TeachingPointers").appendingPathComponent(pointerStyle + ".png")
             presentationImage = NSImage(contentsOf:url)
+            if presentationImage == nil {
+                let resourceURL = executableDirectory.deletingLastPathComponent().appendingPathComponent("Resources")
+                    .appendingPathComponent("TeachingPointers").appendingPathComponent(pointerStyle + ".png")
+                presentationImage = NSImage(contentsOf:resourceURL)
+            }
             guard let image = presentationImage, image.isValid,
                   image.representations.first?.pixelsWide == 280,
                   image.representations.first?.pixelsHigh == 240 else {

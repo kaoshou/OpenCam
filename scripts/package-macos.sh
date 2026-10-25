@@ -154,26 +154,10 @@ if [[ -n "$test_profile" ]]; then
   "$plist_buddy" -c 'Add :OpenCamNativeOnlyTest bool true' "$plist"
   node "$repo_root/scripts/prepare-obs-user-test-package.mjs" "$runtime_stage" \
     "$app_path/Contents/MacOS" "$source_revision" "$product_version" --enable-user-test-only --native-only
-  printf '\n## User-test recording core\nFull notices and corresponding sources: ../MacOS/obs-runtime/licenses/SOURCE-INFO.md and inventory.json.\n' >> "$app_path/Contents/Resources/THIRD-PARTY-NOTICES.md"
+  printf '\n## User-test recording core\nFull notices and corresponding sources: obs-runtime/licenses/SOURCE-INFO.md and inventory.json.\n' >> "$app_path/Contents/Resources/THIRD-PARTY-NOTICES.md"
   # The verified runtime is already signed. Re-signing it would invalidate
   # its immutable SHA256 inventory. Sign only our other Mach-O files first.
-  node --input-type=module - "$app_path/Contents/MacOS" <<'NODE'
-import {readdir,readFile} from 'node:fs/promises';
-import {join} from 'node:path';
-import {execFileSync} from 'node:child_process';
-async function sign(dir){for(const e of await readdir(dir,{withFileTypes:true})){
-  if(e.name==='obs-runtime')continue;
-  const p=join(dir,e.name);
-  if(e.isDirectory())await sign(p);
-  else if(e.isFile()){
-    const b=await readFile(p);
-    if(b.length>=4&&[0xfeedfacf,0xfeedface,0xcafebabe,0xbebafeca].includes(b.readUInt32LE(0)))
-      execFileSync('codesign',['--force','--sign','-',p],{stdio:'inherit'});
-  }
-}}
-await sign(process.argv[2]);
-NODE
-  codesign --force --sign - "$app_path"
+  node "$repo_root/scripts/sign-macos-native-only.mjs" "$app_path"
 else
   codesign --force --deep --sign - "$app_path"
 fi
