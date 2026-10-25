@@ -10,11 +10,19 @@ internal sealed class DelayedHeartbeatStackObserver : IDisposable
 {
     private readonly ManualResetEventSlim _stop = new();
     private readonly Thread? _observer;
+    private readonly IndependentDelayProbe? _timerProbe;
 
     public DelayedHeartbeatStackObserver(Func<bool> heartbeatHasNotAdvanced)
     {
         var tool = Environment.GetEnvironmentVariable("OPENCAM_TEST_STACK_TOOL");
         if (!OperatingSystem.IsWindows() || string.IsNullOrEmpty(tool)) return;
+        Serilog.Log.Debug("Independent timer environment: framework={Framework}, context={Context}, scheduler={Scheduler}",
+            System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,
+            SynchronizationContext.Current?.GetType().FullName ?? "none", TaskScheduler.Current.GetType().FullName);
+        // One diagnostic canary, never awaited by the test and never used to
+        // satisfy an assertion. Adding a timer may perturb the queue under study.
+        _timerProbe = new(Task.Delay(2000), observation =>
+            Serilog.Log.Debug("Independent timer canary: {Observation}", observation), "timer-canary-2000ms");
         _observer = new Thread(() => Observe(tool, heartbeatHasNotAdvanced)) { IsBackground = true };
         _observer.Start();
     }
@@ -67,6 +75,7 @@ internal sealed class DelayedHeartbeatStackObserver : IDisposable
     public void Dispose()
     {
         _stop.Set();
+        _timerProbe?.Dispose();
         _observer?.Join();
         _stop.Dispose();
     }

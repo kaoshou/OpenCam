@@ -20,6 +20,9 @@ public class PreflightTrialPhaseTests
     [Fact]
     public async Task IpcReportsStartingUntilEngineAcknowledgesAndFinalizingUntilStopCompletes()
     {
+        using var diagnostics = new PreflightTrialTestDiagnostics();
+        var clock = IndependentClockSnapshot.Capture();
+        void Trace(string stage) => Serilog.Log.Debug("Preflight phase observation: stage={Stage}, clocks={Clocks}", stage, clock.ElapsedSummary());
         var root = Directory.CreateTempSubdirectory("OpenCam-trial-phases-");
         var displays = new Displays();
         var executable = FFmpegDiscovery.FindFFmpegExecutable()!;
@@ -31,6 +34,7 @@ public class PreflightTrialPhaseTests
             () => new(root.FullName), new(() => new MacProjectMediaProcess(executable), () => throw new NotSupportedException())));
         var dispatcher = new PreflightIpcDispatcher(coordinator);
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(25));
+        using var observer = new DelayedHeartbeatStackObserver(() => !engine.StopEntered.Task.IsCompleted);
         var id = Guid.NewGuid();
         var request = new PreflightRequest(id, Configuration: new() { AudioSource = AudioSourceType.None, Fps = 10 });
         async Task<PreflightStatus> Send(string command)
@@ -43,34 +47,46 @@ public class PreflightTrialPhaseTests
         }
         async Task<PreflightStatus> Until(PreflightPhase phase)
         {
+            Trace($"waiting-for-{phase}");
             while (true)
             {
                 var status = await Send("GetPreflightStatus");
-                if (status.Phase == phase) return status;
+                if (status.Phase == phase) { Trace($"received-{phase}"); return status; }
                 Assert.Null(status.ErrorCode);
                 await Task.Delay(20, deadline.Token);
             }
         }
         try
         {
+            Trace("begin-check");
             await Send("BeginPreflight");
             await Until(PreflightPhase.Checking);
             while (!(await Send("GetPreflightStatus")).HasFrame) await Task.Delay(20, deadline.Token);
+            Trace("check-frame-ready");
             Assert.Equal(PreflightPhase.TrialStarting, (await Send("RecordPreflightTrial")).Phase);
             await engine.StartEntered.Task.WaitAsync(deadline.Token);
+            Trace("trial-start-gate-entered");
             var starting = await Send("GetPreflightStatus");
             Assert.Equal(PreflightPhase.TrialStarting, starting.Phase);
             Assert.Equal(0, starting.TrialSeconds);
             Assert.False(starting.HasTrial);
             engine.AllowStart.TrySetResult();
+            Trace("trial-start-gate-released");
             var recording = await Until(PreflightPhase.TrialRecording);
             Assert.True(engine.IsRunning);
             Assert.InRange(recording.TrialSeconds, 0, 5);
             await engine.StopEntered.Task.WaitAsync(deadline.Token);
+            Trace("trial-stop-gate-entered");
             Assert.Equal(PreflightPhase.TrialFinalizing, (await Send("GetPreflightStatus")).Phase);
             engine.AllowStop.TrySetResult();
+            Trace("trial-stop-gate-released");
             Assert.True((await Until(PreflightPhase.Reviewing)).HasTrial);
             Assert.False(engine.IsRunning);
+        }
+        catch (Exception error)
+        {
+            Trace("failed-before-cleanup");
+            throw new Xunit.Sdk.XunitException($"{error}\nPhase diagnostics before cleanup:\n{diagnostics.Snapshot()}");
         }
         finally
         {

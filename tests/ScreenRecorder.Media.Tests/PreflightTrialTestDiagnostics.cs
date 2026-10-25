@@ -24,6 +24,8 @@ internal sealed class PreflightTrialTestDiagnostics : IDisposable
                 !template.StartsWith("Independent heartbeat observer", StringComparison.Ordinal) &&
                 !template.StartsWith("Independent heartbeat stack tool", StringComparison.Ordinal) &&
                 !template.StartsWith("Independent task observation", StringComparison.Ordinal) &&
+                !template.StartsWith("Independent timer", StringComparison.Ordinal) &&
+                !template.StartsWith("Preflight phase observation", StringComparison.Ordinal) &&
                 !template.StartsWith("Preflight test setup", StringComparison.Ordinal) &&
                 !template.StartsWith("Direct preview startup observation", StringComparison.Ordinal) &&
                 !template.StartsWith("Delayed heartbeat", StringComparison.Ordinal)) return;
@@ -59,6 +61,8 @@ public sealed class PreflightTrialTestDiagnosticsTests
         Log.Debug("Independent heartbeat stack tool starting at {Timestamp}", "bounded-start-time");
         Log.Debug("Independent task observation: {Observation}", "preflight-clock-evidence");
         Log.Debug("Preflight test setup engine started: elapsedMs={ElapsedMs}", 100);
+        Log.Debug("Independent timer canary: {Observation}", "clock-canary-evidence");
+        Log.Debug("Preflight phase observation: stage={Stage}", "phase-boundary-evidence");
         var report = capture.Snapshot();
         Assert.Contains("trial fault 99:", report);
         Assert.DoesNotContain("trial fault 0:", report);
@@ -67,6 +71,8 @@ public sealed class PreflightTrialTestDiagnosticsTests
         Assert.Contains("bounded-start-time", report);
         Assert.Contains("preflight-clock-evidence", report);
         Assert.Contains("Preflight test setup engine started", report);
+        Assert.Contains("clock-canary-evidence", report);
+        Assert.Contains("phase-boundary-evidence", report);
         Assert.DoesNotContain("must-not-be-copied", report);
         Assert.InRange(report.Length, 1, 120000);
     }

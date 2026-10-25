@@ -20,6 +20,7 @@ public class IndependentDelayProbeTests
         delay.SetResult();
         Assert.True(observed.Wait(TimeSpan.FromSeconds(5)), "Independent observer did not report task completion.");
         Assert.Contains(messages, message => message.Contains("status=RanToCompletion"));
+        Assert.Contains(messages, message => message.Contains("elapsedMs=") && message.Contains("tickMs=") && message.Contains("unbiasedMs="));
     }
 
     [Fact]
