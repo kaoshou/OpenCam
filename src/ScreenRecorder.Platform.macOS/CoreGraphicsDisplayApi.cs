@@ -63,7 +63,8 @@ internal sealed class CoreGraphicsDisplayApi : IMacOsDisplayApi
     [DllImport(CoreGraphics)]
     private static extern int CGDisplayIsMain(uint display);
 
-    [DllImport(CoreGraphics)]
+    // Despite its CG prefix, this UUID conversion is exported by ColorSync.
+    [DllImport("/System/Library/Frameworks/ColorSync.framework/ColorSync")]
     private static extern nint CGDisplayCreateUUIDFromDisplayID(uint display);
     [DllImport("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation")]
     private static extern nint CFUUIDCreateString(nint allocator, nint uuid);

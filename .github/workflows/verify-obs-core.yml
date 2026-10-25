@@ -169,10 +169,10 @@ jobs:
           if ((dotnet --version) -cne $env:VALIDATION_DOTNET_SDK) { throw 'Exact SDK selection failed.' }
       - name: Record bounded portable FFmpeg and SDK versions
         run: node scripts/collect-test-environment.mjs obs-managed-results/environment.json
-      - name: Test cross-platform managed OBS contracts without physical devices
+      - name: Test managed OBS contracts and native display identity
         run: |
           dotnet test tests/ScreenRecorder.Core.Tests/ScreenRecorder.Core.Tests.csproj -c Release -m:1 /nodeReuse:false --filter 'FullyQualifiedName~SettingsServiceTests' --logger trx --results-directory obs-managed-results
-          dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release -m:1 /nodeReuse:false --filter 'FullyQualifiedName~ScreenRecorder.Media.Tests.Obs&FullyQualifiedName!~ObsNativeAcceptanceTests' --logger trx --results-directory obs-managed-results
+          dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release -m:1 /nodeReuse:false --filter '(FullyQualifiedName~ScreenRecorder.Media.Tests.Obs&FullyQualifiedName!~ObsNativeAcceptanceTests)|FullyQualifiedName~RecordingDisplayIdentityTests' --logger trx --results-directory obs-managed-results
       - name: Preserve portable managed diagnostics
         if: always()
         uses: actions/upload-artifact@v4
