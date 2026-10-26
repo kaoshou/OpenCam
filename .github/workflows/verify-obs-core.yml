@@ -141,6 +141,9 @@ jobs:
       - name: Run full Windows regression using the owned media tools
         shell: pwsh
         run: |
+          dotnet tool install dotnet-stack --version 8.0.547301 --tool-path "$env:RUNNER_TEMP/opencam-diagnostics"
+          if ($LASTEXITCODE -ne 0) { throw 'Diagnostic tool installation failed.' }
+          $env:OPENCAM_TEST_STACK_TOOL = "$env:RUNNER_TEMP/opencam-diagnostics/dotnet-stack.exe"
           dotnet test ScreenRecorder.sln -c Release -m:1 /nodeReuse:false --logger trx --results-directory obs-results/full-managed
           if ($LASTEXITCODE -ne 0) { throw 'Owned media full Windows regression failed.' }
       - name: Publish Windows portable user-test application

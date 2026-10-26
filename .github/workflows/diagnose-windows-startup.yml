@@ -81,7 +81,7 @@ jobs:
               Copy-Item $config "startup-evidence/$project.runtimeconfig.json"
             }
           }
-          $filter = 'FullyQualifiedName~PreflightAudioCaptureTests|FullyQualifiedName~DirectPreflightTests|FullyQualifiedName~PreflightTrialPhaseTests|FullyQualifiedName~SessionHeartbeat_TransientStoreFailure_RetriesOnNextTick'
+          $filter = 'FullyQualifiedName~PreflightAudioCaptureTests|FullyQualifiedName~DirectPreflightTests|FullyQualifiedName~PreflightTrialPhaseTests|FullyQualifiedName~PreflightTrialTests|FullyQualifiedName~SessionHeartbeat_TransientStoreFailure_RetriesOnNextTick'
           $results = @()
           for ($round = 1; $round -le 3; $round++) {
             dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release --no-build --no-restore --filter $filter --logger trx --results-directory "startup-evidence/focused-$round"

@@ -67,6 +67,7 @@ public class PreflightTrialTests
             var recording = session.RecordTrialAsync(cancel.Token);
             PreflightStatus? status = null;
             double lastPollDelayMs = 0;
+            Exception? primaryFailure = null;
             try
             {
                 do
@@ -94,15 +95,29 @@ public class PreflightTrialTests
             catch (Exception error)
             {
                 ThreadPool.GetAvailableThreads(out var available, out _);
-                throw new Xunit.Sdk.XunitException($"{error}\nTrial diagnostics before cleanup: selection={selection}, " +
+                primaryFailure = new Xunit.Sdk.XunitException($"{error}\nTrial diagnostics before cleanup: selection={selection}, " +
                     $"elapsedMs={elapsed.Elapsed.TotalMilliseconds:R}, checkingReadyMs={checkingReadyMs:R}, " +
                     $"lastPollDelayMs={lastPollDelayMs:R}, task={recording.Status}, phase={status?.Phase}, " +
                     $"error={status?.ErrorCode}, reads={trialEngine.Reads}, running={trialEngine.IsRunning}, " +
                     $"frames={trialEngine.CurrentFramesRecorded}, seconds={trialEngine.CurrentRecordedTime.TotalSeconds:R}, " +
                     $"workers={ThreadPool.ThreadCount}, available={available}, pending={ThreadPool.PendingWorkItemCount}\n" +
                     diagnostics.Snapshot());
+                throw primaryFailure;
             }
-            finally { cancel.Cancel(); await Assert.ThrowsAnyAsync<OperationCanceledException>(() => recording); }
+            finally
+            {
+                cancel.Cancel();
+                if (primaryFailure is null)
+                    await Assert.ThrowsAnyAsync<OperationCanceledException>(() => recording);
+                else
+                {
+                    // A delayed poll can discover an already completed trial.
+                    // Do not replace its assertion/timeout with a cleanup assertion.
+                    try { await recording; }
+                    catch (OperationCanceledException) { }
+                    catch (Exception cleanup) { throw new AggregateException(primaryFailure, cleanup); }
+                }
+            }
             var reads = trialEngine.Reads;
             session.ReadStatus(DateTimeOffset.UtcNow);
             Assert.Equal(reads, trialEngine.Reads); // No reads after cancellation/disposal.
@@ -125,6 +140,9 @@ public class PreflightTrialTests
     [Fact]
     public async Task CancelTrialJoinsBothEnginesAndRemovesPrivateFile()
     {
+        using var diagnostics = new PreflightTrialTestDiagnostics();
+        var elapsed = System.Diagnostics.Stopwatch.StartNew();
+        var stage = "checking-start";
         var root = Directory.CreateTempSubdirectory("OpenCam-preflight-cancel-test-");
         var engines = new List<FFmpegScreenRecorderEngine>();
         var displays = new Displays();
@@ -141,15 +159,22 @@ public class PreflightTrialTests
             await using (var session = new PreflightTrialSession(new(() => Create(null, null), displays, executable), Create,
                 () => new(root.FullName), new(() => new MacProjectMediaProcess(executable), () => new MeasuringAudio())))
             {
+                using var observer = new DelayedHeartbeatStackObserver(() => true);
                 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
                 await session.StartAsync(new() { AudioSource = AudioSourceType.None, Fps = 10 }, timeout.Token);
+                stage = "checking-first-frame";
                 while (!session.ReadStatus(DateTimeOffset.UtcNow).HasFrame) await Task.Delay(50, timeout.Token);
+                stage = "cancel-trial";
                 using var cancel = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
                 await Assert.ThrowsAnyAsync<OperationCanceledException>(() => session.RecordTrialAsync(cancel.Token));
                 Assert.All(engines, e => Assert.False(e.IsRunning));
                 Assert.False(session.ReadStatus(DateTimeOffset.UtcNow).HasTrial);
             }
             Assert.Empty(root.EnumerateFileSystemInfos());
+        }
+        catch (Exception error)
+        {
+            throw new Xunit.Sdk.XunitException($"{error}\nCancel trial diagnostics: stage={stage}, elapsedMs={elapsed.Elapsed.TotalMilliseconds:R}\n{diagnostics.Snapshot()}");
         }
         finally { root.Delete(true); }
     }
@@ -158,6 +183,9 @@ public class PreflightTrialTests
     [InlineData(true)]
     public async Task FiveSecondSyntheticTrialStopsCheckingAndReplaysWithoutFormalProjectFiles(bool portablePipe)
     {
+        using var diagnostics = new PreflightTrialTestDiagnostics();
+        var elapsed = System.Diagnostics.Stopwatch.StartNew();
+        var stage = "checking-start";
         var root = Directory.CreateTempSubdirectory("OpenCam-preflight-trial-test-");
         var engines = new List<FFmpegScreenRecorderEngine>();
         var displays = new Displays();
@@ -180,10 +208,13 @@ public class PreflightTrialTests
                     ? new TrialPipeMediaProcess(executable)
                     : OperatingSystem.IsWindows() ? new WindowsProjectMediaProcess(executable) : new MacProjectMediaProcess(executable), () => output)))
             {
+                using var observer = new DelayedHeartbeatStackObserver(() => true);
                 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(35));
                 await session.StartAsync(new() { AudioSource = AudioSourceType.SystemAndMicrophone, Fps = 10 }, timeout.Token);
+                stage = "checking-first-frame";
                 while (!session.ReadStatus(DateTimeOffset.UtcNow).HasFrame) await Task.Delay(50, timeout.Token);
                 var watch = System.Diagnostics.Stopwatch.StartNew();
+                stage = "record-trial";
                 await session.RecordTrialAsync(timeout.Token);
                 Assert.True(watch.Elapsed >= TimeSpan.FromSeconds(5));
                 var status = session.ReadStatus(DateTimeOffset.UtcNow);
@@ -194,6 +225,7 @@ public class PreflightTrialTests
                 Assert.Equal(PreflightSourceState.Waiting, status.SystemAudio.State); // a silent track is not proof of live inputs
                 Assert.All(engines, e => Assert.False(e.IsRunning));
                 Assert.Single(Directory.GetFiles(root.FullName, "*", SearchOption.AllDirectories));
+                stage = "replay";
                 await session.PlayTrialAsync(timeout.Token);
                 while (session.ReadStatus(DateTimeOffset.UtcNow).Playing) await Task.Delay(30, timeout.Token);
                 Assert.NotNull(session.ReadFrame());
@@ -202,6 +234,10 @@ public class PreflightTrialTests
                 await session.StopReplayAsync(timeout.Token);
             }
             Assert.Empty(root.EnumerateFileSystemInfos());
+        }
+        catch (Exception error)
+        {
+            throw new Xunit.Sdk.XunitException($"{error}\nReplay trial diagnostics: portablePipe={portablePipe}, stage={stage}, elapsedMs={elapsed.Elapsed.TotalMilliseconds:R}\n{diagnostics.Snapshot()}");
         }
         finally { root.Delete(true); }
     }
