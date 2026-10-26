@@ -249,10 +249,11 @@ public sealed class WindowsProjectMediaProcess : IProjectMediaProcess, IProjectS
         }
         public void StopAndJoin()
         {
-            if (!Exited && !TerminateProcess(process, 1) && !Exited) throw new Win32Exception(Marshal.GetLastPInvokeError());
-            if (WaitForSingleObject(process, 5000) != 0) throw new IOException("Media process exit unconfirmed.");
+            WindowsChildProcessLifetime.StopAndJoin(() => Exited, () => TerminateProcess(process, 1),
+                milliseconds => WaitForSingleObject(process, milliseconds), Marshal.GetLastPInvokeError);
         }
-        public void Dispose() { StopAndJoin(); Output.Dispose(); Error.Dispose(); foreach (var s in sources) s.Dispose(); process.Dispose(); }
+        public void Dispose() => WindowsChildProcessLifetime.Dispose(StopAndJoin,
+            new IDisposable[] { Output, Error }.Concat(sources).Append(process).ToArray());
     }
 
     private static void Check(bool ok) { if (!ok) throw new Win32Exception(Marshal.GetLastPInvokeError()); }
