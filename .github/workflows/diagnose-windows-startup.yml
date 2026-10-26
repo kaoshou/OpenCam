@@ -4,6 +4,10 @@ name: Diagnose Windows startup waits
 on:
   workflow_dispatch:
     inputs:
+      pipe_probe_only:
+        description: Only characterize anonymous pipe scheduling in isolated bounded-pool children
+        type: boolean
+        default: false
       min_workers:
         description: Diagnostic testhost minimum workers (0 keeps runtime defaults; never changes shipped apps)
         type: choice
@@ -13,7 +17,39 @@ permissions:
   contents: read
   actions: read
 jobs:
+  pipe-characterization:
+    if: inputs.pipe_probe_only
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build isolated pipe observer
+        run: dotnet build tests/ScreenRecorder.TestChild/ScreenRecorder.TestChild.csproj -c Release
+      - name: Compare asynchronous stream reads with dedicated readers
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory pipe-evidence | Out-Null
+          dotnet --info | Set-Content pipe-evidence/runtime.txt
+          foreach ($reader in @('async','dedicated')) {
+            $observation = dotnet tests/ScreenRecorder.TestChild/bin/Release/net8.0/ScreenRecorder.TestChild.dll pipe-pool-probe $reader
+            if ($LASTEXITCODE -ne 0) { throw 'Isolated pipe characterization failed.' }
+            $observation | Set-Content "pipe-evidence/$reader.json"
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pipe-characterization-${{ matrix.os }}-${{ github.sha }}
+          path: pipe-evidence/
+          if-no-files-found: error
   startup-evidence:
+    if: ${{ !inputs.pipe_probe_only }}
     strategy:
       fail-fast: false
       matrix:
@@ -70,6 +106,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Restore failed.' }
           dotnet build ScreenRecorder.sln -c Release --no-restore -m:1 /nodeReuse:false
           if ($LASTEXITCODE -ne 0) { throw 'Build failed.' }
+          foreach ($reader in @('async','dedicated')) {
+            $observation = dotnet tests/ScreenRecorder.TestChild/bin/Release/net8.0/ScreenRecorder.TestChild.dll pipe-pool-probe $reader
+            if ($LASTEXITCODE -ne 0) { throw 'Isolated pipe characterization failed.' }
+            $observation | Set-Content "startup-evidence/pipe-pool-$reader.json"
+          }
           if ($env:DIAGNOSTIC_MIN_WORKERS -notin @('0','20')) { throw 'Invalid diagnostic worker setting.' }
           if ($env:DIAGNOSTIC_MIN_WORKERS -ne '0') {
             foreach ($project in @('ScreenRecorder.Core.Tests','ScreenRecorder.Media.Tests')) {

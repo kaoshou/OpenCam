@@ -1,4 +1,56 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+if (args.FirstOrDefault() == "pipe-pool-probe")
+{
+    // Characterize redirected .NET 8 pipes in an isolated, deliberately bounded
+    // pool. Never changes testhost or application pool settings.
+    var dedicated = args.ElementAtOrDefault(1) == "dedicated";
+    ThreadPool.GetMinThreads(out _, out var minimumIo);
+    ThreadPool.GetMaxThreads(out _, out var maximumIo);
+    if (!ThreadPool.SetMinThreads(2, minimumIo) || !ThreadPool.SetMaxThreads(2, maximumIo)) return 3;
+    var info = new System.Diagnostics.ProcessStartInfo(Environment.ProcessPath!) {
+        UseShellExecute = false, RedirectStandardInput = true,
+        RedirectStandardOutput = true, RedirectStandardError = true };
+    info.ArgumentList.Add(typeof(Program).Assembly.Location);
+    info.ArgumentList.Add("pipe-hold");
+    using var child = System.Diagnostics.Process.Start(info)!;
+    Task<int> Read(Stream stream)
+    {
+        if (!dedicated) return stream.ReadAsync(new byte[1]).AsTask();
+        var completion = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        new Thread(() => {
+            try { completion.SetResult(stream.ReadByte()); }
+            catch (Exception error) { completion.SetException(error); }
+        }) { IsBackground = true }.Start();
+        return completion.Task;
+    }
+    try
+    {
+        var output = Read(child.StandardOutput.BaseStream);
+        var error = Read(child.StandardError.BaseStream);
+        Thread.Sleep(500); // independent main thread, not a pool/timer wait
+        ThreadPool.GetAvailableThreads(out var available, out _);
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var timer = Task.Delay(100);
+        while (!timer.IsCompleted && clock.ElapsedMilliseconds < 1500) Thread.Sleep(10);
+        var observed = timer.IsCompleted;
+        child.StandardInput.WriteLine("release"); child.StandardInput.Flush();
+        if (!child.WaitForExit(5000)) return 4;
+        Task.WhenAll(output, error).GetAwaiter().GetResult();
+        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new {
+            windows = OperatingSystem.IsWindows(), dedicated, available,
+            timerCompletedBeforeRelease = observed, elapsedMs = clock.Elapsed.TotalMilliseconds,
+            childExit = child.ExitCode, output = output.Result, error = error.Result }));
+        return child.ExitCode;
+    }
+    finally { if (!child.HasExited) { child.Kill(true); child.WaitForExit(); } }
+}
+if (args.FirstOrDefault() == "pipe-hold")
+{
+    if (Console.ReadLine() != "release") return 2;
+    Console.OpenStandardOutput().WriteByte(42);
+    Console.OpenStandardError().WriteByte(43);
+    return 0;
+}
 if (args.FirstOrDefault() == "windows-native-helper")
 {
     var mode = args.ElementAtOrDefault(1) ?? "valid";
