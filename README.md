@@ -38,13 +38,13 @@ OpenCam 是 Windows 與 macOS 桌面螢幕錄影工具，讓你錄影、剪輯�
 
 | 平台 | 系統需求 | 下載選項 |
 | --- | --- | --- |
-| Windows | Windows 10／11，x64 | Setup 安裝版、Portable 便攜版 |
+| Windows | Windows 10／11，x64 | Setup 安裝版、Portable 免安裝版 |
 | macOS | macOS 13 以上，Apple Silicon／arm64 | DMG；不適用 Intel Mac |
 
 到 [最新 Release](https://github.com/kaoshou/OpenCam/releases/latest) 下載。套件包含 .NET Runtime 與媒體工具。Windows 錄影所需的 Microsoft Visual C++ 執行階段隨套件附上，不需另外安裝或尋找 DLL。
 
 - **Windows 安裝版**：執行 `OpenCam_v1.0.0_Windows_x64_Setup.exe`。
-- **Windows 便攜版**：完整解壓 `OpenCam_v1.0.0_Windows_x64_Portable.zip`，保留同資料夾的所有檔案，再執行 `OpenCam.exe`。
+- **Windows 免安裝版**：完整解壓 `OpenCam_v1.0.0_Windows_x64_Portable.zip`，保留同資料夾的所有檔案，再執行 `OpenCam.exe`。
 - **macOS**：打開 `OpenCam_v1.0.0_macOS_arm64.dmg`，將 OpenCam 拖入「應用程式」。首次使用時，在「系統設定 → 隱私權與安全性」允許螢幕／系統音訊錄製及麥克風權限；變更權限後可重新啟動程式。
 - 此版未提供 Windows 發行者簽章或 Apple Developer ID 公證，首次開啟可能出現安全性提示。請先確認來自本專案官方 Releases；macOS 可參閱 [Apple 的安全開啟說明](https://support.apple.com/zh-tw/102445)。不要停用系統防護；若提示檔案損毀或惡意內容，請停止開啟並回報。
 
