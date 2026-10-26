@@ -7,7 +7,7 @@ import { pathToFileURL } from 'node:url';
 const root = resolve(import.meta.dirname, '..');
 const hash = data => createHash('sha256').update(data).digest('hex');
 export function noticePath(value) {
-  if (typeof value !== 'string' || !/^[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*$/.test(value)
+  if (typeof value !== 'string' || !/^[A-Za-z0-9_.+-]+(?:\/[A-Za-z0-9_.+-]+)*$/.test(value)
       || value.split('/').some(p => p === '.' || p === '..')) throw new Error('Unsafe third-party notice path');
   return value;
 }

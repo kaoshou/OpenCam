@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, writeFile, cp, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile, cp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -71,5 +71,29 @@ test('collector fails closed when a runtime dependency changes without license r
     assets.targets['net8.0/osx-arm64']['New.Dependency/1.0.0'] = { type: 'package', runtime: { 'new.dll': {} } };
     await writeFile(options.assetsPath, JSON.stringify(assets));
     await assert.rejects(assembleThirdPartyNotices(dir, { rid: 'osx-arm64', ...options }), /Unreviewed third-party dependency/);
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
+test('Windows compiler notices preserve libstdc++ paths while rejecting escapes', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'opencam-cxx-notices-'));
+  try {
+    const options = await addThirdPartyFixture(dir, 'win-x64');
+    const relative = 'licenses/ucrt64/share/licenses/libstdc++/COPYING.RUNTIME';
+    const text = Buffer.from('GCC Runtime Library Exception fixture\n');
+    await mkdir(join(options.ffmpegDirectory, 'licenses/ucrt64/share/licenses/libstdc++'), { recursive: true });
+    await writeFile(join(options.ffmpegDirectory, relative), text);
+    await assembleThirdPartyNotices(dir, { rid: 'win-x64', ...options });
+    await verifyThirdPartyNotices(dir);
+    assert.deepEqual(await readFile(join(dir, 'third-party/ffmpeg', relative)), text);
+    const path = join(dir, 'third-party/manifest.json');
+    const manifest = JSON.parse(await readFile(path, 'utf8'));
+    const entry = manifest.files.find(f => f.path === 'ffmpeg/' + relative);
+    assert.equal(entry.sha256, createHash('sha256').update(text).digest('hex'));
+    for (const unsafe of ['../escape', 'ffmpeg/libstdc++/../escape', 'C:/libstdc++/escape',
+      '/libstdc++/escape', 'libstdc++\\escape', 'libstdc++/%2e%2e/escape']) {
+      manifest.files[0].path = unsafe;
+      await writeFile(path, JSON.stringify(manifest));
+      await assert.rejects(verifyThirdPartyNotices(dir), /Unsafe third-party notice path/);
+    }
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
