@@ -8,6 +8,12 @@ export function assertImmutableAsset(local,remote){
   if(!/^[a-f0-9]{64}$/.test(local)||!/^sha256:[a-f0-9]{64}$/.test(remote))throw Error('Invalid asset digest');
   if(remote!=='sha256:'+local)throw Error('Existing Release asset has different bytes; refusing replacement');
 }
+export function releaseApiPath(repo,apiUrl){
+  const prefix=`https://api.github.com/repos/${repo}/releases/`;
+  if(typeof apiUrl!=='string'||!apiUrl.startsWith(prefix)||!/^\d+$/.test(apiUrl.slice(prefix.length)))
+    throw Error('Invalid resolved release API identity');
+  return `repos/${repo}/releases/${apiUrl.slice(prefix.length)}`;
+}
 async function sha(stream){const hash=createHash('sha256');for await(const b of stream)hash.update(b);return hash.digest('hex');}
 async function remoteHash(repo,id){
   const child=spawn('gh',['api',`repos/${repo}/releases/assets/${id}`,'-H','Accept: application/octet-stream']);
@@ -18,14 +24,18 @@ async function remoteHash(repo,id){
 export async function uploadReleaseAsset(tag,path,repo=process.env.GH_REPO){
   if(!/^v\d+\.\d+\.\d+$/.test(tag)||!/^[-A-Za-z0-9_.]+\/[-A-Za-z0-9_.]+$/.test(repo??''))throw Error('Invalid release identity');
   const local=await sha(createReadStream(path)),name=basename(path);
-  const release=JSON.parse(execFileSync('gh',['api',`repos/${repo}/releases/tags/${tag}`],{encoding:'utf8'}));
+  // The public by-tag endpoint can return 404 for a draft, including an owned
+  // draft. Let gh resolve it, then use its repository-scoped numeric API ID.
+  const apiUrl=execFileSync('gh',['release','view',tag,'--repo',repo,'--json','apiUrl','--jq','.apiUrl'],{encoding:'utf8'}).trim();
+  const endpoint=releaseApiPath(repo,apiUrl);
+  const release=JSON.parse(execFileSync('gh',['api',endpoint],{encoding:'utf8'}));
   const existing=release.assets.find(asset=>asset.name===name);
   if(existing){
     assertImmutableAsset(local,existing.digest??await remoteHash(repo,existing.id));
     console.log('Verified unchanged existing Release asset: '+name);return;
   }
   execFileSync('gh',['release','upload',tag,path,'--repo',repo],{stdio:'inherit',timeout:900000});
-  const after=JSON.parse(execFileSync('gh',['api',`repos/${repo}/releases/tags/${tag}`],{encoding:'utf8'}));
+  const after=JSON.parse(execFileSync('gh',['api',endpoint],{encoding:'utf8'}));
   const uploaded=after.assets.find(asset=>asset.name===name);
   if(!uploaded)throw Error('Uploaded asset not listed');
   assertImmutableAsset(local,uploaded.digest??await remoteHash(repo,uploaded.id));
