@@ -656,12 +656,8 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
     {
         try
         {
-            while (!cancellationToken.IsCancellationRequested)
+            void ObserveLine(string line)
             {
-                // EndOfStream performs a synchronous read when its buffer is
-                // empty. ReadLineAsync already reports EOF with null.
-                var line = await stderr.ReadLineAsync(cancellationToken).ConfigureAwait(false);
-                if (line == null) break;
                 _performance.ReadLine(line);
                 if (line.StartsWith("progress=", StringComparison.Ordinal)) LogPerformance("Progress");
 
@@ -712,6 +708,16 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
                     }
                 }
             }
+
+            if (DedicatedProcessIo.RequiresDedicatedReader(stderr.BaseStream))
+                await DedicatedProcessIo.Run(() => {
+                    while (!cancellationToken.IsCancellationRequested && stderr.ReadLine() is { } line)
+                        ObserveLine(line);
+                }).ConfigureAwait(false);
+            else
+                while (!cancellationToken.IsCancellationRequested &&
+                    await stderr.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
+                    ObserveLine(line);
 
             _startupSignal?.TrySetResult(false);
 
@@ -917,6 +923,12 @@ public class FFmpegScreenRecorderEngine : IScreenRecorderEngine, IRecordingAudio
     {
         try
         {
+            if (OperatingSystem.IsWindows())
+            {
+                await DedicatedProcessIo.CopyAsync(process.StandardOutput.BaseStream, destination,
+                    (count, elapsedMs) => _performance.NoteWrite(count, elapsedMs), flush: true).ConfigureAwait(false);
+                return;
+            }
             var buffer = new byte[81920];
             int count;
             while ((count = await process.StandardOutput.BaseStream.ReadAsync(buffer).ConfigureAwait(false)) > 0)

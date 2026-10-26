@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Text;
 using Serilog;
+using ScreenRecorder.Media.FFmpeg;
 
 namespace ScreenRecorder.Media.Preflight;
 
@@ -22,13 +23,34 @@ public sealed class PreflightPreviewPipe : IAsyncDisposable
             "fps=4,scale=960:540:force_original_aspect_ratio=decrease,pad=960:540:(ow-iw)/2:(oh-ih)/2",
             "-pix_fmt", "rgba", "-c:v", "rawvideo", "-threads", "1", "-f", "rawvideo", "pipe:1" }) start.ArgumentList.Add(argument);
         _process = Process.Start(start) ?? throw new IOException("Cannot start preflight preview decoder.");
-        _frames = ReadFramesAsync();
+        _frames = OperatingSystem.IsWindows() ? DedicatedProcessIo.Run(ReadFrames) : ReadFramesAsync();
         _errors = DrainErrorsAsync();
     }
     public Stream Input => _process.StandardInput.BaseStream;
     public byte[]? LatestFrame => Volatile.Read(ref _latest);
     public long FrameCount => Interlocked.Read(ref _count);
     public bool HasExited => _process.HasExited;
+    private void ReadFrames()
+    {
+        var stream = _process.StandardOutput.BaseStream;
+        while (true)
+        {
+            var frame = new byte[Width * Height * 4];
+            var length = 0;
+            while (length < frame.Length)
+            {
+                var read = stream.Read(frame.AsSpan(length));
+                if (read == 0)
+                {
+                    if (length != 0) throw new InvalidDataException("Incomplete preflight frame.");
+                    return;
+                }
+                length += read;
+            }
+            Volatile.Write(ref _latest, frame);
+            Interlocked.Increment(ref _count);
+        }
+    }
     private async Task ReadFramesAsync()
     {
         var stream = _process.StandardOutput.BaseStream;
@@ -54,11 +76,20 @@ public sealed class PreflightPreviewPipe : IAsyncDisposable
     {
         var buffer = new char[2048];
         var tail = new StringBuilder();
-        int read;
-        while ((read = await _process.StandardError.ReadAsync(buffer)) != 0)
+        void Append(int read)
         {
             tail.Append(buffer, 0, read);
             if (tail.Length > 4096) tail.Remove(0, tail.Length - 4096);
+        }
+        if (OperatingSystem.IsWindows())
+            await DedicatedProcessIo.Run(() => {
+                int count;
+                while ((count = _process.StandardError.Read(buffer)) != 0) Append(count);
+            }).ConfigureAwait(false);
+        else
+        {
+            int count;
+            while ((count = await _process.StandardError.ReadAsync(buffer)) != 0) Append(count);
         }
         await _process.WaitForExitAsync();
         if (_process.ExitCode != 0 && Volatile.Read(ref _disposing) == 0)

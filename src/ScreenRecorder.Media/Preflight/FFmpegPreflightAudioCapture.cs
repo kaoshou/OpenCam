@@ -155,7 +155,7 @@ public sealed class FFmpegPreflightAudioCapture(
     {
         try
         {
-            while (await process.StandardError.ReadLineAsync().ConfigureAwait(false) is { } line)
+            void ObserveLine(string line)
             {
                 if (line.StartsWith("out_time_us=", StringComparison.Ordinal) &&
                     long.TryParse(line.AsSpan(12), NumberStyles.Integer, CultureInfo.InvariantCulture, out var time) && time > 0)
@@ -164,6 +164,12 @@ public sealed class FFmpegPreflightAudioCapture(
                     line.Contains("failed", StringComparison.OrdinalIgnoreCase))
                     Log.Debug("Preflight audio FFmpeg: {Line}", line.Length > 2048 ? line[..2048] : line);
             }
+            if (OperatingSystem.IsWindows())
+                await DedicatedProcessIo.Run(() => {
+                    while (process.StandardError.ReadLine() is { } line) ObserveLine(line);
+                }).ConfigureAwait(false);
+            else
+                while (await process.StandardError.ReadLineAsync().ConfigureAwait(false) is { } line) ObserveLine(line);
             if (!_stopping)
             {
                 Log.Warning("Preflight audio FFmpeg progress ended unexpectedly: Exited={Exited}, ExitCode={ExitCode}, StartupAcknowledged={StartupAcknowledged}",
@@ -182,7 +188,13 @@ public sealed class FFmpegPreflightAudioCapture(
 
     private async Task DrainAsync(Process process, Stream destination)
     {
-        try { await process.StandardOutput.BaseStream.CopyToAsync(destination).ConfigureAwait(false); }
+        try
+        {
+            if (OperatingSystem.IsWindows())
+                await DedicatedProcessIo.CopyAsync(process.StandardOutput.BaseStream, destination).ConfigureAwait(false);
+            else
+                await process.StandardOutput.BaseStream.CopyToAsync(destination).ConfigureAwait(false);
+        }
         catch (Exception ex)
         {
             Log.Warning(ex, "Cannot write preflight audio output");
