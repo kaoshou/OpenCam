@@ -12,7 +12,7 @@ using ScreenRecorder.Recorder.Services;
 
 namespace ScreenRecorder.Media.Tests;
 
-public sealed class ProjectPointerExportTests
+public sealed class ProjectPointerExportTests(Xunit.Abstractions.ITestOutputHelper output)
 {
     [NativeMediaTheory]
     [InlineData("mp4", "visible")]
@@ -27,6 +27,8 @@ public sealed class ProjectPointerExportTests
     public async Task OutputHonorsPointerVisibilityAndDamagedTracksNeverPublish(string format, string mode)
     {
         var root=Directory.CreateTempSubdirectory("pointer-export-");
+        Exception? primaryFailure = null;
+        var assertionsCompleted = false;
         try
         {
             await using var owner=await new JsonProjectStore().CreateAsync(root.FullName,"pointer");
@@ -68,6 +70,7 @@ public sealed class ProjectPointerExportTests
                 // leave media, an entry page, or a misleading completed artifact.
                 Assert.Empty(Directory.GetFiles(output,"*",SearchOption.AllDirectories));
                 Assert.Equal(source.Sha256,Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(path))));
+                assertionsCompleted = true;
                 return;
             }
             var result=await exporter.ExportAsync(owner,owner.Current,output,Guid.NewGuid(),new Progress<double>(),default);
@@ -80,7 +83,19 @@ public sealed class ProjectPointerExportTests
             else Assert.InRange(pixels[hot],0,10);
             Assert.InRange(pixels[(100*320+200)*3],0,10);
             Assert.Equal(source.Sha256,Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(path))));
+            assertionsCompleted = true;
         }
-        finally {root.Delete(true);}
+        catch (Exception error) { primaryFailure = error; throw; }
+        finally
+        {
+            try { root.Delete(true); }
+            catch (Exception cleanupError)
+            {
+                output.WriteLine($"Pointer export cleanup failed; assertionsCompleted={assertionsCompleted}, format={format}, mode={mode}, primaryFailure={primaryFailure}");
+                if (primaryFailure is not null)
+                    throw new AggregateException("Export test and fixture cleanup both failed; preserve both errors.", primaryFailure, cleanupError);
+                throw;
+            }
+        }
     }
 }

@@ -16,9 +16,10 @@ internal sealed class DelayedHeartbeatStackObserver : IDisposable
     {
         var tool = Environment.GetEnvironmentVariable("OPENCAM_TEST_STACK_TOOL");
         if (!OperatingSystem.IsWindows() || string.IsNullOrEmpty(tool)) return;
-        Serilog.Log.Debug("Independent timer environment: framework={Framework}, context={Context}, scheduler={Scheduler}",
+        ThreadPool.GetMinThreads(out var minimumWorkers, out _);
+        Serilog.Log.Debug("Independent timer environment: framework={Framework}, context={Context}, scheduler={Scheduler}, minimumWorkers={MinimumWorkers}",
             System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,
-            SynchronizationContext.Current?.GetType().FullName ?? "none", TaskScheduler.Current.GetType().FullName);
+            SynchronizationContext.Current?.GetType().FullName ?? "none", TaskScheduler.Current.GetType().FullName, minimumWorkers);
         // One diagnostic canary, never awaited by the test and never used to
         // satisfy an assertion. Adding a timer may perturb the queue under study.
         _timerProbe = new(Task.Delay(2000), observation =>

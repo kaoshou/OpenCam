@@ -3,6 +3,12 @@
 name: Diagnose Windows startup waits
 on:
   workflow_dispatch:
+    inputs:
+      min_workers:
+        description: Diagnostic testhost minimum workers (0 keeps runtime defaults; never changes shipped apps)
+        type: choice
+        options: ['0', '20']
+        default: '0'
   push:
     branches: [codex/libobs-core-validation-20261025]
 permissions:
@@ -55,6 +61,8 @@ jobs:
           Get-FileHash diagnostic-tools/ffmpeg.exe,diagnostic-tools/ffprobe.exe -Algorithm SHA256 | ConvertTo-Json | Set-Content startup-evidence/tool-hashes.json
       - name: Repeated focused tests then complete suite (all failures retained)
         shell: pwsh
+        env:
+          DIAGNOSTIC_MIN_WORKERS: ${{ inputs.min_workers || '0' }}
         run: |
           node scripts/collect-test-environment.mjs startup-evidence/environment.json
           dotnet tool install dotnet-stack --version 8.0.547301 --tool-path "$env:RUNNER_TEMP/opencam-diagnostics"
@@ -64,6 +72,17 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Restore failed.' }
           dotnet build ScreenRecorder.sln -c Release --no-restore -m:1 /nodeReuse:false
           if ($LASTEXITCODE -ne 0) { throw 'Build failed.' }
+          if ($env:DIAGNOSTIC_MIN_WORKERS -notin @('0','20')) { throw 'Invalid diagnostic worker setting.' }
+          if ($env:DIAGNOSTIC_MIN_WORKERS -ne '0') {
+            foreach ($project in @('ScreenRecorder.Core.Tests','ScreenRecorder.Media.Tests')) {
+              $config = "tests/$project/bin/Release/net8.0/$project.runtimeconfig.json"
+              $json = Get-Content -Raw $config | ConvertFrom-Json -AsHashtable
+              if (!$json.runtimeOptions.ContainsKey('configProperties')) { $json.runtimeOptions.configProperties = @{} }
+              $json.runtimeOptions.configProperties['System.Threading.ThreadPool.MinThreads'] = [int]$env:DIAGNOSTIC_MIN_WORKERS
+              $json | ConvertTo-Json -Depth 20 | Set-Content $config
+              Copy-Item $config "startup-evidence/$project.runtimeconfig.json"
+            }
+          }
           $filter = 'FullyQualifiedName~PreflightAudioCaptureTests|FullyQualifiedName~DirectPreflightTests|FullyQualifiedName~PreflightTrialPhaseTests|FullyQualifiedName~SessionHeartbeat_TransientStoreFailure_RetriesOnNextTick'
           $results = @()
           for ($round = 1; $round -le 3; $round++) {
@@ -104,7 +123,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: startup-evidence-${{ matrix.os }}-${{ matrix.media }}-${{ github.sha }}
+          name: startup-evidence-${{ matrix.os }}-${{ matrix.media }}-min${{ inputs.min_workers || '0' }}-${{ github.sha }}
           path: startup-evidence/
           if-no-files-found: error
           retention-days: 14
