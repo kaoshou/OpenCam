@@ -9,8 +9,6 @@ on:
         type: choice
         options: ['0', '20']
         default: '0'
-  push:
-    branches: [codex/libobs-core-validation-20261025]
 permissions:
   contents: read
   actions: read

@@ -82,3 +82,66 @@ Reference: Microsoft documents both [thread-pool scheduling considerations](http
 and [the redirected process-pipe improvement in .NET 11](https://devblogs.microsoft.com/dotnet/performance-improvements-in-net-11/).
 They support investigating scheduling/pipe behavior; they do not prove this
 incident's root cause or justify an untested runtime upgrade.
+
+## Same-revision worker A/B — completed
+
+Source `37aa85dba4cbb90204176f2a649b554f513d6015`:
+[default control 40256806830](https://github.com/kaoshou/OpenCam/actions/runs/40256806830),
+[minimum-20 diagnostic 40256816786](https://github.com/kaoshou/OpenCam/actions/runs/40256816786).
+All 24 focused rounds passed 25/25. All Core runs passed 355 with 3 skips.
+Full Media results (132 skipped in every case):
+
+| Host / tools | Default workers | Diagnostic minimum 20 |
+| --- | --- | --- |
+| Windows 2022 / owned | 1227 passed, 2 failed (synthetic native pipeline, direct preview) | 1228 passed, 1 failed (export cleanup) |
+| Windows 2025 / owned | 1229 passed, 0 failed | 1229 passed, 0 failed |
+| Windows 2022 / prerequisite | 1227 passed, 2 failed (export cleanup) | 1229 passed, 0 failed |
+| Windows 2025 / prerequisite | 1228 passed, 1 failed (trial) | 1229 passed, 0 failed |
+
+The effective minimum of 20 is recorded by the running testhost. No timing case
+failed in the minimum-20 runs, which supports further scheduling investigation;
+this does not identify the exact blocked operation or prove a safe production
+configuration change. The owned default Windows 2022 failure disproves any claim
+that changing tool builds alone has fixed all timing failures. No production
+minimum-thread setting was changed.
+
+### Previously masked export defect now localized
+
+The Windows 2022 owned/minimum-20 run retained both errors. The primary error is
+`Win32Exception` from `WindowsProjectMediaProcess.BoundChild.StopAndJoin`, called
+by `Dispose`; its reported native code was zero ("operation completed
+successfully"). The subsequent fixture deletion fails because `video.mkv` is
+still in use. Export assertions had **not** completed. This is not merely an
+assertion-passing test whose final temporary-directory deletion was unlucky.
+
+Source inspection identifies two concrete defects in that path:
+
+1. After `TerminateProcess` fails, the next `Exited` poll invokes another native
+   API before `Marshal.GetLastPInvokeError()` is read. The termination error can
+   therefore be overwritten; the observed zero is not reliable evidence of the
+   original native error. Its exact code remains unknown.
+2. `BoundChild.Dispose` calls `StopAndJoin` before releasing streams, monitoring
+   source handles and the process handle, with no `finally`. If joining throws,
+   those owned handles are not disposed by that invocation. This explains why
+   a cleanup failure can leave source access retained; the record does not
+   identify every remaining handle owner or establish the precise native race.
+
+Microsoft documents that [TerminateProcess is asynchronous and requires a process wait](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-terminateprocess).
+A correct fix must capture the error immediately, retain a bounded exit wait,
+always release owned resources, and still fail if termination is unconfirmed.
+It must not swallow process errors or add an arbitrary sleep. No such fix is
+claimed by these diagnostic commits; this is an identified Windows export
+lifetime defect, separate from the unresolved preflight scheduling question.
+
+Latest local same-revision verification: Core 358 passed; Media 1378 passed,
+23 skipped, zero failed, 6m23s (`/tmp/opencam-startup-ab-macos-full.log`).
+Script/player/CI tests: 115 passed, 2 skipped, zero failed
+(`/tmp/opencam-startup-ab-node.log`); workflow actionlint passed. Read-only review
+found no Critical/Important issue in the diagnostic changes and did not certify
+the root cause or release readiness.
+
+The diagnostic workflow is now manual-only to avoid automatically repeating
+eight large jobs on future documentation pushes. Evidence remains in the linked
+runs and `/tmp/opencam-ab-default-evidence` / `/tmp/opencam-ab-min20-evidence`.
+No merge, tag or Release has occurred. Windows export lifetime repair and its
+regression checks are required before claiming release readiness.
