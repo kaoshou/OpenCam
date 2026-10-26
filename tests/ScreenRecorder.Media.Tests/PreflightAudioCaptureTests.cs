@@ -7,7 +7,7 @@ using ScreenRecorder.Platform.Windows;
 
 namespace ScreenRecorder.Media.Tests;
 
-public class PreflightAudioCaptureTests
+public class PreflightAudioCaptureTests(Xunit.Abstractions.ITestOutputHelper output)
 {
     [Fact]
     public async Task BothSourcesInitializeBeforeEitherCompletes()
@@ -226,15 +226,22 @@ public class PreflightAudioCaptureTests
     [Fact]
     public async Task StoppedCaptureCannotReadLevels()
     {
+        using var diagnostics = new PreflightTrialTestDiagnostics();
+        var clock = IndependentClockSnapshot.Capture();
         var system = new SystemSource();
         await using var capture = new FFmpegPreflightAudioCapture(new WindowsFFmpegProvider(), system);
+        using var observer = new DelayedHeartbeatStackObserver(() => !capture.IsRunning);
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        await capture.StartAsync(new() { AudioSource = AudioSourceType.SystemOnly }, null, deadline.Token);
-        Assert.Equal(.2, capture.ReadSystemAudio(DateTimeOffset.UtcNow).Rms);
-        await capture.StopAsync(deadline.Token);
-        var reads = system.Reads;
-        Assert.Equal(PreflightSourceState.Waiting, capture.ReadSystemAudio(DateTimeOffset.UtcNow).State);
-        Assert.Equal(reads, system.Reads);
+        try
+        {
+            await capture.StartAsync(new() { AudioSource = AudioSourceType.SystemOnly }, null, deadline.Token);
+            Assert.Equal(.2, capture.ReadSystemAudio(DateTimeOffset.UtcNow).Rms);
+            await capture.StopAsync(deadline.Token);
+            var reads = system.Reads;
+            Assert.Equal(PreflightSourceState.Waiting, capture.ReadSystemAudio(DateTimeOffset.UtcNow).State);
+            Assert.Equal(reads, system.Reads);
+        }
+        finally { output.WriteLine($"Stopped audio capture clocks: {clock.ElapsedSummary()}\n{diagnostics.Snapshot()}"); }
     }
 
     private sealed class SystemSource : ISystemAudioLoopbackCapture, IAudioLevelSource

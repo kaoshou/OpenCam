@@ -128,7 +128,12 @@ public sealed class FFmpegPreflightAudioCapture(
             }
             catch (Exception ex)
             {
-                Log.Warning(ex, "Preflight audio initialization failed: Microphone={Microphone}, SystemAudio={SystemAudio}", _micSelected, _systemSelected);
+                // Capture evidence before cleanup destroys process/task state.
+                // Do not include command lines, selected device names or audio.
+                Log.Warning(ex, "Preflight audio initialization failed: Microphone={Microphone}, SystemAudio={SystemAudio}, ElapsedMs={ElapsedMs}, Acknowledgement={Acknowledgement}, ProcessStarted={ProcessStarted}, ProcessExited={ProcessExited}, ProgressReader={ProgressReader}, OutputDrain={OutputDrain}",
+                    _micSelected, _systemSelected, startupClock.Elapsed.TotalMilliseconds,
+                    _ack.Task.Status, _process is not null, _process?.HasExited,
+                    _stderr?.Status, _copy?.Status);
                 Volatile.Write(ref _error, "PreflightAudioUnavailable");
                 using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(10));
                 await StopCoreAsync(cleanup.Token);

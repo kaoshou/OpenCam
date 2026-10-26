@@ -26,6 +26,8 @@ internal sealed class PreflightTrialTestDiagnostics : IDisposable
                 !template.StartsWith("Independent task observation", StringComparison.Ordinal) &&
                 !template.StartsWith("Independent timer", StringComparison.Ordinal) &&
                 !template.StartsWith("Preflight phase observation", StringComparison.Ordinal) &&
+                !template.StartsWith("Audio startup stage", StringComparison.Ordinal) &&
+                !template.StartsWith("Preflight audio FFmpeg", StringComparison.Ordinal) &&
                 !template.StartsWith("Preflight test setup", StringComparison.Ordinal) &&
                 !template.StartsWith("Direct preview startup observation", StringComparison.Ordinal) &&
                 !template.StartsWith("Delayed heartbeat", StringComparison.Ordinal)) return;

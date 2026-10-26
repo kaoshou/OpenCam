@@ -1,0 +1,110 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Read-only test evidence. Never packages, deploys, or publishes a Release.
+name: Diagnose Windows startup waits
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/libobs-core-validation-20261025]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  startup-evidence:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
+        media: [owned, prerequisite]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        id: sdk
+        with:
+          dotnet-version: '8.0.x'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Select installed .NET 8 SDK
+        shell: pwsh
+        env:
+          SELECTED_SDK: ${{ steps.sdk.outputs.dotnet-version }}
+        run: |
+          if (Test-Path global.json) { throw 'Review changed repository SDK policy first.' }
+          if ($env:SELECTED_SDK -notmatch '^8\.0\.\d+$') { throw 'Missing exact SDK version.' }
+          @{ sdk = @{ version = $env:SELECTED_SDK; rollForward = 'disable' } } | ConvertTo-Json -Depth 3 | Set-Content global.json
+          if ((dotnet --version) -cne $env:SELECTED_SDK) { throw 'SDK selection failed.' }
+      - name: Download already verified owned tools
+        if: matrix.media == 'owned'
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 40218510519
+          name: owned-windows-media-ec277eb22556964798e1a5deadd7826b865d99f1
+          path: diagnostic-tools
+      - name: Install comparison prerequisite tools
+        if: matrix.media == 'prerequisite'
+        shell: pwsh
+        run: ./scripts/install-windows-ffmpeg.ps1 -Destination diagnostic-tools
+      - name: Select tools and capture versions
+        shell: pwsh
+        run: |
+          (Resolve-Path diagnostic-tools).Path | Out-File $env:GITHUB_PATH -Append -Encoding utf8
+          New-Item -ItemType Directory -Path startup-evidence | Out-Null
+          Get-FileHash diagnostic-tools/ffmpeg.exe,diagnostic-tools/ffprobe.exe -Algorithm SHA256 | ConvertTo-Json | Set-Content startup-evidence/tool-hashes.json
+      - name: Repeated focused tests then complete suite (all failures retained)
+        shell: pwsh
+        run: |
+          node scripts/collect-test-environment.mjs startup-evidence/environment.json
+          dotnet tool install dotnet-stack --version 8.0.547301 --tool-path "$env:RUNNER_TEMP/opencam-diagnostics"
+          if ($LASTEXITCODE -ne 0) { throw 'Diagnostic tool installation failed.' }
+          $env:OPENCAM_TEST_STACK_TOOL = "$env:RUNNER_TEMP/opencam-diagnostics/dotnet-stack.exe"
+          dotnet restore ScreenRecorder.sln
+          if ($LASTEXITCODE -ne 0) { throw 'Restore failed.' }
+          dotnet build ScreenRecorder.sln -c Release --no-restore -m:1 /nodeReuse:false
+          if ($LASTEXITCODE -ne 0) { throw 'Build failed.' }
+          $filter = 'FullyQualifiedName~PreflightAudioCaptureTests|FullyQualifiedName~DirectPreflightTests|FullyQualifiedName~PreflightTrialPhaseTests|FullyQualifiedName~SessionHeartbeat_TransientStoreFailure_RetriesOnNextTick'
+          $results = @()
+          for ($round = 1; $round -le 3; $round++) {
+            dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release --no-build --no-restore --filter $filter --logger trx --results-directory "startup-evidence/focused-$round"
+            $results += @{ phase = "focused-$round"; exitCode = $LASTEXITCODE }
+            $results | ConvertTo-Json | Set-Content startup-evidence/results.json
+          }
+          dotnet test ScreenRecorder.sln -c Release --no-build --no-restore -m:1 /nodeReuse:false --logger trx --results-directory startup-evidence/full
+          $results += @{ phase = 'full'; exitCode = $LASTEXITCODE }
+          $results | ConvertTo-Json | Set-Content startup-evidence/results.json
+          # Separate-process control, after tests so it cannot warm their startup.
+          # These synthetic tones contain no microphone or desktop recording.
+          $baseline = @()
+          for ($round = 1; $round -le 10; $round++) {
+            $child = [System.Diagnostics.Process]::new()
+            $child.StartInfo.FileName = (Get-Command ffmpeg).Source
+            $child.StartInfo.Arguments = '-hide_banner -n -stats_period 0.1 -progress pipe:2 -nostats -re -f lavfi -i sine=frequency=440:sample_rate=48000 -t 0.25 -vn -c:a pcm_s16le -ar 48000 -ac 2 -f null -'
+            $child.StartInfo.UseShellExecute = $false
+            $child.StartInfo.RedirectStandardError = $true
+            $child.StartInfo.RedirectStandardOutput = $true
+            $clock = [System.Diagnostics.Stopwatch]::StartNew()
+            try {
+              [void]$child.Start()
+              $stderr = $child.StandardError.ReadToEndAsync()
+              $stdout = $child.StandardOutput.ReadToEndAsync()
+              $completed = $child.WaitForExit(15000)
+              if (!$completed) { $child.Kill($true); $child.WaitForExit() }
+              $clock.Stop()
+              $text = $stderr.GetAwaiter().GetResult()
+              [void]$stdout.GetAwaiter().GetResult()
+              $baseline += @{ round = $round; elapsedMs = $clock.Elapsed.TotalMilliseconds; completed = $completed; exitCode = $child.ExitCode; cpuMs = $child.TotalProcessorTime.TotalMilliseconds; positiveProgress = ($text -match 'out_time_us=[1-9][0-9]*') }
+              $text.Substring(0, [Math]::Min(16384, $text.Length)) | Set-Content "startup-evidence/baseline-$round.txt"
+            } finally { $child.Dispose() }
+          }
+          $baseline | ConvertTo-Json | Set-Content startup-evidence/baseline.json
+          if (@($baseline | Where-Object { !$_.completed -or $_.exitCode -ne 0 -or !$_.positiveProgress }).Count -gt 0) { throw 'Standalone synthetic audio control failed; evidence retained.' }
+          if (@($results | Where-Object { $_.exitCode -ne 0 }).Count -gt 0) { throw 'At least one run failed; inspect every retained result. Later passes do not erase failures.' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: startup-evidence-${{ matrix.os }}-${{ matrix.media }}-${{ github.sha }}
+          path: startup-evidence/
+          if-no-files-found: error
+          retention-days: 14
