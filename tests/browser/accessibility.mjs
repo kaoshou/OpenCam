@@ -367,6 +367,19 @@ try{
    await page.evaluate(()=>document.documentElement.style.fontSize='');
   }
  });
+ await check('quick-start heading uses desktop space and reflows on smaller screens',async()=>{
+  for(const language of ['zh-TW','en-US'])for(const width of [1440,1024,768,390,320]){
+   await page.setViewportSize({width,height:1000});await goto('/OpenCam/'+language+'/');
+   const heading=page.locator('#quick-start h2');
+   const metrics=await heading.evaluate(el=>({height:el.getBoundingClientRect().height,line:parseFloat(getComputedStyle(el).lineHeight)}));
+   if(width>=1024)assert(metrics.height<=metrics.line+1,`${language} ${width}: heading wraps despite available desktop space`);
+   await noOverflow();
+   if([1440,768,390].includes(width)){
+    await page.locator('#quick-start').scrollIntoViewIfNeeded();
+    await page.screenshot({path:join(out,'screens/quick-start-'+language+'-'+width+'.png')});
+   }
+  }
+ });
  for(const language of ['zh-TW','en-US'])for(const suffix of ['','guide/'])await check('website '+language+'/'+suffix+' keyboard, axe, reflow',async()=>{
   await page.setViewportSize({width:1440,height:1000});await goto('/OpenCam/'+language+'/'+suffix);
   await page.keyboard.press('Tab');await page.keyboard.press('Enter');assert.equal(await page.evaluate(()=>document.activeElement.id),'main');

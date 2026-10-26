@@ -6,6 +6,8 @@ Windows and macOS recording now uses OBS/libobs to address low achieved FPS, stu
 
 ## Familiar workflows: quick start
 
+OpenCam brings together the idea of straightforward recording familiar to oCam users and digital lesson workflows familiar to EverCam users. The settings below offer similar experiences to help you get started.
+
 ### For oCam users: record to MP4
 
 For a familiar record-to-file workflow, enable **Auto-export MP4 on stop**, then wait for export to finish after stopping. GIF export is also available without audio. OpenCam additionally preserves the project and original MKV media for editing and continued recording.
@@ -20,6 +22,8 @@ For a familiar record-to-file workflow, enable **Auto-export MP4 on stop**, then
 
 Choose Warm ivory, Teal silver, Round short stick or High-contrast gold in Small, Standard or Large. Pointers are recorded into the video and cannot be replaced afterwards. Make a short test and check picture, sound and synchronization first. These workflows do not imply project-format compatibility or affiliation with oCam/EverCam.
 
+
+oCam, EverCam and their trademarks belong to their respective owners. References describe workflows only; no affiliation or endorsement is implied.
 
 ## Web player: reading preferences and transcript downloads
 
