@@ -7,17 +7,25 @@ namespace ScreenRecorder.UI.Views;
 
 public partial class SettingsWindow : Window
 {
+    private SettingsViewModel? _viewModel;
+
     public SettingsWindow()
     {
         InitializeComponent();
 
         DataContextChanged += (s, e) =>
         {
-            if (DataContext is SettingsViewModel vm)
-            {
-                vm.RequestClose -= Close;
-                vm.RequestClose += Close;
-            }
+            if (_viewModel is not null)
+                _viewModel.RequestClose -= Close;
+            _viewModel = DataContext as SettingsViewModel;
+            if (_viewModel is not null)
+                _viewModel.RequestClose += Close;
+        };
+
+        Closed += (s, e) =>
+        {
+            _viewModel?.Dispose();
+            DataContext = null;
         };
 
         KeyDown += (s, e) =>
@@ -32,7 +40,6 @@ public partial class SettingsWindow : Window
     public SettingsWindow(SettingsViewModel viewModel) : this()
     {
         DataContext = viewModel;
-        viewModel.RequestClose += Close;
 
         Loaded += async (s, e) =>
         {

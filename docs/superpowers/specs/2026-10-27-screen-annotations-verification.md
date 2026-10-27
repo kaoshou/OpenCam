@@ -161,3 +161,10 @@ loader constructor, obsolete headless input helpers, and a collection assertion.
 Full Windows/macOS regression and native package checks run in the test-package
 workflow. Their results must be taken from the matching workflow commit; native
 desktop/DPI/recorded annotation acceptance still requires manual validation.
+# Additional package audit: settings lifecycle
+
+- Windows CI run 40502396461 failed at headless application reset (missing font service), followed by pointer-input failures; no Windows package was produced from that run.
+- A separate regression reproduced a real lifecycle leak: closing SettingsWindow then switching language still raised 158 view-model changes. SettingsViewModel now unsubscribes from the singleton language manager on disposal; SettingsWindow detaches its close callback and clears its data context on close. Duplicate callback registration was removed. Language refresh is performed once per language change.
+- The language-changing modifier-label test now runs inside an Avalonia test scope instead of scheduling UI work outside that scope. This addresses the supported CI isolation hypothesis; the exact preceding callback was not captured in the failed CI run.
+- Local focused regression: 73 passed, 0 failed, including closed-window language changes, annotation input, shortcut migration, tooltip and scrub interactions. Windows full-suite validation is required before package delivery.
+

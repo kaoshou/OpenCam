@@ -98,7 +98,7 @@ public class ScreenAnnotationSettingsTests
         }
         finally {window.Close();}
     }
-    [Theory] [InlineData(AppLanguage.ZhTw,"無")] [InlineData(AppLanguage.EnUs,"None")] [InlineData(AppLanguage.JaJp,"なし")]
+    [AvaloniaTheory] [InlineData(AppLanguage.ZhTw,"無")] [InlineData(AppLanguage.EnUs,"None")] [InlineData(AppLanguage.JaJp,"なし")]
     public void NoModifierLabelMatchesSelectedLanguage(AppLanguage language,string expected)
     {
         var old=ScreenRecorder.UI.Localization.LanguageManager.Instance.CurrentLanguage;
@@ -119,6 +119,20 @@ public class ScreenAnnotationSettingsTests
             Assert.Equal((2u,"F9"),(vm.SelectedStartStopModifier!.Value,vm.SelectedStartStopKey!.KeyName));
         }
         finally {language.CurrentLanguage=old;}
+    }
+    [AvaloniaFact] public void ClosedSettingsWindowStopsRefreshingItsViewModelOnLanguageChanges()
+    {
+        var language=ScreenRecorder.UI.Localization.LanguageManager.Instance;var old=language.CurrentLanguage;
+        var vm=new SettingsViewModel(new MockSettingsService());var window=new SettingsWindow(vm);
+        try
+        {
+            window.Show();window.UpdateLayout();window.Close();
+            var changes=0;vm.PropertyChanged+=(_,_)=>changes++;
+            language.CurrentLanguage=old==AppLanguage.EnUs?AppLanguage.JaJp:AppLanguage.EnUs;
+            Assert.Equal(0,changes);
+            Assert.Null(window.DataContext);
+        }
+        finally {window.Close();language.CurrentLanguage=old;}
     }
     [Fact] public async Task WindowsRejectsReservedF12ForGlobalShortcuts()
     {

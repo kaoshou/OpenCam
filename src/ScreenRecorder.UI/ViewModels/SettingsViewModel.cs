@@ -11,7 +11,7 @@ using ScreenRecorder.UI.Localization;
 
 namespace ScreenRecorder.UI.ViewModels;
 
-public partial class SettingsViewModel : ObservableObject
+public partial class SettingsViewModel : ObservableObject, IDisposable
 {
     public LanguageManager Strings => LanguageManager.Instance;
     public string DisplayVersion => ProductInfo.DisplayVersion;
@@ -175,8 +175,16 @@ public partial class SettingsViewModel : ObservableObject
         SupportsWindowsCapture = supportsWindowsCapture ?? OperatingSystem.IsWindows();
         _settingsService = settingsService;
         InitializeOptions();
-        Strings.PropertyChanged += (s, e) => RefreshOptionLabels();
+        Strings.PropertyChanged += OnLanguageChanged;
     }
+
+    private void OnLanguageChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(LanguageManager.CurrentLanguage))
+            RefreshOptionLabels();
+    }
+
+    public void Dispose() => Strings.PropertyChanged -= OnLanguageChanged;
 
     private void InitializeOptions()
     {
