@@ -21,6 +21,10 @@ but frames recorded before hiding still contain them. Window capture exclusion i
 not requested. In eraser mode a left-button drag removes whole touched marks and
 one undo restores the entire gesture. Real Windows/macOS desktop interaction and
 recorded-video validation of these follow-up changes remain required.
+The full-screen drawing surface is hidden when tools are first opened and no
+marks exist; choosing a drawing tool shows it. Returning to operation hides the
+surface again when empty, but completed marks stay visible for recording. The
+toolbar has an independent window lifetime managed by the annotation host.
 
 1. Settings → Screen annotations is enabled by default. Disable it to remove the
    home entry; ordinary recording does not require annotation windows.

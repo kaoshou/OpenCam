@@ -135,6 +135,31 @@ public class ScreenAnnotationUiTests
         available=false;toolbar.SetMode(false);toolbar.UpdateLayout();
         Assert.DoesNotContain(toolbar.GetVisualDescendants().OfType<Button>(),b=>AutomationProperties.GetName(b)==LanguageManager.Instance["AnnotationsHide"]);
     }
+    [AvaloniaFact] public void OpeningToolsDoesNotCoverDesktopUntilDrawingIsSelected()
+    {
+        var owner=new Window{Width=400,Height=300};owner.Show();owner.UpdateLayout();
+        var screen=owner.Screens.ScreenFromWindow(owner)!;
+        var region=new CaptureRegion(screen.Bounds.X+20,screen.Bounds.Y+20,200,150);
+        using var host=new AnnotationOverlayHost(owner,region,0xffe63946,4,(_,_)=>{},()=>true,(_,_)=>true);
+        try
+        {
+            host.Show();
+            var overlay=(Window)typeof(AnnotationOverlayHost).GetField("_overlay",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.GetValue(host)!;
+            var toolbar=(Window)typeof(AnnotationOverlayHost).GetField("_toolbar",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.GetValue(host)!;
+            Assert.False(overlay.IsVisible);Assert.True(toolbar.IsVisible);
+            toolbar.GetVisualDescendants().OfType<Button>().Single(b=>AutomationProperties.GetName(b)==LanguageManager.Instance["AnnotationsPen"]).RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+            Assert.True(overlay.IsVisible);
+            toolbar.GetVisualDescendants().OfType<Button>().Single(b=>AutomationProperties.GetName(b)==LanguageManager.Instance["AnnotationsOperate"]).RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+            Assert.False(overlay.IsVisible);Assert.True(toolbar.IsVisible);
+            toolbar.GetVisualDescendants().OfType<Button>().Single(b=>AutomationProperties.GetName(b)==LanguageManager.Instance["AnnotationsPen"]).RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+            host.Document.Begin(new(10,10),true);host.Document.Move(new(30,30));host.Document.End();
+            toolbar.GetVisualDescendants().OfType<Button>().Single(b=>AutomationProperties.GetName(b)==LanguageManager.Instance["AnnotationsOperate"]).RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+            Assert.True(overlay.IsVisible);Assert.Single(host.Document.Marks);
+            host.SetPaused(true);Assert.False(overlay.IsVisible);host.SetPaused(false);
+            Assert.True(overlay.IsVisible);Assert.Single(host.Document.Marks);
+        }
+        finally{host.Dispose();owner.Close();}
+    }
     private sealed class Host:IAnnotationHost
     {
         public AnnotationDocument Document{get;}=new(800,600);

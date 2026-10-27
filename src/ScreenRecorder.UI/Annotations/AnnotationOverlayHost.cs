@@ -16,17 +16,18 @@ internal sealed class AnnotationOverlayHost:IAnnotationHost
     private readonly PixelPoint _origin;
     private readonly double _scale;
     private readonly Func<bool> _shortcutAvailable;
+    private readonly Func<Window,bool,bool> _setInteractive;
     private bool _closed,_paused,_shown,_toolbarHidden;
     private static PixelPoint? _lastToolbarPosition;
     public AnnotationDocument Document{get;}
     public event EventHandler? Closed;
-    public AnnotationOverlayHost(Window owner,CaptureRegion region,uint color,double width,Action<uint,double> saveStyle,Func<bool>? shortcutAvailable=null)
+    public AnnotationOverlayHost(Window owner,CaptureRegion region,uint color,double width,Action<uint,double> saveStyle,Func<bool>? shortcutAvailable=null,Func<Window,bool,bool>? setInteractive=null)
     {
         var screen=owner.Screens.ScreenFromPoint(new(region.X,region.Y))??throw new InvalidOperationException("Annotation display unavailable");
         var bounds=screen.Bounds;
         if(region.X<bounds.X||region.Y<bounds.Y||(long)region.X+region.Width>bounds.Right||(long)region.Y+region.Height>bounds.Bottom)
             throw new InvalidOperationException("Annotation region spans displays");
-        _scale=screen.Scaling;_origin=new(region.X,region.Y);_shortcutAvailable=shortcutAvailable??(()=>false);
+        _scale=screen.Scaling;_origin=new(region.X,region.Y);_shortcutAvailable=shortcutAvailable??(()=>false);_setInteractive=setInteractive??AnnotationNativeWindow.SetInteractive;
         Document=new(region.Width/_scale,region.Height/_scale){Color=color,StrokeWidth=width};
         _canvas=new(Document);
         _overlay=new Window{Title="OpenCam Annotations",SystemDecorations=SystemDecorations.None,ShowInTaskbar=false,
@@ -47,27 +48,33 @@ internal sealed class AnnotationOverlayHost:IAnnotationHost
         if(_closed)return;
         _overlay.Show();_overlay.Position=_origin;
         // Create input policy before yielding to the event loop. Failure closes both windows.
-        if(!AnnotationNativeWindow.SetInteractive(_overlay,false))throw new InvalidOperationException("Native annotation input policy unavailable");
-        _toolbar.Show(_overlay);AnnotationNativeWindow.ConfigureToolbar(_toolbar);
+        if(!_setInteractive(_overlay,false))throw new InvalidOperationException("Native annotation input policy unavailable");
+        // No marks need compositing yet. Keeping the full-screen surface hidden
+        // leaves the main window and other applications directly clickable.
+        _overlay.Hide();
+        _toolbar.Show();AnnotationNativeWindow.ConfigureToolbar(_toolbar);
         _shown=true;AnnotationNativeWindow.RaiseExistingPointer();
     }
     private void SetMode(bool drawing)
     {
         if(_closed||_paused)return;
         _canvas.CancelGesture();
-        if(!AnnotationNativeWindow.SetInteractive(_overlay,drawing))throw new InvalidOperationException("Cannot switch native annotation input policy");
+        if(drawing&&!_overlay.IsVisible){_overlay.Show();_overlay.Position=_origin;}
+        if(!_setInteractive(_overlay,drawing))throw new InvalidOperationException("Cannot switch native annotation input policy");
         _canvas.Interactive=drawing;_toolbar.SetMode(drawing);
         if(drawing){_overlay.Activate();_canvas.Focus();}
+        else if(Document.Marks.IsEmpty)_overlay.Hide();
+        AnnotationNativeWindow.ConfigureToolbar(_toolbar);
         AnnotationNativeWindow.RaiseExistingPointer();
     }
     public void SetPaused(bool paused)
     {
         if(_closed||_paused==paused)return;
         _canvas.Interactive=false;Document.Cancel();
-        if(!AnnotationNativeWindow.SetInteractive(_overlay,false))throw new InvalidOperationException("Cannot release annotation input");
+        if(!_setInteractive(_overlay,false))throw new InvalidOperationException("Cannot release annotation input");
         _toolbar.SetMode(false);_paused=paused;
         if(paused){_toolbar.Hide();_overlay.Hide();}
-        else{_overlay.Show();_overlay.Position=_origin;if(_toolbarHidden&&!_shortcutAvailable())_toolbarHidden=false;if(!_toolbarHidden){_toolbar.Show();AnnotationNativeWindow.ConfigureToolbar(_toolbar);}}
+        else{if(!Document.Marks.IsEmpty){_overlay.Show();_overlay.Position=_origin;}if(_toolbarHidden&&!_shortcutAvailable())_toolbarHidden=false;if(!_toolbarHidden){_toolbar.Show();AnnotationNativeWindow.ConfigureToolbar(_toolbar);}}
     }
     public void ToggleToolbar()
     {
