@@ -15,6 +15,7 @@ internal sealed class AnnotationOverlayHost:IAnnotationHost
     private readonly AnnotationToolbar _toolbar;
     private readonly PixelPoint _origin;
     private readonly double _scale;
+    private readonly Func<bool> _shortcutAvailable;
     private bool _closed,_paused,_shown,_toolbarHidden;
     private static PixelPoint? _lastToolbarPosition;
     public AnnotationDocument Document{get;}
@@ -25,14 +26,14 @@ internal sealed class AnnotationOverlayHost:IAnnotationHost
         var bounds=screen.Bounds;
         if(region.X<bounds.X||region.Y<bounds.Y||(long)region.X+region.Width>bounds.Right||(long)region.Y+region.Height>bounds.Bottom)
             throw new InvalidOperationException("Annotation region spans displays");
-        _scale=screen.Scaling;_origin=new(region.X,region.Y);
+        _scale=screen.Scaling;_origin=new(region.X,region.Y);_shortcutAvailable=shortcutAvailable??(()=>false);
         Document=new(region.Width/_scale,region.Height/_scale){Color=color,StrokeWidth=width};
         _canvas=new(Document);
         _overlay=new Window{Title="OpenCam Annotations",SystemDecorations=SystemDecorations.None,ShowInTaskbar=false,
             CanResize=false,Topmost=true,ShowActivated=false,Background=Brushes.Transparent,
             TransparencyLevelHint=[WindowTransparencyLevel.Transparent],Content=_canvas,Width=region.Width/_scale,Height=region.Height/_scale,
             Position=_origin,WindowStartupLocation=WindowStartupLocation.Manual};
-        _toolbar=new(Document,SetMode,Dispose,saveStyle,Fail,()=>{SetMode(false);owner.WindowState=WindowState.Minimized;},ToggleToolbar,shortcutAvailable??(()=>false)){WindowStartupLocation=WindowStartupLocation.Manual};
+        _toolbar=new(Document,SetMode,Dispose,saveStyle,Fail,()=>{SetMode(false);owner.WindowState=WindowState.Minimized;},ToggleToolbar,_shortcutAvailable){WindowStartupLocation=WindowStartupLocation.Manual};
         var x=_lastToolbarPosition?.X??region.X+16;var y=_lastToolbarPosition?.Y??region.Y+16;
         _toolbar.Position=new(Math.Clamp(x,bounds.X,Math.Max(bounds.X,bounds.Right-(int)Math.Ceiling(_toolbar.Width*_scale))),
             Math.Clamp(y,bounds.Y,Math.Max(bounds.Y,bounds.Bottom-(int)Math.Ceiling(190*_scale))));
@@ -66,12 +67,12 @@ internal sealed class AnnotationOverlayHost:IAnnotationHost
         if(!AnnotationNativeWindow.SetInteractive(_overlay,false))throw new InvalidOperationException("Cannot release annotation input");
         _toolbar.SetMode(false);_paused=paused;
         if(paused){_toolbar.Hide();_overlay.Hide();}
-        else{_overlay.Show();_overlay.Position=_origin;if(!_toolbarHidden){_toolbar.Show();AnnotationNativeWindow.ConfigureToolbar(_toolbar);}}
+        else{_overlay.Show();_overlay.Position=_origin;if(_toolbarHidden&&!_shortcutAvailable())_toolbarHidden=false;if(!_toolbarHidden){_toolbar.Show();AnnotationNativeWindow.ConfigureToolbar(_toolbar);}}
     }
     public void ToggleToolbar()
     {
         if(_closed||_paused)return;
-        if(_toolbar.IsVisible){SetMode(false);_toolbar.Hide();_toolbarHidden=true;}
+        if(_toolbar.IsVisible){if(!_shortcutAvailable())return;SetMode(false);_toolbar.Hide();_toolbarHidden=true;}
         else{_toolbar.Show();_toolbarHidden=false;AnnotationNativeWindow.ConfigureToolbar(_toolbar);AnnotationNativeWindow.RaiseExistingPointer();}
     }
     private void Guard(Action action){try{action();}catch(Exception e){Fail(e);}}
