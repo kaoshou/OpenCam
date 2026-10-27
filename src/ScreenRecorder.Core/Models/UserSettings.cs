@@ -74,6 +74,14 @@ public class UserSettings
         }
     }
     public bool MicrophoneSilenceReminderEnabled { get; set; } = true;
+    public bool ScreenAnnotationsEnabled {get;set;}=true;
+    public uint ScreenAnnotationColor {get;set;}=0xffe63946;
+    private double _screenAnnotationWidth=4;
+    public double ScreenAnnotationWidth
+    {
+        get=>_screenAnnotationWidth;
+        set=>_screenAnnotationWidth=!double.IsFinite(value)?4:value<=2?2:value<=4?4:8;
+    }
 
     // 自訂快捷鍵 (0=None, 1=Alt, 2=Ctrl, 4=Shift, 8=Win)
     public uint StartStopHotkeyModifiers { get; set; } = 0;

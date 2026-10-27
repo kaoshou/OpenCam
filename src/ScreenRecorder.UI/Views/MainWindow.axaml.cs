@@ -30,6 +30,7 @@ public partial class MainWindow : Window
 
         DataContextChanged += (s, e) =>
         {
+            CloseAnnotations();
             if (_identificationViewModel is not null)
             {
                 _identificationViewModel.PropertyChanged -= OnIdentificationViewModelPropertyChanged;
@@ -140,6 +141,7 @@ public partial class MainWindow : Window
 
     private void OnScreensChanged(object? sender, EventArgs e)
     {
+        CloseAnnotations();
         _displayIdentification.Close();
         _microphoneWarning.Update(false);
         if (DataContext is MainViewModel vm) vm.MicrophoneWarningOverlayVisible = false;
@@ -160,6 +162,11 @@ public partial class MainWindow : Window
 
     private void OnIdentificationViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if(e.PropertyName is nameof(MainViewModel.IsRecording) or nameof(MainViewModel.IsPaused) or nameof(MainViewModel.IsPreparing)
+            or nameof(MainViewModel.IsRecovering) or nameof(MainViewModel.ScreenAnnotationsEnabled)
+            or nameof(MainViewModel.SelectedMonitor) or nameof(MainViewModel.IsCustomRegion)
+            or nameof(MainViewModel.RegionX) or nameof(MainViewModel.RegionY) or nameof(MainViewModel.RegionWidth) or nameof(MainViewModel.RegionHeight))
+            QueueAnnotationsUpdate();
         if (sender is MainViewModel reminderVm && e.PropertyName is nameof(MainViewModel.IsMicrophoneSilenceWarningActive)
                 or nameof(MainViewModel.IsRecording) or nameof(MainViewModel.IsPaused))
             reminderVm.MicrophoneWarningOverlayVisible = _microphoneWarning.Update(
@@ -182,6 +189,7 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        CloseAnnotations();
         Screens.Changed -= OnScreensChanged;
         _displayIdentification.Dispose();
         _microphoneWarning.Dispose();

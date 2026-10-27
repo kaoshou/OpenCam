@@ -109,6 +109,7 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private bool _minimizeOnRecord;
     [ObservableProperty] private bool _microphoneSilenceReminderEnabled = true;
+    [ObservableProperty] private bool _screenAnnotationsEnabled = true;
 
     [ObservableProperty]
     private string? _errorMessage;
@@ -294,6 +295,7 @@ public partial class SettingsViewModel : ObservableObject
         MinimizeOnRecord = _currentSettings.MinimizeOnRecord;
         SelectedPreflightMode = AvailablePreflightModes.Single(o => o.Mode == _currentSettings.RecordingPreflightMode);
         MicrophoneSilenceReminderEnabled = _currentSettings.MicrophoneSilenceReminderEnabled;
+        ScreenAnnotationsEnabled = _currentSettings.ScreenAnnotationsEnabled;
 
         ErrorMessage = null;
         SuccessMessage = null;
@@ -348,6 +350,7 @@ public partial class SettingsViewModel : ObservableObject
         _currentSettings.MinimizeOnRecord = MinimizeOnRecord;
         _currentSettings.RecordingPreflightMode = SelectedPreflightMode?.Mode ?? RecordingPreflightMode.StartOnly;
         _currentSettings.MicrophoneSilenceReminderEnabled = MicrophoneSilenceReminderEnabled;
+        _currentSettings.ScreenAnnotationsEnabled = ScreenAnnotationsEnabled;
 
         // 3. 即時套用語言
         if (Strings.CurrentLanguage != _currentSettings.Language)
@@ -400,6 +403,7 @@ public partial class SettingsViewModel : ObservableObject
         MinimizeOnRecord = false;
         SelectedPreflightMode = AvailablePreflightModes.Single(o => o.Mode == RecordingPreflightMode.StartOnly);
         MicrophoneSilenceReminderEnabled = true;
+        ScreenAnnotationsEnabled = true;
 
         ErrorMessage = null;
         SuccessMessage = null;

@@ -123,12 +123,15 @@ public partial class MainViewModel : ObservableObject
     public event EventHandler? RequestRestoreWindow;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanOpenScreenAnnotations))]
     private bool _isRecording;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanOpenScreenAnnotations))]
     private bool _isPreparing;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanOpenScreenAnnotations))]
     private bool _isPaused;
 
     [ObservableProperty]
@@ -235,6 +238,7 @@ public partial class MainViewModel : ObservableObject
     private int _recoverableSessionCount;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanOpenScreenAnnotations))]
     private bool _isRecovering;
 
     [ObservableProperty]
@@ -981,6 +985,7 @@ public partial class MainViewModel : ObservableObject
             RecordMicrophone = s.RecordMicrophone;
             MinimizeOnRecord = s.MinimizeOnRecord;
             MicrophoneSilenceReminderEnabled = s.MicrophoneSilenceReminderEnabled;
+            ApplyAnnotationSettings(s);
             Strings.CurrentLanguage = s.Language;
 
             _startStopHotkeyModifiers = s.StartStopHotkeyModifiers;
@@ -1186,6 +1191,9 @@ public partial class MainViewModel : ObservableObject
                 MinimizeOnRecord = MinimizeOnRecord,
                 RecordingPreflightMode = _recordingPreflightMode,
                 MicrophoneSilenceReminderEnabled = MicrophoneSilenceReminderEnabled,
+                ScreenAnnotationsEnabled = ScreenAnnotationsEnabled,
+                ScreenAnnotationColor = ScreenAnnotationColor,
+                ScreenAnnotationWidth = ScreenAnnotationWidth,
                 StartStopHotkeyModifiers = _startStopHotkeyModifiers,
                 StartStopHotkeyKey = _startStopHotkeyKey,
                 PauseResumeHotkeyModifiers = _pauseResumeHotkeyModifiers,
@@ -1224,6 +1232,7 @@ public partial class MainViewModel : ObservableObject
 
     public void ApplyNewSettings(UserSettings newSettings)
     {
+        ApplyAnnotationSettings(newSettings);
         _webPlayerLanguages = newSettings.WebPlayerLanguages;
         if (CanEditPausedSettings) RefreshTeachingPointerOptions(newSettings.PresentationPointer);
         _recordingPreflightMode = newSettings.RecordingPreflightMode;
