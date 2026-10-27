@@ -127,6 +127,14 @@ public class ScreenAnnotationUiTests
         buttons.Single(b=>AutomationProperties.GetName(b)==LanguageManager.Instance["AnnotationsHide"]).RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
         Assert.Equal(1,minimized);Assert.Equal(1,hidden);
     }
+    [AvaloniaFact] public void ToolbarHidesItsHideActionWhenShortcutIsUnavailable()
+    {
+        var available=true;using var toolbar=new AnnotationToolbar(new(800,600),_=>{},()=>{},(_,_)=>{},e=>throw e,null,()=>{},()=>available);
+        toolbar.Show();toolbar.UpdateLayout();
+        Assert.Contains(toolbar.GetVisualDescendants().OfType<Button>(),b=>AutomationProperties.GetName(b)==LanguageManager.Instance["AnnotationsHide"]);
+        available=false;toolbar.SetMode(false);toolbar.UpdateLayout();
+        Assert.DoesNotContain(toolbar.GetVisualDescendants().OfType<Button>(),b=>AutomationProperties.GetName(b)==LanguageManager.Instance["AnnotationsHide"]);
+    }
     private sealed class Host:IAnnotationHost
     {
         public AnnotationDocument Document{get;}=new(800,600);
