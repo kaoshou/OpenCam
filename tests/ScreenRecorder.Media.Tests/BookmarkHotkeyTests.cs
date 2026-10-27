@@ -25,26 +25,26 @@ public sealed class BookmarkHotkeyTests
         Assert.Equal((120, 0u), native.Active[9001]); Assert.Equal((77, 6u), native.Active[9003]);
     }
     [Fact]
-    public void AnnotationShortcutYieldsToUserSelectedBookmarkAndCanBeRestored()
+    public void ConflictingAnnotationShortcutRollsBackBookmarkAndKeepsToolbarShortcut()
     {
-        var vm=new MainViewModel(forScreenshot:true);
+        var vm=new MainViewModel(forScreenshot:true){IsRecording=true};
         var native=new FakeHotkeys();
         typeof(MainViewModel).GetField("_globalHotkeyService",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.SetValue(vm,native);
         try
         {
             var settings=new UserSettings{ScreenAnnotationsEnabled=true};
             Assert.Null(vm.TryApplyHotkeys(settings));Assert.True(vm.IsAnnotationHotkeyRegistered);
-            settings.BookmarkHotkeyKey="F8";settings.BookmarkHotkeyModifiers=6;
-            Assert.Null(vm.TryApplyHotkeys(settings));Assert.False(vm.IsAnnotationHotkeyRegistered);
-            Assert.Equal((0x77,6u),native.Active[9003]);
-            settings.BookmarkHotkeyKey="M";Assert.Null(vm.TryApplyHotkeys(settings));Assert.True(vm.IsAnnotationHotkeyRegistered);
+            settings.BookmarkHotkeyKey="F11";settings.BookmarkHotkeyModifiers=0;
+            Assert.NotNull(vm.TryApplyHotkeys(settings));Assert.True(vm.IsAnnotationHotkeyRegistered);
+            Assert.Equal((0x4d,6u),native.Active[9003]);
+            settings.BookmarkHotkeyKey="M";settings.BookmarkHotkeyModifiers=6;Assert.Null(vm.TryApplyHotkeys(settings));Assert.True(vm.IsAnnotationHotkeyRegistered);
         }
         finally{vm.Cleanup();}
     }
     [Fact]
     public void FailedAnnotationShortcutReleaseDoesNotChangeExistingBookmark()
     {
-        var vm=new MainViewModel(forScreenshot:true);var native=new FakeHotkeys();
+        var vm=new MainViewModel(forScreenshot:true){IsRecording=true};var native=new FakeHotkeys();
         typeof(MainViewModel).GetField("_globalHotkeyService",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.SetValue(vm,native);
         try
         {
@@ -54,6 +54,34 @@ public sealed class BookmarkHotkeyTests
             Assert.True(vm.IsAnnotationHotkeyRegistered);
         }
         finally{native.FailRelease=false;vm.Cleanup();}
+    }
+    [Fact] public void AnnotationHotkeysAreReleasedOutsideRecording()
+    {
+        var vm=new MainViewModel(forScreenshot:true);var native=new FakeHotkeys();
+        typeof(MainViewModel).GetField("_globalHotkeyService",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.SetValue(vm,native);
+        try
+        {
+            Assert.Null(vm.TryApplyHotkeys(new UserSettings()));
+            Assert.False(native.Active.ContainsKey(9004));Assert.False(native.Active.ContainsKey(9005));
+            vm.IsRecording=true;vm.NotifyAnnotationAvailability();
+            Assert.True(native.Active.ContainsKey(9004));Assert.True(native.Active.ContainsKey(9005));
+            vm.IsRecording=false;vm.NotifyAnnotationAvailability();
+            Assert.False(native.Active.ContainsKey(9004));Assert.False(native.Active.ContainsKey(9005));
+        }
+        finally {vm.Cleanup();}
+    }
+    [Fact] public void FailedSettingsChangeDoesNotReenableIdleAnnotationHotkeys()
+    {
+        var vm=new MainViewModel(forScreenshot:true);var native=new FakeHotkeys();
+        typeof(MainViewModel).GetField("_globalHotkeyService",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.SetValue(vm,native);
+        try
+        {
+            var settings=new UserSettings();Assert.Null(vm.TryApplyHotkeys(settings));
+            settings.BookmarkHotkeyKey="F11";settings.BookmarkHotkeyModifiers=0;
+            Assert.NotNull(vm.TryApplyHotkeys(settings));Assert.Equal((0x4d,6u),native.Active[9003]);
+            Assert.False(native.Active.ContainsKey(9004));Assert.False(native.Active.ContainsKey(9005));
+        }
+        finally {vm.Cleanup();}
     }
     private sealed class FakeHotkeys : IGlobalHotkeyService
     {

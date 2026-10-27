@@ -147,6 +147,21 @@
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
                             </Grid>
+                            <Separator Margin="0,4" />
+                            <TextBlock Text="{Binding Strings[AnnotationsTitle]}" FontWeight="SemiBold" FontSize="12" />
+                            <ItemsControl ItemsSource="{Binding AnnotationShortcutRows}">
+                                <ItemsControl.ItemTemplate><DataTemplate>
+                                    <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,3">
+                                        <TextBlock Text="{Binding Label}" VerticalAlignment="Center" FontSize="12" />
+                                        <ComboBox Grid.Column="1" Width="120" Margin="6,0" ItemsSource="{Binding Modifiers}" SelectedItem="{Binding SelectedModifier}">
+                                            <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding DisplayName}" FontSize="11.5" /></DataTemplate></ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                        <ComboBox Grid.Column="2" Width="100" ItemsSource="{Binding Keys}" SelectedItem="{Binding SelectedKey}">
+                                            <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding KeyName}" FontSize="11.5" /></DataTemplate></ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                    </Grid>
+                                </DataTemplate></ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </StackPanel>
                     </Border>
 

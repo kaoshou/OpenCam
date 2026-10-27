@@ -84,12 +84,13 @@ public class UserSettings
     }
 
     // 自訂快捷鍵 (0=None, 1=Alt, 2=Ctrl, 4=Shift, 8=Win)
-    public uint StartStopHotkeyModifiers { get; set; } = 0;
+    public uint StartStopHotkeyModifiers { get; set; } = 2;
     public string StartStopHotkeyKey { get; set; } = "F9";
     public uint PauseResumeHotkeyModifiers { get; set; } = 0;
-    public string PauseResumeHotkeyKey { get; set; } = "F10";
+    public string PauseResumeHotkeyKey { get; set; } = "F9";
     public uint BookmarkHotkeyModifiers { get; set; } = 6;
     public string BookmarkHotkeyKey { get; set; } = "M";
+    public Dictionary<string, AnnotationShortcut> AnnotationShortcuts { get; set; } = AnnotationShortcut.Defaults();
 
     // 視訊品質與行為自訂 (CRF: 18=Ultra, 23=Standard, 28=Compact)
     public string VideoQualityPreset { get; set; } = "Standard";

@@ -35,6 +35,7 @@ public partial class MainWindow : Window
             {
                 _identificationViewModel.PropertyChanged -= OnIdentificationViewModelPropertyChanged;
                 _identificationViewModel.RequestScreenAnnotations = null;
+                _identificationViewModel.RequestAnnotationCommand = null;
                 _identificationViewModel.MicrophoneWarningOverlayVisible = false;
                 _identificationViewModel.RequestRecordingProjectName = null;
                 _identificationViewModel.RequestRecordingPreflight = null;
@@ -57,6 +58,7 @@ public partial class MainWindow : Window
             if (DataContext is MainViewModel vm)
             {
                 vm.RequestScreenAnnotations = OpenScreenAnnotations;
+                vm.RequestAnnotationCommand = RunAnnotationCommand;
                 vm.RequestRecordingProjectName = AskRecordingProjectNameAsync;
                 vm.RecordingPreparationChanged = state =>
                 {
@@ -200,6 +202,7 @@ public partial class MainWindow : Window
         {
             _identificationViewModel.PropertyChanged -= OnIdentificationViewModelPropertyChanged;
             _identificationViewModel.RequestScreenAnnotations = null;
+            _identificationViewModel.RequestAnnotationCommand = null;
             _identificationViewModel = null;
         }
         base.OnClosed(e);
@@ -438,7 +441,7 @@ public partial class MainWindow : Window
 
         if (DataContext is MainViewModel vm)
         {
-            if (vm.MatchesStartStopHotkey(e.Key, e.KeyModifiers))
+            if (!vm.IsRecordingHotkeyRegistered && vm.MatchesStartStopHotkey(e.Key, e.KeyModifiers))
             {
                 e.Handled = true;
                 if (vm.CanStartRecording)
@@ -450,7 +453,7 @@ public partial class MainWindow : Window
                     await vm.StopRecordingCommand.ExecuteAsync(null);
                 }
             }
-            else if (vm.MatchesPauseResumeHotkey(e.Key, e.KeyModifiers))
+            else if (!vm.IsRecordingHotkeyRegistered && vm.MatchesPauseResumeHotkey(e.Key, e.KeyModifiers))
             {
                 e.Handled = true;
                 if (vm.CanPauseOrResume)

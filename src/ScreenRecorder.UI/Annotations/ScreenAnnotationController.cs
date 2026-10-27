@@ -11,6 +11,9 @@ public interface IAnnotationHost:IDisposable
     void Show();
     void SetPaused(bool paused);
     void ToggleToolbar();
+    void TogglePen();
+    void SelectTool(AnnotationTool tool);
+    void FinishDrawing();
 }
 
 /// <summary>Optional UI-only lifetime. Never sends recorder commands or creates a process.</summary>
@@ -35,6 +38,10 @@ public sealed class ScreenAnnotationController(Func<CaptureRegion,IAnnotationHos
             _region.Width>32768||_region.Height>32768)return;
         Guard(()=>{_host=createHost(_region);_host.Closed+=OnClosed;_host.Show();});
     }
+    public void TogglePen() { EnsureOpen(); if(_host is not null)Guard(()=>_host.TogglePen()); }
+    public void SelectTool(AnnotationTool tool) { EnsureOpen(); if(_host is not null)Guard(()=>_host.SelectTool(tool)); }
+    public void FinishDrawing() { if(_host is not null)Guard(()=>_host.FinishDrawing()); }
+    private void EnsureOpen() { if(_host is null)Open(); }
     public void Close()
     {
         var host=_host;_host=null;if(host is null)return;

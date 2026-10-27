@@ -90,10 +90,10 @@ public partial class MainViewModel : ObservableObject
     private bool _openFolderOnFinished = false;
     private RecordingPreflightMode _recordingPreflightMode = RecordingPreflightMode.StartOnly;
     private bool _deleteWorkingFileAfterRemux = false;
-    private uint _startStopHotkeyModifiers = 0;
+    private uint _startStopHotkeyModifiers = 2;
     private string _startStopHotkeyKey = "F9";
     private uint _pauseResumeHotkeyModifiers = 0;
-    private string _pauseResumeHotkeyKey = "F10";
+    private string _pauseResumeHotkeyKey = "F9";
     private uint _bookmarkHotkeyModifiers = 6;
     private string _bookmarkHotkeyKey = "M";
     private string _videoQualityPreset = "Standard";
@@ -932,7 +932,7 @@ public partial class MainViewModel : ObservableObject
         // 立即探測目標存放磁碟之剩餘空間 (更新介面顯示 -- GB)
         UpdateDiskSpaceRemaining();
 
-        // 註冊 Windows 全域快捷鍵 (預設 F9 開始/停止，F10 暫停/繼續)
+        // Windows 與 macOS 共用可自訂的全域錄影快捷鍵。
         if (!forScreenshot && (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() &&
             Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime))
         {
@@ -943,7 +943,7 @@ public partial class MainViewModel : ObservableObject
                 {
                     await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
                     {
-                        if (hotkeyId == 9001) // F9: 開始 / 停止
+                        if (hotkeyId == 9001) // 開始 / 停止
                         {
                             if (CanStartRecording)
                             {
@@ -956,7 +956,9 @@ public partial class MainViewModel : ObservableObject
                         }
                         else if (hotkeyId == 9003) await AddBookmarkAsync();
                         else if (hotkeyId == 9004 && CanOpenScreenAnnotations) RequestScreenAnnotations?.Invoke();
-                        else if (hotkeyId == 9002) // F10: 暫停 / 繼續
+                        else if (hotkeyId is >=9005 and <=9009 && CanOpenScreenAnnotations)
+                            RequestAnnotationCommand?.Invoke(hotkeyId switch {9005=>"togglePen",9006=>"pen",9007=>"line",9008=>"rectangle",_=>"ellipse"});
+                        else if (hotkeyId == 9002) // 暫停 / 繼續
                         {
                             if ((IsRecording || IsPaused) && !IsPreparing)
                             {
@@ -1195,6 +1197,7 @@ public partial class MainViewModel : ObservableObject
                 ScreenAnnotationsEnabled = ScreenAnnotationsEnabled,
                 ScreenAnnotationColor = ScreenAnnotationColor,
                 ScreenAnnotationWidth = ScreenAnnotationWidth,
+                AnnotationShortcuts = _annotationShortcuts,
                 StartStopHotkeyModifiers = _startStopHotkeyModifiers,
                 StartStopHotkeyKey = _startStopHotkeyKey,
                 PauseResumeHotkeyModifiers = _pauseResumeHotkeyModifiers,

@@ -21,7 +21,7 @@ internal sealed class AnnotationOverlayHost:IAnnotationHost
     private static PixelPoint? _lastToolbarPosition;
     public AnnotationDocument Document{get;}
     public event EventHandler? Closed;
-    public AnnotationOverlayHost(Window owner,CaptureRegion region,uint color,double width,Action<uint,double> saveStyle,Func<bool>? shortcutAvailable=null,Func<Window,bool,bool>? setInteractive=null)
+    public AnnotationOverlayHost(Window owner,CaptureRegion region,uint color,double width,Action<uint,double> saveStyle,Func<bool>? shortcutAvailable=null,Func<Window,bool,bool>? setInteractive=null,Func<Key,KeyModifiers,bool>? finishShortcut=null)
     {
         var screen=owner.Screens.ScreenFromPoint(new(region.X,region.Y))??throw new InvalidOperationException("Annotation display unavailable");
         var bounds=screen.Bounds;
@@ -34,15 +34,27 @@ internal sealed class AnnotationOverlayHost:IAnnotationHost
             CanResize=false,Topmost=true,ShowActivated=false,Background=Brushes.Transparent,
             TransparencyLevelHint=[WindowTransparencyLevel.Transparent],Content=_canvas,Width=region.Width/_scale,Height=region.Height/_scale,
             Position=_origin,WindowStartupLocation=WindowStartupLocation.Manual};
-        _toolbar=new(Document,SetMode,Dispose,saveStyle,Fail,()=>{SetMode(false);owner.WindowState=WindowState.Minimized;},ToggleToolbar,_shortcutAvailable){WindowStartupLocation=WindowStartupLocation.Manual};
+        _toolbar=new(Document,SetMode,Dispose,saveStyle,Fail,()=>{SetMode(false);owner.WindowState=WindowState.Minimized;},ToggleToolbar,_shortcutAvailable,finishShortcut){WindowStartupLocation=WindowStartupLocation.Manual};
         var x=_lastToolbarPosition?.X??region.X+16;var y=_lastToolbarPosition?.Y??region.Y+16;
         _toolbar.Position=new(Math.Clamp(x,bounds.X,Math.Max(bounds.X,bounds.Right-(int)Math.Ceiling(_toolbar.Width*_scale))),
             Math.Clamp(y,bounds.Y,Math.Max(bounds.Y,bounds.Bottom-(int)Math.Ceiling(190*_scale))));
         _toolbar.Closed+=(_,_)=>Dispose();_overlay.Closed+=(_,_)=>Dispose();
         Document.Changed+=OnDocumentChanged;
-        _overlay.KeyDown+=(_,e)=>{if(e.Key==Key.Escape){Guard(()=>SetMode(false));e.Handled=true;}};
-        _overlay.Activated+=(_,_)=>AnnotationNativeWindow.RaiseExistingPointer();
+        _overlay.KeyDown+=(_,e)=>{if((finishShortcut??((k,m)=>k==Key.Escape&&m==KeyModifiers.None))(e.Key,e.KeyModifiers)){Guard(FinishDrawing);e.Handled=true;}};
+        _overlay.Activated+=(_,_)=>{AnnotationNativeWindow.ConfigureToolbar(_toolbar);AnnotationNativeWindow.RaiseExistingPointer();};
         _canvas.PointerPressed+=(_,_)=>AnnotationNativeWindow.RaiseExistingPointer();
+        _canvas.PointerMoved+=(_,e)=>
+        {
+            // If a platform raises the drawing surface above the floating toolbar,
+            // repair the order as the pointer approaches it, before the next click.
+            // Never interrupt an in-progress stroke that owns pointer capture.
+            if(!_toolbar.IsVisible||Document.IsDrawing)return;
+            var point=_overlay.PointToScreen(e.GetPosition(_overlay));
+            var origin=_toolbar.PointToScreen(default);
+            var end=_toolbar.PointToScreen(new Point(_toolbar.ClientSize.Width,_toolbar.ClientSize.Height));
+            if(point.X>=origin.X&&point.X<end.X&&point.Y>=origin.Y&&point.Y<end.Y)
+                AnnotationNativeWindow.ConfigureToolbar(_toolbar);
+        };
     }
     public void Show()
     {
@@ -83,6 +95,13 @@ internal sealed class AnnotationOverlayHost:IAnnotationHost
         if(_toolbar.IsVisible){if(!_shortcutAvailable())return;SetMode(false);_toolbar.Hide();_toolbarHidden=true;}
         else{_toolbar.Show();_toolbarHidden=false;AnnotationNativeWindow.ConfigureToolbar(_toolbar);AnnotationNativeWindow.RaiseExistingPointer();}
     }
+    public void TogglePen()
+    {
+        if(_canvas.Interactive){SetMode(false);return;}
+        Document.Tool=AnnotationTool.Pen;SetMode(true);
+    }
+    public void SelectTool(AnnotationTool tool){Document.Tool=tool;SetMode(true);}
+    public void FinishDrawing(){SetMode(false);Document.Clear();}
     private void OnDocumentChanged(object? sender,EventArgs e)
     {
         if(_closed||!_shown||_paused||_canvas.Interactive)return;

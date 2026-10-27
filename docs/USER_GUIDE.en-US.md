@@ -331,8 +331,13 @@ Original project MKVs must be retained for reopening, editing and continued reco
 
 Default hotkeys:
 
-- F9: Start/stop recording
-- F10: Pause/resume recording
+- Ctrl + F9: Start/stop recording
+- F9: Pause/resume recording
+- F10: Toggle drawing without clearing marks; F11: Show/hide annotation toolbar
+- Esc: Finish drawing and clear marks (when the drawing surface or toolbar is focused)
+- Ctrl + Shift + F1/F2/F3/F4: Select pen, line, rectangle, or ellipse
+
+Shortcuts can be changed in Settings. Existing recording shortcuts are preserved when upgrading.
 
 Available keys include F1–F12, R, S, P, Space, Insert, and Home. They can be combined with Ctrl, Alt, Shift, and selected modifier combinations. Start/stop and pause/resume cannot use exactly the same combination.
 

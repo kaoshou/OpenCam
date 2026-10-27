@@ -11,7 +11,7 @@ internal static class AnnotationNativeWindow
     public static void ConfigureToolbar(Window window)
     {
         if(OperatingSystem.IsWindows()&&window.TryGetPlatformHandle() is {HandleDescriptor:"HWND"} win)
-            SetWindowPos(win.Handle,new nint(-1),0,0,0,0,0x1|0x2|0x10|0x4000);
+            SetWindowPos(win.Handle,new nint(-1),0,0,0,0,0x1|0x2|0x10);
         if(OperatingSystem.IsMacOS()&&window.TryGetPlatformHandle() is {HandleDescriptor:"NSWindow"} h)
             SendLong(h.Handle,Selector("setLevel:"),26);
     }

@@ -87,7 +87,7 @@ public class ScreenAnnotationUiTests
             Assert.All(buttons,b=>{var name=AutomationProperties.GetName(b);Assert.False(string.IsNullOrWhiteSpace(name));Assert.DoesNotContain("Annotations",name);});
             doc.Begin(new(10,10),true);for(int i=11;i<100;i++)doc.Move(new(i,i));doc.End();
             Assert.Equal(buttons,toolbar.GetVisualDescendants().OfType<Button>().ToArray());
-            Assert.All(buttons,b=>Assert.True(b.Bounds.Right<=toolbar.ClientSize.Width));
+            Assert.All(buttons,b=>{var position=b.TranslatePoint(default,toolbar)!.Value;Assert.True(position.X+b.Bounds.Width<=toolbar.ClientSize.Width+0.1);});
         }finally{toolbar.Close();LanguageManager.Instance.CurrentLanguage=old;}
     }
     [AvaloniaFact] public void LostButtonStateCancelsRatherThanLeavingAPhantomStroke()
@@ -106,6 +106,74 @@ public class ScreenAnnotationUiTests
         var paths=toolbar.GetVisualDescendants().OfType<Avalonia.Controls.Shapes.Path>().ToArray();
         Assert.True(paths.Length>=10);
         Assert.All(paths,path=>{Assert.NotNull(path.Stroke);Assert.True(path.StrokeThickness>=1.5);});
+    }
+    [AvaloniaFact] public void RepeatedHideAndShowKeepsToolbarWidthAndControlsVisible()
+    {
+        using var toolbar=new AnnotationToolbar(new(800,600),_=>{},()=>{},(_,_)=>{},e=>throw e,null,()=>{},()=>true);
+        toolbar.Show();toolbar.UpdateLayout();var width=toolbar.ClientSize.Width;
+        for(var i=0;i<8;i++)
+        {
+            toolbar.Hide();toolbar.Show();toolbar.UpdateLayout();
+            Assert.Equal(width,toolbar.ClientSize.Width,1);
+            Assert.All(toolbar.GetVisualDescendants().OfType<Button>(),b=>{var position=b.TranslatePoint(default,toolbar)!.Value;Assert.True(position.X+b.Bounds.Width<=toolbar.ClientSize.Width+0.1);});
+        }
+        Assert.Equal(toolbar.Width,toolbar.MinWidth);
+    }
+    [AvaloniaFact] public void ToolbarIconsUseFixedCanvasRatherThanDegenerateStretchBounds()
+    {
+        using var toolbar=new AnnotationToolbar(new(800,600),_=>{},()=>{},(_,_)=>{},e=>throw e,()=>{},()=>{});
+        toolbar.Show();toolbar.UpdateLayout();
+        var minimize=toolbar.GetVisualDescendants().OfType<Button>().Single(b=>AutomationProperties.GetName(b)==LanguageManager.Instance["AnnotationsMinimize"]);
+        Assert.IsType<Canvas>(minimize.Content);
+    }
+    [AvaloniaFact] public void EscapeEndsDrawingAndClearsMarks()
+    {
+        var doc=new AnnotationDocument(800,600);bool? mode=null;
+        doc.Begin(new(10,10),true);doc.Move(new(20,20));doc.End();
+        using var toolbar=new AnnotationToolbar(doc,value=>mode=value,()=>{},(_,_)=>{},e=>throw e);
+        toolbar.Show();toolbar.UpdateLayout();toolbar.KeyPress(Key.Escape,RawInputModifiers.None);
+        Assert.False(mode);Assert.Empty(doc.Marks);
+    }
+    [AvaloniaFact] public void ConfiguredFinishKeyReplacesEscape()
+    {
+        var doc=new AnnotationDocument(800,600);bool? mode=null;
+        doc.Begin(new(10,10),true);doc.Move(new(20,20));doc.End();
+        using var toolbar=new AnnotationToolbar(doc,value=>mode=value,()=>{},(_,_)=>{},e=>throw e,finishShortcut:(k,m)=>k==Key.F7&&m==KeyModifiers.None);
+        toolbar.Show();toolbar.UpdateLayout();toolbar.KeyPress(Key.Escape,RawInputModifiers.None);
+        Assert.Single(doc.Marks);toolbar.KeyPress(Key.F7,RawInputModifiers.None);
+        Assert.False(mode);Assert.Empty(doc.Marks);
+    }
+    [AvaloniaFact] public void RepeatedWidthChangesRemainClickableWithoutCreatingMarks()
+    {
+        var doc=new AnnotationDocument(800,600);
+        using var toolbar=new AnnotationToolbar(doc,_=>{},()=>{},(_,_)=>{},e=>throw e);
+        toolbar.Show();toolbar.UpdateLayout();
+        foreach(var width in new[]{2,8,4,2,8,4})
+        {
+            var name=LanguageManager.Instance["AnnotationsWidth"]+" "+width;
+            var button=toolbar.GetVisualDescendants().OfType<Button>().Single(b=>AutomationProperties.GetName(b)==name);
+            var point=button.TranslatePoint(new Point(button.Bounds.Width/2,button.Bounds.Height/2),toolbar)!.Value;
+            toolbar.MouseDown(point,MouseButton.Left);toolbar.MouseUp(point,MouseButton.Left);
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();toolbar.UpdateLayout();
+            Assert.Equal(width,doc.StrokeWidth);Assert.Empty(doc.Marks);
+        }
+    }
+    [AvaloniaFact] public void RepeatedToolChangesDoNotReplaceButtons()
+    {
+        var doc=new AnnotationDocument(800,600);AnnotationToolbar? toolbar=null;
+        toolbar=new AnnotationToolbar(doc,drawing=>toolbar!.SetMode(drawing),()=>{},(_,_)=>{},e=>throw e);
+        using(toolbar)
+        {
+            toolbar.Show();toolbar.UpdateLayout();var before=toolbar.GetVisualDescendants().OfType<Button>().ToArray();
+            foreach(var tool in new[]{AnnotationTool.Rectangle,AnnotationTool.Ellipse,AnnotationTool.Line,AnnotationTool.Pen})
+            {
+                var button=before.Single(b=>AutomationProperties.GetName(b)==LanguageManager.Instance["Annotations"+tool]);
+                var point=button.TranslatePoint(new Point(button.Bounds.Width/2,button.Bounds.Height/2),toolbar)!.Value;
+                toolbar.MouseDown(point,MouseButton.Left);toolbar.MouseUp(point,MouseButton.Left);
+                Avalonia.Threading.Dispatcher.UIThread.RunJobs();toolbar.UpdateLayout();Assert.Equal(tool,doc.Tool);
+                Assert.Equal(before,toolbar.GetVisualDescendants().OfType<Button>().ToArray());
+            }
+        }
     }
     [AvaloniaFact] public void EraserDragRemovesEveryTouchedMarkAndUndoRestoresGesture()
     {
@@ -133,7 +201,7 @@ public class ScreenAnnotationUiTests
         toolbar.Show();toolbar.UpdateLayout();
         Assert.Contains(toolbar.GetVisualDescendants().OfType<Button>(),b=>AutomationProperties.GetName(b)==LanguageManager.Instance["AnnotationsHide"]);
         available=false;toolbar.SetMode(false);toolbar.UpdateLayout();
-        Assert.DoesNotContain(toolbar.GetVisualDescendants().OfType<Button>(),b=>AutomationProperties.GetName(b)==LanguageManager.Instance["AnnotationsHide"]);
+        Assert.False(toolbar.GetVisualDescendants().OfType<Button>().Single(b=>AutomationProperties.GetName(b)==LanguageManager.Instance["AnnotationsHide"]).IsVisible);
     }
     [AvaloniaFact] public void OpeningToolsDoesNotCoverDesktopUntilDrawingIsSelected()
     {
@@ -153,6 +221,7 @@ public class ScreenAnnotationUiTests
             Assert.False(overlay.IsVisible);Assert.True(toolbar.IsVisible);
             toolbar.GetVisualDescendants().OfType<Button>().Single(b=>AutomationProperties.GetName(b)==LanguageManager.Instance["AnnotationsPen"]).RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
             host.Document.Begin(new(10,10),true);host.Document.Move(new(30,30));host.Document.End();
+            host.TogglePen();Assert.Single(host.Document.Marks);host.TogglePen();Assert.Single(host.Document.Marks);
             toolbar.GetVisualDescendants().OfType<Button>().Single(b=>AutomationProperties.GetName(b)==LanguageManager.Instance["AnnotationsOperate"]).RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
             Assert.True(overlay.IsVisible);Assert.Single(host.Document.Marks);
             host.SetPaused(true);Assert.False(overlay.IsVisible);host.SetPaused(false);
@@ -170,6 +239,9 @@ public class ScreenAnnotationUiTests
         public event EventHandler? Closed;
         public void Show(){if(FailShow)throw new InvalidOperationException("Native window unavailable");}
         public void ToggleToolbar()=>Toggles++;
+        public void TogglePen() { }
+        public void SelectTool(AnnotationTool tool) => Document.Tool=tool;
+        public void FinishDrawing() => Document.Clear();
         public void SetPaused(bool paused){Paused=paused;Document.Cancel();}
         public void Dispose(){Disposed=true;Closed?.Invoke(this,EventArgs.Empty);}
     }

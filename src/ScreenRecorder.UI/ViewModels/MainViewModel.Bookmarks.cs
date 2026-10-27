@@ -10,7 +10,9 @@ public partial class MainViewModel
 {
     private RecordingHotkeyBindings? _hotkeyBindings;
     private string? _hotkeyInitializationError;
+    private UserSettings? _registeredSettings;
     public bool IsBookmarkHotkeyRegistered { get; private set; }
+    public bool IsRecordingHotkeyRegistered { get; private set; }
     private bool _addingBookmark;
     private long _lastBookmarkKey;
     public bool CanAddBookmark => !_openingContent && _content?.Workspace.State.Mode == ProjectMode.Recording && !_addingBookmark;
@@ -39,19 +41,33 @@ public partial class MainViewModel
         _hotkeyBindings ??= new(_globalHotkeyService);
         try
         {
-            RegisterAnnotationHotkey(false);
-            if(IsAnnotationHotkeyRegistered)return Strings["HotkeyUnavailable"];
+            if(!RegisterAnnotationHotkey(null))return Strings["HotkeyUnavailable"];
             var requested = new List<(int, int, uint)>();
-            if (OperatingSystem.IsWindows())
+            if (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS())
             {
                 requested.Add((9001, ResolveVirtualKey(settings.StartStopHotkeyKey), settings.StartStopHotkeyModifiers));
                 requested.Add((9002, ResolveVirtualKey(settings.PauseResumeHotkeyKey), settings.PauseResumeHotkeyModifiers));
             }
             requested.Add((9003, ResolveVirtualKey(settings.BookmarkHotkeyKey), settings.BookmarkHotkeyModifiers));
-            if (!_hotkeyBindings.Apply(requested.ToArray())) { RegisterAnnotationHotkey(settings.ScreenAnnotationsEnabled); return Strings["HotkeyUnavailable"]; }
+            if (!_hotkeyBindings.Apply(requested.ToArray())) { RegisterAnnotationHotkey(_annotationBindingsRequestedForRecording?_registeredSettings:null); return Strings["HotkeyUnavailable"]; }
+            IsRecordingHotkeyRegistered=OperatingSystem.IsWindows()||OperatingSystem.IsMacOS();
             IsBookmarkHotkeyRegistered = true;
             OnPropertyChanged(nameof(IsBookmarkHotkeyRegistered));
-            RegisterAnnotationHotkey(settings.ScreenAnnotationsEnabled);
+            if(!RegisterAnnotationHotkey(settings))
+            {
+                RegisterAnnotationHotkey(null);
+                if(_registeredSettings is not null)
+                {
+                    var prior=new List<(int,int,uint)>();
+                    if(OperatingSystem.IsWindows()||OperatingSystem.IsMacOS()) { prior.Add((9001,ResolveVirtualKey(_registeredSettings.StartStopHotkeyKey),_registeredSettings.StartStopHotkeyModifiers)); prior.Add((9002,ResolveVirtualKey(_registeredSettings.PauseResumeHotkeyKey),_registeredSettings.PauseResumeHotkeyModifiers)); }
+                    prior.Add((9003,ResolveVirtualKey(_registeredSettings.BookmarkHotkeyKey),_registeredSettings.BookmarkHotkeyModifiers));
+                    if(!_hotkeyBindings.Apply(prior.ToArray())||!RegisterAnnotationHotkey(_annotationBindingsRequestedForRecording?_registeredSettings:null))return Strings["HotkeyUnavailable"];
+                }
+                return Strings["HotkeyUnavailable"];
+            }
+            _registeredSettings=System.Text.Json.JsonSerializer.Deserialize<UserSettings>(System.Text.Json.JsonSerializer.Serialize(settings));
+            _annotationBindingsRequestedForRecording=CanOpenScreenAnnotations&&settings.ScreenAnnotationsEnabled;
+            if(!_annotationBindingsRequestedForRecording&&!RegisterAnnotationHotkey(null))return Strings["HotkeyUnavailable"];
             return null;
         }
         catch (Exception ex) { Serilog.Log.Warning(ex, "Shortcut registration failed"); return Strings["HotkeyUnavailable"] + " " + ex.Message; }

@@ -3,6 +3,7 @@ using Avalonia.Interactivity;
 using Avalonia.Threading;
 using ScreenRecorder.UI.Annotations;
 using ScreenRecorder.UI.ViewModels;
+using ScreenRecorder.Core.Annotations;
 
 namespace ScreenRecorder.UI.Views;
 
@@ -19,13 +20,31 @@ public partial class MainWindow
         {
             if(_annotations is null)
             {
-                _annotations=new(region=>new AnnotationOverlayHost(this,region,vm.ScreenAnnotationColor,vm.ScreenAnnotationWidth,vm.SaveScreenAnnotationStyle,()=>vm.IsAnnotationHotkeyRegistered));
+                _annotations=new(region=>new AnnotationOverlayHost(this,region,vm.ScreenAnnotationColor,vm.ScreenAnnotationWidth,vm.SaveScreenAnnotationStyle,()=>vm.IsAnnotationHotkeyRegistered,finishShortcut:vm.MatchesAnnotationFinish));
                 _annotations.Failed+=(_,_)=>vm.ScreenAnnotationNotice=vm.Strings["AnnotationsUnavailable"];
             }
             vm.ScreenAnnotationNotice=null;
             UpdateAnnotations();_annotations.Open();
         }
         catch(Exception error){Serilog.Log.Warning(error,"Optional screen annotation entry failed; recording unchanged");CloseAnnotations();}
+    }
+    private void RunAnnotationCommand(string command)
+    {
+        if(DataContext is not MainViewModel {CanOpenScreenAnnotations:true} vm)return;
+        if(_annotations is null)
+        {
+            _annotations=new(region=>new AnnotationOverlayHost(this,region,vm.ScreenAnnotationColor,vm.ScreenAnnotationWidth,vm.SaveScreenAnnotationStyle,()=>vm.IsAnnotationHotkeyRegistered,finishShortcut:vm.MatchesAnnotationFinish));
+            _annotations.Failed+=(_,_)=>vm.ScreenAnnotationNotice=vm.Strings["AnnotationsUnavailable"];
+        }
+        UpdateAnnotations();
+        switch(command)
+        {
+            case "togglePen":_annotations.TogglePen();break;
+            case "pen":_annotations.SelectTool(AnnotationTool.Pen);break;
+            case "line":_annotations.SelectTool(AnnotationTool.Line);break;
+            case "rectangle":_annotations.SelectTool(AnnotationTool.Rectangle);break;
+            case "ellipse":_annotations.SelectTool(AnnotationTool.Ellipse);break;
+        }
     }
     private void QueueAnnotationsUpdate()
     {

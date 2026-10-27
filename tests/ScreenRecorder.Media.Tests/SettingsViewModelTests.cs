@@ -254,7 +254,8 @@ public class SettingsViewModelTests
         vm.ResetToDefaults();
 
         Assert.Equal("F9", vm.SelectedStartStopKey?.KeyName);
-        Assert.Equal("F10", vm.SelectedPauseResumeKey?.KeyName);
+        Assert.Equal(2u, vm.SelectedStartStopModifier?.Value);
+        Assert.Equal("F9", vm.SelectedPauseResumeKey?.KeyName);
         Assert.Equal(AppLanguage.ZhTw, vm.SelectedLanguage?.Language);
         Assert.Equal("Standard", vm.SelectedQuality?.PresetKey);
         Assert.False(vm.OpenFolderOnFinished);

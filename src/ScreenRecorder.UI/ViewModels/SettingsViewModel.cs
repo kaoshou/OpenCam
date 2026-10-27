@@ -26,6 +26,16 @@ public partial class SettingsViewModel : ObservableObject
     // 項目定義
     public record ModifierOption(uint Value, string DisplayName);
     public record KeyOption(string KeyName, int VirtualKey);
+    public sealed class AnnotationShortcutRow(string id, string label, IReadOnlyList<ModifierOption> modifiers, IReadOnlyList<KeyOption> keys)
+    {
+        public string Id { get; } = id;
+        public string Label { get; } = label;
+        public IReadOnlyList<ModifierOption> Modifiers { get; } = modifiers;
+        public IReadOnlyList<KeyOption> Keys { get; } = keys;
+        public ModifierOption? SelectedModifier { get; set; }
+        public KeyOption? SelectedKey { get; set; }
+    }
+    public ObservableCollection<AnnotationShortcutRow> AnnotationShortcutRows { get; } = new();
     public record LanguageOption(AppLanguage Language, string DisplayName);
     public record QualityOption(string PresetKey, string DisplayName);
     public record DiskThresholdOption(double Value, string DisplayName);
@@ -233,6 +243,9 @@ public partial class SettingsViewModel : ObservableObject
 
     private void RefreshOptionLabels()
     {
+        var annotationSelection=AnnotationShortcutRows.ToDictionary(row=>row.Id,row=>new AnnotationShortcut
+        {Modifiers=row.SelectedModifier?.Value??0,Key=row.SelectedKey?.KeyName??""});
+        if(annotationSelection.Count>0)LoadAnnotationShortcuts(annotationSelection);
         RefreshWebDefaults();
         RefreshCaptureModes();
         RefreshPreflightModes();
@@ -256,9 +269,31 @@ public partial class SettingsViewModel : ObservableObject
         PopulateDiskThresholdOptions();
     }
 
+    private void LoadAnnotationShortcuts(Dictionary<string, AnnotationShortcut>? saved)
+    {
+        var defaults=AnnotationShortcut.Defaults();
+        var keys=AvailableKeys.Concat(new[]{new KeyOption("Escape",0x1b)}).ToArray();
+        AnnotationShortcutRows.Clear();
+        foreach(var (id,label) in new[]{("togglePen","AnnotationsHotkeyTogglePen"),("toggleToolbar","AnnotationsHotkeyToolbar"),
+            ("finish","AnnotationsHotkeyFinish"),("pen","AnnotationsPen"),("line","AnnotationsLine"),
+            ("rectangle","AnnotationsRectangle"),("ellipse","AnnotationsEllipse")})
+        {
+            var value=saved is not null && saved.TryGetValue(id,out var stored) && stored is not null ? stored : defaults[id];
+            var allowedKeys=id=="finish"?keys:AvailableKeys.ToArray();
+            var row=new AnnotationShortcutRow(id,Strings[label],AvailableModifiers,allowedKeys)
+            {
+                SelectedModifier=AvailableModifiers.FirstOrDefault(x=>x.Value==value.Modifiers) ?? AvailableModifiers[0],
+                SelectedKey=allowedKeys.FirstOrDefault(x=>string.Equals(x.KeyName,value.Key,StringComparison.OrdinalIgnoreCase))
+                    ?? allowedKeys.First(x=>x.KeyName==defaults[id].Key)
+            };
+            AnnotationShortcutRows.Add(row);
+        }
+    }
+
     public async Task LoadSettingsAsync()
     {
         _currentSettings = await _settingsService.LoadSettingsAsync();
+        LoadAnnotationShortcuts(_currentSettings.AnnotationShortcuts);
         LoadWebLanguages(_currentSettings.WebPlayerLanguages);
         NativeCaptureEnabled = SupportsMacOsCapture && (RecordingBuildProfile.NativeOnlyTest || _currentSettings.NativeCaptureEnabled);
         EditablePointerEnabled = SupportsEditablePointer && NativeCaptureEnabled && _currentSettings.EditablePointerEnabled;
@@ -276,7 +311,7 @@ public partial class SettingsViewModel : ObservableObject
         SelectedPauseResumeModifier = AvailableModifiers.FirstOrDefault(m => m.Value == _currentSettings.PauseResumeHotkeyModifiers)
                                       ?? AvailableModifiers[0];
         SelectedPauseResumeKey = AvailableKeys.FirstOrDefault(k => k.KeyName.Equals(_currentSettings.PauseResumeHotkeyKey, StringComparison.OrdinalIgnoreCase))
-                                 ?? AvailableKeys.FirstOrDefault(k => k.KeyName == "F10");
+                                 ?? AvailableKeys.FirstOrDefault(k => k.KeyName == "F9");
 
         SelectedLanguage = AvailableLanguages.FirstOrDefault(l => l.Language == _currentSettings.Language)
                            ?? AvailableLanguages[0];
@@ -306,6 +341,17 @@ public partial class SettingsViewModel : ObservableObject
     {
         ErrorMessage = null;
 
+        var annotationBindings = AnnotationShortcutRows.Select(row => (row.SelectedModifier?.Value, row.SelectedKey?.KeyName)).ToArray();
+        var allBindings = annotationBindings.Concat(new[] {
+            (SelectedStartStopModifier?.Value, SelectedStartStopKey?.KeyName),
+            (SelectedPauseResumeModifier?.Value, SelectedPauseResumeKey?.KeyName),
+            (SelectedBookmarkModifier?.Value, SelectedBookmarkKey?.KeyName) }).ToArray();
+        if (allBindings.Any(b => b.Value is null || b.KeyName is null) || allBindings.Distinct().Count() != allBindings.Length)
+        { ErrorMessage = Strings["HotkeyConflictError"]; return; }
+        if (SupportsWindowsCapture && (SelectedStartStopKey?.KeyName == "F12" || SelectedPauseResumeKey?.KeyName == "F12" ||
+            SelectedBookmarkKey?.KeyName == "F12" || AnnotationShortcutRows.Any(row => row.Id != "finish" && row.SelectedKey?.KeyName == "F12")))
+        { ErrorMessage = Strings["HotkeyF12Reserved"]; return; }
+
         // 1. 快捷鍵防衝突校驗
         if (SelectedBookmarkKey is null || SelectedBookmarkModifier is null ||
             (SelectedBookmarkModifier.Value == SelectedStartStopModifier?.Value && SelectedBookmarkKey.KeyName == SelectedStartStopKey?.KeyName) ||
@@ -321,19 +367,22 @@ public partial class SettingsViewModel : ObservableObject
         // 2. 構建更新後之設定物件
         var previousSettings = _currentSettings;
         var candidate = System.Text.Json.JsonSerializer.Deserialize<UserSettings>(System.Text.Json.JsonSerializer.Serialize(_currentSettings))!;
-        candidate.StartStopHotkeyModifiers = SelectedStartStopModifier?.Value ?? 0;
+        candidate.AnnotationShortcuts = AnnotationShortcutRows.ToDictionary(row => row.Id,
+            row => new AnnotationShortcut { Modifiers = row.SelectedModifier!.Value, Key = row.SelectedKey!.KeyName });
+        candidate.ScreenAnnotationsEnabled = ScreenAnnotationsEnabled;
+        candidate.StartStopHotkeyModifiers = SelectedStartStopModifier?.Value ?? 2;
         candidate.StartStopHotkeyKey = SelectedStartStopKey?.KeyName ?? "F9";
         candidate.PauseResumeHotkeyModifiers = SelectedPauseResumeModifier?.Value ?? 0;
-        candidate.PauseResumeHotkeyKey = SelectedPauseResumeKey?.KeyName ?? "F10";
+        candidate.PauseResumeHotkeyKey = SelectedPauseResumeKey?.KeyName ?? "F9";
         candidate.BookmarkHotkeyModifiers = SelectedBookmarkModifier.Value;
         candidate.BookmarkHotkeyKey = SelectedBookmarkKey.KeyName;
         if (TryApplyHotkeys?.Invoke(candidate) is { } registrationError) { ErrorMessage = registrationError; return; }
         _currentSettings = candidate;
         _currentSettings.WebPlayerLanguages = GetWebLanguages();
-        _currentSettings.StartStopHotkeyModifiers = SelectedStartStopModifier?.Value ?? 0;
+        _currentSettings.StartStopHotkeyModifiers = SelectedStartStopModifier?.Value ?? 2;
         _currentSettings.StartStopHotkeyKey = SelectedStartStopKey?.KeyName ?? "F9";
         _currentSettings.PauseResumeHotkeyModifiers = SelectedPauseResumeModifier?.Value ?? 0;
-        _currentSettings.PauseResumeHotkeyKey = SelectedPauseResumeKey?.KeyName ?? "F10";
+        _currentSettings.PauseResumeHotkeyKey = SelectedPauseResumeKey?.KeyName ?? "F9";
 
         _currentSettings.Language = SelectedLanguage?.Language ?? AppLanguage.ZhTw;
         _currentSettings.VideoQualityPreset = SelectedQuality?.PresetKey ?? "Standard";
@@ -387,11 +436,12 @@ public partial class SettingsViewModel : ObservableObject
         if (CanEditCaptureMode) SelectedCaptureMode = AvailableCaptureModes[0];
         if (CanEditCaptureMode) NativeCaptureEnabled = false;
         if (CanEditCaptureMode) EditablePointerEnabled = false;
-        SelectedStartStopModifier = AvailableModifiers[0]; // None
+        SelectedStartStopModifier = AvailableModifiers.Single(m => m.Value == 2);
         SelectedStartStopKey = AvailableKeys.FirstOrDefault(k => k.KeyName == "F9");
 
         SelectedPauseResumeModifier = AvailableModifiers[0]; // None
-        SelectedPauseResumeKey = AvailableKeys.FirstOrDefault(k => k.KeyName == "F10");
+        SelectedPauseResumeKey = AvailableKeys.FirstOrDefault(k => k.KeyName == "F9");
+        LoadAnnotationShortcuts(AnnotationShortcut.Defaults());
 
         SelectedLanguage = AvailableLanguages[0]; // ZhTw
         SelectedQuality = AvailableQualities[1];  // Standard (CRF 23)
