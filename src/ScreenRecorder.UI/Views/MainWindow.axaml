@@ -285,29 +285,35 @@
                     <!-- 分隔灰線 -->
                     <Rectangle Height="1" Fill="#F1F5F9" HorizontalAlignment="Stretch" />
 
-                    <StackPanel x:Name="TeachingPointerOptionsPanel" IsVisible="{Binding ShowPresentationPointerOptions}" Spacing="6">
-                        <Grid ColumnDefinitions="Auto,*">
-                            <TextBlock Text="{Binding Strings[TeachingPointerStyleLabel]}" VerticalAlignment="Center" Margin="0,0,12,0" FontSize="11.5" Foreground="#334155"/>
-                            <ComboBox x:Name="TeachingPointerStylePicker" Grid.Column="1" HorizontalAlignment="Stretch"
-                                      ItemsSource="{Binding AvailableTeachingPointerStyles}" SelectedItem="{Binding SelectedPresentationPointerStyle}"
-                                      IsEnabled="{Binding CanEditPausedSettings}" AutomationProperties.Name="{Binding Strings[TeachingPointerStyleLabel]}">
-                                <ComboBox.ItemTemplate><DataTemplate>
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <Image Source="{Binding Thumbnail}" Width="50" Height="30" Stretch="Uniform"/>
-                                        <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" FontSize="11.5"/>
-                                    </StackPanel>
-                                </DataTemplate></ComboBox.ItemTemplate>
-                            </ComboBox>
+                    <Border x:Name="TeachingPointerOptionsPanel" IsVisible="{Binding ShowPresentationPointerOptions}"
+                            Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="12">
+                        <Grid ColumnDefinitions="96,*">
+                            <Border Background="#FFFFFF" BorderBrush="#DBEAFE" BorderThickness="1" CornerRadius="8"
+                                    VerticalAlignment="Stretch" MinHeight="104" Padding="8">
+                                <Image Source="{Binding SelectedPresentationPointerStyle.Thumbnail}" Stretch="Uniform"
+                                       AutomationProperties.Name="{Binding SelectedPresentationPointerStyle.DisplayName}"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" Spacing="5" VerticalAlignment="Center" Margin="12,0,0,0">
+                                <TextBlock Text="{Binding Strings[TeachingPointerStyleLabel]}" FontSize="11.5" FontWeight="SemiBold" Foreground="#334155"/>
+                                <ComboBox x:Name="TeachingPointerStylePicker" HorizontalAlignment="Stretch" FontSize="11.5"
+                                          ItemsSource="{Binding AvailableTeachingPointerStyles}" SelectedItem="{Binding SelectedPresentationPointerStyle}"
+                                          IsEnabled="{Binding CanEditPausedSettings}" AutomationProperties.Name="{Binding Strings[TeachingPointerStyleLabel]}">
+                                    <ComboBox.ItemTemplate><DataTemplate>
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Image Source="{Binding Thumbnail}" Width="42" Height="24" Stretch="Uniform"/>
+                                            <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" FontSize="11.5"/>
+                                        </StackPanel>
+                                    </DataTemplate></ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <TextBlock Text="{Binding Strings[TeachingPointerSizeLabel]}" FontSize="11.5" FontWeight="SemiBold" Foreground="#334155" Margin="0,3,0,0"/>
+                                <ComboBox x:Name="TeachingPointerSizePicker" HorizontalAlignment="Stretch" FontSize="11.5"
+                                          ItemsSource="{Binding AvailableTeachingPointerSizes}" SelectedItem="{Binding SelectedPresentationPointerSize}"
+                                          IsEnabled="{Binding CanEditPausedSettings}" AutomationProperties.Name="{Binding Strings[TeachingPointerSizeLabel]}">
+                                    <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding DisplayName}" FontSize="11.5"/></DataTemplate></ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </StackPanel>
                         </Grid>
-                        <Grid ColumnDefinitions="Auto,*">
-                            <TextBlock Text="{Binding Strings[TeachingPointerSizeLabel]}" VerticalAlignment="Center" Margin="0,0,12,0" FontSize="11.5" Foreground="#334155"/>
-                            <ComboBox x:Name="TeachingPointerSizePicker" Grid.Column="1" HorizontalAlignment="Stretch" FontSize="11.5"
-                                      ItemsSource="{Binding AvailableTeachingPointerSizes}" SelectedItem="{Binding SelectedPresentationPointerSize}"
-                                      IsEnabled="{Binding CanEditPausedSettings}" AutomationProperties.Name="{Binding Strings[TeachingPointerSizeLabel]}">
-                                <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding DisplayName}" FontSize="11.5"/></DataTemplate></ComboBox.ItemTemplate>
-                            </ComboBox>
-                        </Grid>
-                    </StackPanel>
+                    </Border>
 
                     <!-- 分組 3：音訊設定 -->
                     <StackPanel Spacing="6">
