@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 using ScreenRecorder.Core.Annotations;
 
 namespace ScreenRecorder.Core.Tests;
@@ -56,6 +57,24 @@ public class AnnotationDocumentTests
         d.Begin(new(3,3),true);d.Move(new(double.PositiveInfinity,4));d.Move(new(200,-5));d.End();
         Assert.Equal(new AnnotationPoint(100,0),d.Marks[0].Points[^1]);
         Assert.Throws<ArgumentOutOfRangeException>(()=>new AnnotationDocument(0,100));
+    }
+    [Theory] [InlineData(false)] [InlineData(true)]
+    public void ElongatedEllipseRemovalUsesVisibleBorderDistance(bool vertical)
+    {
+        var d=new AnnotationDocument(600,600){Tool=AnnotationTool.Ellipse,StrokeWidth=4};
+        d.Begin(new(20,20),true);d.Move(vertical?new(60,420):new(420,60));d.End();
+        Assert.False(d.RemoveAt(vertical?new(40,470):new(470,40)));
+        Assert.False(d.RemoveAt(vertical?new(40,220):new(220,40)));
+        Assert.True(d.RemoveAt(vertical?new(40,425):new(425,40)));
+        Assert.Empty(d.Marks);
+    }
+    [Fact] public void DistantEllipseDoesNotMaskRemovalOfUnderlyingMark()
+    {
+        var d=new AnnotationDocument(600,600);
+        d.Begin(new(470,30),true);d.Move(new(470,50));d.End();
+        d.Tool=AnnotationTool.Ellipse;d.Begin(new(20,20),true);d.Move(new(420,60));d.End();
+        Assert.True(d.RemoveAt(new(470,40)));
+        Assert.Equal(AnnotationTool.Ellipse,Assert.Single(d.Marks).Tool);
     }
     [Fact] public void PointsMarksAndUndoHistoryStayBounded()
     {

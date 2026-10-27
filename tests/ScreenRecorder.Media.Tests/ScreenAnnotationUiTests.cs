@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
@@ -88,6 +89,15 @@ public class ScreenAnnotationUiTests
         try{window.Show();window.UpdateLayout();window.MouseDown(new(20,20),MouseButton.Left);
             window.MouseMove(new(40,40),RawInputModifiers.None);Assert.False(doc.IsDrawing);Assert.Empty(doc.Marks);
         }finally{window.MouseUp(new(40,40),MouseButton.Left);window.Close();canvas.Dispose();}
+    }
+    [AvaloniaFact] public void OpenGeometryIconsHaveVisibleStrokesInsteadOfEmptyOrSolidFills()
+    {
+        using var toolbar=new AnnotationToolbar(new(800,600),_=>{},()=>{},(_,_)=>{},e=>throw e);
+        toolbar.Show();toolbar.UpdateLayout();
+        Assert.Empty(toolbar.GetVisualDescendants().OfType<PathIcon>());
+        var paths=toolbar.GetVisualDescendants().OfType<Avalonia.Controls.Shapes.Path>().ToArray();
+        Assert.True(paths.Length>=10);
+        Assert.All(paths,path=>{Assert.NotNull(path.Stroke);Assert.True(path.StrokeThickness>=1.5);});
     }
     private sealed class Host:IAnnotationHost
     {

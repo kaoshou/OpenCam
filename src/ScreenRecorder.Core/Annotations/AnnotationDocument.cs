@@ -105,7 +105,19 @@ public sealed class AnnotationDocument
             var rx=Math.Abs(b.X-a.X)/2;var ry=Math.Abs(b.Y-a.Y)/2;
             if(rx<.01||ry<.01)return SegmentDistance(p,a,b)<=tolerance;
             var cx=(a.X+b.X)/2;var cy=(a.Y+b.Y)/2;
-            return Math.Abs(Math.Sqrt(Math.Pow((p.X-cx)/rx,2)+Math.Pow((p.Y-cy)/ry,2))-1)*Math.Min(rx,ry)<=tolerance;
+            // Reflect into one quadrant and flatten the visible perimeter. Chord
+            // deviation is bounded to 0.25 DIP, including highly elongated ellipses.
+            var q=new AnnotationPoint(Math.Abs(p.X-cx),Math.Abs(p.Y-cy));
+            var segments=Math.Clamp((int)Math.Ceiling(Math.PI/2*Math.Sqrt(Math.Max(rx,ry)/2)),16,256);
+            var previous=new AnnotationPoint(rx,0);
+            for(int i=1;i<=segments;i++)
+            {
+                var angle=Math.PI/2*i/segments;
+                var next=new AnnotationPoint(rx*Math.Cos(angle),ry*Math.Sin(angle));
+                if(SegmentDistance(q,previous,next)<=tolerance)return true;
+                previous=next;
+            }
+            return false;
         }
         if(mark.Points.Length==1)return Math.Sqrt(DistanceSquared(a,p))<=tolerance;
         for(int i=1;i<mark.Points.Length;i++)if(SegmentDistance(p,mark.Points[i-1],mark.Points[i])<=tolerance)return true;

@@ -34,6 +34,9 @@ internal static class AnnotationNativeWindow
         {
             // Avalonia.Native exposes an NSWindow pointer, as used by the existing transparency adapter.
             if(handle.HandleDescriptor!="NSWindow")return false;
+            // Use the same explicit native transparency policy as the region selector.
+            // Fail closed rather than leave an opaque window covering teaching content.
+            if(!Views.MacOsWindowTransparency.TryApply(h))return false;
             SendBool(h,Selector("setIgnoresMouseEvents:"),!interactive);
             SendLong(h,Selector("setCollectionBehavior:"),(1<<0)|(1<<8)); // All Spaces + full-screen auxiliary.
             SendLong(h,Selector("setLevel:"),25); // Above ordinary application windows, below the existing teaching pointer.

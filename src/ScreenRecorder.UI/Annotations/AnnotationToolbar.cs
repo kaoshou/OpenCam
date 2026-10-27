@@ -47,7 +47,8 @@ internal sealed class AnnotationToolbar:Window,IDisposable
         var label=Strings[key];var b=new Button{MinWidth=34,Height=34,Padding=new(8,5),CornerRadius=new(6),
             Background=Brush.Parse(selected?"#DBEAFE":"#F8FAFC"),BorderBrush=Brush.Parse(selected?"#3B82F6":"#E2E8F0"),BorderThickness=new(1),
             Foreground=Brush.Parse("#1E293B"),Content=path is null?new TextBlock{Text=label,VerticalAlignment=VerticalAlignment.Center,FontSize=12}:
-                new PathIcon{Data=Geometry.Parse(path),Width=17,Height=17}};
+                new Avalonia.Controls.Shapes.Path{Data=Geometry.Parse(path),Width=17,Height=17,Stretch=Stretch.Uniform,
+                    Stroke=Brush.Parse("#334155"),StrokeThickness=1.7,StrokeLineCap=PenLineCap.Round,StrokeJoin=PenLineJoin.Round}};
         ToolTip.SetTip(b,label);AutomationProperties.SetName(b,label);b.Click+=(_,_)=>Run(action);return b;
     }
     private void Run(Action action){try{action();}catch(Exception e){_failure(e);}}

@@ -26,26 +26,31 @@
 
 **Files:** Create `src/ScreenRecorder.Core/Annotations/AnnotationDocument.cs`; test `tests/ScreenRecorder.Core.Tests/AnnotationDocumentTests.cs`.
 **Interfaces:** Produce `AnnotationDocument` with Begin/Move/End/Cancel, Undo/Redo/Clear/RemoveAt; immutable marks/points and tools. Consume no UI/recording dependencies.
-- [ ] Add tests: hover empty; left drag; each shape; reverse drag; cancel; whole-mark hit test; clear undo; redo invalidation; immutable data; limits and invalid coordinates.
-- [ ] Run core tests RED, implement, run complete core suite GREEN; commit.
+- [x] Add tests: hover empty; left drag; each shape; reverse drag; cancel; whole-mark hit test; clear undo; redo invalidation; immutable data; limits and invalid coordinates.
+- [x] Run core tests RED, implement, run complete core suite GREEN; commit.
 
 ### Task 2: Canvas, toolbar and platform host
 
 **Files:** Create focused files in `src/ScreenRecorder.UI/Annotations/`: canvas, toolbar, native adapter, controller. Test `tests/ScreenRecorder.Media.Tests/ScreenAnnotationUiTests.cs`.
-**Interfaces:** Consume document; produce `ScreenAnnotationController.Update(enabled, recording, paused, region)` and `Open(owner, region)`/Dispose. Platform native adapter returns verified input-policy success; failed operation closes overlay.
-- [ ] Test left-only gestures, idle hover, pointer style unchanged, cancel/release, tool state, localized accessible controls, lazy creation, pause/stop/disable/failure cleanup.
-- [ ] Watch RED; implement geometry rendering, native hit-through and toolbar; run focused GREEN and complete media suite; commit.
+**Interfaces:** Consume document; produce `ScreenAnnotationController.Update(enabled, recording, paused, region)` and `Open()`/Dispose. Host factory captures the owner. Platform native adapter returns verified input-policy success; failed operation closes overlay.
+- [x] Test left-only gestures, idle hover, pointer style unchanged, cancel/release, tool state, localized accessible controls, lazy creation, pause/stop/disable/failure cleanup.
+- [x] Watch RED; implement geometry rendering, native hit-through and toolbar; run focused GREEN and complete media suite; commit.
 
 ### Task 3: Small application integration
 
 **Files:** Modify UserSettings, SettingsViewModel/window, MainViewModel via partial, MainWindow via partial, localization partial resources; add UI/settings persistence tests.
 **Interfaces:** Settings `ScreenAnnotationsEnabled=true`; MainViewModel read-only capture bounds/feature flag; MainWindow owns optional controller. No new recorder IPC.
-- [ ] Test legacy missing flag defaults true; opt-out survives unrelated save; three languages; UI entry only during recording; no controller when disabled; state/range changes cancel safely.
-- [ ] Watch RED; implement minimal hooks; full core/media, script/site, actionlint and diff checks; commit.
+- [x] Test legacy missing flag defaults true; opt-out survives unrelated save; three languages; UI entry only during recording; no controller when disabled; state/range changes cancel safely.
+- [x] Watch RED; implement minimal hooks; run full core/media, script/site, actionlint and diff checks; record environment-blocked native probes separately; commit.
 
 ### Task 4: Real desktop verification and handoff
 
 **Files:** Add verification evidence document.
 - [ ] Render and operate real macOS annotation windows over synthetic teaching content; verify native click-through, Esc, shapes/undo and unchanged pointer behavior where environment permits.
 - [ ] Attempt actual screen capture only with approved permission; no private microphone/content; inspect frames/decoding separately from UI test success.
-- [ ] Run independent whole-branch review; fix important findings with regression tests; record Windows/physical limitations. No merge/push/release.
+- [x] Run independent whole-branch review; fix important findings with regression tests; record Windows/physical limitations. No merge/push/release.
+
+Native property toggles and synthetic actual-component raster previews were exercised.
+The first two Task 4 items remain incomplete: the Mac is locked; actual cross-app
+input, pointer stacking and recorded-video acceptance require an unlocked desktop.
+See `../specs/2026-10-27-screen-annotations-verification.md` for evidence and steps.
