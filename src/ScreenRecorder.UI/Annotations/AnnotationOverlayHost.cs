@@ -65,7 +65,7 @@ internal sealed class AnnotationOverlayHost:IAnnotationHost
         // No marks need compositing yet. Keeping the full-screen surface hidden
         // leaves the main window and other applications directly clickable.
         _overlay.Hide();
-        _toolbar.Show();AnnotationNativeWindow.ConfigureToolbar(_toolbar);
+        _toolbar.ShowToolbar();AnnotationNativeWindow.ConfigureToolbar(_toolbar);
         _shown=true;AnnotationNativeWindow.RaiseExistingPointer();
     }
     private void SetMode(bool drawing)
@@ -87,13 +87,13 @@ internal sealed class AnnotationOverlayHost:IAnnotationHost
         if(!_setInteractive(_overlay,false))throw new InvalidOperationException("Cannot release annotation input");
         _toolbar.SetMode(false);_paused=paused;
         if(paused){_toolbar.Hide();_overlay.Hide();}
-        else{if(!Document.Marks.IsEmpty){_overlay.Show();_overlay.Position=_origin;}if(_toolbarHidden&&!_shortcutAvailable())_toolbarHidden=false;if(!_toolbarHidden){_toolbar.Show();AnnotationNativeWindow.ConfigureToolbar(_toolbar);}}
+        else{if(!Document.Marks.IsEmpty){_overlay.Show();_overlay.Position=_origin;}if(_toolbarHidden&&!_shortcutAvailable())_toolbarHidden=false;if(!_toolbarHidden){_toolbar.ShowToolbar();AnnotationNativeWindow.ConfigureToolbar(_toolbar);}}
     }
     public void ToggleToolbar()
     {
         if(_closed||_paused)return;
         if(_toolbar.IsVisible){if(!_shortcutAvailable())return;SetMode(false);_toolbar.Hide();_toolbarHidden=true;}
-        else{_toolbar.Show();_toolbarHidden=false;AnnotationNativeWindow.ConfigureToolbar(_toolbar);AnnotationNativeWindow.RaiseExistingPointer();}
+        else{_toolbar.ShowToolbar();_toolbarHidden=false;AnnotationNativeWindow.ConfigureToolbar(_toolbar);AnnotationNativeWindow.RaiseExistingPointer();}
     }
     public void TogglePen()
     {

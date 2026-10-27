@@ -23,6 +23,7 @@ internal sealed class AnnotationToolbar:Window,IDisposable
     private readonly Func<bool>? _canHide;
     private readonly StackPanel _root=new(){Spacing=8};
     private bool _drawing,_compact;
+    private double _expandedHeight,_compactHeight;
     private bool _disposed;
     private Button? _undo,_redo;
     private Button? _operate,_hideButton;
@@ -36,7 +37,7 @@ internal sealed class AnnotationToolbar:Window,IDisposable
     public AnnotationToolbar(AnnotationDocument document,Action<bool> mode,Action close,Action<uint,double> style,Action<Exception> failure,Action? minimize=null,Action? hide=null,Func<bool>? canHide=null,Func<Key,KeyModifiers,bool>? finishShortcut=null)
     {
         _document=document;_mode=mode;_close=close;_style=style;_failure=failure;_minimize=minimize;_hide=hide;_canHide=canHide;
-        Width=480;MinWidth=480;MaxWidth=480;SizeToContent=SizeToContent.Height;CanResize=false;SystemDecorations=SystemDecorations.None;
+        Width=480;MinWidth=480;MaxWidth=480;SizeToContent=SizeToContent.Manual;CanResize=false;SystemDecorations=SystemDecorations.None;
         ShowInTaskbar=false;Topmost=true;ShowActivated=false;Background=Brushes.Transparent;
         TransparencyLevelHint=[WindowTransparencyLevel.Transparent];
         Content=new Border{Background=Brushes.White,BorderBrush=Brush.Parse("#CBD5E1"),BorderThickness=new(1),CornerRadius=new(12),Padding=new(12),Child=_root};
@@ -46,6 +47,30 @@ internal sealed class AnnotationToolbar:Window,IDisposable
         Rebuild();
     }
     public void SetMode(bool drawing){_drawing=drawing;UpdateToolSelection();}
+    public void ShowToolbar()
+    {
+        RestoreContentHeight();
+        Show();
+        RestoreContentHeight();
+    }
+    private void RestoreContentHeight()
+    {
+        if(Content is not Control content)return;
+        MinHeight=0;
+        content.InvalidateMeasure();
+        content.Measure(new Size(Width,double.PositiveInfinity));
+        var measured=Math.Ceiling(content.DesiredSize.Height);
+        if(_compact)_compactHeight=Math.Max(_compactHeight,measured);
+        else _expandedHeight=Math.Max(_expandedHeight,measured);
+        var target=_compact?_compactHeight:_expandedHeight;
+        if(target>0)
+        {
+            MinHeight=target;
+            Height=target;
+            InvalidateMeasure();
+            if(IsVisible)UpdateLayout();
+        }
+    }
     private void Changed(object? sender,EventArgs e)
     {
         if(ReferenceEquals(sender,_document))
@@ -137,6 +162,7 @@ internal sealed class AnnotationToolbar:Window,IDisposable
         if(_collapseButton?.Content is Canvas canvas && canvas.Children[0] is Avalonia.Controls.Shapes.Path icon)
             icon.Data=Geometry.Parse(_compact?"M4,7 L9,12 L14,7":"M4,11 L9,6 L14,11");
         if(_collapseButton is not null)ToolTip.SetTip(_collapseButton,Strings[_compact?"AnnotationsExpandHint":"AnnotationsCollapseHint"]);
+        RestoreContentHeight();
     }
     private void UpdateToolSelection()
     {

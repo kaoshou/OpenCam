@@ -119,6 +119,30 @@ public class ScreenAnnotationUiTests
         }
         Assert.Equal(toolbar.Width,toolbar.MinWidth);
     }
+    [AvaloniaFact] public void ToolbarRestoresFullHeightAfterDisplayResizeAndRepeatedHideShow()
+    {
+        using var toolbar=new AnnotationToolbar(new(800,600),_=>{},()=>{},(_,_)=>{},e=>throw e,null,()=>{},()=>true);
+        toolbar.ShowToolbar();toolbar.UpdateLayout();Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+        var fullHeight=toolbar.ClientSize.Height;
+        Assert.True(fullHeight<400,$"initial client={fullHeight}, property={toolbar.Height}, desired={((Control)toolbar.Content!).DesiredSize.Height}");
+        for(var i=0;i<4;i++)
+        {
+            typeof(Avalonia.Platform.IWindowImpl).GetMethod("Resize",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic)!
+                .Invoke(toolbar.PlatformImpl,new object[]{new Avalonia.Size(toolbar.ClientSize.Width,fullHeight/2),WindowResizeReason.DpiChange});
+            toolbar.Hide();toolbar.ShowToolbar();toolbar.UpdateLayout();Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            Assert.True(toolbar.ClientSize.Height>=fullHeight-1,$"Toolbar height {toolbar.ClientSize.Height} is less than {fullHeight}; height property {toolbar.Height}; desired {((Control)toolbar.Content!).DesiredSize.Height}");
+            Assert.All(toolbar.GetVisualDescendants().OfType<Button>().Where(b=>b.IsVisible),b=>
+            {var point=b.TranslatePoint(default,toolbar)!.Value;Assert.True(point.Y+b.Bounds.Height<=toolbar.ClientSize.Height+0.1);});
+        }
+        var collapse=toolbar.GetVisualDescendants().OfType<Button>().Single(b=>AutomationProperties.GetName(b)==LanguageManager.Instance["AnnotationsCollapse"]);
+        collapse.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        toolbar.UpdateLayout();Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+        Assert.True(toolbar.ClientSize.Height<fullHeight);
+        toolbar.Hide();toolbar.ShowToolbar();toolbar.UpdateLayout();Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+        collapse.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        toolbar.UpdateLayout();Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+        Assert.True(toolbar.ClientSize.Height>=fullHeight-1);
+    }
     [AvaloniaFact] public void ToolbarIconsUseFixedCanvasRatherThanDegenerateStretchBounds()
     {
         using var toolbar=new AnnotationToolbar(new(800,600),_=>{},()=>{},(_,_)=>{},e=>throw e,()=>{},()=>{});
