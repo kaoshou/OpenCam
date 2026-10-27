@@ -11,13 +11,15 @@ public partial class MainWindow
     private ScreenAnnotationController? _annotations;
     private bool _annotationUpdateQueued;
     private void OnScreenAnnotationsClicked(object? sender,RoutedEventArgs e)
+        =>OpenScreenAnnotations();
+    private void OpenScreenAnnotations()
     {
         if(DataContext is not MainViewModel {CanOpenScreenAnnotations:true} vm)return;
         try
         {
             if(_annotations is null)
             {
-                _annotations=new(region=>new AnnotationOverlayHost(this,region,vm.ScreenAnnotationColor,vm.ScreenAnnotationWidth,vm.SaveScreenAnnotationStyle));
+                _annotations=new(region=>new AnnotationOverlayHost(this,region,vm.ScreenAnnotationColor,vm.ScreenAnnotationWidth,vm.SaveScreenAnnotationStyle,vm.IsAnnotationHotkeyRegistered));
                 _annotations.Failed+=(_,_)=>vm.ScreenAnnotationNotice=vm.Strings["AnnotationsUnavailable"];
             }
             vm.ScreenAnnotationNotice=null;

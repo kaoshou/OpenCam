@@ -955,6 +955,7 @@ public partial class MainViewModel : ObservableObject
                             }
                         }
                         else if (hotkeyId == 9003) await AddBookmarkAsync();
+                        else if (hotkeyId == 9004 && CanOpenScreenAnnotations) RequestScreenAnnotations?.Invoke();
                         else if (hotkeyId == 9002) // F10: 暫停 / 繼續
                         {
                             if ((IsRecording || IsPaused) && !IsPreparing)

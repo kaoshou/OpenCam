@@ -9,6 +9,24 @@ public partial class MainViewModel
     [ObservableProperty] private bool _screenAnnotationsEnabled=true;
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(HasScreenAnnotationNotice))] private string? _screenAnnotationNotice;
     public bool HasScreenAnnotationNotice=>!string.IsNullOrEmpty(ScreenAnnotationNotice);
+    public bool IsAnnotationHotkeyRegistered {get;private set;}
+    public Action? RequestScreenAnnotations {get;set;}
+    public string ScreenAnnotationsTooltip=>Strings["AnnotationsCaptured"]+(IsAnnotationHotkeyRegistered?"\n"+Strings["AnnotationsShortcut"]:"");
+    private void RegisterAnnotationHotkey(bool enabled)
+    {
+        if(_globalHotkeyService is null)return;
+        if(IsAnnotationHotkeyRegistered)
+        {
+            try{_globalHotkeyService.UnregisterHotkey(9004);IsAnnotationHotkeyRegistered=false;}
+            catch(Exception error){Serilog.Log.Warning(error,"Cannot release annotation shortcut");return;}
+        }
+        try
+        {
+            IsAnnotationHotkeyRegistered=enabled&&_globalHotkeyService.RegisterHotkey(9004,0x77,6);
+        }
+        catch(Exception error){IsAnnotationHotkeyRegistered=false;Serilog.Log.Warning(error,"Annotation shortcut unavailable");}
+        OnPropertyChanged(nameof(IsAnnotationHotkeyRegistered));OnPropertyChanged(nameof(ScreenAnnotationsTooltip));
+    }
     public uint ScreenAnnotationColor{get;private set;}=0xffe63946;
     public double ScreenAnnotationWidth{get;private set;}=4;
     public bool CanOpenScreenAnnotations=>ScreenAnnotationsEnabled&&IsRecording&&!IsPaused&&!IsPreparing&&!IsRecovering;

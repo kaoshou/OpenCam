@@ -17,6 +17,9 @@ public sealed class AnnotationDocument
     private readonly double _width,_height;
     private readonly List<ImmutableArray<AnnotationMark>> _undo=[],_redo=[];
     private List<AnnotationPoint>? _pending;
+    private bool _erasing;
+    private AnnotationPoint _eraseLast;
+    private ImmutableArray<AnnotationMark> _eraseBefore;
     private AnnotationTool _gestureTool;
     private uint _gestureColor;
     private double _gestureWidth;
@@ -26,7 +29,7 @@ public sealed class AnnotationDocument
     public double StrokeWidth {get;set;}=4;
     public ImmutableArray<AnnotationMark> Marks {get;private set;}=[];
     public AnnotationMark? Preview=>_pending is null?null:new(_gestureTool,_gestureColor,_gestureWidth,_pending.ToImmutableArray());
-    public bool IsDrawing=>_pending is not null;
+    public bool IsDrawing=>_pending is not null||_erasing;
     public bool CanUndo=>_undo.Count>0;
     public bool CanRedo=>_redo.Count>0;
     public event EventHandler? Changed;
@@ -41,7 +44,13 @@ public sealed class AnnotationDocument
     {
         Cancel();
         if(!leftButton||!point.IsFinite||point.X<0||point.Y<0||point.X>_width||point.Y>_height)return;
-        if(Tool==AnnotationTool.Remove){RemoveAt(point);return;}
+        if(Tool==AnnotationTool.Remove)
+        {
+            _erasing=true;_eraseBefore=Marks;_eraseLast=point;
+            for(int i=Marks.Length-1;i>=0;i--)
+                if(Hit(Marks[i],point)){Marks=Marks.RemoveAt(i);break;}
+            Notify();return;
+        }
         if(Marks.Length>=MaximumMarks||Marks.Sum(x=>x.Points.Length)>=MaximumDocumentPoints)return;
         _gestureTool=Tool;_gestureColor=Color|0xff000000;
         _gestureWidth=double.IsFinite(StrokeWidth)?Math.Clamp(StrokeWidth,1,24):4;
@@ -49,6 +58,13 @@ public sealed class AnnotationDocument
     }
     public void Move(AnnotationPoint point)
     {
+        if(_erasing)
+        {
+            if(!point.IsFinite)return;
+            point=new(Math.Clamp(point.X,0,_width),Math.Clamp(point.Y,0,_height));
+            if(DistanceSquared(point,_eraseLast)<.25)return;
+            EraseAlong(_eraseLast,point);_eraseLast=point;return;
+        }
         if(_pending is null||!point.IsFinite)return;
         point=new(Math.Clamp(point.X,0,_width),Math.Clamp(point.Y,0,_height));
         var last=_pending[^1];
@@ -65,13 +81,41 @@ public sealed class AnnotationDocument
     }
     public void End()
     {
+        if(_erasing){FinishErase();return;}
         var mark=Preview;_pending=null;
         if(mark is not null&&(mark.Tool==AnnotationTool.Pen||mark.Points.Length==2)&&
             Marks.Sum(x=>x.Points.Length)+mark.Points.Length<=MaximumDocumentPoints)
             Commit(Marks.Add(mark));
         else Notify();
     }
-    public void Cancel(){if(_pending is null)return;_pending=null;Notify();}
+    public void Cancel(){if(_erasing){FinishErase();return;}if(_pending is null)return;_pending=null;Notify();}
+    private void FinishErase()
+    {
+        _erasing=false;
+        if(!_eraseBefore.Equals(Marks)){Push(_undo,_eraseBefore);_redo.Clear();}
+        _eraseBefore=default;Notify();
+    }
+    private void EraseAlong(AnnotationPoint start,AnnotationPoint end)
+    {
+        if(Marks.IsEmpty)return;
+        var count=Math.Clamp((int)Math.Ceiling(Math.Sqrt(DistanceSquared(start,end))/4),1,16384);
+        var remaining=Marks.ToBuilder();
+        var minX=Math.Min(start.X,end.X);var maxX=Math.Max(start.X,end.X);
+        var minY=Math.Min(start.Y,end.Y);var maxY=Math.Max(start.Y,end.Y);
+        for(int j=remaining.Count-1;j>=0;j--)
+        {
+            var mark=remaining[j];var margin=6+mark.Width/2+Math.Max(12,mark.Width*3);
+            if(mark.Points.Max(p=>p.X)+margin<minX||mark.Points.Min(p=>p.X)-margin>maxX||
+                mark.Points.Max(p=>p.Y)+margin<minY||mark.Points.Min(p=>p.Y)-margin>maxY)continue;
+            for(int i=0;i<=count;i++)
+            {
+                var t=(double)i/count;var point=new AnnotationPoint(start.X+(end.X-start.X)*t,start.Y+(end.Y-start.Y)*t);
+                if(Hit(mark,point)){remaining.RemoveAt(j);break;}
+            }
+        }
+        if(remaining.Count==Marks.Length)return;
+        Marks=remaining.ToImmutable();Notify();
+    }
     public void Clear(){Cancel();if(!Marks.IsEmpty)Commit([]);}
     public void Undo(){Cancel();if(_undo.Count==0)return;Push(_redo,Marks);Marks=Pop(_undo);Notify();}
     public void Redo(){Cancel();if(_redo.Count==0)return;Push(_undo,Marks);Marks=Pop(_redo);Notify();}

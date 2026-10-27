@@ -34,6 +34,7 @@ public partial class MainWindow : Window
             if (_identificationViewModel is not null)
             {
                 _identificationViewModel.PropertyChanged -= OnIdentificationViewModelPropertyChanged;
+                _identificationViewModel.RequestScreenAnnotations = null;
                 _identificationViewModel.MicrophoneWarningOverlayVisible = false;
                 _identificationViewModel.RequestRecordingProjectName = null;
                 _identificationViewModel.RequestRecordingPreflight = null;
@@ -55,6 +56,7 @@ public partial class MainWindow : Window
 
             if (DataContext is MainViewModel vm)
             {
+                vm.RequestScreenAnnotations = OpenScreenAnnotations;
                 vm.RequestRecordingProjectName = AskRecordingProjectNameAsync;
                 vm.RecordingPreparationChanged = state =>
                 {
@@ -197,6 +199,7 @@ public partial class MainWindow : Window
         if (_identificationViewModel is not null)
         {
             _identificationViewModel.PropertyChanged -= OnIdentificationViewModelPropertyChanged;
+            _identificationViewModel.RequestScreenAnnotations = null;
             _identificationViewModel = null;
         }
         base.OnClosed(e);

@@ -10,6 +10,7 @@ public interface IAnnotationHost:IDisposable
     event EventHandler? Closed;
     void Show();
     void SetPaused(bool paused);
+    void ToggleToolbar();
 }
 
 /// <summary>Optional UI-only lifetime. Never sends recorder commands or creates a process.</summary>
@@ -29,7 +30,8 @@ public sealed class ScreenAnnotationController(Func<CaptureRegion,IAnnotationHos
     }
     public void Open()
     {
-        if(_disposed||!_enabled||!_recording||_paused||_host is not null||!_region.IsValid||
+        if(_host is not null){Guard(()=>_host.ToggleToolbar());return;}
+        if(_disposed||!_enabled||!_recording||_paused||!_region.IsValid||
             _region.Width>32768||_region.Height>32768)return;
         Guard(()=>{_host=createHost(_region);_host.Closed+=OnClosed;_host.Show();});
     }

@@ -41,6 +41,14 @@ public class ScreenAnnotationUiTests
         controller.Failed+=(_,e)=>error=e;controller.Update(true,true,false,Region);controller.Open();
         Assert.NotNull(error);Assert.True(host.Disposed);Assert.False(controller.IsOpen);
     }
+    [Fact] public void OpeningAgainTogglesToolbarWithoutDiscardingMarks()
+    {
+        var host=new Host();using var controller=new ScreenAnnotationController(_=>host);
+        controller.Update(true,true,false,Region);controller.Open();
+        host.Document.Begin(new(10,10),true);host.Document.Move(new(20,20));host.Document.End();
+        controller.Open();Assert.Equal(1,host.Toggles);Assert.Single(host.Document.Marks);Assert.True(controller.IsOpen);
+        controller.Open();Assert.Equal(2,host.Toggles);Assert.Single(host.Document.Marks);
+    }
     [Fact] public void InvalidRegionNeverBuildsNativeWindows()
     {
         using var controller=new ScreenAnnotationController(_=>throw new Exception("Must not create"));
@@ -99,12 +107,34 @@ public class ScreenAnnotationUiTests
         Assert.True(paths.Length>=10);
         Assert.All(paths,path=>{Assert.NotNull(path.Stroke);Assert.True(path.StrokeThickness>=1.5);});
     }
+    [AvaloniaFact] public void EraserDragRemovesEveryTouchedMarkAndUndoRestoresGesture()
+    {
+        var doc=new AnnotationDocument(400,300);
+        foreach(var x in new[]{50,100,150}) { doc.Begin(new(x,40),true);doc.Move(new(x,100));doc.End(); }
+        doc.Tool=AnnotationTool.Remove;
+        var canvas=new AnnotationCanvas(doc){Interactive=true};var window=new Window{Width=400,Height=300,Content=canvas};
+        try { window.Show();window.UpdateLayout();window.MouseDown(new(20,70),MouseButton.Left);
+            window.MouseMove(new(180,70),RawInputModifiers.LeftMouseButton);window.MouseUp(new(180,70),MouseButton.Left);
+            Assert.Empty(doc.Marks);doc.Undo();Assert.Equal(3,doc.Marks.Length);
+        } finally { window.Close();canvas.Dispose(); }
+    }
+    [AvaloniaFact] public void ToolbarExposesMinimizeAndHideActions()
+    {
+        var minimized=0;var hidden=0;using var toolbar=new AnnotationToolbar(new(800,600),_=>{},()=>{},(_,_)=>{},e=>throw e,()=>minimized++,()=>hidden++);
+        toolbar.Show();toolbar.UpdateLayout();
+        var buttons=toolbar.GetVisualDescendants().OfType<Button>().ToArray();
+        buttons.Single(b=>AutomationProperties.GetName(b)==LanguageManager.Instance["AnnotationsMinimize"]).RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        buttons.Single(b=>AutomationProperties.GetName(b)==LanguageManager.Instance["AnnotationsHide"]).RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        Assert.Equal(1,minimized);Assert.Equal(1,hidden);
+    }
     private sealed class Host:IAnnotationHost
     {
         public AnnotationDocument Document{get;}=new(800,600);
         public bool Disposed,Paused,FailShow;
+        public int Toggles;
         public event EventHandler? Closed;
         public void Show(){if(FailShow)throw new InvalidOperationException("Native window unavailable");}
+        public void ToggleToolbar()=>Toggles++;
         public void SetPaused(bool paused){Paused=paused;Document.Cancel();}
         public void Dispose(){Disposed=true;Closed?.Invoke(this,EventArgs.Empty);}
     }

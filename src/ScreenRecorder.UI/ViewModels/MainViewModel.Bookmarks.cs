@@ -39,6 +39,8 @@ public partial class MainViewModel
         _hotkeyBindings ??= new(_globalHotkeyService);
         try
         {
+            RegisterAnnotationHotkey(false);
+            if(IsAnnotationHotkeyRegistered)return Strings["HotkeyUnavailable"];
             var requested = new List<(int, int, uint)>();
             if (OperatingSystem.IsWindows())
             {
@@ -46,9 +48,10 @@ public partial class MainViewModel
                 requested.Add((9002, ResolveVirtualKey(settings.PauseResumeHotkeyKey), settings.PauseResumeHotkeyModifiers));
             }
             requested.Add((9003, ResolveVirtualKey(settings.BookmarkHotkeyKey), settings.BookmarkHotkeyModifiers));
-            if (!_hotkeyBindings.Apply(requested.ToArray())) return Strings["HotkeyUnavailable"];
+            if (!_hotkeyBindings.Apply(requested.ToArray())) { RegisterAnnotationHotkey(settings.ScreenAnnotationsEnabled); return Strings["HotkeyUnavailable"]; }
             IsBookmarkHotkeyRegistered = true;
             OnPropertyChanged(nameof(IsBookmarkHotkeyRegistered));
+            RegisterAnnotationHotkey(settings.ScreenAnnotationsEnabled);
             return null;
         }
         catch (Exception ex) { Serilog.Log.Warning(ex, "Shortcut registration failed"); return Strings["HotkeyUnavailable"] + " " + ex.Message; }

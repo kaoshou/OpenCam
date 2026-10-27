@@ -13,6 +13,15 @@ this does not promise isolation from a crash of the entire UI process.
 
 ## Usage
 
+Follow-up: the toolbar header has a larger drag area, a main-window minimize
+control, and a hide control when `Ctrl + Shift + F8` was successfully registered.
+The shortcut opens the tools and toggles toolbar visibility; it yields to existing
+user-selected shortcuts. Hidden controls are absent from subsequent captured frames,
+but frames recorded before hiding still contain them. Window capture exclusion is
+not requested. In eraser mode a left-button drag removes whole touched marks and
+one undo restores the entire gesture. Real Windows/macOS desktop interaction and
+recorded-video validation of these follow-up changes remain required.
+
 1. Settings → Screen annotations is enabled by default. Disable it to remove the
    home entry; ordinary recording does not require annotation windows.
 2. Start recording, then choose Screen annotations in the supplemental action row.

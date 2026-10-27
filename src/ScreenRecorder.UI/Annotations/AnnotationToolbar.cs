@@ -18,14 +18,16 @@ internal sealed class AnnotationToolbar:Window,IDisposable
     private readonly Action _close;
     private readonly Action<uint,double> _style;
     private readonly Action<Exception> _failure;
+    private readonly Action? _minimize;
+    private readonly Action? _hide;
     private readonly StackPanel _root=new(){Spacing=8};
     private bool _drawing,_compact;
     private bool _disposed;
     private Button? _undo,_redo;
     private LanguageManager Strings=>LanguageManager.Instance;
-    public AnnotationToolbar(AnnotationDocument document,Action<bool> mode,Action close,Action<uint,double> style,Action<Exception> failure)
+    public AnnotationToolbar(AnnotationDocument document,Action<bool> mode,Action close,Action<uint,double> style,Action<Exception> failure,Action? minimize=null,Action? hide=null)
     {
-        _document=document;_mode=mode;_close=close;_style=style;_failure=failure;
+        _document=document;_mode=mode;_close=close;_style=style;_failure=failure;_minimize=minimize;_hide=hide;
         Width=590;SizeToContent=SizeToContent.Height;CanResize=false;SystemDecorations=SystemDecorations.None;
         ShowInTaskbar=false;Topmost=true;ShowActivated=false;Background=Brushes.Transparent;
         TransparencyLevelHint=[WindowTransparencyLevel.Transparent];
@@ -56,14 +58,17 @@ internal sealed class AnnotationToolbar:Window,IDisposable
     {
         Title=Strings["AnnotationsTitle"];
         _root.Children.Clear();
-        var header=new Grid{ColumnDefinitions=new("*,Auto,Auto")};
-        var title=new TextBlock{Text=Strings["AnnotationsTitle"]+" · "+Strings[_drawing?"AnnotationsDrawing":"AnnotationsOperating"],
+        var header=new Grid{ColumnDefinitions=new("*,Auto,Auto,Auto,Auto")};
+        var title=new TextBlock{Text="⠿  "+Strings["AnnotationsTitle"]+" · "+Strings[_drawing?"AnnotationsDrawing":"AnnotationsOperating"],
             FontSize=12,FontWeight=FontWeight.SemiBold,Foreground=Brush.Parse("#334155"),VerticalAlignment=VerticalAlignment.Center};
-        ToolTip.SetTip(title,Strings["AnnotationsDrag"]);
-        title.PointerPressed+=(_,e)=>{if(e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)BeginMoveDrag(e);};
-        header.Children.Add(title);
-        var collapse=Button("AnnotationsCollapse","M3,8 L8,3 L13,8",()=>{_compact=!_compact;Rebuild();});Grid.SetColumn(collapse,1);header.Children.Add(collapse);
-        var close=Button("AnnotationsClose","M3,3 L13,13 M13,3 L3,13",_close);Grid.SetColumn(close,2);header.Children.Add(close);_root.Children.Add(header);
+        var dragArea=new Border{Background=Brushes.Transparent,Child=title};
+        ToolTip.SetTip(dragArea,Strings["AnnotationsDrag"]);
+        dragArea.PointerPressed+=(_,e)=>{if(e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)Run(()=>BeginMoveDrag(e));};
+        header.Children.Add(dragArea);
+        if(_minimize is not null){var minimize=Button("AnnotationsMinimize","M3,11 L13,11",_minimize);Grid.SetColumn(minimize,1);header.Children.Add(minimize);}
+        if(_hide is not null){var hide=Button("AnnotationsHide","M2,8 C4,4 12,4 14,8 C12,12 4,12 2,8 Z M3,13 L13,3",_hide);Grid.SetColumn(hide,2);header.Children.Add(hide);}
+        var collapse=Button("AnnotationsCollapse","M3,8 L8,3 L13,8",()=>{_compact=!_compact;Rebuild();});Grid.SetColumn(collapse,3);header.Children.Add(collapse);
+        var close=Button("AnnotationsClose","M3,3 L13,13 M13,3 L3,13",_close);Grid.SetColumn(close,4);header.Children.Add(close);_root.Children.Add(header);
         if(_compact)return;
         var tools=new StackPanel{Orientation=Orientation.Horizontal,Spacing=6};
         tools.Children.Add(Button("AnnotationsOperate",null,()=>_mode(false),!_drawing));
@@ -90,7 +95,7 @@ internal sealed class AnnotationToolbar:Window,IDisposable
             ToolTip.SetTip(b,Strings["AnnotationsWidth"]+" "+width);AutomationProperties.SetName(b,Strings["AnnotationsWidth"]+" "+width);appearance.Children.Add(b);
         }
         appearance.Children.Add(Button("AnnotationsClear",null,_document.Clear));_root.Children.Add(appearance);
-        _root.Children.Add(new TextBlock{Text=Strings["AnnotationsEsc"],FontSize=11,Foreground=Brush.Parse("#64748B"),TextWrapping=TextWrapping.Wrap});
+        _root.Children.Add(new TextBlock{Text=Strings["AnnotationsEsc"]+(_hide is null?"":" · "+Strings["AnnotationsShortcut"]),FontSize=11,Foreground=Brush.Parse("#64748B"),TextWrapping=TextWrapping.Wrap});
     }
     public void Dispose()
     {

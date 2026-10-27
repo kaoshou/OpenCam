@@ -26,7 +26,7 @@
                           Content="{Binding Strings[ProjectAutoExport]}" ToolTip.Tip="{Binding Strings[ProjectAutoExportHint]}"/>
                 <Button Grid.Column="1" x:Name="ScreenAnnotationsButton" Click="OnScreenAnnotationsClicked"
                         IsVisible="{Binding ScreenAnnotationsEnabled}" IsEnabled="{Binding CanOpenScreenAnnotations}"
-                        Content="{Binding Strings[AnnotationsTitle]}" ToolTip.Tip="{Binding Strings[AnnotationsCaptured]}"
+                        Content="{Binding Strings[AnnotationsTitle]}" ToolTip.Tip="{Binding ScreenAnnotationsTooltip}"
                         Background="#EFF6FF" Foreground="#1D4ED8" BorderBrush="#BFDBFE" BorderThickness="1"
                         Padding="10,6" CornerRadius="8" FontSize="12" />
                 <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding ScreenAnnotationNotice}"
