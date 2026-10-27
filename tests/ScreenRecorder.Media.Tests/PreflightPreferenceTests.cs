@@ -39,18 +39,37 @@ public sealed class PreflightPreferenceUiTests
             Assert.Equal(language == AppLanguage.ZhTw ? "錄製前確認聲音" : "Check audio before recording",
                 window.FindControl<TextBlock>("RecordingPreflightLabel")!.Text);
             dropdown.SelectedIndex = 2;
-            await vm.SaveAsync();
-            Assert.Equal(2, JsonSerializer.SerializeToElement(store.CurrentSettings).GetProperty("RecordingPreflightMode").GetInt32());
             strings.CurrentLanguage = language == AppLanguage.ZhTw ? AppLanguage.EnUs : AppLanguage.ZhTw;
             Assert.Equal(2, dropdown.SelectedIndex);
             strings.CurrentLanguage = language;
             Assert.Equal(2, dropdown.SelectedIndex);
+            await vm.SaveAsync();
+            Assert.False(window.IsVisible);
+            Assert.Null(window.DataContext);
+            Assert.Equal(2, JsonSerializer.SerializeToElement(store.CurrentSettings).GetProperty("RecordingPreflightMode").GetInt32());
+
+            // Saving closes Settings. Reopen it as a user would; do not edit detached controls.
+            vm = new SettingsViewModel(store);
+            await vm.LoadSettingsAsync();
+            window = new SettingsWindow { DataContext = vm };
+            window.Show();
+            dropdown = window.FindControl<ComboBox>("RecordingPreflightModePicker")!;
+            Assert.Equal(2, dropdown.SelectedIndex);
             dropdown.SelectedIndex = 0;
             await vm.SaveAsync();
+            Assert.False(window.IsVisible);
             Assert.Equal(0, JsonSerializer.SerializeToElement(store.CurrentSettings).GetProperty("RecordingPreflightMode").GetInt32());
+
+            vm = new SettingsViewModel(store);
+            await vm.LoadSettingsAsync();
+            window = new SettingsWindow { DataContext = vm };
+            window.Show();
+            dropdown = window.FindControl<ComboBox>("RecordingPreflightModePicker")!;
+            Assert.Equal(0, dropdown.SelectedIndex);
             vm.ResetToDefaults();
             Assert.Equal(1, dropdown.SelectedIndex);
             await vm.SaveAsync();
+            Assert.False(window.IsVisible);
             Assert.Equal(1, JsonSerializer.SerializeToElement(store.CurrentSettings).GetProperty("RecordingPreflightMode").GetInt32());
         }
         finally { window.Close(); strings.CurrentLanguage = originalLanguage; }
