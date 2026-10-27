@@ -157,6 +157,8 @@ public class ScreenAnnotationUiTests
             Assert.True(overlay.IsVisible);Assert.Single(host.Document.Marks);
             host.SetPaused(true);Assert.False(overlay.IsVisible);host.SetPaused(false);
             Assert.True(overlay.IsVisible);Assert.Single(host.Document.Marks);
+            host.Document.Clear();Assert.False(overlay.IsVisible);
+            host.Document.Undo();Assert.True(overlay.IsVisible);Assert.Single(host.Document.Marks);
         }
         finally{host.Dispose();owner.Close();}
     }

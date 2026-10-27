@@ -25,6 +25,9 @@ The full-screen drawing surface is hidden when tools are first opened and no
 marks exist; choosing a drawing tool shows it. Returning to operation hides the
 surface again when empty, but completed marks stay visible for recording. The
 toolbar has an independent window lifetime managed by the annotation host.
+Clearing the last mark while operating hides the now-empty surface; undo/redo
+that restores marks shows it again. Automated headless coverage checks these
+transitions; native OS input routing still requires physical validation.
 
 1. Settings → Screen annotations is enabled by default. Disable it to remove the
    home entry; ordinary recording does not require annotation windows.

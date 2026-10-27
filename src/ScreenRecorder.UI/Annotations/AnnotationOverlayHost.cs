@@ -39,6 +39,7 @@ internal sealed class AnnotationOverlayHost:IAnnotationHost
         _toolbar.Position=new(Math.Clamp(x,bounds.X,Math.Max(bounds.X,bounds.Right-(int)Math.Ceiling(_toolbar.Width*_scale))),
             Math.Clamp(y,bounds.Y,Math.Max(bounds.Y,bounds.Bottom-(int)Math.Ceiling(190*_scale))));
         _toolbar.Closed+=(_,_)=>Dispose();_overlay.Closed+=(_,_)=>Dispose();
+        Document.Changed+=OnDocumentChanged;
         _overlay.KeyDown+=(_,e)=>{if(e.Key==Key.Escape){Guard(()=>SetMode(false));e.Handled=true;}};
         _overlay.Activated+=(_,_)=>AnnotationNativeWindow.RaiseExistingPointer();
         _canvas.PointerPressed+=(_,_)=>AnnotationNativeWindow.RaiseExistingPointer();
@@ -82,12 +83,25 @@ internal sealed class AnnotationOverlayHost:IAnnotationHost
         if(_toolbar.IsVisible){if(!_shortcutAvailable())return;SetMode(false);_toolbar.Hide();_toolbarHidden=true;}
         else{_toolbar.Show();_toolbarHidden=false;AnnotationNativeWindow.ConfigureToolbar(_toolbar);AnnotationNativeWindow.RaiseExistingPointer();}
     }
+    private void OnDocumentChanged(object? sender,EventArgs e)
+    {
+        if(_closed||!_shown||_paused||_canvas.Interactive)return;
+        Guard(()=>
+        {
+            if(Document.Marks.IsEmpty){if(_overlay.IsVisible)_overlay.Hide();return;}
+            if(_overlay.IsVisible)return;
+            _overlay.Show();_overlay.Position=_origin;
+            if(!_setInteractive(_overlay,false))throw new InvalidOperationException("Cannot release annotation input");
+            AnnotationNativeWindow.ConfigureToolbar(_toolbar);AnnotationNativeWindow.RaiseExistingPointer();
+        });
+    }
     private void Guard(Action action){try{action();}catch(Exception e){Fail(e);}}
     private void Fail(Exception e){Serilog.Log.Warning(e,"Optional annotation window closed; recording is unchanged");Dispose();}
     public void Dispose()
     {
         if(_closed)return;_closed=true;
         if(_shown)_lastToolbarPosition=_toolbar.Position;
+        Document.Changed-=OnDocumentChanged;
         _canvas.Dispose();
         try{_toolbar.Dispose();}finally{try{_overlay.Close();}finally{Closed?.Invoke(this,EventArgs.Empty);Closed=null;}}
     }
