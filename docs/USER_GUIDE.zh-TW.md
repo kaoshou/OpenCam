@@ -1,6 +1,14 @@
 # OpenCam 完整使用說明（繁體中文）
 
-## v1.0.0 重大更新
+## 螢幕註記
+
+開始錄影後開啟「螢幕註記」，可使用畫筆、直線、箭頭、方框與圓圈標示目前畫面，並選擇顏色與粗細。按住滑鼠左鍵繪製；橡皮擦可按住左鍵拖曳，移除碰到的整筆註記。工具列也提供復原、重做及清除全部。
+
+預設 F10 開啟或關閉畫筆，關閉畫筆不會清除筆跡；F11 顯示或隱藏工具列；繪圖畫面或工具列有焦點時，Esc 結束繪圖並清除筆跡。快捷鍵可在「設定 → 全域快捷鍵 → 螢幕註記快捷鍵」調整；既有快捷鍵會保留，請以設定畫面為準。
+
+工具列可拖曳移動或收合，並可能與註記一起錄入影片。筆跡固定在螢幕位置，不會跟隨教材捲動；錄入影片後無法後製移除。正式錄製前建議先短錄確認。
+
+## v1.0.0 錄影核心
 
 Windows 與 macOS 正式錄影改用 OBS／libobs，針對舊流程影音不同步、實際 FPS 偏低與卡頓改善擷取及時間軸。FFmpeg 仍用於聲音試錄、預覽、剪輯與輸出，不作錄影備援。效能依硬體、解析度及負載而異；首次啟動預設 20 FPS，升級保留既有設定。
 
@@ -83,7 +91,7 @@ v0.3.5 多語字幕：編輯器的「附加影片字幕」可選取或拖放 SRT
 
 OpenCam 讓你錄影、剪輯，再繼續錄影。錄影期間先寫入 MKV，剪輯以專案保存並保留原始素材，可稍後重新開啟、追加錄影及輸出 MP4。若遇到中斷，「修復救援」可嘗試保留已成功寫入的錄影；未儲存剪輯則使用專案復原草稿。
 
-> 本說明適用於 OpenCam v1.0.0，介紹錄影、剪輯、聲音試錄及 MP4／GIF／網頁輸出。詳見 [本版更新內容](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v1.0.0.md)。
+> 本說明適用於 OpenCam v1.1.0，介紹錄影、剪輯、聲音試錄及 MP4／GIF／網頁輸出。詳見 [本版更新內容](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v1.1.0.md)。
 
 v0.3.3 將手動輸出改為「輸出…」選單，可選 MP4 影片或網頁播放器。MP4 可指定檔名；網頁選擇存放位置後建立含 index.html、media.mp4、opencam-player.js 的獨立資料夾，章節依保存的片段生成。影片內提供進度、音量、速度、寬螢幕及全螢幕，章節顯示起始時間及長度並可捲動。請整個資料夾一起搬移，使用支援 H.264／AAC 的瀏覽器。詳見 [網頁輸出格式](https://github.com/kaoshou/OpenCam/blob/master/docs/WEB_PLAYER_EXPORT.md)。
 
@@ -110,7 +118,7 @@ Windows 下載與免安裝使用步驟請見 [README](../README.md)。錄製內�
 - 按「儲存專案」才把剪輯當作已儲存版本。復原草稿是中斷保護，不等於已儲存，也不等於最新 MP4。切換／關閉流程遇到未儲存修改時可選儲存、捨棄或取消；重開遇到復原草稿時可選是否復原。
 - 手動輸出前依提示處理未儲存修改。若相同內容已有可驗證的輸出，可開啟既有結果、重新輸出或取消。輸出有進度及取消控制；取消／失敗不應刪除原始素材。
 
-以下為 v0.3.5 的介面示意，最新功能請參考本說明。點選圖片可查看原尺寸。
+以下為 v1.1.0 介面與示範資料，點選圖片可查看原尺寸。
 
 [![錄影主畫面](images/preview_main_zhtw.png)](images/preview_main_zhtw.png)
 [![偏好設定](images/preview_settings_zhtw.png)](images/preview_settings_zhtw.png)
@@ -135,14 +143,14 @@ Windows 錄影所需的 Microsoft Visual C++ 執行階段隨套件提供；安�
 
 - Windows 10 或 Windows 11，x64。
 - 安裝版與免安裝版都已包含執行所需元件。
-- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v1.0.0_Windows_x64_Setup.exe` 或 `OpenCam_v1.0.0_Windows_x64_Portable.zip`。檔名會標示版本、Windows 及 x64 架構。
+- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v1.1.0_Windows_x64_Setup.exe` 或 `OpenCam_v1.1.0_Windows_x64_Portable.zip`。檔名會標示版本、Windows 及 x64 架構。
 - 系統音訊使用 Windows 音訊回送擷取；麥克風可在 OpenCam 中選擇。
 
 ### macOS
 
 - macOS 13 Ventura 或以上。
 - 官方版本目前支援 Apple Silicon（arm64）；尚未提供 Intel Mac（x64）版本。
-- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v1.0.0_macOS_arm64.dmg`；檔名中的 arm64 表示 Apple Silicon。
+- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v1.1.0_macOS_arm64.dmg`；檔名中的 arm64 表示 Apple Silicon。
 - 第一次啟動後，請到「系統設定 → 隱私權與安全性」允許 OpenCam 使用：
   - 螢幕與系統音訊錄製
   - 麥克風（需要錄製麥克風時）

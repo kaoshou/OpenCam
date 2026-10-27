@@ -57,7 +57,7 @@ a { color: inherit; }
 .image-lightbox figure { margin: 0; min-width: 0; }
 .image-lightbox img { display: block; width: auto; height: auto; max-width: min(1440px, calc(100vw - 54px)); max-height: calc(100vh - 160px); max-height: calc(100dvh - 160px); margin: auto; object-fit: contain; border-radius: 7px; background: white; }
 .image-lightbox figcaption { max-width: 80ch; padding-top: 10px; margin: auto; color: #53665b; font-size: .8rem; line-height: 1.5; overflow-wrap: anywhere; }
-.hero-visual img { position: relative; display: block; width: 100%; border-radius: 16px; border: 1px solid #bfd7c6; box-shadow: 0 32px 70px #164d3038; }
+.hero-visual img { position: relative; display: block; width: 100%; height: auto; border-radius: 16px; border: 1px solid #bfd7c6; box-shadow: 0 32px 70px #164d3038; }
 .visual-caption { position: relative; display: block; margin-top: 15px; text-align: right; }
 .section { padding-block: 105px; }
 .section-intro { max-width: 720px; margin-bottom: 39px; }
@@ -74,7 +74,7 @@ a { color: inherit; }
 .guide-article img { display: block; max-width: 100%; height: auto; border: 1px solid #dce9df; border-radius: 10px; }
 .editor-highlights { display: flex; flex-wrap: wrap; gap: 12px 28px; padding: 0; margin: 24px 0 0; list-style: none; color: #365747; }
 .editor-highlights li::before { content: '✓'; margin-right: 9px; color: #107d5b; font-weight: 700; }
-.screenshot-card img { display: block; width: 100%; border: 1px solid #d7e2da; border-radius: 10px; }
+.screenshot-card img { display: block; width: 100%; height: auto; border: 1px solid #d7e2da; border-radius: 10px; }
 .screenshot-card figcaption a { color: #0a7652; text-underline-offset: 3px; }
 .screenshot-card figcaption { padding: 15px 5px 2px; color: #617669; font-size: .81rem; font-weight: 700; }
 .preview-note { margin: 18px 0 0; }

@@ -11,6 +11,9 @@ const requiredAssets = [
   ...['WarmIvory', 'TealSilver', 'RoundShort', 'HighContrast'].map(id =>
     [`src/ScreenRecorder.Core/Assets/TeachingPointers/${id}.png`, `pointer-${id}.png`]),
   ['src/ScreenRecorder.UI/Assets/app_icon.png', 'app_icon.png'],
+  ['docs/images/preview_annotations.png', 'preview_annotations.png'],
+  ['docs/images/preview_annotation_toolbar_zhtw.png', 'preview_annotation_toolbar_zhtw.png'],
+  ['docs/images/preview_annotation_toolbar_enus.png', 'preview_annotation_toolbar_enus.png'],
   ['docs/images/preview_main_zhtw.png', 'preview_main_zhtw.png'],
   ['docs/images/preview_main_enus.png', 'preview_main_enus.png'],
   ['docs/images/preview_settings_zhtw.png', 'preview_settings_zhtw.png'],

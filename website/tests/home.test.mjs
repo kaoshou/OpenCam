@@ -105,18 +105,18 @@ test('each homepage offers full-size current macOS screenshots', async () => {
   } finally { await rm(out, { recursive: true, force: true }); }
 });
 
-test('localized main screenshots show the current recording audio waveforms', async () => {
+test('localized main screenshots describe the current capture and pointer settings', async () => {
   const out = await mkdtemp(join(tmpdir(), 'opencam-recording-preview-'));
   try {
     await buildSite({ repositoryRoot: resolve(import.meta.dirname, '../..'), outputRoot: out });
     const expectations = [
-      ['zh-TW', '錄影中', '收音波形'],
-      ['en-US', 'Recording', 'audio waveforms']
+      ['zh-TW', '主畫面', '教鞭'],
+      ['en-US', 'recording screen', 'teaching pointer']
     ];
     for (const [lang, stateText, waveformText] of expectations) {
       const html = await readFile(join(out, lang, 'index.html'), 'utf8');
       assert.match(html, new RegExp(`alt="[^"]*OpenCam ${escapedScreenshotVersion}[^"]*${stateText}[^"]*${waveformText}[^"]*"`));
-      assert.match(html, /<img[^>]+preview_main_(?:zhtw|enus)\.png[^>]+width="840" height="820"/);
+      assert.match(html, /<img[^>]+preview_main_(?:zhtw|enus)\.png[^>]+width="1440" height="1000"/);
     }
   } finally { await rm(out, { recursive: true, force: true }); }
 });

@@ -1,6 +1,14 @@
 # OpenCam Complete User Guide (English)
 
-## v1.0.0 major update
+## Screen annotations
+
+During recording, open **Screen annotations** to mark the screen with a pen, lines, arrows, rectangles or ellipses. Choose a color and line width, then hold the left mouse button to draw. Hold and drag the eraser to remove whole marks it touches; undo, redo and clear are also available.
+
+By default, F10 toggles drawing without clearing marks, F11 shows or hides the toolbar, and Esc ends drawing and clears marks when the drawing surface or toolbar has focus. Customize these shortcuts in Settings → Global shortcuts → Screen annotation shortcuts. Existing shortcuts are preserved; check Settings for your actual bindings.
+
+You can drag or collapse the toolbar. The toolbar and annotations may be captured in the recording. Marks stay at screen positions when material scrolls and cannot be removed from the recorded video afterwards. Make a short test recording first.
+
+## v1.0.0 recording core
 
 Windows and macOS recording now uses OBS/libobs to address low achieved FPS, stutter and A/V synchronization in the previous pipeline. FFmpeg remains for audio trials, preview, editing and export, not recording fallback. Performance depends on hardware, resolution and load; first launch defaults to 20 FPS while existing preferences remain.
 
@@ -89,7 +97,7 @@ Higher FPS, Retina resolution and simultaneous video playback increase load. Beg
 
 OpenCam lets you record, edit, and resume recording. It writes MKV sources, retains them alongside a reopenable editing project, and exports MP4 when needed. Crash Recovery can attempt to preserve successfully written recordings; project recovery drafts protect interrupted unsaved edits.
 
-> This guide covers OpenCam v1.0.0: recording, editing, audio trials and MP4/GIF/Web export. See [what changed in this version](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v1.0.0.md).
+> This guide covers OpenCam v1.1.0: recording, editing, audio trials and MP4/GIF/Web export. See [what changed in this version](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v1.1.0.md).
 
 v0.3.3 replaces manual export with an **Export…** menu offering MP4 video or Web player. MP4 accepts a filename; Web player creates a unique folder containing index.html, media.mp4 and opencam-player.js. Chapters follow saved clips and show start times and durations in a scrollable index. Overlay controls provide seeking, volume, speed, wide-screen and fullscreen. Move the complete folder together and use an H.264/AAC-capable browser. See [the web export format](https://github.com/kaoshou/OpenCam/blob/master/docs/WEB_PLAYER_EXPORT.md).
 
@@ -116,7 +124,7 @@ See the [README](../README.md) for Windows download and portable-use instruction
 - Explicit Save commits the editing version. A recovery draft protects interrupted edits; it is not a saved version or an updated MP4. Switching/closing with unsaved changes offers Save, Discard or Cancel. Reopening a recoverable draft offers a restore decision.
 - Resolve unsaved changes when prompted before manual export. If the same content has a verified existing output, choose Open Existing, Export Again or Cancel. Export has progress and cancellation controls; cancellation/failure preserves source media.
 
-These illustrations show v0.3.5. See this guide for current features. Select an image to view full size.
+These illustrations show the v1.1.0 interface with demonstration data. Select an image to view full size.
 
 [![Recording home](images/preview_main_enus.png)](images/preview_main_enus.png)
 [![Preferences](images/preview_settings_enus.png)](images/preview_settings_enus.png)
@@ -129,14 +137,14 @@ These illustrations show v0.3.5. See this guide for current features. Select an 
 
 - Windows 10 or Windows 11, x64.
 - Installer and portable packages include .NET and media tools. The required Microsoft Visual C++ recording runtime is included app-locally on Windows. Install normally or fully extract the portable ZIP; no separate codec/runtime installation is needed. If package files are missing, re-download the complete package rather than replacing individual DLLs.
-- Download `OpenCam_v1.0.0_Windows_x64_Setup.exe` or `OpenCam_v1.0.0_Windows_x64_Portable.zip` from [Releases](https://github.com/kaoshou/OpenCam/releases). Filenames identify the version, Windows platform, and x64 architecture.
+- Download `OpenCam_v1.1.0_Windows_x64_Setup.exe` or `OpenCam_v1.1.0_Windows_x64_Portable.zip` from [Releases](https://github.com/kaoshou/OpenCam/releases). Filenames identify the version, Windows platform, and x64 architecture.
 - System audio uses Windows loopback capture. A microphone can be selected in OpenCam.
 
 ### macOS
 
 - macOS 13 Ventura or later.
 - The official build currently supports Apple Silicon (arm64). An Intel Mac (x64) build is not currently provided.
-- Download `OpenCam_v1.0.0_macOS_arm64.dmg` from [Releases](https://github.com/kaoshou/OpenCam/releases); arm64 identifies Apple Silicon.
+- Download `OpenCam_v1.1.0_macOS_arm64.dmg` from [Releases](https://github.com/kaoshou/OpenCam/releases); arm64 identifies Apple Silicon.
 - After first launch, open **System Settings → Privacy & Security** and allow OpenCam to use:
   - Screen & System Audio Recording
   - Microphone, when microphone recording is needed

@@ -7,7 +7,13 @@
 
 OpenCam 是 Windows 與 macOS 桌面螢幕錄影工具，讓你錄影、剪輯，再繼續錄影。錄影片段與剪輯保存在可重開的專案中，需要時可輸出 MP4、GIF 或附帶章節與字幕的網頁播放器。
 
-## v1.0.0 更新重點
+## v1.1.0 更新重點
+
+- **螢幕註記**：錄影時使用畫筆、直線、箭頭、方框與圓圈標示內容，可調整顏色和粗細，並提供橡皮擦、復原、重做與清除。
+- **可自訂快捷鍵**：操作畫筆、工具列與繪圖工具；註記直接錄入影片，並固定在螢幕位置。
+- **教鞭選擇介面**：樣式與大小集中顯示，方便預覽教鞭。
+
+上一版 v1.0.0 的主要更新：
 
 - **重大更新：OBS 錄影核心**。Windows 與 macOS 改用 OBS／libobs，針對舊流程效能不足、影音不同步與實際 FPS 偏低造成的卡頓改善擷取與音畫時間軸；實際效果仍依硬體、解析度及負載而異。
 - **虛擬教鞭**：四種樣式與三種大小，尖端對準指示位置，直接錄入影片，方便製作數位教材。
@@ -17,11 +23,12 @@ OpenCam 是 Windows 與 macOS 桌面螢幕錄影工具，讓你錄影、剪輯�
 - 改善播放器鍵盤操作、焦點提示、字幕設定關閉操作，以及手機、平板橫直向版面。
 - 官方網站與使用說明改善鍵盤導覽、文字對比及窄螢幕排版。
 
-[完整更新內容](docs/releases/v1.0.0.md) ｜ [歷史版本](https://github.com/kaoshou/OpenCam/releases)
+[完整更新內容](docs/releases/v1.1.0.md) ｜ [歷史版本](https://github.com/kaoshou/OpenCam/releases)
 
 ## 主要功能
 
 - **螢幕與區域錄影**：錄製全螢幕、指定顯示器或自訂矩形區域，提供螢幕編號辨識、5／10／20／30／40 FPS（首次啟動預設 20 FPS）與游標效果。
+- **螢幕註記**：錄影中以畫筆、直線、箭頭、方框和圓圈標示內容，調整顏色與粗細，支援橡皮擦、復原、重做及自訂快捷鍵。
 - **OBS 核心錄影**：Windows 使用 Windows Graphics Capture，macOS 使用 ScreenCaptureKit；不使用 GDI／FFmpeg 錄影備援。FFmpeg 保留於聲音試錄、預覽、剪輯與匯出。
 - **系統聲音與麥克風**：獨立開關音源，查看各自的即時音量，錄製前可試錄及回放確認聲音。可選關閉確認、僅開始錄影時確認（預設），或開始及暫停恢復時都確認；另可啟用麥克風連續無聲 30 秒提醒。
 - **專案與繼續錄影**：命名、儲存、重開專案，暫停後編輯，或在既有內容上追加錄影。
@@ -43,9 +50,9 @@ OpenCam 是 Windows 與 macOS 桌面螢幕錄影工具，讓你錄影、剪輯�
 
 到 [最新 Release](https://github.com/kaoshou/OpenCam/releases/latest) 下載。套件包含 .NET Runtime 與媒體工具。Windows 錄影所需的 Microsoft Visual C++ 執行階段隨套件附上，不需另外安裝或尋找 DLL。
 
-- **Windows 安裝版**：執行 `OpenCam_v1.0.0_Windows_x64_Setup.exe`。
-- **Windows 免安裝版**：完整解壓 `OpenCam_v1.0.0_Windows_x64_Portable.zip`，保留同資料夾的所有檔案，再執行 `OpenCam.exe`。
-- **macOS**：打開 `OpenCam_v1.0.0_macOS_arm64.dmg`，將 OpenCam 拖入「應用程式」。首次使用時，在「系統設定 → 隱私權與安全性」允許螢幕／系統音訊錄製及麥克風權限；變更權限後可重新啟動程式。
+- **Windows 安裝版**：執行 `OpenCam_v1.1.0_Windows_x64_Setup.exe`。
+- **Windows 免安裝版**：完整解壓 `OpenCam_v1.1.0_Windows_x64_Portable.zip`，保留同資料夾的所有檔案，再執行 `OpenCam.exe`。
+- **macOS**：打開 `OpenCam_v1.1.0_macOS_arm64.dmg`，將 OpenCam 拖入「應用程式」。首次使用時，在「系統設定 → 隱私權與安全性」允許螢幕／系統音訊錄製及麥克風權限；變更權限後可重新啟動程式。
 - 此版未提供 Windows 發行者簽章或 Apple Developer ID 公證，首次開啟可能出現安全性提示。請先確認來自本專案官方 Releases；macOS 可參閱 [Apple 的安全開啟說明](https://support.apple.com/zh-tw/102445)。不要停用系統防護；若提示檔案損毀或惡意內容，請停止開啟並回報。
 
 ## 開始使用
@@ -82,12 +89,14 @@ oCam、EverCam 名稱及相關商標屬各自權利人所有；此處僅作使�
 
 ## 介面預覽
 
-以下為 v0.3.5 的介面示意，最新功能請參考上方介紹及使用說明。點選圖片可查看原尺寸。
+以下以 v1.1.0 程式介面與示範資料製作，點選圖片可查看原尺寸。
 
-[![錄影主畫面（v0.3.5）](docs/images/preview_main_zhtw.png)](docs/images/preview_main_zhtw.png)
-[![偏好設定（v0.3.5）](docs/images/preview_settings_zhtw.png)](docs/images/preview_settings_zhtw.png)
-[![錄製內容編輯器（v0.3.5）](docs/images/preview_editor_zhtw.png)](docs/images/preview_editor_zhtw.png)
-[![多語字幕管理（v0.3.5）](docs/images/preview_subtitles_zhtw.png)](docs/images/preview_subtitles_zhtw.png)
+[![錄影主畫面](docs/images/preview_main_zhtw.png)](docs/images/preview_main_zhtw.png)
+[![螢幕註記示意](docs/images/preview_annotations.png)](docs/images/preview_annotations.png)
+[![螢幕註記工具列](docs/images/preview_annotation_toolbar_zhtw.png)](docs/images/preview_annotation_toolbar_zhtw.png)
+[![偏好設定](docs/images/preview_settings_zhtw.png)](docs/images/preview_settings_zhtw.png)
+[![錄製內容編輯器](docs/images/preview_editor_zhtw.png)](docs/images/preview_editor_zhtw.png)
+[![多語字幕管理](docs/images/preview_subtitles_zhtw.png)](docs/images/preview_subtitles_zhtw.png)
 
 ## 授權
 
@@ -103,7 +112,13 @@ OpenCam 自有原始碼採 [GNU Affero General Public License v3.0 或後續版�
 
 OpenCam is a desktop screen recorder for Windows and macOS. Record, edit, and continue recording in a project you can save and reopen, then export MP4, GIF, or a Web player with chapters and captions.
 
-### What's new in v1.0.0
+### What's new in v1.1.0
+
+- **Screen annotations**: draw with a pen, lines, arrows, rectangles and ellipses while recording. Choose colors and line widths, erase whole marks, undo, redo or clear.
+- **Customizable shortcuts** for drawing and the toolbar. Annotations are recorded into the video and remain fixed to the screen.
+- **Improved teaching pointer controls** with a visible style preview.
+
+Highlights from v1.0.0:
 
 - **Major update: OBS recording core** on Windows and macOS. OBS/libobs replaces the previous recording pipeline to address A/V synchronization, low achieved FPS and stutter. Actual performance still depends on hardware, resolution and load.
 - **Virtual teaching pointers**: four styles, three sizes and a precise tip hotspot, recorded directly into teaching videos.
@@ -113,7 +128,7 @@ OpenCam is a desktop screen recorder for Windows and macOS. Record, edit, and co
 - Improved player keyboard navigation, focus indicators, caption-menu dismissal and phone/tablet portrait and landscape layouts.
 - Improved keyboard navigation, text contrast and narrow-screen layout on the website and user guides.
 
-[Full release notes](docs/releases/v1.0.0.md) | [Previous releases](https://github.com/kaoshou/OpenCam/releases)
+[Full release notes](docs/releases/v1.1.0.md) | [Previous releases](https://github.com/kaoshou/OpenCam/releases)
 
 ### Features
 
@@ -139,9 +154,9 @@ OpenCam is a desktop screen recorder for Windows and macOS. Record, edit, and co
 
 Download from the [latest Release](https://github.com/kaoshou/OpenCam/releases/latest). Packages include .NET Runtime and media tools. The required Windows Microsoft Visual C++ recording runtime is bundled app-locally; no separate runtime installation or DLL download is needed.
 
-- **Windows installer**: Run `OpenCam_v1.0.0_Windows_x64_Setup.exe`.
-- **Windows portable**: Fully extract `OpenCam_v1.0.0_Windows_x64_Portable.zip`, keep all companion files together, then run `OpenCam.exe`.
-- **macOS**: Open `OpenCam_v1.0.0_macOS_arm64.dmg` and drag OpenCam into Applications. Allow screen/system-audio recording and microphone access in System Settings → Privacy & Security. Restart OpenCam after changing permissions if needed.
+- **Windows installer**: Run `OpenCam_v1.1.0_Windows_x64_Setup.exe`.
+- **Windows portable**: Fully extract `OpenCam_v1.1.0_Windows_x64_Portable.zip`, keep all companion files together, then run `OpenCam.exe`.
+- **macOS**: Open `OpenCam_v1.1.0_macOS_arm64.dmg` and drag OpenCam into Applications. Allow screen/system-audio recording and microphone access in System Settings → Privacy & Security. Restart OpenCam after changing permissions if needed.
 - This version does not provide Windows publisher signing or Apple Developer ID notarization, so first launch may show a security warning. Confirm the download came from this project's official Releases; see [Apple's safe-opening guidance](https://support.apple.com/en-us/102445) on macOS. Do not disable system protection. Stop and report warnings about damaged files or malware.
 
 ### Getting started
@@ -174,12 +189,14 @@ Choose Warm ivory, Teal silver, Round short stick or High-contrast gold in Small
 
 ### Interface preview
 
-These illustrations show v0.3.5. See the current feature descriptions and user guide for the latest functionality. Select an image to view full size.
+These illustrations show the v1.1.0 interface with demonstration data. Select an image to view full size.
 
-[![Recording home (v0.3.5)](docs/images/preview_main_enus.png)](docs/images/preview_main_enus.png)
-[![Preferences (v0.3.5)](docs/images/preview_settings_enus.png)](docs/images/preview_settings_enus.png)
-[![Recording editor (v0.3.5)](docs/images/preview_editor_enus.png)](docs/images/preview_editor_enus.png)
-[![Multilingual subtitle manager (v0.3.5)](docs/images/preview_subtitles_enus.png)](docs/images/preview_subtitles_enus.png)
+[![Recording home](docs/images/preview_main_enus.png)](docs/images/preview_main_enus.png)
+[![Screen annotation illustration](docs/images/preview_annotations.png)](docs/images/preview_annotations.png)
+[![Screen annotation toolbar](docs/images/preview_annotation_toolbar_enus.png)](docs/images/preview_annotation_toolbar_enus.png)
+[![Preferences](docs/images/preview_settings_enus.png)](docs/images/preview_settings_enus.png)
+[![Recording editor](docs/images/preview_editor_enus.png)](docs/images/preview_editor_enus.png)
+[![Multilingual subtitle manager](docs/images/preview_subtitles_enus.png)](docs/images/preview_subtitles_enus.png)
 
 ### License
 
