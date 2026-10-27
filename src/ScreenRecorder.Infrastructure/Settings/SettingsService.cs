@@ -49,16 +49,18 @@ public class SettingsService : ISettingsService
                     if (!document.RootElement.TryGetProperty(nameof(UserSettings.StartStopHotkeyModifiers), out _)) settings.StartStopHotkeyModifiers=0;
                     if (!document.RootElement.TryGetProperty(nameof(UserSettings.StartStopHotkeyKey), out _)) settings.StartStopHotkeyKey="F9";
                     if (!document.RootElement.TryGetProperty(nameof(UserSettings.PauseResumeHotkeyKey), out _)) settings.PauseResumeHotkeyKey="F10";
-                    var pen=settings.AnnotationShortcuts["togglePen"];
                     var used=new[]{(settings.StartStopHotkeyModifiers,settings.StartStopHotkeyKey),
                         (settings.PauseResumeHotkeyModifiers,settings.PauseResumeHotkeyKey),
                         (settings.BookmarkHotkeyModifiers,settings.BookmarkHotkeyKey)};
-                    if(used.Any(x=>x.Item1==pen.Modifiers && string.Equals(x.Item2,pen.Key,StringComparison.OrdinalIgnoreCase)))
+                    foreach(var (id,binding) in settings.AnnotationShortcuts)
                     {
-                        var occupied=used.Concat(settings.AnnotationShortcuts.Where(x=>x.Key!="togglePen").Select(x=>(x.Value.Modifiers,x.Value.Key))).ToArray();
-                        foreach(var key in new[]{"F8","F9","F5","F6","F7","F12"})
-                            if(!occupied.Any(x=>x.Item1==6 && string.Equals(x.Item2,key,StringComparison.OrdinalIgnoreCase)))
-                            { pen.Modifiers=6;pen.Key=key;break; }
+                        if(!used.Any(x=>x.Item1==binding.Modifiers && string.Equals(x.Item2,binding.Key,StringComparison.OrdinalIgnoreCase)))continue;
+                        var occupied=used.Concat(settings.AnnotationShortcuts.Where(x=>x.Key!=id).Select(x=>(x.Value.Modifiers,x.Value.Key))).ToArray();
+                        // Reserve all other defaults too, so migrating one action cannot
+                        // displace another. F12 is reserved by Windows even with modifiers.
+                        var key=new[]{"F8","F9","F5","F6","F7","F10","F11","F1","F2","F3","F4"}
+                            .First(candidate=>!occupied.Any(x=>x.Item1==6 && string.Equals(x.Item2,candidate,StringComparison.OrdinalIgnoreCase)));
+                        binding.Modifiers=6;binding.Key=key;
                     }
                 }
             }

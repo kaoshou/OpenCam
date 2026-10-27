@@ -58,7 +58,7 @@ internal sealed class AnnotationToolbar:Window,IDisposable
             Background=Brush.Parse(selected?"#DBEAFE":"#F8FAFC"),BorderBrush=Brush.Parse(selected?"#3B82F6":"#E2E8F0"),BorderThickness=new(1),
             Foreground=Brush.Parse("#1E293B"),Content=path is null?new TextBlock{Text=label,VerticalAlignment=VerticalAlignment.Center,FontSize=12}:
                 CreateIcon(path)};
-        ToolTip.SetTip(b,label);AutomationProperties.SetName(b,label);b.Click+=(_,_)=>Run(action);return b;
+        ToolTip.SetTip(b,label);ToolTip.SetShowOnDisabled(b,true);AutomationProperties.SetName(b,label);b.Click+=(_,_)=>Run(action);return b;
     }
     private static Canvas CreateIcon(string path)
     {
@@ -68,6 +68,16 @@ internal sealed class AnnotationToolbar:Window,IDisposable
         canvas.Children.Add(new Avalonia.Controls.Shapes.Path{Data=Geometry.Parse(path),
             Stroke=Brush.Parse("#334155"),StrokeThickness=1.7,StrokeLineCap=PenLineCap.Round,StrokeJoin=PenLineJoin.Round});
         return canvas;
+    }
+    private Button HeaderButton(string key,string path,Action action)
+    {
+        var button=Button(key,path,action);
+        button.Width=34;button.Padding=new(0);button.Margin=new(4,0,0,0);
+        button.HorizontalContentAlignment=HorizontalAlignment.Center;
+        button.VerticalContentAlignment=VerticalAlignment.Center;
+        if(button.Content is Canvas canvas && canvas.Children[0] is Avalonia.Controls.Shapes.Path icon)
+        {icon.Width=18;icon.Height=18;icon.Stretch=Stretch.None;icon.StrokeThickness=1.8;}
+        return button;
     }
     private void Run(Action action){try{action();}catch(Exception e){_failure(e);}}
     private void Rebuild()
@@ -84,15 +94,15 @@ internal sealed class AnnotationToolbar:Window,IDisposable
         ToolTip.SetTip(dragArea,Strings["AnnotationsDrag"]);
         dragArea.PointerPressed+=(_,e)=>{if(e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)Run(()=>BeginMoveDrag(e));};
         header.Children.Add(dragArea);
-        if(_minimize is not null){var minimize=Button("AnnotationsMinimize","M3,11 L13,11",_minimize);Grid.SetColumn(minimize,1);header.Children.Add(minimize);}
+        if(_minimize is not null){var minimize=HeaderButton("AnnotationsMinimize","M3,11 L15,11",_minimize);Grid.SetColumn(minimize,1);header.Children.Add(minimize);}
         var canHide=_hide is not null&&(_canHide?.Invoke()??true);
-        if(_hide is not null){_hideButton=Button("AnnotationsHide","M2,8 C4,4 12,4 14,8 C12,12 4,12 2,8 Z M3,13 L13,3",_hide);_hideButton.IsVisible=canHide;Grid.SetColumn(_hideButton,2);header.Children.Add(_hideButton);}
-        _collapseButton=Button("AnnotationsCollapse","M3,8 L8,3 L13,8",()=>{_compact=!_compact;UpdateCompact();});Grid.SetColumn(_collapseButton,3);header.Children.Add(_collapseButton);
-        var close=Button("AnnotationsClose","M3,3 L13,13 M13,3 L3,13",_close);Grid.SetColumn(close,4);header.Children.Add(close);_root.Children.Add(header);
+        if(_hide is not null){_hideButton=HeaderButton("AnnotationsHide","M3,4 L15,4 L15,8 L3,8 Z M9,10 L9,15 M6,12 L9,15 L12,12",_hide);_hideButton.IsVisible=canHide;Grid.SetColumn(_hideButton,2);header.Children.Add(_hideButton);}
+        _collapseButton=HeaderButton("AnnotationsCollapse","M4,11 L9,6 L14,11",()=>{_compact=!_compact;UpdateCompact();});Grid.SetColumn(_collapseButton,3);header.Children.Add(_collapseButton);
+        var close=HeaderButton("AnnotationsClose","M4,4 L14,14 M14,4 L4,14",_close);Grid.SetColumn(close,4);header.Children.Add(close);_root.Children.Add(header);
         var tools=new StackPanel{Orientation=Orientation.Horizontal,Spacing=6};
         _tools=tools;
         _operate=Button("AnnotationsOperate",null,()=>_mode(false),!_drawing);tools.Children.Add(_operate);
-        var icons=new[]{"M2,14 L12,4 L15,7 L5,17 L2,17 Z M10,6 L13,9","M2,14 L15,2","M2,14 L15,2 M7,2 L15,2 L15,10","M2,3 L15,3 L15,14 L2,14 Z","M8,2 C17,2 17,15 8,15 C-1,15 -1,2 8,2","M2,10 L10,2 L16,8 L8,16 L2,10 M7,5 L13,11"};
+        var icons=new[]{"M2,14 L12,4 L15,7 L5,17 L2,17 Z M10,6 L13,9","M2,14 L15,2","M2,14 L15,2 M7,2 L15,2 L15,10","M2,3 L15,3 L15,14 L2,14 Z","M8,2 C17,2 17,15 8,15 C-1,15 -1,2 8,2","M2,10 L9,3 Q10,2 11,3 L16,8 Q17,9 16,10 L11,15 L7,15 Z M6,6 L12,12 M7,15 L16,15"};
         foreach(var tool in Enum.GetValues<AnnotationTool>())
         {
             var captured=tool;
@@ -114,7 +124,7 @@ internal sealed class AnnotationToolbar:Window,IDisposable
         {
             var b=Button("AnnotationsWidth",null,()=>{_document.StrokeWidth=width;_style(_document.Color,width);UpdateAppearanceSelection();},_document.StrokeWidth==width);
             b.Content=new Border{Width=18,Height=width,CornerRadius=new(2),Background=Brush.Parse("#334155")};
-            ToolTip.SetTip(b,Strings["AnnotationsWidth"]+" "+width);AutomationProperties.SetName(b,Strings["AnnotationsWidth"]+" "+width);_widthButtons[width]=b;appearance.Children.Add(b);
+            ToolTip.SetTip(b,Strings["AnnotationsWidth"]+" "+width);ToolTip.SetShowOnDisabled(b,true);AutomationProperties.SetName(b,Strings["AnnotationsWidth"]+" "+width);_widthButtons[width]=b;appearance.Children.Add(b);
         }
         appearance.Children.Add(Button("AnnotationsClear",null,_document.Clear));_root.Children.Add(appearance);UpdateAppearanceSelection();
         _help=new TextBlock{Text=Strings["AnnotationsEsc"],FontSize=11,Foreground=Brush.Parse("#64748B"),TextWrapping=TextWrapping.Wrap};_root.Children.Add(_help);UpdateCompact();
@@ -125,7 +135,8 @@ internal sealed class AnnotationToolbar:Window,IDisposable
         if(_appearance is not null)_appearance.IsVisible=!_compact;
         if(_help is not null)_help.IsVisible=!_compact;
         if(_collapseButton?.Content is Canvas canvas && canvas.Children[0] is Avalonia.Controls.Shapes.Path icon)
-            icon.Data=Geometry.Parse(_compact?"M3,5 L8,10 L13,5":"M3,8 L8,3 L13,8");
+            icon.Data=Geometry.Parse(_compact?"M4,7 L9,12 L14,7":"M4,11 L9,6 L14,11");
+        if(_collapseButton is not null)ToolTip.SetTip(_collapseButton,Strings[_compact?"AnnotationsExpandHint":"AnnotationsCollapseHint"]);
     }
     private void UpdateToolSelection()
     {

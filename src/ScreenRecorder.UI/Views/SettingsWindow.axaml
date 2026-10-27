@@ -148,11 +148,13 @@
                                 </ComboBox>
                             </Grid>
                             <Separator Margin="0,4" />
-                            <TextBlock Text="{Binding Strings[AnnotationsTitle]}" FontWeight="SemiBold" FontSize="12" />
+                            <Expander x:Name="AnnotationShortcutsExpander" Header="{Binding Strings[AnnotationsShortcutsHeader]}" IsExpanded="False" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                              <StackPanel Spacing="8" Margin="4,6,0,0">
+                                <TextBlock Text="{Binding Strings[AnnotationsShortcutsHelp]}" TextWrapping="Wrap" FontSize="11.5" Foreground="#64748B" />
                             <ItemsControl ItemsSource="{Binding AnnotationShortcutRows}">
                                 <ItemsControl.ItemTemplate><DataTemplate>
                                     <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,3">
-                                        <TextBlock Text="{Binding Label}" VerticalAlignment="Center" FontSize="12" />
+                                        <TextBlock Text="{Binding Label}" VerticalAlignment="Center" FontSize="12" TextWrapping="Wrap" Margin="0,0,8,0" />
                                         <ComboBox Grid.Column="1" Width="120" Margin="6,0" ItemsSource="{Binding Modifiers}" SelectedItem="{Binding SelectedModifier}">
                                             <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding DisplayName}" FontSize="11.5" /></DataTemplate></ComboBox.ItemTemplate>
                                         </ComboBox>
@@ -162,6 +164,8 @@
                                     </Grid>
                                 </DataTemplate></ItemsControl.ItemTemplate>
                             </ItemsControl>
+                              </StackPanel>
+                            </Expander>
                         </StackPanel>
                     </Border>
 

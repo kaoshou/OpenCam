@@ -185,7 +185,7 @@ public partial class SettingsViewModel : ObservableObject
         RefreshPreflightModes();
         // 1. 修飾鍵清單 (0=None, 1=Alt, 2=Ctrl, 4=Shift, 3=Ctrl+Alt, 6=Ctrl+Shift, 5=Alt+Shift)
         AvailableModifiers.Clear();
-        AvailableModifiers.Add(new ModifierOption(0, "None"));
+        AvailableModifiers.Add(new ModifierOption(0, Strings["HotkeyNoModifier"]));
         AvailableModifiers.Add(new ModifierOption(2, "Ctrl"));
         AvailableModifiers.Add(new ModifierOption(1, "Alt"));
         AvailableModifiers.Add(new ModifierOption(4, "Shift"));
@@ -245,6 +245,13 @@ public partial class SettingsViewModel : ObservableObject
     {
         var annotationSelection=AnnotationShortcutRows.ToDictionary(row=>row.Id,row=>new AnnotationShortcut
         {Modifiers=row.SelectedModifier?.Value??0,Key=row.SelectedKey?.KeyName??""});
+        var startModifier=SelectedStartStopModifier?.Value;
+        var pauseModifier=SelectedPauseResumeModifier?.Value;
+        var bookmarkModifier=SelectedBookmarkModifier?.Value;
+        if(AvailableModifiers.Count>0)AvailableModifiers[0]=new ModifierOption(0,Strings["HotkeyNoModifier"]);
+        SelectedStartStopModifier=AvailableModifiers.FirstOrDefault(x=>x.Value==startModifier);
+        SelectedPauseResumeModifier=AvailableModifiers.FirstOrDefault(x=>x.Value==pauseModifier);
+        SelectedBookmarkModifier=AvailableModifiers.FirstOrDefault(x=>x.Value==bookmarkModifier);
         if(annotationSelection.Count>0)LoadAnnotationShortcuts(annotationSelection);
         RefreshWebDefaults();
         RefreshCaptureModes();

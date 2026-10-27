@@ -3,7 +3,8 @@
 ## Scope and status
 
 Version remains 1.0.0. Branch: `codex/screen-annotations-20261027`, based on
-`40bd5f5`. No merge, push, release or package replacement is part of this change.
+`40bd5f5`. Development-branch pushes and CI test packages are authorized. No merge,
+Release publication or replacement of existing Release packages is requested.
 This is a development implementation, **not physical dual-platform acceptance**.
 
 The component runs inside the existing UI process. No new package or process is
@@ -14,7 +15,8 @@ this does not promise isolation from a crash of the entire UI process.
 ## Usage
 
 Follow-up: the toolbar header has a larger drag area, a main-window minimize
-control, and a hide control when `Ctrl + Shift + F8` was successfully registered.
+control, and a hide control when the configured toolbar shortcut (default `F11`)
+was successfully registered.
 The shortcut opens the tools and toggles toolbar visibility; it yields to existing
 user-selected shortcuts. Hidden controls are absent from subsequent captured frames,
 but frames recorded before hiding still contain them. Window capture exclusion is
@@ -38,7 +40,8 @@ transitions; native OS input routing still requires physical validation.
 4. Choose one of seven colors and three widths. Remove a mark deletes an entire
    mark at its border; undo, redo and clear-all are available. There is no text,
    partial eraser or region eraser.
-5. Esc or Operate restores click-through, retaining completed marks. Pause hides
+5. F10 or Operate restores click-through, retaining completed marks. Esc ends
+   drawing and clears marks when the drawing surface or toolbar has focus. Pause hides
    the overlay and cancels an unfinished gesture; resume starts in Operate mode.
 6. Closing the tools, stopping, disabling or changing the capture region closes
    the component. Marks are ephemeral, not saved to a project.
@@ -113,8 +116,10 @@ Keep original MKV and logs. Repeat at 20 and 30 FPS on both systems.
 4. During a held drag press pause; resume, repeat, stop, reopen tools on a later
    recording, change display configuration, and close tools. Expected: no unfinished
    strokes or invisible input blockers, no inherited stale document, recorder unaffected.
-5. Press Esc in canvas and toolbar. Expected: normal application clicking resumes,
-   completed marks remain. Existing F9/F10 recording shortcuts still operate.
+5. Press F10 to return to normal operation with completed marks preserved. Press
+   Esc in canvas and toolbar to finish and clear. Check configured recording
+   shortcuts (fresh settings: Ctrl+F9 start/stop, F9 pause/resume), and change the
+   annotation shortcuts in Settings; duplicate bindings must be rejected.
 6. Repeat on negative-coordinate secondary display, Windows 100/125/150/200% and
    Retina/mixed DPI, supported fullscreen/Spaces, plus custom region. Expected:
    pointer tip and stroke start agree and drawing is clipped to capture bounds.
@@ -133,3 +138,26 @@ mark physical acceptance passed solely because automated decoding succeeds.
 Independent read-only whole-branch review found no critical issues and one important
 ellipse hit-test defect, fixed and re-reviewed. No remaining critical/important
 static findings were reported. Native acceptance limitations remain open.
+
+## Toolbar follow-up audit and user-test package
+
+The header and eraser icons were refined, all buttons expose localized tooltips
+even while disabled, and the collapse tooltip reflects its current action.
+Annotation shortcut settings start collapsed. Language changes retain selected
+bindings and localize the no-modifier option. Actual Avalonia components were
+rendered in Traditional Chinese, English and Japanese for layout inspection.
+
+An independent follow-up review found that legacy shortcut migration handled F10
+but not collisions with F11 or Ctrl+Shift+F1–F4. Five new regression cases failed
+before the fix. Migration now preserves all existing recording/bookmark bindings
+and assigns unused annotation combinations without using Windows-reserved F12.
+The tests also check save/reload stability. The fix was re-reviewed without
+remaining substantive static blockers.
+
+Local focused regression: 66 passed, zero failed/skipped (annotation model/UI,
+settings, bookmark hotkeys, and the home auto-export MP4 option). Existing compiler
+warnings remain: nullable access in ObsScreenRecorderEngine, preflight XAML runtime
+loader constructor, obsolete headless input helpers, and a collection assertion.
+Full Windows/macOS regression and native package checks run in the test-package
+workflow. Their results must be taken from the matching workflow commit; native
+desktop/DPI/recorded annotation acceptance still requires manual validation.

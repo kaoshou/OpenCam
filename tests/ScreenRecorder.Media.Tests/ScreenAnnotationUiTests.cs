@@ -126,6 +126,35 @@ public class ScreenAnnotationUiTests
         var minimize=toolbar.GetVisualDescendants().OfType<Button>().Single(b=>AutomationProperties.GetName(b)==LanguageManager.Instance["AnnotationsMinimize"]);
         Assert.IsType<Canvas>(minimize.Content);
     }
+    [AvaloniaFact] public void HeaderActionsUseSpacedConsistentIconViewports()
+    {
+        using var toolbar=new AnnotationToolbar(new(800,600),_=>{},()=>{},(_,_)=>{},e=>throw e,()=>{},()=>{},()=>true);
+        toolbar.Show();toolbar.UpdateLayout();
+        foreach(var key in new[]{"AnnotationsMinimize","AnnotationsHide","AnnotationsCollapse","AnnotationsClose"})
+        {
+            var button=toolbar.GetVisualDescendants().OfType<Button>().Single(b=>AutomationProperties.GetName(b)==LanguageManager.Instance[key]);
+            var canvas=Assert.IsType<Canvas>(button.Content);
+            var path=Assert.IsType<Avalonia.Controls.Shapes.Path>(Assert.Single(canvas.Children));
+            Assert.Equal(18,path.Width);Assert.Equal(18,path.Height);Assert.True(button.Margin.Left>=3);
+        }
+    }
+    [AvaloniaTheory] [InlineData(AppLanguage.ZhTw)] [InlineData(AppLanguage.EnUs)] [InlineData(AppLanguage.JaJp)]
+    public void ToolbarButtonsExposeLocalizedHoverTextAndCollapseHintChangesWithState(AppLanguage language)
+    {
+        var old=LanguageManager.Instance.CurrentLanguage;LanguageManager.Instance.CurrentLanguage=language;
+        using var toolbar=new AnnotationToolbar(new(800,600),_=>{},()=>{},(_,_)=>{},e=>throw e,()=>{},()=>{},()=>true);
+        try
+        {
+            toolbar.Show();toolbar.UpdateLayout();
+            var buttons=toolbar.GetVisualDescendants().OfType<Button>().ToArray();
+            Assert.All(buttons,b=>{var tip=Assert.IsType<string>(ToolTip.GetTip(b));Assert.False(string.IsNullOrWhiteSpace(tip));Assert.DoesNotContain("Annotations",tip);Assert.True(ToolTip.GetShowOnDisabled(b));});
+            var collapse=buttons.Single(b=>AutomationProperties.GetName(b)==LanguageManager.Instance["AnnotationsCollapse"]);
+            Assert.Equal(LanguageManager.Instance["AnnotationsCollapseHint"],ToolTip.GetTip(collapse));
+            collapse.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(LanguageManager.Instance["AnnotationsExpandHint"],ToolTip.GetTip(collapse));
+        }
+        finally {toolbar.Close();LanguageManager.Instance.CurrentLanguage=old;}
+    }
     [AvaloniaFact] public void EscapeEndsDrawingAndClearsMarks()
     {
         var doc=new AnnotationDocument(800,600);bool? mode=null;
