@@ -116,7 +116,7 @@ test('localized main screenshots describe the current capture and pointer settin
     for (const [lang, stateText, waveformText] of expectations) {
       const html = await readFile(join(out, lang, 'index.html'), 'utf8');
       assert.match(html, new RegExp(`alt="[^"]*OpenCam ${escapedScreenshotVersion}[^"]*${stateText}[^"]*${waveformText}[^"]*"`));
-      assert.match(html, /<img[^>]+preview_main_(?:zhtw|enus)\.png[^>]+width="1440" height="1000"/);
+      assert.match(html, /<img[^>]+preview_main_(?:zhtw|enus)\.png[^>]+width="1000" height="1000"/);
     }
   } finally { await rm(out, { recursive: true, force: true }); }
 });
