@@ -35,14 +35,14 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
         RecordingExportState.Canceled => Strings["ProjectExportCanceled"],
         _ => Strings["ProjectExportFailed"] + " " + export.Error
     };
-    public bool CanEdit => !IsBusy && !IsChangingPreviewQuality && !StatusUnconfirmed && !IsExporting && !State.HasRecoverableDraft && State.Mode is ProjectMode.Ready or ProjectMode.Paused;
+    public bool CanEdit => !IsBusy && !IsImporting && !IsChangingPreviewQuality && !StatusUnconfirmed && !IsExporting && !State.HasRecoverableDraft && State.Mode is ProjectMode.Ready or ProjectMode.Paused;
     public bool CanEditTimeline => CanEdit && !HasPropertyDraft;
-    public bool CanReplaceProject => !IsBusy && !HasPropertyDraft && !HasPointerDraft;
-    public bool CanReturnToRecording => !IsBusy && !StatusUnconfirmed && State.Mode is not (ProjectMode.Recording or ProjectMode.SavingSegment);
+    public bool CanReplaceProject => !IsBusy && !IsImporting && !HasPropertyDraft && !HasPointerDraft;
+    public bool CanReturnToRecording => !IsBusy && !IsImporting && !StatusUnconfirmed && State.Mode is not (ProjectMode.Recording or ProjectMode.SavingSegment);
     public bool CanRecord => CanEditTimeline && !HasPointerDraft && State.ProjectId is not null;
     public bool CanPause => !IsBusy && !StatusUnconfirmed && State.Mode == ProjectMode.Recording;
-    public bool CanFinish => !HasPropertyDraft && !HasPointerDraft && !IsBusy && !StatusUnconfirmed && State.Mode is ProjectMode.Recording or ProjectMode.Paused or ProjectMode.SaveFailed;
-    public bool CanClose => !IsBusy && !StatusUnconfirmed && !IsExporting && State.Mode is ProjectMode.Ready or ProjectMode.Interrupted or ProjectMode.Closed;
+    public bool CanFinish => !HasPropertyDraft && !HasPointerDraft && !IsBusy && !IsImporting && !StatusUnconfirmed && State.Mode is ProjectMode.Recording or ProjectMode.Paused or ProjectMode.SaveFailed;
+    public bool CanClose => !IsBusy && !IsImporting && !StatusUnconfirmed && !IsExporting && State.Mode is ProjectMode.Ready or ProjectMode.Interrupted or ProjectMode.Closed;
     public bool CanUndo => CanEditTimeline && !HasPointerDraft && State.CanUndo;
     public bool CanRedo => CanEditTimeline && !HasPointerDraft && State.CanRedo;
     public bool CanEditSelection => CanEdit && SelectedClip is not null && Clips.Contains(SelectedClip);
@@ -70,7 +70,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
             nameof(CanUndo), nameof(CanRedo), nameof(SaveStatus), nameof(ModeText), nameof(StartText), nameof(ClipCountText), nameof(IsExporting),
             nameof(CanExport), nameof(CanCancelExport), nameof(ExportProgress), nameof(ExportStatusText), nameof(HasEditorError), nameof(CanReturnToRecording),
             nameof(CanEditSelection), nameof(CanEditProperties), nameof(CanMoveEarlier), nameof(CanMoveLater), nameof(CanEditTimeline), nameof(CanReplaceProject),
-            nameof(CanChangePreviewOptions), nameof(CanUseOriginalPreview) })
+            nameof(CanChangePreviewOptions), nameof(CanUseOriginalPreview), nameof(IsImporting), nameof(CanImportVideo), nameof(CanSaveProject), nameof(HasImportStatus), nameof(ImportStatusText) })
             OnPropertyChanged(property);
         StateChanged?.Invoke(this, EventArgs.Empty);
         NotifyPlayback();
@@ -212,7 +212,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     [RelayCommand] public Task RefreshAsync() => ExecuteAsync("GetProjectStatus", new() { OperationId = _pendingOperation });
     public async Task PollRecordingAsync()
     {
-        if (StatusUnconfirmed || (!State.IsDirty && !IsExporting && State.Mode is not (ProjectMode.Recording or ProjectMode.SavingSegment)) || !await _gate.WaitAsync(0)) return;
+        if (StatusUnconfirmed || (!State.IsDirty && !IsExporting && !IsImporting && State.Mode is not (ProjectMode.Recording or ProjectMode.SavingSegment)) || !await _gate.WaitAsync(0)) return;
         try
         {
             // Background status reads are not user operations. Keep the gate for

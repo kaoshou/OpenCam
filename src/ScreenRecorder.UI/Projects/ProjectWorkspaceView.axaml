@@ -138,7 +138,7 @@
         <TextBlock Text="{Binding SaveStatus}" FontSize="12" Foreground="{DynamicResource ProjectMutedBrush}"/>
       </StackPanel>
       <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-        <Button Content="{Binding Strings[ProjectSave]}" Command="{Binding SaveCommand}" IsEnabled="{Binding !IsBusy}"/>
+        <Button Content="{Binding Strings[ProjectSave]}" Command="{Binding SaveCommand}" IsEnabled="{Binding CanSaveProject}"/>
         <Button x:Name="BookmarksButton" Content="{Binding Strings[BookmarkTitle]}">
           <Button.Flyout><Flyout Opening="OnBookmarksOpening">
             <ScrollViewer Width="400" MaxHeight="560" HorizontalScrollBarVisibility="Disabled">
@@ -204,7 +204,15 @@
       </StackPanel>
     </Grid>
     </Border>
-    <Border Grid.Row="1" IsVisible="{Binding CanCancelExport}" Background="{DynamicResource ProjectCardBrush}" Padding="16,4" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="0,0,0,1">
+    <StackPanel Grid.Row="1">
+    <Border IsVisible="{Binding HasImportStatus}" Background="{DynamicResource ProjectCardBrush}" Padding="16,6" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="0,0,0,1">
+      <Grid ColumnDefinitions="*,Auto,Auto">
+        <TextBlock Text="{Binding ImportStatusText}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0"/>
+        <ProgressBar Grid.Column="1" Width="90" IsIndeterminate="True" IsVisible="{Binding IsImporting}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+        <Button Grid.Column="2" Content="{Binding Strings[Cancel]}" Command="{Binding CancelVideoImportCommand}" IsVisible="{Binding IsImporting}"/>
+      </Grid>
+    </Border>
+    <Border IsVisible="{Binding CanCancelExport}" Background="{DynamicResource ProjectCardBrush}" Padding="16,4" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="0,0,0,1">
       <Grid ColumnDefinitions="*,Auto">
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
           <ProgressBar Width="100" Minimum="0" Maximum="100" Value="{Binding ExportProgress}" IsVisible="{Binding IsExporting}"/>
@@ -213,6 +221,7 @@
         </StackPanel>
       </Grid>
     </Border>
+    </StackPanel>
     <Grid x:Name="WorkspaceGrid" Grid.Row="2" ColumnDefinitions="220,*,260" MinHeight="160">
       <Border x:Name="ClipPane" Background="{DynamicResource ProjectCardBrush}" Padding="12,16" BorderBrush="{DynamicResource ProjectStrokeBrush}" BorderThickness="0,0,1,0">
         <Grid RowDefinitions="Auto,*,Auto">
@@ -233,6 +242,10 @@
               </Button>
             </Grid>
             <TextBlock Text="{Binding Strings[ProjectListOrderHint]}" FontSize="11" Foreground="{DynamicResource ProjectMutedBrush}"/>
+            <Button x:Name="ImportVideoButton" Click="OnImportVideo" IsEnabled="{Binding CanImportVideo}"
+                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" ToolTip.Tip="{Binding Strings[VideoImportHint]}">
+              <editor:EditorToolContent Icon="new" Text="{Binding Strings[VideoImportAdd]}"/>
+            </Button>
           </StackPanel>
           <Grid Grid.Row="1" ClipToBounds="True">
           <ListBox x:Name="ClipList" ItemsSource="{Binding Clips}" SelectedItem="{Binding SelectedClip}" IsEnabled="{Binding !HasPropertyDraft}" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">

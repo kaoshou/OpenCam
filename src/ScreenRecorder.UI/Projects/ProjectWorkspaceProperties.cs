@@ -9,7 +9,7 @@ public sealed partial class ProjectWorkspaceViewModel
 {
     private bool _resettingProperties;
     private bool _savingProperties, _publishingPropertyClips;
-    public bool CanEditProperties => !IsChangingPreviewQuality && !StatusUnconfirmed && !IsExporting &&
+    public bool CanEditProperties => !IsImporting && !IsChangingPreviewQuality && !StatusUnconfirmed && !IsExporting &&
         !State.HasRecoverableDraft && State.Mode is ProjectMode.Ready or ProjectMode.Paused &&
         (!IsBusy || _savingProperties) && SelectedClip is not null && Clips.Contains(SelectedClip);
     private CancellationTokenSource? _propertyApplyDelay;

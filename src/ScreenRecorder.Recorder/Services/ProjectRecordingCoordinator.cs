@@ -14,7 +14,8 @@ namespace ScreenRecorder.Recorder.Services;
 public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator recorder, IProjectStore store,
     IProjectSourceProbe probe, IRecordingContentExporter? exporter = null,
     Func<GifExportOptions, IRecordingContentExporter>? gifExporter = null,
-    Func<Mp4ExportOptions, IRecordingContentExporter>? mp4Exporter = null) : IAsyncDisposable
+    Func<Mp4ExportOptions, IRecordingContentExporter>? mp4Exporter = null,
+    Func<ScreenRecorder.Media.Projects.IProjectMediaProcess>? mediaProcess = null) : IAsyncDisposable
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly ProjectSegmentCommitter _committer = new(probe);
@@ -137,6 +138,7 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
                 if (old.Fingerprint != fingerprint) throw new InvalidDataException("Operation ID reused for different command.");
                 return old.Result;
             }
+            if (IsImporting) throw new InvalidOperationException("VideoImportBusy");
             // Persisting already accepted edits is safe even if audio shutdown is unconfirmed.
             if (_stopPreview is not null && fingerprint != "save") await _stopPreview();
             await action();
@@ -537,6 +539,10 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
         _export?.Dispose();
         _export = null;
         _operations.Clear();
+        Volatile.Write(ref _importStatus, null);
+        _importCancellation?.Dispose();
+        _importCancellation = null;
+        _importTask = null;
         Mode = ProjectMode.Closed;
     }, null, "close", ct);
 
@@ -559,6 +565,9 @@ public sealed partial class ProjectRecordingCoordinator(RecordingOrchestrator re
 
     public async ValueTask DisposeAsync()
     {
+        _importCancellation?.Cancel();
+        if (_importTask is not null) await _importTask;
+        _importCancellation?.Dispose();
         CancelDraftWrite();
         if (_stopPreview is not null) await _stopPreview();
         await _gate.WaitAsync();

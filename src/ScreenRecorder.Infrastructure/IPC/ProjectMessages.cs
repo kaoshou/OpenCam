@@ -10,6 +10,7 @@ public sealed record ProjectRequest
     public Guid? ProjectId { get; init; }
     public Guid OperationId { get; init; }
     public Guid? ExportId { get; init; }
+    public Guid? ImportId { get; init; }
     public long ExpectedRevision { get; init; }
     public string? Path { get; init; }
     public bool PathIsExportFile { get; init; }
@@ -47,6 +48,7 @@ public sealed record ProjectSnapshot(Guid? ProjectId, string Name, string? Direc
     public bool NeedsRecoveryConfirmation { get; init; }
     public ProjectCanvas? Canvas { get; init; }
     public RecordingExportStatus? Export { get; init; }
+    public ProjectVideoImportStatus? VideoImport { get; init; }
     public static ProjectSnapshot Closed { get; } = new(null, "", null, 0, 0, ProjectMode.Closed, 0, false, false);
     public bool? HasUnsavedEdits { get; init; }
     public bool HasRecoverableDraft { get; init; }

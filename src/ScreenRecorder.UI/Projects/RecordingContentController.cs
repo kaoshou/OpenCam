@@ -17,7 +17,7 @@ public sealed class RecordingContentController : ObservableObject
     public RecordingContentOperation Operation { get; private set; }
     public ProjectWorkspaceViewModel Workspace { get; }
     public bool IsBusy { get => _isBusy; private set { SetProperty(ref _isBusy, value); NotifyState(); } }
-    private bool Available => !IsBusy && !Workspace.IsBusy && !Workspace.StatusUnconfirmed && !Workspace.IsExporting;
+    private bool Available => !IsBusy && !Workspace.IsBusy && !Workspace.IsImporting && !Workspace.StatusUnconfirmed && !Workspace.IsExporting;
     public bool CanStartNew => Available && Workspace.State.Mode is ProjectMode.Closed or ProjectMode.Ready;
     public bool CanReplaceProject => Available && Workspace.State.Mode is ProjectMode.Closed or ProjectMode.Ready or ProjectMode.Interrupted;
     public bool CanResume => Available && Workspace.State.Mode is ProjectMode.Ready or ProjectMode.Paused;

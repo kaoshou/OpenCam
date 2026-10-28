@@ -17,7 +17,7 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
         or "GetProjectClips" or "GetProjectWaveform" or "PlayProjectPreview" or "StopProjectPreview" or "SetProjectPreviewMuted" or "StartProjectRecording" or "PauseProjectRecording" or "FinishProjectRecording"
         or "SaveProject" or "FindProjectExport" or "DiscardProjectEdits" or "ResolveProjectDraft" or "SetProjectAutoExport" or "RenameProject" or "RenameProjectClip" or "ApplyProjectEdit" or "UndoProject" or "RedoProject" or "CloseProject" or "RestoreProjectBackup"
         or "StartNewRecordingContent" or "StartProjectInsertion" or "FinishRecordingContent" or "RetryRecordingContentExport" or "CancelRecordingContentExport" or "ExportRecordingContent"
-        or "ImportProjectSubtitle" or "EditProjectSubtitles" or "SetProjectPointerSettings"
+        or "ImportProjectVideo" or "CancelProjectVideoImport" or "ImportProjectSubtitle" or "EditProjectSubtitles" or "SetProjectPointerSettings"
         or "AddProjectBookmark" or "AddProjectBookmarkAtPlayhead" or "GetProjectBookmarks" or "RenameProjectBookmark" or "DeleteProjectBookmark";
 
     private ProjectSnapshot Snapshot()
@@ -27,7 +27,7 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
         coordinator.ProjectDirectory, coordinator.Current?.Revision ?? 0, coordinator.SavedRevision, coordinator.Mode,
         coordinator.Current?.Clips.Length ?? 0, coordinator.CanUndo, coordinator.CanRedo, coordinator.LastError)
         { NeedsRecoveryConfirmation = coordinator.NeedsRecoveryConfirmation, ServerInstanceId = _instanceId, Export = coordinator.ExportStatus,
-            Canvas = coordinator.Current?.Canvas, HasUnsavedEdits = coordinator.IsDirty,
+            Canvas = coordinator.Current?.Canvas, HasUnsavedEdits = coordinator.IsDirty, VideoImport = coordinator.ImportStatus,
             TotalRecordingTicks = times.Total, SessionRecordingTicks = times.Session,
             RecordedSourceBytes = coordinator.Current?.Sources.Sum(source => source.FileSize),
             HasRecoverableDraft = coordinator.HasRecoverableDraft, DraftError = coordinator.DraftError,
@@ -90,6 +90,8 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
                 return Reply(new(true, null, Snapshot()) { Waveform = waveform });
             }
             if (request.OperationId == Guid.Empty) throw new InvalidDataException("An operation ID is required.");
+            if (coordinator.IsImporting && message.MessageType is not ("CancelProjectVideoImport" or "StopProjectPreview"))
+                throw new InvalidOperationException("VideoImportBusy");
             if (message.MessageType == "SetProjectPointerSettings" && request.ServerInstanceId != _instanceId)
                 throw new InvalidOperationException("Obsolete pointer command; refresh the project before editing.");
             if (message.MessageType is "AddProjectBookmark" or "AddProjectBookmarkAtPlayhead" or "RenameProjectBookmark" or "DeleteProjectBookmark" && request.ServerInstanceId != _instanceId)
@@ -127,13 +129,15 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
             }
             if (_operations.Count >= 20000) throw new InvalidOperationException("Save and restart OpenCam before issuing more project commands.");
             if (waveforms is not null && message.MessageType is
-                "StartProjectRecording" or "StartProjectInsertion" or "StartNewRecordingContent" or "CloseProject" or "ExportRecordingContent" or "RetryRecordingContentExport" or "FinishRecordingContent")
+                "ImportProjectVideo" or "StartProjectRecording" or "StartProjectInsertion" or "StartNewRecordingContent" or "CloseProject" or "ExportRecordingContent" or "RetryRecordingContentExport" or "FinishRecordingContent")
                 await waveforms.SuspendAsync();
             if (frames is not null && message.MessageType is
-                "StartProjectRecording" or "StartProjectInsertion" or "StartNewRecordingContent" or "CloseProject" or "OpenProject" or "CreateProject" or "ExportRecordingContent" or "RetryRecordingContentExport" or "FinishRecordingContent")
+                "ImportProjectVideo" or "StartProjectRecording" or "StartProjectInsertion" or "StartNewRecordingContent" or "CloseProject" or "OpenProject" or "CreateProject" or "ExportRecordingContent" or "RetryRecordingContentExport" or "FinishRecordingContent")
                 await frames.SuspendAsync();
             ProjectCommandResult result = message.MessageType switch
             {
+                "ImportProjectVideo" => await coordinator.StartVideoImportAsync(request.Path ?? "", request.ExpectedRevision, request.OperationId),
+                "CancelProjectVideoImport" => await coordinator.CancelVideoImportAsync(request.ImportId ?? throw new InvalidDataException("Missing import identity.")),
                 "AddProjectBookmark" => await coordinator.AddBookmarkAsync(request.OperationId, request.Name ?? ""),
                 "AddProjectBookmarkAtPlayhead" => await coordinator.AddEditorBookmarkAsync(request.TimelineTicks, request.Name ?? "",
                     request.ExpectedRevision, request.BookmarkRevision, request.OperationId),

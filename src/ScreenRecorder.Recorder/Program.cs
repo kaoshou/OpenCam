@@ -59,7 +59,8 @@ public class Program
             await using var projects = new ProjectRecordingCoordinator(orchestrator,
                 new ScreenRecorder.Infrastructure.Projects.JsonProjectStore(), new ProjectSourceProbe(), contentExporter,
                 mediaBackend is null ? null : options => new ProjectGifExporter(mediaBackend.CreateProcess(), options),
-                mediaBackend is null ? null : options => new ProjectFfmpegExporter(mediaBackend.CreateProcess(), options));
+                mediaBackend is null ? null : options => new ProjectFfmpegExporter(mediaBackend.CreateProcess(), options),
+                mediaBackend is null ? null : mediaBackend.CreateProcess);
             await using var projectWaveforms = mediaBackend is not null
                 ? new ProjectWaveformService(projects, mediaBackend.CreateProcess())
                 : null;

@@ -44,6 +44,7 @@ public partial class ProjectWorkspaceView : Window
         InitializeComponent();
         InitializePreviewViewport();
         InitializeClipListDrag();
+        InitializeVideoImport();
         TimelineControl.ExportRequested += RequestExportAsync;
         LayoutUpdated += (_, _) => { if (DataContext is ProjectWorkspaceViewModel vm) vm.SetSubtitleViewportWidth(PreviewPane.Bounds.Width); };
         Closed += (_, _) => { if (_recordingWindow is not null) _recordingWindow.IsEnabled = _homeWasEnabled; };
@@ -187,6 +188,7 @@ public partial class ProjectWorkspaceView : Window
     private async void OnClose(object? sender, RoutedEventArgs e) => await RequestCloseAsync();
     public async Task<bool> RequestCloseAsync()
     {
+        if (Model.IsImporting) { Model.Error = Model.Strings["VideoImportBusy"]; return false; }
         if (_closing) return false;
         _closing = true;
         try
