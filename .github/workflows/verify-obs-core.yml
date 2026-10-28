@@ -186,7 +186,7 @@ jobs:
           $env:OPENCAM_OBS_ENABLED_RUNTIME = (Resolve-Path user-test-package/obs-runtime).Path
           $env:OPENCAM_OBS_RUNTIME = $env:OPENCAM_OBS_ENABLED_RUNTIME
           $env:OPENCAM_OBS_HELPER = Join-Path $env:OPENCAM_OBS_RUNTIME 'OpenCam.ObsCapture.exe'
-          dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release --no-build --no-restore --filter 'FullyQualifiedName~ObsPackageDeploymentTests|FullyQualifiedName~ObsNativeAcceptanceTests' --logger trx --results-directory obs-results/packaged-managed
+          dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release --no-build --no-restore --filter 'FullyQualifiedName~ObsPackageDeploymentTests|FullyQualifiedName~ObsNativeAcceptanceTests|FullyQualifiedName~VideoImport' --logger trx --results-directory obs-results/packaged-managed
           if ($LASTEXITCODE -ne 0) { throw 'Actual packaged runtime validation failed.' }
           $name = "OpenCam_v$((Get-Content VERSION -Raw).Trim())_Windows_x64_NativeOnly_Test_$($env:GITHUB_SHA.Substring(0,7)).zip"
           Compress-Archive -Path user-test-package/* -DestinationPath $name
