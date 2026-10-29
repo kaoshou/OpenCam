@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Linux isolated OBS core feasibility
+
+on:
+  push:
+    branches: ['codex/linux-core-feasibility-20261030']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-core:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - uses: actions/checkout@v4
+        with:
+          repository: obsproject/obs-studio
+          ref: 72e86655715d9a25d69ce446aa4dd44ba58e10d2
+          path: .linux-inputs/obs
+      - uses: actions/checkout@v4
+        with:
+          repository: FFmpeg/FFmpeg
+          ref: 1041abdc962f4cc4f394aa8de9dc5236c0c3b9e7
+          path: .linux-inputs/ffmpeg
+      - name: Install build-only Ubuntu prerequisites
+        run: |
+          sudo apt-get -o Acquire::Retries=3 update
+          sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends build-essential cmake ninja-build nasm pkg-config zlib1g-dev libsimde-dev uthash-dev libjansson-dev uuid-dev libx11-xcb-dev libxcb-xinput-dev libxkbcommon-dev libwayland-dev libdrm-dev libegl1-mesa-dev libpulse-dev libx264-dev libpipewire-0.3-dev libglib2.0-dev libxcb-composite0-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-xfixes0-dev libxcb-xinerama0-dev
+      - name: Check production source isolation and input tests
+        env:
+          OPENCAM_LINUX_OBS_SOURCE: ${{ github.workspace }}/.linux-inputs/obs
+        run: |
+          mkdir -p "$RUNNER_TEMP/opencam-linux/evidence"
+          git rev-parse HEAD > "$RUNNER_TEMP/opencam-linux/evidence/revision.txt"
+          git diff e0c369e6495532cc0393c349dc428ffb8a00327e -- src native/obs-capture scripts/build-obs-capture.sh scripts/build-obs-capture.ps1 scripts/assemble-obs-runtime.mjs .github/workflows/build-and-release.yml .github/workflows/package-release.yml VERSION > "$RUNNER_TEMP/opencam-linux/evidence/production-diff.txt"
+          test ! -s "$RUNNER_TEMP/opencam-linux/evidence/production-diff.txt"
+          node --test tests/scripts/linux-obs-inputs.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/input-tests.log" 2>&1
+          bash -n scripts/linux/build-obs-probe.sh
+          bash -n scripts/linux/build-ffmpeg-dependency.sh
+      - name: Build pinned FFmpeg libraries into private Linux prefix
+        run: |
+          bash scripts/linux/build-ffmpeg-dependency.sh "$GITHUB_WORKSPACE/.linux-inputs/ffmpeg" "$RUNNER_TEMP/opencam-linux/ffmpeg-build" "$RUNNER_TEMP/opencam-linux/ffmpeg-prefix" "$RUNNER_TEMP/opencam-linux/evidence/ffmpeg" > "$RUNNER_TEMP/opencam-linux/evidence/ffmpeg-driver.log" 2>&1
+      - name: Build pinned OBS core without changing other platform builders
+        env:
+          PKG_CONFIG_PATH: ${{ runner.temp }}/opencam-linux/ffmpeg-prefix/lib/pkgconfig
+          LD_LIBRARY_PATH: ${{ runner.temp }}/opencam-linux/ffmpeg-prefix/lib
+        run: |
+          bash scripts/linux/build-obs-probe.sh "$GITHUB_WORKSPACE/.linux-inputs/obs" "$RUNNER_TEMP/opencam-linux/obs-build" "$RUNNER_TEMP/opencam-linux/obs-stage" "$RUNNER_TEMP/opencam-linux/evidence/obs" > "$RUNNER_TEMP/opencam-linux/evidence/obs-driver.log" 2>&1
+      - name: Preserve logs only; this is not a working OpenCam recorder
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenCam-v1.2.0-Linux-Core-Feasibility-Logs-${{ github.sha }}
+          path: ${{ runner.temp }}/opencam-linux/evidence/
+          if-no-files-found: error
+          retention-days: 14
