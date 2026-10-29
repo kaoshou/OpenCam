@@ -17,7 +17,7 @@ async function fixture(t) {
 test('assembly inventories every native runtime byte and never invents source revision', async t => {
   const f = await fixture(t); await assembleLinuxApp(f);
   const m = JSON.parse(await readFile(join(f.outputRoot, 'obs-runtime/runtime.json'), 'utf8'));
-  assert.equal(m.platform, 'linux-x64'); assert.deepEqual(m.capabilities.backends, ['x11', 'pipewire']);
+  assert.equal(m.platform, 'linux-x64'); assert.deepEqual(m.capabilities.backends, ['x11']);
   assert.equal(m.files['bin/OpenCam.ObsCapture'], createHash('sha256').update('native/bin/OpenCam.ObsCapture').digest('hex'));
   assert.equal(JSON.parse(await readFile(join(f.outputRoot, 'LINUX-TEST-INFO.json'))).commit, f.revision);
   await assert.rejects(() => assembleLinuxApp(f), /exist/i);

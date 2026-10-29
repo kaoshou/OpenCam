@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+import { readFile, writeFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+const execute = promisify(execFile);
+export function validateAppMedia(probe, hashes, expectedSeconds) {
+  const video = probe.streams.find(s => s.codec_type === 'video');
+  const audio = probe.streams.find(s => s.codec_type === 'audio');
+  if (!video || !audio) throw new Error('Expected video and audio streams');
+  const ranges = [];
+  for (const stream of [video, audio]) {
+    const packets = probe.packets.filter(p => p.stream_index === stream.index);
+    if (!packets.length) throw new Error('Missing packets');
+    let previous = -Infinity, first = Infinity, end = -Infinity;
+    for (const packet of packets) {
+      const dts = Number(packet.dts_time), pts = Number(packet.pts_time), duration = Number(packet.duration_time);
+      if (![dts, pts, duration].every(Number.isFinite) || duration <= 0) throw new Error('Invalid packet duration/timestamp');
+      if (dts < previous) throw new Error('Non-monotonic decoding timestamps');
+      previous = dts; first = Math.min(first, pts); end = Math.max(end, pts + duration);
+    }
+    ranges.push({ index: stream.index, first, end, duration: end - first, packets: packets.length });
+  }
+  if (Math.abs(ranges[0].first - ranges[1].first) > .25 || Math.abs(ranges[0].end - ranges[1].end) > .25)
+    throw new Error('Audio/video packet timeline drift exceeds 250ms');
+  if (Math.abs(ranges[0].duration - expectedSeconds) > 3) throw new Error('Unexpected media duration');
+  if (new Set(hashes).size < 2) throw new Error('Unexpected static video content');
+  return { status: 'PASS', ranges, distinctFrameHashes: new Set(hashes).size,
+    scope: 'packet timeline and dynamic virtual content; not perceptual physical A/V synchronization' };
+}
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  try {
+    const resultPath = process.argv[2]; const result = JSON.parse(await readFile(resultPath, 'utf8'));
+    const options = { timeout: 180000, maxBuffer: 128 * 1024 * 1024, killSignal: 'SIGKILL' };
+    const probe = await execute('ffprobe', ['-v', 'error', '-show_streams', '-show_packets', '-of', 'json', result.mp4], options);
+    await writeFile(resultPath + '.ffprobe.json', probe.stdout, { flag: 'wx' });
+    const decoded = await execute('ffmpeg', ['-xerror', '-v', 'error', '-i', result.mp4, '-f', 'null', '-'], options);
+    await writeFile(resultPath + '.decode.log', decoded.stderr, { flag: 'wx' });
+    const hashes = await execute('ffmpeg', ['-xerror', '-v', 'error', '-i', result.mp4, '-map', '0:v:0', '-f', 'framehash', '-'], options);
+    const measured = validateAppMedia(JSON.parse(probe.stdout), hashes.stdout.split('\n').filter(l => l && !l.startsWith('#')).map(l => l.split(',').at(-1).trim()), result.firstSegmentSeconds + 3);
+    await writeFile(resultPath + '.media-check.json', JSON.stringify(measured, null, 2), { flag: 'wx' });
+    console.log(JSON.stringify(measured));
+  } catch (error) { console.error(error.stderr ?? error.message); process.exitCode = 1; }
+}

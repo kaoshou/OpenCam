@@ -4,6 +4,28 @@ namespace ScreenRecorder.Media.Tests;
 public sealed class LinuxCatalogTests
 {
     [Fact]
+    public void EnumerationRefusesTamperedExecutableBeforeLaunchingIt()
+    {
+        if (OperatingSystem.IsWindows()) return; // executable shell fixture is Unix-only
+        var root = Path.Combine(Path.GetTempPath(), "opencam-enum-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(root, "bin"));
+        try {
+            var marker = Path.Combine(root, "executed");
+            var helper = Path.Combine(root, "bin", "OpenCam.ObsCapture");
+            File.WriteAllText(helper, "#!/bin/sh\ntouch '" + marker + "'\n");
+            File.SetUnixFileMode(helper, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            File.WriteAllText(Path.Combine(root, "runtime.json"), System.Text.Json.JsonSerializer.Serialize(new {
+                enabled = true, protocol = 1, obsVersion = "33.0.0", platform = "linux-x64",
+                sourceRevision = ScreenRecorder.Media.Capture.ObsRuntime.PinnedSourceRevision,
+                files = new Dictionary<string,string> { ["bin/OpenCam.ObsCapture"] = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(helper))) },
+                capabilities = new { backends = new[] { "x11" }, audio = new[] { "none" }, encoders = new[] { "cpu" } }
+            }));
+            LinuxDesktopCatalog.EnumerateRuntime(root, "x11"); Assert.True(File.Exists(marker)); File.Delete(marker);
+            File.AppendAllText(helper, "# modified\n");
+            Assert.Empty(LinuxDesktopCatalog.EnumerateRuntime(root, "x11")); Assert.False(File.Exists(marker));
+        } finally { Directory.Delete(root, true); }
+    }
+    [Fact]
     public void NativeDisplaysPreserveExactIdsAndNeverInventFallback()
     {
         var monitors = LinuxDesktopCatalog.ParseDisplays("OCLINUX {\"event\":\"display\",\"id\":\"xshm:3\",\"label\":\"HDMI-1 (1920x1080 @ 2560,0)\"}\n");

@@ -31,7 +31,7 @@ internal sealed record ObsStartupDiagnostics(string Stage, long ElapsedMs, long 
         "runtime_module" or "capture_source" or "display_identity" or "audio_device_identity" or "encoder_unavailable" or
         "audio_encoder" or "mux_create" or "capture_cancelled" or "capture_start_timeout" or "encoder_start" or
         "capture_source_lost" or "recording_output" or "capture_geometry_lost" or "audio_device_lost" or "audio_keepalive_init" or "mux_finalize" or
-        "wayland_requires_portal" or "portal_bus_unavailable" or "portal_session_closed" or "pipewire_transport_lost" or
+        "wayland_requires_portal" or "portal_source_unverified" or "portal_bus_unavailable" or "portal_session_closed" or "pipewire_transport_lost" or
         "pipewire_health_unverifiable" or "audio_health_unverifiable" or "source_timeout" or "source_geometry_changed" or
         "video_encoder" or "first_frame" or "output_start" or "output_failed" or "stop_failed" or "display_enumeration"
         ? code : "native_failure";

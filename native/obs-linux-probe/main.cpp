@@ -21,6 +21,7 @@
 #include <thread>
 #include <csignal>
 #include "wayland-displays.hpp"
+#include "audio-meter.hpp"
 
 namespace fs = std::filesystem;
 static std::mutex logMutex;
@@ -166,6 +167,7 @@ static bool exact(const char *type, const char *property, const std::string &id,
 struct State {
     Request request; Mux mux; obs_output_t *output = nullptr;
     std::atomic<bool> stopped{false}, failed{false}, systemSamples{false}, micSamples{false};
+    opencam::LinuxAudioMeter systemMeter, microphoneMeter;
 };
 static State *state;
 static const char *outputName(void *) { return "OpenCam Linux diagnostic output"; }
@@ -186,10 +188,13 @@ static void outputError(void *opaque, calldata_t *data)
 {
     if (calldata_int(data, "code") != OBS_OUTPUT_SUCCESS) static_cast<State *>(opaque)->failed = true;
 }
-static void audioSample(void *role, obs_source_t *, const audio_data *audio, bool)
+static void audioSample(void *role, obs_source_t *, const audio_data *audio, bool muted)
 {
     if (!audio->frames) return;
     sourceHealth.noteSamples(role != nullptr, audio->frames, os_gettime_ns());
+    const float *channels[MAX_AV_PLANES]{};
+    for (size_t i = 0; i < MAX_AV_PLANES; ++i) channels[i] = reinterpret_cast<const float *>(audio->data[i]);
+    (role ? state->microphoneMeter : state->systemMeter).note(channels, MAX_AV_PLANES, audio->frames, muted, os_gettime_ns());
     if (role) state->micSamples = true; else state->systemSamples = true;
 }
 int main(int argc, char **argv)
@@ -207,6 +212,10 @@ int main(int argc, char **argv)
     State s; state = &s;
     try { if (mode == "capture") s.request = parse(requestLine()); }
     catch (...) { emit("error", ",\"code\":\"invalid_request\""); return 2; }
+    // OBS's portal source does not expose a verifiable selected output identity.
+    // Dimensions alone cannot distinguish two monitors. Keep diagnostic portal
+    // research separate; never echo an unverified requested identity as ready.
+    if (product && backend == "pipewire") { emit("error", ",\"code\":\"portal_source_unverified\""); return 2; }
     if (backend == "x11" && ((std::getenv("XDG_SESSION_TYPE") && std::string(std::getenv("XDG_SESSION_TYPE")) == "wayland") || std::getenv("WAYLAND_DISPLAY"))) {
         emit("error", ",\"code\":\"wayland_requires_portal\""); return 2;
     }
@@ -383,7 +392,9 @@ int main(int argc, char **argv)
                 if (product && os_gettime_ns() - progressAt >= 250000000ULL) {
                     progressAt = os_gettime_ns();
                     emit("progress", ",\"frames\":" + std::to_string(s.mux.frames.load()) + ",\"mediaUs\":" + std::to_string(s.mux.mediaUs.load()) +
-                        ",\"bytes\":" + std::to_string(s.mux.bytes.load()) + ",\"systemPeak\":0,\"microphonePeak\":0,\"systemAgeUs\":-1,\"microphoneAgeUs\":-1");
+                        ",\"bytes\":" + std::to_string(s.mux.bytes.load()) + ",\"systemPeak\":" + std::to_string(s.systemMeter.peak()) +
+                        ",\"microphonePeak\":" + std::to_string(s.microphoneMeter.peak()) + ",\"systemAgeUs\":" + std::to_string(s.systemMeter.ageUs(progressAt)) +
+                        ",\"microphoneAgeUs\":" + std::to_string(s.microphoneMeter.ageUs(progressAt)));
                 }
                 pump();
             }

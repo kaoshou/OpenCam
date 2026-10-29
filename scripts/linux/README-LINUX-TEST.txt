@@ -7,8 +7,8 @@ No .NET installation is required. Keep obs-runtime and all bundled files togethe
 
 OS desktop prerequisites (the launcher checks, never installs automatically):
   sudo apt install pulseaudio-utils libpulse0 libx264-164 libpipewire-0.3-0 libdrm2 libwayland-client0 libegl1 libgl1 libfontconfig1 libx11-6 libxext6 libxrandr2 libxi6 libxcursor1 libxrender1 libice6 libsm6 libxcb-shm0 libxcb-randr0 libxcb-xfixes0 libxcb-xinerama0 libxcb-composite0
-Wayland additionally needs the desktop's ScreenCast portal and PipeWire services
-(normally installed with Ubuntu GNOME). Do not run OpenCam as root.
+Use an X11 session: on Ubuntu's login screen select your account, then the gear
+icon and "Ubuntu on Xorg" before logging in. Do not run OpenCam as root.
 
 This is the first application integration test package, not full Linux parity.
 Recording uses OBS/libobs only and CPU H.264. No FFmpeg video fallback is present.
@@ -18,9 +18,9 @@ Windows/macOS release packages and their native implementations are unchanged.
 Current test limitations, also shown in the application:
 - Original/hidden cursor only. Teaching pointer, annotations and global shortcuts
   are not enabled in this Linux test build; they remain later Linux work.
-- On Wayland the operating system asks you to choose a shared display. Choose
-  the display matching the dimensions selected in OpenCam. Wrong dimensions
-  must fail, not record a different-sized source silently.
+- Wayland recording is not enabled in this package: portal output identity is
+  not yet independently verifiable. Diagnostic portal research is separate;
+  matching dimensions alone cannot safely distinguish two monitors.
 - GNOME permissions, physical devices, multi-monitor scaling and long-duration
   real audio/video synchronization still require manual validation.
 - A virtual X11/PulseAudio test is not proof of physical microphone quality.

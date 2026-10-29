@@ -36,7 +36,7 @@ jobs:
       - name: Install build-only Ubuntu prerequisites
         run: |
           sudo apt-get -o Acquire::Retries=3 update
-          sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends build-essential cmake extra-cmake-modules ninja-build nasm pkg-config zlib1g-dev libsimde-dev uthash-dev libjansson-dev uuid-dev libx11-xcb-dev libxcb-xinput-dev libxkbcommon-dev libwayland-dev libdrm-dev libegl1-mesa-dev libpulse-dev libx264-dev libpipewire-0.3-dev libglib2.0-dev libxcb-composite0-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-xfixes0-dev libxcb-xinerama0-dev xvfb xauth dbus-x11 pulseaudio pulseaudio-utils ffmpeg gdb patchelf scrot x11-utils fonts-noto-cjk
+          sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends build-essential cmake extra-cmake-modules ninja-build nasm pkg-config zlib1g-dev libsimde-dev uthash-dev libjansson-dev uuid-dev libx11-xcb-dev libxcb-xinput-dev libxkbcommon-dev libwayland-dev libdrm-dev libegl1-mesa-dev libpulse-dev libx264-dev libpipewire-0.3-dev libglib2.0-dev libxcb-composite0-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-xfixes0-dev libxcb-xinerama0-dev xvfb xauth dbus-x11 pulseaudio pulseaudio-utils ffmpeg gdb patchelf scrot x11-utils fonts-noto-cjk sway pipewire wireplumber xdg-desktop-portal xdg-desktop-portal-wlr
       - name: Restore verified FFmpeg version metadata for upstream CMake
         run: |
           git -C .linux-inputs/ffmpeg fetch --depth 1 origin tag n8.1.3
@@ -53,10 +53,13 @@ jobs:
           node --test tests/scripts/linux-probe-protocol.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/protocol-tests.log" 2>&1
           node --test tests/scripts/linux-probe-runner.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/runner-tests.log" 2>&1
           node --test tests/scripts/linux-isolation.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/isolation-tests.log" 2>&1
+          node --test tests/scripts/linux-app-assembly.test.mjs tests/scripts/linux-app-media-validation.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/package-unit-tests.log" 2>&1
           git diff 7bc17eb -- native/obs-capture scripts/build-obs-capture.sh scripts/build-obs-capture.ps1 scripts/assemble-obs-runtime.mjs .github/workflows/build-and-release.yml .github/workflows/package-release.yml VERSION > "$RUNNER_TEMP/opencam-linux/evidence/production-audit.diff"
           test ! -s "$RUNNER_TEMP/opencam-linux/evidence/production-audit.diff"
           c++ -std=c++17 tests/native/linux-source-health-tests.cpp -o "$RUNNER_TEMP/opencam-linux/health-tests"
           "$RUNNER_TEMP/opencam-linux/health-tests"
+          c++ -std=c++17 tests/native/linux-audio-meter-tests.cpp -o "$RUNNER_TEMP/opencam-linux/meter-tests"
+          "$RUNNER_TEMP/opencam-linux/meter-tests"
           bash -n scripts/linux/build-obs-probe.sh
           bash -n scripts/linux/build-ffmpeg-dependency.sh
       - name: Build pinned FFmpeg libraries into private Linux prefix
@@ -125,7 +128,8 @@ jobs:
           node scripts/linux/assemble-app.mjs "$RUNNER_TEMP/opencam-linux/publish" "$RUNNER_TEMP/opencam-linux/obs-stage" "$RUNNER_TEMP/opencam-linux/ffmpeg-prefix" "$RUNNER_TEMP/opencam-linux/OpenCam Linux Test" "$GITHUB_SHA" "$(cat VERSION)" > "$RUNNER_TEMP/opencam-linux/evidence/assembly.log" 2>&1
           cp scripts/linux/Start-OpenCam.sh scripts/linux/Collect-Diagnostics.sh scripts/linux/README-LINUX-TEST.txt "$RUNNER_TEMP/opencam-linux/OpenCam Linux Test/"
           chmod +x "$RUNNER_TEMP/opencam-linux/OpenCam Linux Test/Start-OpenCam.sh" "$RUNNER_TEMP/opencam-linux/OpenCam Linux Test/Collect-Diagnostics.sh"
-          cp -a "$RUNNER_TEMP/opencam-linux/OpenCam Linux Test/." "$RUNNER_TEMP/opencam-linux/acceptance/"
+          mv "$RUNNER_TEMP/opencam-linux/acceptance" "$RUNNER_TEMP/opencam-linux/Relocated Service Test"
+          cp -a "$RUNNER_TEMP/opencam-linux/OpenCam Linux Test/." "$RUNNER_TEMP/opencam-linux/Relocated Service Test/"
           dotnet build tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release -m:1 > "$RUNNER_TEMP/opencam-linux/evidence/managed-tests-build.log" 2>&1
           cp "$RUNNER_TEMP/opencam-linux/publish/libOpenCamLinuxSpawn.so" tests/ScreenRecorder.Media.Tests/bin/Release/net8.0/
       - name: Actual Linux project recording editing export and relocated UI
@@ -137,6 +141,8 @@ jobs:
           export PATH="$RUNNER_TEMP/opencam-linux/ffmpeg-prefix/bin:$PATH"
           export LD_LIBRARY_PATH="$RUNNER_TEMP/opencam-linux/ffmpeg-prefix/lib"
           dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release --no-build --filter 'FullyQualifiedName~Linux|FullyQualifiedName~ProjectMediaBackendTests' -m:1 > "$RUNNER_TEMP/opencam-linux/evidence/linux-managed-tests.log" 2>&1
+          unset LD_LIBRARY_PATH LD_PRELOAD
+          export PATH="$RUNNER_TEMP/opencam-linux/Relocated Service Test:$PATH"
           dbus-run-session -- xvfb-run -a -s '-screen 0 1280x1000x24' bash -c '
             set -euo pipefail
             export PULSE_RUNTIME_PATH="$RUNNER_TEMP/opencam-linux/app-pulse"
@@ -150,10 +156,28 @@ jobs:
             (while true; do xsetroot -solid "#e04020"; sleep .2; xsetroot -solid "#2040e0"; sleep .2; done) &
             pattern_pid=$!
             trap "kill $pattern_pid 2>/dev/null || true; pulseaudio --kill 2>/dev/null || true" EXIT
-            dotnet "$RUNNER_TEMP/opencam-linux/acceptance/ScreenRecorder.LinuxAppProbe.dll" "$RUNNER_TEMP/opencam-linux/evidence/app-project" > "$RUNNER_TEMP/opencam-linux/evidence/app-project.log" 2>&1
+            (while true; do ffmpeg -v error -f lavfi -i "sine=frequency=440:duration=4:sample_rate=48000" -f pulse opencam_test; sleep 4; done) &
+            tone_pid=$!
+            trap "kill $pattern_pid $tone_pid 2>/dev/null || true; pulseaudio --kill 2>/dev/null || true" EXIT
+            OPENCAM_LINUX_TEST_SECONDS=300 OPENCAM_LINUX_TEST_FPS=30 dotnet "$RUNNER_TEMP/opencam-linux/Relocated Service Test/ScreenRecorder.LinuxAppProbe.dll" "$RUNNER_TEMP/opencam-linux/evidence/app-project" > "$RUNNER_TEMP/opencam-linux/evidence/app-project.log" 2>&1
+            OPENCAM_LINUX_TEST_SECONDS=10 OPENCAM_LINUX_TEST_FPS=20 dotnet "$RUNNER_TEMP/opencam-linux/Relocated Service Test/ScreenRecorder.LinuxAppProbe.dll" "$RUNNER_TEMP/opencam-linux/evidence/app-project-20fps" > "$RUNNER_TEMP/opencam-linux/evidence/app-project-20fps.log" 2>&1
             node scripts/linux/smoke-app.mjs "$RUNNER_TEMP/opencam-linux/OpenCam Linux Test" "$RUNNER_TEMP/opencam-linux/evidence/app-ui" > "$RUNNER_TEMP/opencam-linux/evidence/app-ui.log" 2>&1
           '
-          find "$RUNNER_TEMP/opencam-linux/evidence/app-project" -name '*.mp4' -exec ffmpeg -xerror -v error -i {} -f null - \; > "$RUNNER_TEMP/opencam-linux/evidence/app-mp4-decode.log" 2>&1
+          node scripts/linux/verify-app-media.mjs "$RUNNER_TEMP/opencam-linux/evidence/app-project/result.json" > "$RUNNER_TEMP/opencam-linux/evidence/app-media-validation.log" 2>&1
+          node scripts/linux/verify-app-media.mjs "$RUNNER_TEMP/opencam-linux/evidence/app-project-20fps/result.json" > "$RUNNER_TEMP/opencam-linux/evidence/app-media-validation-20fps.log" 2>&1
+      - name: Attempt isolated Wayland portal capture (not GNOME physical acceptance)
+        env:
+          LD_LIBRARY_PATH: ${{ runner.temp }}/opencam-linux/obs-stage/lib:${{ runner.temp }}/opencam-linux/ffmpeg-prefix/lib
+          OPENCAM_DISPOSABLE_CI_DESKTOP: '1'
+          OPENCAM_LINUX_PROBE_DIAGNOSTICS: '1'
+        run: |
+          set +e
+          timeout 180 dbus-run-session -- bash scripts/linux/test-wayland.sh "$RUNNER_TEMP/opencam-linux/obs-stage/bin/OpenCam.ObsLinuxProbe" "$RUNNER_TEMP/opencam-linux/obs-stage" "$RUNNER_TEMP/opencam-linux/evidence/wayland" > "$RUNNER_TEMP/opencam-linux/evidence/wayland-driver.log" 2>&1
+          status=$?
+          printf 'Virtual Wayland fixture exit=%s; GNOME/physical portal acceptance remains MANUAL.\n' "$status" > "$RUNNER_TEMP/opencam-linux/evidence/wayland-status.txt"
+          # This is an explicitly marked development package, not a Wayland support claim.
+          # Preserve fixture failures rather than treating X11 as a portal substitute.
+          exit 0
       - name: Audit ELF relocation and include source notices
         run: |
           package_directory="$RUNNER_TEMP/opencam-linux/OpenCam Linux Test"

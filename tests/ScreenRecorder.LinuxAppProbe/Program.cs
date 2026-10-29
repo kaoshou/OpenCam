@@ -48,7 +48,18 @@ try {
         if (playback.PositionSamples != 1024) throw new IOException("Playback clock did not acknowledge actual drained samples.");
     }
     // First real segment at 30 FPS, pause, resume, stop: source files must survive.
-    Check(await project.StartAsync(config, Guid.NewGuid())); await Task.Delay(seconds * 1000);
+    Check(await project.StartAsync(config, Guid.NewGuid()));
+    bool systemLive = false, systemSilent = false, micLive = false, micSilent = false;
+    for (var tick = 0; tick < seconds * 10; ++tick) {
+        var levels = recorder.GetAudioLevels(DateTimeOffset.UtcNow);
+        systemLive |= levels.SystemAudio.State == AudioMeterState.Live;
+        systemSilent |= levels.SystemAudio.State == AudioMeterState.Silent;
+        micLive |= levels.Microphone.State == AudioMeterState.Live;
+        micSilent |= levels.Microphone.State == AudioMeterState.Silent;
+        await Task.Delay(100);
+    }
+    if (seconds >= 10 && !(systemLive && systemSilent && micLive && micSilent))
+        throw new IOException($"Real audio transitions not observed: system live={systemLive}, silent={systemSilent}; microphone live={micLive}, silent={micSilent}");
     Check(await project.PauseAsync(Guid.NewGuid()));
     Check(await project.StartAsync(config, Guid.NewGuid())); await Task.Delay(3000);
     Check(await project.FinishAsync(Guid.NewGuid()));
@@ -66,7 +77,7 @@ try {
     for (var attempt = 0; attempt < 600 && project.ExportStatus?.State == RecordingExportState.Running; attempt++) await Task.Delay(100);
     if (project.ExportStatus?.State != RecordingExportState.Succeeded) throw new IOException("Export failed: " + project.ExportStatus?.Error);
     var result = new { status = "PASS", scope = "virtual-source production-services integration, not physical sync",
-        fps = config.Fps, firstSegmentSeconds = seconds, audioPreflightAndPlayback = "PASS",
+        fps = config.Fps, firstSegmentSeconds = seconds, audioPreflightAndPlayback = "PASS", systemLive, systemSilent, micLive, micSilent,
         project = project.ProjectDirectory, sources = project.Current.Sources.Length, mp4 = project.ExportStatus.FinalPath };
     await File.WriteAllTextAsync(Path.Combine(root, "result.json"), JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }));
     Console.WriteLine(JsonSerializer.Serialize(result)); return 0;

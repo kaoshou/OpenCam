@@ -44,9 +44,13 @@ public sealed class LinuxDesktopCatalog : IDisplayService, IRecordingDisplayIden
     }
     public IReadOnlyList<MonitorInfo> GetMonitors()
     {
-        var helper = Path.Combine(RuntimeRoot, "bin", "OpenCam.ObsCapture");
-        if (!OperatingSystem.IsLinux() || !File.Exists(helper)) return [];
-        try { return ParseDisplays(Run(helper, "--runtime", RuntimeRoot, "--mode", "enumerate", "--backend", ObsRuntime.DefaultBackend("linux-x64"))); }
+        return OperatingSystem.IsLinux() ? EnumerateRuntime(RuntimeRoot, ObsRuntime.DefaultBackend("linux-x64")) : [];
+    }
+    internal static IReadOnlyList<MonitorInfo> EnumerateRuntime(string root, string backend)
+    {
+        var runtime = ObsRuntime.TryLoad(root, "linux-x64");
+        if (runtime is null || !runtime.Backends.Contains(backend)) return [];
+        try { return ParseDisplays(Run(runtime.HelperPath, "--runtime", runtime.Root, "--mode", "enumerate", "--backend", backend)); }
         catch (IOException e) { Serilog.Log.Warning(e, "Linux display enumeration unavailable"); return []; }
     }
     public static IReadOnlyList<MonitorInfo> ParseDisplays(string events)

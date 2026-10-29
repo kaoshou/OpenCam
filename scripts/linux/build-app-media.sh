@@ -31,9 +31,9 @@ printf '%s\n' "$inputs" > "$evidence_directory/source-inputs.json"
     --enable-muxer=matroska,mp4,gif,null,rawvideo,f32le,s16le,wav,framehash,h264,image2pipe \
     --enable-parser=h264,hevc,vp8,vp9,av1,mpeg4video,mpegaudio,opus,aac,png \
     --enable-bsf=h264_mp4toannexb,hevc_mp4toannexb,aac_adtstoasc,extract_extradata,filter_units \
-    --enable-decoder=h264,hevc,vp8,vp9,av1,mpeg4,mpeg2video,aac,opus,vorbis,mp3,pcm_s16le,pcm_f32le,flac,gif,png,mjpeg,rawvideo \
+    --enable-decoder=h264,hevc,vp8,vp9,av1,mpeg4,mpeg2video,aac,opus,vorbis,mp3,pcm_s16le,pcm_f32le,flac,gif,png,mjpeg,rawvideo,wrapped_avframe \
     --enable-encoder=libx264,aac,gif,rawvideo,pcm_s16le,pcm_f32le,png,wrapped_avframe \
-    --enable-filters --enable-indev=pulse,lavfi --enable-swscale --enable-swresample \
+    --enable-filters --enable-indev=pulse,lavfi --enable-outdev=pulse --enable-swscale --enable-swresample \
     > "$evidence_directory/configure.log" 2>&1
   make -j2 > "$evidence_directory/compile.log" 2>&1
   make install > "$evidence_directory/install.log" 2>&1

@@ -29,7 +29,7 @@ export async function writeLinuxRuntimeManifest(root) {
     files[file.name] = createHash('sha256').update(await readFile(file.path)).digest('hex');
   await writeFile(join(root, 'runtime.json'), JSON.stringify({ enabled: true, protocol: 1,
     obsVersion: '33.0.0', platform: 'linux-x64', sourceRevision: pin,
-    capabilities: { backends: ['x11', 'pipewire'], audio: ['none', 'system', 'microphone', 'both', 'silence'], encoders: ['cpu'] }, files }, null, 2));
+    capabilities: { backends: ['x11'], audio: ['none', 'system', 'microphone', 'both', 'silence'], encoders: ['cpu'] }, files }, null, 2));
 }
 export async function assembleLinuxApp({ publishRoot, nativeRoot, mediaRoot, outputRoot, revision, version, patchElf = false }) {
   if (![publishRoot, nativeRoot, mediaRoot, outputRoot].every(isAbsolute) || !/^[a-f0-9]{40}$/.test(revision) || version !== '1.2.0')
@@ -67,7 +67,7 @@ export async function assembleLinuxApp({ publishRoot, nativeRoot, mediaRoot, out
     status: 'DEVELOPMENT TEST — NOT A RELEASE',
     manualValidation: ['physical audio/video and sync', 'GNOME portal permissions', 'multi-monitor DPI', 'desktop overlays/global shortcuts'],
     limitations: ['CPU encoding only', 'teaching pointer and screen annotation overlays not yet enabled on Linux',
-      'Wayland source is selected in the operating-system share dialog; choose the display matching the requested dimensions'] }, null, 2));
+      'X11/Xorg recording only; Wayland product capture is blocked until portal source identity can be verified'] }, null, 2));
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const [publishRoot, nativeRoot, mediaRoot, outputRoot, revision, version] = process.argv.slice(2);
