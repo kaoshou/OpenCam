@@ -36,7 +36,8 @@ jobs:
       - name: Install build-only Ubuntu prerequisites
         run: |
           sudo apt-get -o Acquire::Retries=3 update
-          sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends build-essential cmake extra-cmake-modules ninja-build nasm pkg-config zlib1g-dev libsimde-dev uthash-dev libjansson-dev uuid-dev libx11-xcb-dev libxcb-xinput-dev libxkbcommon-dev libwayland-dev libdrm-dev libegl1-mesa-dev libpulse-dev libx264-dev libpipewire-0.3-dev libglib2.0-dev libxcb-composite0-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-xfixes0-dev libxcb-xinerama0-dev xvfb xauth dbus-x11 pulseaudio pulseaudio-utils ffmpeg gdb patchelf scrot x11-utils fonts-noto-cjk sway pipewire wireplumber xdg-desktop-portal xdg-desktop-portal-wlr
+          sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends build-essential cmake extra-cmake-modules ninja-build nasm pkg-config zlib1g-dev libsimde-dev uthash-dev libjansson-dev uuid-dev libx11-xcb-dev libxcb-xinput-dev libxkbcommon-dev libwayland-dev libdrm-dev libegl1-mesa-dev libpulse-dev libx264-dev libpipewire-0.3-dev libglib2.0-dev libxcb-composite0-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-xfixes0-dev libxcb-xinerama0-dev xvfb xauth dbus-x11 pulseaudio pulseaudio-utils ffmpeg gdb patchelf scrot x11-utils x11-xserver-utils fonts-noto-cjk sway pipewire wireplumber xdg-desktop-portal xdg-desktop-portal-wlr
+          command -v xsetroot
       - name: Restore verified FFmpeg version metadata for upstream CMake
         run: |
           git -C .linux-inputs/ffmpeg fetch --depth 1 origin tag n8.1.3
@@ -187,6 +188,8 @@ jobs:
             (while true; do ffmpeg -v error -f lavfi -i "sine=frequency=440:duration=4:sample_rate=48000" -f pulse opencam_test; sleep 4; done) &
             tone_pid=$!
             trap "kill $pattern_pid $tone_pid 2>/dev/null || true; pulseaudio --kill 2>/dev/null || true" EXIT
+            OPENCAM_LINUX_TEST_SECONDS=5 OPENCAM_LINUX_TEST_FPS=30 dotnet "$RUNNER_TEMP/opencam-linux/Relocated Service Test/ScreenRecorder.LinuxAppProbe.dll" "$RUNNER_TEMP/opencam-linux/evidence/app-project-smoke" > "$RUNNER_TEMP/opencam-linux/evidence/app-project-smoke.log" 2>&1
+            node scripts/linux/verify-app-media.mjs "$RUNNER_TEMP/opencam-linux/evidence/app-project-smoke/result.json" > "$RUNNER_TEMP/opencam-linux/evidence/app-smoke-media-validation.log" 2>&1
             OPENCAM_LINUX_TEST_SECONDS=300 OPENCAM_LINUX_TEST_FPS=30 dotnet "$RUNNER_TEMP/opencam-linux/Relocated Service Test/ScreenRecorder.LinuxAppProbe.dll" "$RUNNER_TEMP/opencam-linux/evidence/app-project" > "$RUNNER_TEMP/opencam-linux/evidence/app-project.log" 2>&1
             OPENCAM_LINUX_TEST_SECONDS=10 OPENCAM_LINUX_TEST_FPS=20 dotnet "$RUNNER_TEMP/opencam-linux/Relocated Service Test/ScreenRecorder.LinuxAppProbe.dll" "$RUNNER_TEMP/opencam-linux/evidence/app-project-20fps" > "$RUNNER_TEMP/opencam-linux/evidence/app-project-20fps.log" 2>&1
             node scripts/linux/smoke-app.mjs "$RUNNER_TEMP/opencam-linux/OpenCam Linux Test" "$RUNNER_TEMP/opencam-linux/evidence/app-ui" > "$RUNNER_TEMP/opencam-linux/evidence/app-ui.log" 2>&1

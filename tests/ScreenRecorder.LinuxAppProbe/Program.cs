@@ -14,9 +14,11 @@ using ScreenRecorder.Media.Projects;
 using ScreenRecorder.Media.Encoders;
 using ScreenRecorder.Platform.Linux;
 using ScreenRecorder.Recorder.Services;
+using Serilog;
 
 // Actual production service graph, actual X11/Pulse sources, no synthetic capture.
 if (!OperatingSystem.IsLinux() || args.Length != 1) return 2;
+Serilog.Log.Logger = new Serilog.LoggerConfiguration().MinimumLevel.Debug().WriteTo.Console().CreateLogger();
 try {
     var root = Path.GetFullPath(args[0]); Directory.CreateDirectory(root);
     var storage = new StorageService(); var displays = new LinuxDesktopCatalog();
@@ -51,6 +53,7 @@ try {
     Check(await project.StartAsync(config, Guid.NewGuid()));
     bool systemLive = false, systemSilent = false, micLive = false, micSilent = false;
     for (var tick = 0; tick < seconds * 10; ++tick) {
+        if (recorder.CurrentState != RecordingState.Recording) throw new IOException("Recording stopped unexpectedly: " + recorder.CurrentState);
         var levels = recorder.GetAudioLevels(DateTimeOffset.UtcNow);
         systemLive |= levels.SystemAudio.State == AudioMeterState.Live;
         systemSilent |= levels.SystemAudio.State == AudioMeterState.Silent;

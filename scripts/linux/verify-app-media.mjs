@@ -5,6 +5,14 @@ import { promisify } from 'node:util';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 const execute = promisify(execFile);
+export function validateFixtureColors(samples) {
+  let red = false, blue = false;
+  for (let i = 0; i + 2 < samples.length; i += 3) {
+    red ||= samples[i] > samples[i+2] + 50;
+    blue ||= samples[i+2] > samples[i] + 50;
+  }
+  if (!red || !blue) throw new Error('Both changing fixture colors must actually appear');
+}
 export function validateAppMedia(probe, hashes, expectedSeconds) {
   const video = probe.streams.find(s => s.codec_type === 'video');
   const audio = probe.streams.find(s => s.codec_type === 'audio');
@@ -43,6 +51,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
       const decoded = await execute('ffmpeg', ['-xerror', '-v', 'error', '-i', file.path, '-f', 'null', '-'], options);
       await writeFile(prefix + '.decode.log', decoded.stderr, { flag: 'wx' });
       const hashes = await execute('ffmpeg', ['-xerror', '-v', 'error', '-i', file.path, '-map', '0:v:0', '-f', 'framehash', '-'], options);
+      const colors = await execute('ffmpeg', ['-xerror', '-v', 'error', '-i', file.path, '-map', '0:v:0', '-vf', 'fps=2,scale=1:1:flags=area,format=rgb24', '-f', 'rawvideo', '-'], { ...options, encoding: 'buffer' });
+      validateFixtureColors(colors.stdout);
       measured.push({ file: file.name, ...validateAppMedia(JSON.parse(probe.stdout), hashes.stdout.split('\n').filter(l => l && !l.startsWith('#')).map(l => l.split(',').at(-1).trim()), file.seconds) });
     }
     await writeFile(resultPath + '.media-check.json', JSON.stringify(measured, null, 2), { flag: 'wx' });
