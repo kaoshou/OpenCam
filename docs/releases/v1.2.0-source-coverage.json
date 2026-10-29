@@ -1,0 +1,13 @@
+{
+  "version": "1.2.0",
+  "status": "policy-approved",
+  "reviewedBy": "OpenCam 2026-10-29 v1.2.0 pinned recipe and source inventory review",
+  "deliveryManifest": "SOURCE-COVERAGE.json",
+  "checks": [
+    "OBS and dependency source locks, runtime recipes and source assembly scripts are unchanged from v1.1.0.",
+    "Windows media source pins, build recipe and VPL patch are unchanged from v1.1.0.",
+    "macOS media source recipe is unchanged from v1.1.0.",
+    "Modified OpenCam native helper and managed sources are supplied by the matching release commit source archive.",
+    "Actual corresponding-source archives and SHA-256 values must pass the release delivery verifier before publication."
+  ]
+}

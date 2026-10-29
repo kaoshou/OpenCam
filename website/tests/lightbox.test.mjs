@@ -11,7 +11,7 @@ test('both homepages expose inline image previews rather than new tabs', () => {
   for (const language of ['zh-TW', 'en-US']) {
     const html=renderHome(language);
     const links=[...html.matchAll(/<a\b[^>]*href="[^"]+\.png"[^>]*>/g)].map(m=>m[0]);
-    assert.equal(links.length,9); // Hero + four screenshots + four caption links.
+    assert.equal(links.length,10); // Hero, four screenshot/caption pairs, and audio preflight.
     for (const link of links) {
       assert.match(link,/\bdata-lightbox\b/);
       assert.doesNotMatch(link,/target=/);

@@ -1,5 +1,6 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
+  "capturedAt": "2026-10-29",
   "capture": "Avalonia headless rendering of current UI with illustrative project and annotation data",
   "editorMedia": "Original authored teaching illustration and demonstration subtitle tracks",
   "acceptanceEvidence": false

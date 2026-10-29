@@ -1,5 +1,7 @@
 # OpenCam Complete User Guide (English)
 
+> This guide covers OpenCam v1.2.0: recording, video import, editing and export.
+
 ## Screen annotations
 
 During recording, open **Screen annotations** to mark the screen with a pen, lines, arrows, rectangles or ellipses. Choose a color and line width, then hold the left mouse button to draw. Hold and drag the eraser to remove whole marks it touches; undo, redo and clear are also available.
@@ -8,7 +10,7 @@ By default, F10 toggles drawing without clearing marks, F11 shows or hides the t
 
 You can drag or collapse the toolbar. The toolbar and annotations may be captured in the recording. Marks stay at screen positions when material scrolls and cannot be removed from the recorded video afterwards. Make a short test recording first.
 
-## v1.0.0 recording core
+## OBS recording core
 
 Windows and macOS recording now uses OBS/libobs to address low achieved FPS, stutter and A/V synchronization in the previous pipeline. FFmpeg remains for audio trials, preview, editing and export, not recording fallback. Performance depends on hardware, resolution and load; first launch defaults to 20 FPS while existing preferences remain.
 
@@ -43,7 +45,7 @@ Use Tab/Shift+Tab to navigate and Enter to activate buttons. In the video area, 
 
 Following the [W3C transcript guidance](https://www.w3.org/WAI/media/av/transcripts/), authors should check speaker identification, meaningful sounds, on-screen text and necessary visual descriptions. Caption-derived downloads cannot invent missing information; authors can supplement the downloaded document. Reading controls alone do not establish that every lesson meets all accessibility requirements.
 
-## v0.3.11: audio-only preflight
+## Audio preflight
 
 Settings → Video Quality & Actions → **Check audio before recording** offers:
 
@@ -55,7 +57,7 @@ Adding or inserting a recording counts as a new start. Audio confirmation does n
 
 Hover over a purple timeline bookmark flag to see its full name. Moving away hides it, while clicking still seeks to the bookmark. Source video remains unchanged.
 
-## v0.3.8 microphone silence reminder
+## Microphone silence or low-volume reminder
 
 “Warn when the microphone stays silent” is enabled by default in Settings. While recording the microphone, 30 seconds of continuously observed silence triggers an advisory, independently of system audio. Sound returning, pause, stop, disabling the microphone or disabling reminders clears it and resets the interval. Missing level telemetry is not silence; the existing unavailable indicator still applies.
 
@@ -69,6 +71,16 @@ While recording, choose **Add bookmark** or use Ctrl+Shift+M, configurable in Se
 
 The editor's **Bookmarks** menu provides a scrollable list with seek, rename and delete; purple timeline flags follow retained source content. Bookmarks save automatically to `opencam-bookmarks.json` inside the project, without rewriting video, upgrading the manifest or adding Web chapters. Rename/delete are outside clip Undo/Redo. Trimmed locations hide their flags and reappear when clips are restored; — means unresolved or trimmed. Keep the entire project folder. Older versions do not offer bookmark operations.
 
+### Volume controls and mixed trial playback
+
+System audio and microphone each have 0–100% volume sliders (default 100%) and post-gain live meters, plus an actual mixed meter. Play the intended system sound and speak normally, then lower the louder source. This does not change OS, speaker or other application volume. Zero gain, silence or low volume, waiting for samples and overload have distinct guidance.
+
+Record a five-second trial, then replay it to check balance; this is not live monitoring. Changing a slider invalidates the old trial; record again to hear new settings. Confirming recording saves gains, cancelling does not. The next start and pause/resume retain saved gains. Disabled sources cannot be adjusted.
+
+Recordings still contain one mixed audio track. Editor clip volume affects that mix, not system audio and microphone independently after recording.
+
+[![Audio preflight](images/preview_audio_enus.png)](images/preview_audio_enus.png)
+
 ## Audio checking
 
 Preflight and trials monitor only the inputs selected on the main window. Unselected inputs explicitly say they will not be recorded, without meters or prompts to speak/play sound. Return to the main window to enable an input. Selected inputs show current levels from the trial engine during the five-second trial. Live monitoring stops on completion or replay. Missing or stale samples do not prove successful capture; replay the trial to verify sound.
@@ -81,34 +93,12 @@ After confirmation, the window shows recording preparation and closes automatica
 
 Cancel/close stops audio capture/playback and cleans the trial. Wait for capture and replay to stop before formal recording. The **Check audio before recording** option determines whether an audio check appears on resume; the default resumes directly. Monitor audio levels and status messages if devices or permissions change during recording.
 
-## Released features
+## Projects and editing
 
-v0.3.6 improves fast export for unedited whole H.264 segments. Missing video durations require ordered timestamps and a frame-rate-checked final interval before direct packaging or joining; only audio is processed when necessary. Status text distinguishes packaging, audio processing, re-encoding and MP4 verification. Trims, effects, incompatible formats or uncertain timing retain safe rendering without changing originals. Inspection and verification still take time; not every source qualifies for fast export.
-
-v0.3.5: drag the ruler for progressive preview, settling at release. Playing preview pauses during dragging and resumes afterwards. Compact controls put caption language/styles in the caption menu. **Mark in** immediately displays a fixed IN flag; move to the desired position and **Mark out** to highlight the range. A new start clears the old end; invalid endpoints show guidance. Only **Delete range** edits clips. Decode responsiveness depends on media and hardware.
-
-v0.3.5 multilingual captions: attach SRT/VTT by selection or drop; unique project-owned copies avoid collisions. Language names follow the application language and include codes. Select the default on a subtitle card, apply, then save explicitly. Preview/fullscreen and Web CC controls offer language, size, theme, opacity and position; no MP4 burn-in. The Web sidebar offers searchable transcripts, highlighting, seek preserving play/pause, optional follow mode and bounded scrolling. Timeline edits require synchronization confirmation. **Subtitle projects use format4; released0.3.3 cannot open them. Back up first.** See [subtitle limits](https://github.com/kaoshou/OpenCam/blob/master/docs/WEB_PLAYER_EXPORT.md).
-
-## Screen capture
-
-Windows and macOS use OBS/libobs recording: Windows Graphics Capture and ScreenCaptureKit respectively. There is no GDI/FFmpeg recording fallback. Capture one display or a rectangle within one display, and stop before changing displays or devices. Grant macOS screen/system-audio and microphone permissions; restart after permission changes. The main screen reports actual capture and encoder.
-
-Higher FPS, Retina resolution and simultaneous video playback increase load. Begin at 20 FPS, or test 30 FPS for motion-heavy content. Check a short recording before a full lesson.
-
-OpenCam lets you record, edit, and resume recording. It writes MKV sources, retains them alongside a reopenable editing project, and exports MP4 when needed. Crash Recovery can attempt to preserve successfully written recordings; project recovery drafts protect interrupted unsaved edits.
-
-> This guide covers OpenCam v1.1.0: recording, editing, audio trials and MP4/GIF/Web export. See [what changed in this version](https://github.com/kaoshou/OpenCam/blob/master/docs/releases/v1.1.0.md).
-
-v0.3.3 replaces manual export with an **Export…** menu offering MP4 video or Web player. MP4 accepts a filename; Web player creates a unique folder containing index.html, media.mp4 and opencam-player.js. Chapters follow saved clips and show start times and durations in a scrollable index. Overlay controls provide seeking, volume, speed, wide-screen and fullscreen. Move the complete folder together and use an H.264/AAC-capable browser. See [the web export format](https://github.com/kaoshou/OpenCam/blob/master/docs/WEB_PLAYER_EXPORT.md).
-
-v0.3.2 adds fullscreen seeking, clip context menus, adjacent merging and connected group borders. Selecting a clip seeks its beginning; MP4 export accepts a destination and filename. The home screen shows total project recording time and allows changing automatic export while paused. Merging clips upgrades the project to schema 3, which older versions cannot open; back up the entire project before upgrading.
-
-v0.3.1 increases the default home height and preserves encoded video for compatible whole, unedited multi-clip exports needing audio normalization. Progress distinguishes inspection, copy, audio conversion, rendering and verification. Temporary PCM requires extra disk space and is cleaned up on completion/cancellation without modifying original MKVs. Unsafe copy cases still require rendering.
-
-### v0.3.0: home and project workflow
+### Home and project workflow
 
 1. With no project open, Start recording asks for a name prefilled with the date and time. Confirm creates the project and starts capture; Cancel does neither.
-2. With an existing or reopened project, Start appends clips. Auto-export MP4 on stop is on by default for each project. Turn it off to save content on Stop and manually export later.
+2. With an existing or reopened project, Start appends clips. Auto-export MP4 on stop defaults on at first launch, remembers subsequent choices for new projects and preserves existing project policies. Turn it off to save content on Stop and manually export later.
 3. New recording project creates without capturing. Open recording project selects `project.opencam`. The home screen shows the current name and clip count.
 4. After a saved pause or completed stop/export, Edit recording opens the current content. The editor handles editing, project saving and MP4 export; returning home retains the project.
 5. Active recording blocks editor entry and project creation/opening. A saved pause permits editing, but switching projects requires stopping. The home window is locked while the editor is open; return home before resuming recording. Both return and close paths prompt about unsaved edits.
@@ -124,12 +114,23 @@ See the [README](../README.md) for Windows download and portable-use instruction
 - Explicit Save commits the editing version. A recovery draft protects interrupted edits; it is not a saved version or an updated MP4. Switching/closing with unsaved changes offers Save, Discard or Cancel. Reopening a recoverable draft offers a restore decision.
 - Resolve unsaved changes when prompted before manual export. If the same content has a verified existing output, choose Open Existing, Export Again or Cancel. Export has progress and cancellation controls; cancellation/failure preserves source media.
 
-These illustrations show the v1.1.0 interface with demonstration data. Select an image to view full size.
+These illustrations show the v1.2.0 interface with demonstration data. Select an image to view full size.
 
 [![Recording home](images/preview_main_enus.png)](images/preview_main_enus.png)
 [![Preferences](images/preview_settings_enus.png)](images/preview_settings_enus.png)
 [![Recording editor](images/preview_editor_enus.png)](images/preview_editor_enus.png)
 [![Multilingual subtitle manager](images/preview_subtitles_enus.png)](images/preview_subtitles_enus.png)
+
+## Add Video
+
+1. Open a project and **Edit recording**. Empty projects also accept videos.
+2. Choose **Add Video** in the left clip pane, or drop files there from Explorer/Finder. Multiple files are supported.
+3. Wait for inspection, copying/conversion and verification. Cancel stops current and queued work without removing earlier successful imports.
+4. Clips append in supplied order and use their filenames. Reorder, split, trim, merge, adjust volume and export them alongside recordings. Save to reopen later.
+
+MP4/M4V, MOV, MKV/WebM and AVI containers are supported subject to bundled decoders. Currently one video stream, zero or one audio stream, SDR and dimensions up to 4096 pixels. Multiple audio streams and PQ/HLG HDR are rejected. Embedded captions and chapters are not imported; attach SRT/VTT separately.
+
+Compatible H.264 is remuxed where possible; other supported sources convert to H.264/AAC as needed, which takes time and can change quality. Project-owned copies live in sources/ without modifying external originals or depending on their original location. The project canvas/FPS stays unchanged, with proportional scaling and letterboxing as needed. Check existing subtitle timing after edits.
 
 ## 1. System Requirements and First Launch
 
@@ -137,14 +138,14 @@ These illustrations show the v1.1.0 interface with demonstration data. Select an
 
 - Windows 10 or Windows 11, x64.
 - Installer and portable packages include .NET and media tools. The required Microsoft Visual C++ recording runtime is included app-locally on Windows. Install normally or fully extract the portable ZIP; no separate codec/runtime installation is needed. If package files are missing, re-download the complete package rather than replacing individual DLLs.
-- Download `OpenCam_v1.1.0_Windows_x64_Setup.exe` or `OpenCam_v1.1.0_Windows_x64_Portable.zip` from [Releases](https://github.com/kaoshou/OpenCam/releases). Filenames identify the version, Windows platform, and x64 architecture.
+- Download `OpenCam_v1.2.0_Windows_x64_Setup.exe` or `OpenCam_v1.2.0_Windows_x64_Portable.zip` from [Releases](https://github.com/kaoshou/OpenCam/releases). Filenames identify the version, Windows platform, and x64 architecture.
 - System audio uses Windows loopback capture. A microphone can be selected in OpenCam.
 
 ### macOS
 
 - macOS 13 Ventura or later.
 - The official build currently supports Apple Silicon (arm64). An Intel Mac (x64) build is not currently provided.
-- Download `OpenCam_v1.1.0_macOS_arm64.dmg` from [Releases](https://github.com/kaoshou/OpenCam/releases); arm64 identifies Apple Silicon.
+- Download `OpenCam_v1.2.0_macOS_arm64.dmg` from [Releases](https://github.com/kaoshou/OpenCam/releases); arm64 identifies Apple Silicon.
 - After first launch, open **System Settings → Privacy & Security** and allow OpenCam to use:
   - Screen & System Audio Recording
   - Microphone, when microphone recording is needed
@@ -294,7 +295,7 @@ All other recording settings remain locked. Resuming creates the next MKV segmen
 
 ## 6. Recording Mechanism and File Safety
 
-The interface and recording engine run as separate processes. v0.3.0 retains original MKVs inside the project; edits change a recipe without rewriting sources. A new project contains:
+The interface and recording engine run as separate processes. OpenCam retains original MKVs inside the project; edits change a recipe without rewriting sources. A new project contains:
 
 ```text
 <project folder>/
@@ -309,7 +310,7 @@ Each pause safely finishes and saves the current segment; resuming creates the n
 
 On a normal stop, the project workflow is:
 
-1. Asks FFmpeg to stop safely and finalize the current MKV.
+1. Asks the OBS/libobs recording core to stop safely and finalize the current MKV.
 2. Checks that the working media is readable.
 3. Saves the project, then exports the current timeline if auto-export is on. Compatible complete clips may preserve encoded video, with audio conversion when needed. Trims, effects, incompatible streams or unavailable packet timing require rendering.
 4. Validates the MP4 with FFprobe.
@@ -349,7 +350,7 @@ Shortcuts can be changed in Settings. Existing recording shortcuts are preserved
 
 Available keys include F1–F12, R, S, P, Space, Insert, and Home. They can be combined with Ctrl, Alt, Shift, and selected modifier combinations. Start/stop and pause/resume cannot use exactly the same combination.
 
-> Global hotkeys are currently registered only on Windows. On macOS, use the controls in the OpenCam window. A visible hotkey preference does not mean that it can trigger OpenCam while another macOS application is in the foreground.
+> Recording hotkeys are global on Windows. macOS start/stop and pause/resume require OpenCam in the foreground; annotation/bookmark shortcuts depend on successful registration. Check Settings and registration messages.
 
 ### Default Quality
 
@@ -357,9 +358,9 @@ Sets new recordings to Ultra, Standard, or Compact by default. Changing this pre
 
 ### Delete Working Files After Successful Remux
 
-This setting belongs to the older non-project recording flow. v0.3.0 project sources are retained after successful export.
+This setting belongs to the older non-project recording flow. Current project sources are retained after successful export.
 
-In the legacy flow it is off by default; enabling it clears non-project working files after successful remux. v0.3.0 original project segments remain retained.
+In the legacy flow it is off by default; enabling it clears non-project working files after successful remux. Original project segments remain retained.
 
 ### Disk Warning and Critical Thresholds
 
@@ -387,10 +388,10 @@ From 0.2.0 onward, OpenCam's project-owned source code is licensed under [AGPL-3
 
 ### Session Contents
 
-The following location describes legacy non-project sessions. For v0.3.0, inspect `sessions/Sessions/<session ID>/` inside the project and retain the whole project.
+Current project sessions live at `<project>/sessions/Sessions/<session ID>/`; retain the whole project. Only legacy non-project sessions use `Sessions/` under the output root.
 
 ```text
-<output location>/Sessions/<session ID>/
+<project>/sessions/Sessions/<session ID>/
 ├── session.json
 ├── segment_000.mkv
 ├── segment_001.mkv
@@ -411,11 +412,11 @@ Do not edit the settings file while OpenCam is running. When reporting a problem
 
 ## 9. When to Use Crash Recovery
 
-This section covers session MKV recovery, not edit-draft restoration. After a v0.3.0 interruption, retain the whole project and reopen `project.opencam`; the draft prompt restores edits only. The root-scan steps below describe legacy non-project recordings. Project sessions live under `<project>/sessions/Sessions/`, so their recovery root is `<project>/sessions`. Recovering an MP4 does not restore project edits.
+This section covers session MKV recovery, not edit-draft restoration. After an interruption, retain the whole project and reopen `project.opencam`; the draft prompt restores edits only. The root-scan steps below describe legacy non-project recordings. Project sessions live under `<project>/sessions/Sessions/`, so their recovery root is `<project>/sessions`. Recovering an MP4 does not restore project edits.
 
 Crash Recovery is appropriate when:
 
-- OpenCam or FFmpeg crashes during recording.
+- OpenCam or its recording core exits unexpectedly during recording.
 - The computer loses power, restarts, or the application is forcibly terminated.
 - Finalization is interrupted and no final MP4 is produced.
 - OpenCam reports a recoverable session after it is reopened.
@@ -442,7 +443,7 @@ Crash Recovery does not delete the original MKV files. If `session.json` is miss
 
 ## 10. Manually Finding and Preserving an Incomplete Recording
 
-For v0.3.0, back up the whole project first; its sessions live under `<project>/sessions/Sessions/`. The `<original output location>/Sessions/` path below describes legacy non-project recordings.
+For current projects, back up the whole project first; its sessions live under `<project>/sessions/Sessions/`. The `<original output location>/Sessions/` path below describes legacy non-project recordings.
 
 If OpenCam does not yet show a recoverable session, or if you want to make a backup first:
 
@@ -468,14 +469,14 @@ If no recoverable content appears, check the following in order:
 - Confirm that the output directory exists and is writable.
 - Confirm that the disk has at least 1 GB of free space.
 - On macOS, verify Screen Recording permission and restart OpenCam after changing it.
-- Try 30 FPS, Standard quality, and the Auto encoder.
+- Try 20 FPS, Standard quality, and the Auto encoder.
 - Check the application logs for FFmpeg or encoder errors.
 
 ### No System Audio or Microphone on macOS
 
 - System audio requires macOS 13 or later and Screen & System Audio Recording permission.
 - The microphone requires Microphone permission and uses the current macOS default input device.
-- For intermittent audio, first reduce system load with 30 FPS, Standard quality, and Auto encoding, and confirm that the default input device has a stable connection. If it continues, preserve the logs and a short test video for diagnosis.
+- For intermittent audio, first reduce system load with 20 FPS, Standard quality, and Auto encoding, and confirm that the default input device has a stable connection. If it continues, preserve the logs and a short test video for diagnosis.
 
 ### No MP4 Appears After Stopping
 
@@ -499,6 +500,10 @@ If no recoverable content appears, check the following in order:
 
 ## GIF and Individual Clip Export
 
+### Faster audio-only export
+
+Eligible whole clips at Keep current settings and original resolution retain encoded video when only volume, mute or audio fades change, for MP4 and Web-player media. Trims, visual effects or compression render as needed. Not every video qualifies; GIF does not use this optimization. Inspection and validation still take time.
+
 ### MP4 export quality
 
 After choosing **Export… → MP4**, or **Export clip… → MP4**, select quality before choosing a filename. Web player export shows the same settings before the destination folder; they apply to its `media.mp4`.
@@ -521,7 +526,7 @@ MP4 and GIF exports require a new filename. If a file or folder already exists a
 - Before an important or long recording, make a short test and verify the picture, system audio, and microphone.
 - Keep ample free disk space for long sessions and prevent the computer from sleeping automatically.
 - Do not force-quit OpenCam, disconnect the output drive, or delete `Sessions` content while recording.
-- Manually remove MKV working files only after the final MP4 exists and plays correctly.
+- Keep original project MKVs and imported sources for reopening, editing and continued recording; exporting MP4 does not make project sources disposable.
 - Before recording other people, meetings, copyrighted material, or confidential information, ensure that you comply with applicable laws and permissions.
 
 ### Reading Recorder Health

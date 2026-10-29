@@ -7,23 +7,14 @@
 
 OpenCam 是 Windows 與 macOS 桌面螢幕錄影工具，讓你錄影、剪輯，再繼續錄影。錄影片段與剪輯保存在可重開的專案中，需要時可輸出 MP4、GIF 或附帶章節與字幕的網頁播放器。
 
-## v1.1.0 更新重點
+## v1.2.0 更新重點
 
-- **螢幕註記**：錄影時使用畫筆、直線、箭頭、方框與圓圈標示內容，可調整顏色和粗細，並提供橡皮擦、復原、重做與清除。
-- **可自訂快捷鍵**：操作畫筆、工具列與繪圖工具；註記直接錄入影片，並固定在螢幕位置。
-- **教鞭選擇介面**：樣式與大小集中顯示，方便預覽教鞭。
+- **加入影片**：剪輯器選取或拖入影片，多檔依序處理並可取消；與錄影片段一起排序、分割、修剪及合併。專案保存素材副本，不修改外部原檔。
+- **錄前音量控制與混音試聽**：系統音訊、麥克風各自調整 0–100% 音量，來源與實際混音音量表、五秒試錄回放。確認並開始錄影後記住設定，不改系統音量；仍是一條混音音軌。
+- **加快適用情境的匯出**：相容完整片段僅調整音量、靜音或音訊淡入淡出時，保留目前設定及原始解析度可保留影片編碼、只處理音訊；修剪、影像效果或壓縮仍依需要轉檔。
+- **常用設定更順手**：記住自動輸出 MP4 的選擇（首次預設開啟）、從設定的儲存位置開啟專案，系統匣選單跟隨程式語言。
 
-上一版 v1.0.0 的主要更新：
-
-- **重大更新：OBS 錄影核心**。Windows 與 macOS 改用 OBS／libobs，針對舊流程效能不足、影音不同步與實際 FPS 偏低造成的卡頓改善擷取與音畫時間軸；實際效果仍依硬體、解析度及負載而異。
-- **虛擬教鞭**：四種樣式與三種大小，尖端對準指示位置，直接錄入影片，方便製作數位教材。
-
-- 網頁播放器新增閱讀設定浮層：字級、行距、深色高對比與暖白背景，預設關閉，不擠壓逐字稿閱讀空間。
-- 可下載所選語言的完整閱讀版 HTML 或純文字 TXT，支援離線閱讀、列印及選擇是否包含時間標記。
-- 改善播放器鍵盤操作、焦點提示、字幕設定關閉操作，以及手機、平板橫直向版面。
-- 官方網站與使用說明改善鍵盤導覽、文字對比及窄螢幕排版。
-
-[完整更新內容](docs/releases/v1.1.0.md) ｜ [歷史版本](https://github.com/kaoshou/OpenCam/releases)
+[完整更新內容](docs/releases/v1.2.0.md) ｜ [歷史版本](https://github.com/kaoshou/OpenCam/releases)
 
 ## 主要功能
 
@@ -32,6 +23,7 @@ OpenCam 是 Windows 與 macOS 桌面螢幕錄影工具，讓你錄影、剪輯�
 - **OBS 核心錄影**：Windows 使用 Windows Graphics Capture，macOS 使用 ScreenCaptureKit；不使用 GDI／FFmpeg 錄影備援。FFmpeg 保留於聲音試錄、預覽、剪輯與匯出。
 - **系統聲音與麥克風**：獨立開關音源，查看各自的即時音量，錄製前可試錄及回放確認聲音。可選關閉確認、僅開始錄影時確認（預設），或開始及暫停恢復時都確認；另可啟用麥克風連續無聲 30 秒提醒。
 - **專案與繼續錄影**：命名、儲存、重開專案，暫停後編輯，或在既有內容上追加錄影。
+- **加入影片**：選取或拖入 MP4／M4V、MOV、MKV／WebM、AVI，實際依編碼支援。限單一影片軌、最多一條音軌、SDR 及寬高不超過 4096 像素。內嵌字幕與章節不自動匯入，SRT／VTT 請另行附加。詳見 [加入影片說明](docs/video-import.md)。
 - **影片剪輯**：片段排序、修剪、分割、合併、群組、刪除範圍、復原／重做與改名；可調整音量、靜音、淡入淡出、裁切、縮放及位置。
 - **預覽與重點標記**：可調整畫質與預覽大小、全螢幕播放及拖曳定位；錄影時按「標記重點」或快捷鍵（預設 Ctrl+Shift+M），稍後在編輯器定位、改名或刪除。
 - **多語字幕與搜尋**：匯入 SRT／VTT，切換字幕語言及外觀；網頁播放器提供逐字稿搜尋、關鍵字標示與點擊跳轉。
@@ -50,9 +42,9 @@ OpenCam 是 Windows 與 macOS 桌面螢幕錄影工具，讓你錄影、剪輯�
 
 到 [最新 Release](https://github.com/kaoshou/OpenCam/releases/latest) 下載。套件包含 .NET Runtime 與媒體工具。Windows 錄影所需的 Microsoft Visual C++ 執行階段隨套件附上，不需另外安裝或尋找 DLL。
 
-- **Windows 安裝版**：執行 `OpenCam_v1.1.0_Windows_x64_Setup.exe`。
-- **Windows 免安裝版**：完整解壓 `OpenCam_v1.1.0_Windows_x64_Portable.zip`，保留同資料夾的所有檔案，再執行 `OpenCam.exe`。
-- **macOS**：打開 `OpenCam_v1.1.0_macOS_arm64.dmg`，將 OpenCam 拖入「應用程式」。首次使用時，在「系統設定 → 隱私權與安全性」允許螢幕／系統音訊錄製及麥克風權限；變更權限後可重新啟動程式。
+- **Windows 安裝版**：執行 `OpenCam_v1.2.0_Windows_x64_Setup.exe`。
+- **Windows 免安裝版**：完整解壓 `OpenCam_v1.2.0_Windows_x64_Portable.zip`，保留同資料夾的所有檔案，再執行 `OpenCam.exe`。
+- **macOS**：打開 `OpenCam_v1.2.0_macOS_arm64.dmg`，將 OpenCam 拖入「應用程式」。首次使用時，在「系統設定 → 隱私權與安全性」允許螢幕／系統音訊錄製及麥克風權限；變更權限後可重新啟動程式。
 - 此版未提供 Windows 發行者簽章或 Apple Developer ID 公證，首次開啟可能出現安全性提示。請先確認來自本專案官方 Releases；macOS 可參閱 [Apple 的安全開啟說明](https://support.apple.com/zh-tw/102445)。不要停用系統防護；若提示檔案損毀或惡意內容，請停止開啟並回報。
 
 ## 開始使用
@@ -89,11 +81,12 @@ oCam、EverCam 名稱及相關商標屬各自權利人所有；此處僅作使�
 
 ## 介面預覽
 
-以下以 v1.1.0 程式介面與示範資料製作，點選圖片可查看原尺寸。
+以下以 v1.2.0 程式介面與示範資料製作，點選圖片可查看原尺寸。
 
 [![錄影主畫面](docs/images/preview_main_zhtw.png)](docs/images/preview_main_zhtw.png)
 [![螢幕註記示意](docs/images/preview_annotations.png)](docs/images/preview_annotations.png)
 [![螢幕註記工具列](docs/images/preview_annotation_toolbar_zhtw.png)](docs/images/preview_annotation_toolbar_zhtw.png)
+[![錄影前音訊確認](docs/images/preview_audio_zhtw.png)](docs/images/preview_audio_zhtw.png)
 [![偏好設定](docs/images/preview_settings_zhtw.png)](docs/images/preview_settings_zhtw.png)
 [![錄製內容編輯器](docs/images/preview_editor_zhtw.png)](docs/images/preview_editor_zhtw.png)
 [![多語字幕管理](docs/images/preview_subtitles_zhtw.png)](docs/images/preview_subtitles_zhtw.png)
@@ -112,23 +105,14 @@ OpenCam 自有原始碼採 [GNU Affero General Public License v3.0 或後續版�
 
 OpenCam is a desktop screen recorder for Windows and macOS. Record, edit, and continue recording in a project you can save and reopen, then export MP4, GIF, or a Web player with chapters and captions.
 
-### What's new in v1.1.0
+### What's new in v1.2.0
 
-- **Screen annotations**: draw with a pen, lines, arrows, rectangles and ellipses while recording. Choose colors and line widths, erase whole marks, undo, redo or clear.
-- **Customizable shortcuts** for drawing and the toolbar. Annotations are recorded into the video and remain fixed to the screen.
-- **Improved teaching pointer controls** with a visible style preview.
+- **Add Video:** select files or drop them into the editor. Multiple files are processed in order, with progress and cancellation. Edit imported and recorded clips together; project-owned copies leave external originals unchanged.
+- **Preflight audio balance:** independent 0–100% system-audio and microphone gains, source and mixed meters, and five-second mixed trial playback. Confirming recording remembers gains without changing OS volume. Recordings still contain one mixed track.
+- **Faster eligible exports:** compatible whole clips with only volume, mute or audio-fade changes retain encoded video at Keep current settings and original resolution. Trims, visual effects and compression still render as needed.
+- **Everyday preferences:** remember automatic MP4 export (enabled on first launch), open projects from the configured storage location, and localize the tray menu without bilingual labels.
 
-Highlights from v1.0.0:
-
-- **Major update: OBS recording core** on Windows and macOS. OBS/libobs replaces the previous recording pipeline to address A/V synchronization, low achieved FPS and stutter. Actual performance still depends on hardware, resolution and load.
-- **Virtual teaching pointers**: four styles, three sizes and a precise tip hotspot, recorded directly into teaching videos.
-
-- A closed-by-default reading settings overlay adds text size, spacing, dark contrast and warm backgrounds without shrinking the transcript.
-- Download the complete selected-language transcript as standalone HTML or plain TXT for offline reading and printing, with optional timestamps.
-- Improved player keyboard navigation, focus indicators, caption-menu dismissal and phone/tablet portrait and landscape layouts.
-- Improved keyboard navigation, text contrast and narrow-screen layout on the website and user guides.
-
-[Full release notes](docs/releases/v1.1.0.md) | [Previous releases](https://github.com/kaoshou/OpenCam/releases)
+[Full release notes](docs/releases/v1.2.0.md) | [Previous releases](https://github.com/kaoshou/OpenCam/releases)
 
 ### Features
 
@@ -136,6 +120,7 @@ Highlights from v1.0.0:
 - **OBS-core recording**: Windows Graphics Capture on Windows and ScreenCaptureKit on macOS, without GDI/FFmpeg recording fallback. FFmpeg remains for audio trials, preview, editing and export.
 - **System audio and microphone**: Enable each input independently, view separate live levels, and check sound through a trial and replay. Choose audio checks off, at recording start only (default), or at both start and resume. Optional reminders warn after 30 seconds of microphone silence.
 - **Projects and continued recording**: Name, save and reopen projects, edit after pausing, and append new recordings.
+- **Video import**: MP4/M4V, MOV, MKV/WebM or AVI, subject to codec support. Currently one video stream, at most one audio stream, SDR and dimensions up to 4096 pixels. Embedded captions and chapters are not imported; attach SRT/VTT separately.
 - **Video editing**: Reorder, trim, split, merge, group, delete ranges, undo/redo and rename clips. Adjust volume, mute, fades, crop, scale and position.
 - **Preview and bookmarks**: Adjust quality/size, play fullscreen and scrub. Mark important moments while recording using the button or shortcut (default Ctrl+Shift+M), then seek, rename or delete them in the editor.
 - **Multilingual captions and search**: Import SRT/VTT, select language/appearance, and search transcripts with highlighting and click-to-seek in Web exports.
@@ -154,9 +139,9 @@ Highlights from v1.0.0:
 
 Download from the [latest Release](https://github.com/kaoshou/OpenCam/releases/latest). Packages include .NET Runtime and media tools. The required Windows Microsoft Visual C++ recording runtime is bundled app-locally; no separate runtime installation or DLL download is needed.
 
-- **Windows installer**: Run `OpenCam_v1.1.0_Windows_x64_Setup.exe`.
-- **Windows portable**: Fully extract `OpenCam_v1.1.0_Windows_x64_Portable.zip`, keep all companion files together, then run `OpenCam.exe`.
-- **macOS**: Open `OpenCam_v1.1.0_macOS_arm64.dmg` and drag OpenCam into Applications. Allow screen/system-audio recording and microphone access in System Settings → Privacy & Security. Restart OpenCam after changing permissions if needed.
+- **Windows installer**: Run `OpenCam_v1.2.0_Windows_x64_Setup.exe`.
+- **Windows portable**: Fully extract `OpenCam_v1.2.0_Windows_x64_Portable.zip`, keep all companion files together, then run `OpenCam.exe`.
+- **macOS**: Open `OpenCam_v1.2.0_macOS_arm64.dmg` and drag OpenCam into Applications. Allow screen/system-audio recording and microphone access in System Settings → Privacy & Security. Restart OpenCam after changing permissions if needed.
 - This version does not provide Windows publisher signing or Apple Developer ID notarization, so first launch may show a security warning. Confirm the download came from this project's official Releases; see [Apple's safe-opening guidance](https://support.apple.com/en-us/102445) on macOS. Do not disable system protection. Stop and report warnings about damaged files or malware.
 
 ### Getting started
@@ -189,11 +174,12 @@ Choose Warm ivory, Teal silver, Round short stick or High-contrast gold in Small
 
 ### Interface preview
 
-These illustrations show the v1.1.0 interface with demonstration data. Select an image to view full size.
+These illustrations show the v1.2.0 interface with demonstration data. Select an image to view full size.
 
 [![Recording home](docs/images/preview_main_enus.png)](docs/images/preview_main_enus.png)
 [![Screen annotation illustration](docs/images/preview_annotations.png)](docs/images/preview_annotations.png)
 [![Screen annotation toolbar](docs/images/preview_annotation_toolbar_enus.png)](docs/images/preview_annotation_toolbar_enus.png)
+[![Audio preflight](docs/images/preview_audio_enus.png)](docs/images/preview_audio_enus.png)
 [![Preferences](docs/images/preview_settings_enus.png)](docs/images/preview_settings_enus.png)
 [![Recording editor](docs/images/preview_editor_enus.png)](docs/images/preview_editor_enus.png)
 [![Multilingual subtitle manager](docs/images/preview_subtitles_enus.png)](docs/images/preview_subtitles_enus.png)

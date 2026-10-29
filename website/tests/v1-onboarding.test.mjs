@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { downloadVersion, renderHome } from '../src/content.mjs';
+import { productVersion, downloadVersion, renderHome } from '../src/content.mjs';
 
 test('v1 homepage introduces OBS and both familiar workflows without obsolete capture advice', () => {
   for (const lang of ['zh-TW', 'en-US']) {
@@ -17,7 +17,7 @@ test('v1 homepage introduces OBS and both familiar workflows without obsolete ca
 test('README and both manuals explain v1 workflows and native recording boundaries', async () => {
   for (const name of ['README.md', 'docs/USER_GUIDE.zh-TW.md', 'docs/USER_GUIDE.en-US.md']) {
     const text = await readFile(new URL(`../../${name}`, import.meta.url), 'utf8');
-    for (const word of ['oCam', 'EverCam', 'OBS', 'FFmpeg', '1.0.0']) assert.ok(text.includes(word), `${name}: ${word}`);
+    for (const word of ['oCam', 'EverCam', 'OBS', 'FFmpeg', productVersion]) assert.ok(text.includes(word), `${name}: ${word}`);
     assert.doesNotMatch(text, /v0\.4\./);
   }
 });
