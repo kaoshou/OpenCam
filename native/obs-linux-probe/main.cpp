@@ -116,17 +116,40 @@ static void module(const fs::path &root, const char *name)
     if (obs_open_module(&value, binary.c_str(), data.c_str()) != MODULE_SUCCESS || !obs_init_module(value))
         throw std::runtime_error("runtime_module");
 }
+class SourceProperties {
+    obs_source_t *instance = nullptr;
+public:
+    obs_properties_t *properties = nullptr;
+    SourceProperties(const char *type, bool requiresInstance) {
+        if (requiresInstance) {
+            // Pinned XSHM's properties callback dereferences its source data.
+            // The class-level API passes nullptr and crashes. Create a source
+            // with INVALID_DISPLAY so enumeration cannot capture a default
+            // screen before explicit source identity validation.
+            auto *settings = obs_data_create();
+            obs_data_set_int(settings, "screen", -1);
+            instance = obs_source_create_private(type, "enumeration_only", settings);
+            obs_data_release(settings);
+            if (!instance) throw std::runtime_error("display_enumeration");
+            properties = obs_source_properties(instance);
+        } else properties = obs_get_source_properties(type);
+    }
+    SourceProperties(const SourceProperties &) = delete;
+    ~SourceProperties() {
+        if (properties) obs_properties_destroy(properties);
+        if (instance) obs_source_release(instance);
+    }
+};
 static bool exact(const char *type, const char *property, const std::string &id, bool numeric = false)
 {
-    auto *props = obs_get_source_properties(type);
-    auto *list = props ? obs_properties_get(props, property) : nullptr;
+    SourceProperties owned(type, numeric);
+    auto *list = owned.properties ? obs_properties_get(owned.properties, property) : nullptr;
     bool found = false;
     for (size_t i = 0; list && i < obs_property_list_item_count(list); ++i) {
         auto value = numeric ? "xshm:" + std::to_string(obs_property_list_item_int(list, i))
                              : std::string(obs_property_list_item_string(list, i));
         if (!obs_property_list_item_disabled(list, i) && value == id && value != "default") found = true;
     }
-    if (props) obs_properties_destroy(props);
     return found;
 }
 struct State {
@@ -229,11 +252,10 @@ int main(int argc, char **argv)
         obs_post_load_modules();
         if (mode == "enumerate") {
             if (backend == "x11") {
-                auto *props = obs_get_source_properties("xshm_input_v2");
-                auto *list = props ? obs_properties_get(props, "screen") : nullptr;
+                SourceProperties owned("xshm_input_v2", true);
+                auto *list = owned.properties ? obs_properties_get(owned.properties, "screen") : nullptr;
                 for (size_t i = 0; list && i < obs_property_list_item_count(list); ++i)
                     emit("display", ",\"id\":" + jsonQuote("xshm:" + std::to_string(obs_property_list_item_int(list, i))));
-                if (props) obs_properties_destroy(props);
             }
             for (const auto *type : {"pulse_output_capture", "pulse_input_capture"}) {
                 auto *props = obs_get_source_properties(type);
