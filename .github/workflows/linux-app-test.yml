@@ -62,17 +62,34 @@ jobs:
           "$RUNNER_TEMP/opencam-linux/meter-tests"
           bash -n scripts/linux/build-obs-probe.sh
           bash -n scripts/linux/build-ffmpeg-dependency.sh
+      - name: Restore exact private FFmpeg build profile
+        id: media-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ${{ runner.temp }}/opencam-linux/ffmpeg-prefix
+            ${{ runner.temp }}/opencam-linux/evidence/ffmpeg
+          key: opencam-ubuntu24-x64-media-v1-${{ hashFiles('scripts/linux/build-app-media.sh') }}
       - name: Build pinned FFmpeg libraries into private Linux prefix
+        if: steps.media-cache.outputs.cache-hit != 'true'
         run: |
           bash scripts/linux/build-app-media.sh "$GITHUB_WORKSPACE/.linux-inputs/ffmpeg" "$RUNNER_TEMP/opencam-linux/ffmpeg-build" "$RUNNER_TEMP/opencam-linux/ffmpeg-prefix" "$RUNNER_TEMP/opencam-linux/evidence/ffmpeg" > "$RUNNER_TEMP/opencam-linux/evidence/ffmpeg-driver.log" 2>&1
+      - name: Cache successfully compiled private media tools
+        if: steps.media-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ${{ runner.temp }}/opencam-linux/ffmpeg-prefix
+            ${{ runner.temp }}/opencam-linux/evidence/ffmpeg
+          key: ${{ steps.media-cache.outputs.cache-primary-key }}
       - name: Exercise required media formats before long recording
         env:
           LD_LIBRARY_PATH: ${{ runner.temp }}/opencam-linux/ffmpeg-prefix/lib
         run: |
           tool="$RUNNER_TEMP/opencam-linux/ffmpeg-prefix/bin/ffmpeg"
-          "$tool" -v error -f lavfi -i anullsrc=r=48000:cl=stereo -t .1 -c:a pcm_f32le -f f32le "$RUNNER_TEMP/opencam-linux/evidence/format-check.f32le"
+          "$tool" -v error -f lavfi -i anullsrc=r=48000:cl=stereo -t 0.1 -c:a pcm_f32le -f f32le "$RUNNER_TEMP/opencam-linux/evidence/format-check.f32le"
           "$tool" -v error -f f32le -ar 48000 -ac 2 -i "$RUNNER_TEMP/opencam-linux/evidence/format-check.f32le" -c:a pcm_s16le -f s16le "$RUNNER_TEMP/opencam-linux/evidence/format-check.s16le"
-          "$tool" -v error -f lavfi -i color=c=red:s=64x36:r=20 -t .1 -c:v libx264 -pix_fmt yuv420p -f mp4 "$RUNNER_TEMP/opencam-linux/evidence/format-check.mp4"
+          "$tool" -v error -f lavfi -i color=c=red:s=64x36:r=20 -t 0.1 -c:v libx264 -pix_fmt yuv420p -f mp4 "$RUNNER_TEMP/opencam-linux/evidence/format-check.mp4"
           test -s "$RUNNER_TEMP/opencam-linux/evidence/format-check.f32le"
           test -s "$RUNNER_TEMP/opencam-linux/evidence/format-check.s16le"
           test -s "$RUNNER_TEMP/opencam-linux/evidence/format-check.mp4"
