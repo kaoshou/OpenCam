@@ -33,12 +33,18 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   try {
     const resultPath = process.argv[2]; const result = JSON.parse(await readFile(resultPath, 'utf8'));
     const options = { timeout: 180000, maxBuffer: 128 * 1024 * 1024, killSignal: 'SIGKILL' };
-    const probe = await execute('ffprobe', ['-v', 'error', '-show_streams', '-show_packets', '-of', 'json', result.mp4], options);
-    await writeFile(resultPath + '.ffprobe.json', probe.stdout, { flag: 'wx' });
-    const decoded = await execute('ffmpeg', ['-xerror', '-v', 'error', '-i', result.mp4, '-f', 'null', '-'], options);
-    await writeFile(resultPath + '.decode.log', decoded.stderr, { flag: 'wx' });
-    const hashes = await execute('ffmpeg', ['-xerror', '-v', 'error', '-i', result.mp4, '-map', '0:v:0', '-f', 'framehash', '-'], options);
-    const measured = validateAppMedia(JSON.parse(probe.stdout), hashes.stdout.split('\n').filter(l => l && !l.startsWith('#')).map(l => l.split(',').at(-1).trim()), result.firstSegmentSeconds + 3);
+    const files = [{ path: result.mp4, seconds: result.firstSegmentSeconds + 3, name: 'mp4' },
+      ...(result.sourceFiles ?? []).map((path, i) => ({ path, seconds: i === 0 ? result.firstSegmentSeconds : 3, name: 'mkv-' + i }))];
+    const measured = [];
+    for (const file of files) {
+      const prefix = resultPath + '.' + file.name;
+      const probe = await execute('ffprobe', ['-v', 'error', '-show_streams', '-show_packets', '-of', 'json', file.path], options);
+      await writeFile(prefix + '.ffprobe.json', probe.stdout, { flag: 'wx' });
+      const decoded = await execute('ffmpeg', ['-xerror', '-v', 'error', '-i', file.path, '-f', 'null', '-'], options);
+      await writeFile(prefix + '.decode.log', decoded.stderr, { flag: 'wx' });
+      const hashes = await execute('ffmpeg', ['-xerror', '-v', 'error', '-i', file.path, '-map', '0:v:0', '-f', 'framehash', '-'], options);
+      measured.push({ file: file.name, ...validateAppMedia(JSON.parse(probe.stdout), hashes.stdout.split('\n').filter(l => l && !l.startsWith('#')).map(l => l.split(',').at(-1).trim()), file.seconds) });
+    }
     await writeFile(resultPath + '.media-check.json', JSON.stringify(measured, null, 2), { flag: 'wx' });
     console.log(JSON.stringify(measured));
   } catch (error) { console.error(error.stderr ?? error.message); process.exitCode = 1; }

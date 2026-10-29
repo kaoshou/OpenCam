@@ -26,7 +26,7 @@ public sealed class LinuxDesktopCatalog : IDisplayService, IRecordingDisplayIden
     {
         var start = new ProcessStartInfo(executable) { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
         foreach (var arg in args) start.ArgumentList.Add(arg);
-        start.Environment.Remove("LD_PRELOAD");
+        foreach (var key in new[] { "LD_PRELOAD", "LD_AUDIT", "LD_LIBRARY_PATH", "OBS_PLUGINS_PATH", "OBS_PLUGINS_DATA_PATH" }) start.Environment.Remove(key);
         using var process = Process.Start(start) ?? throw new IOException("Linux device query did not start.");
         async Task<string> Read(StreamReader reader) {
             var result = new System.Text.StringBuilder(); var buffer = new char[4096]; int n;
@@ -81,6 +81,8 @@ public sealed class LinuxDesktopCatalog : IDisplayService, IRecordingDisplayIden
         var microphones = new List<AudioDeviceOption>(); var playback = new List<AudioDeviceOption>();
         foreach (var value in input.RootElement.EnumerateArray()) {
             if (value.TryGetProperty("monitor_of_sink", out var monitor) && monitor.ValueKind != JsonValueKind.Null) continue;
+            if (value.TryGetProperty("monitor_source", out var owningSink) && owningSink.ValueKind == JsonValueKind.String &&
+                !string.IsNullOrEmpty(owningSink.GetString())) continue;
             var id = value.GetProperty("name").GetString()!;
             microphones.Add(new(id, value.GetProperty("description").GetString() ?? id, id == defaultInput.Trim(), true));
         }

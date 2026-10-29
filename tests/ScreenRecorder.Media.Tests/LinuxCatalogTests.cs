@@ -47,4 +47,13 @@ public sealed class LinuxCatalogTests
         Assert.Throws<IOException>(() => audio.ResolveMicrophone("speakers.monitor"));
         Assert.Throws<IOException>(() => audio.ResolveMicrophone("removed"));
     }
+    [Fact]
+    public void Pulse16JsonUsesMonitorSourceNameAndEmptyStringForNonMonitor()
+    {
+        // PulseAudio v16.1 src/utils/pactl.c source_info_callback uses
+        // monitor_source (not the C struct's monitor_of_sink field).
+        const string sources = "[{\"name\":\"mic\",\"description\":\"Microphone\",\"monitor_source\":\"\"},{\"name\":\"speakers.monitor\",\"description\":\"Monitor\",\"monitor_source\":\"speakers\"}]";
+        var audio = LinuxDesktopCatalog.ParseAudio(sources, "[]", "mic", "speakers");
+        Assert.Equal("mic", Assert.Single(audio.Microphones).Id);
+    }
 }

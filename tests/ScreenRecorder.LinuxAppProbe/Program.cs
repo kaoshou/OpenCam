@@ -78,7 +78,9 @@ try {
     if (project.ExportStatus?.State != RecordingExportState.Succeeded) throw new IOException("Export failed: " + project.ExportStatus?.Error);
     var result = new { status = "PASS", scope = "virtual-source production-services integration, not physical sync",
         fps = config.Fps, firstSegmentSeconds = seconds, audioPreflightAndPlayback = "PASS", systemLive, systemSilent, micLive, micSilent,
-        project = project.ProjectDirectory, sources = project.Current.Sources.Length, mp4 = project.ExportStatus.FinalPath };
+        project = project.ProjectDirectory, sources = project.Current.Sources.Length,
+        sourceFiles = project.Current.Sources.Select(s => Path.Combine(project.ProjectDirectory!, s.RelativePath)).ToArray(),
+        mp4 = project.ExportStatus.FinalPath };
     await File.WriteAllTextAsync(Path.Combine(root, "result.json"), JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }));
     Console.WriteLine(JsonSerializer.Serialize(result)); return 0;
 } catch (Exception e) { Console.Error.WriteLine(e); return 1; }
