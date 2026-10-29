@@ -177,7 +177,7 @@ public partial class MainViewModel : ObservableObject
     public string ActualEncoderText => EncoderStatusFormatter.Format(_actualEncoder, LocalizationService.Instance);
     private CaptureSelection? _actualCapture;
     public string ActualCaptureText => CaptureStatusFormatter.Format(_actualCapture, LocalizationService.Instance);
-    public bool ShowCaptureStatus => OperatingSystem.IsWindows() ||
+    public bool ShowCaptureStatus => OperatingSystem.IsWindows() || OperatingSystem.IsLinux() ||
         (OperatingSystem.IsMacOS() && _nativeCaptureEnabled);
     private void SetActualCapture(CaptureSelection? value)
     {
@@ -279,7 +279,7 @@ public partial class MainViewModel : ObservableObject
     public IReadOnlyList<MonitorInfo> GetCurrentMonitors() => _displayService.GetMonitors();
     public bool CanConfigureCustomRegion => CanEditRecordingSettings && IsCustomRegion;
     public bool CanSelectMicrophone => CanEditPausedSettings && RecordMicrophone;
-    public bool SupportsSystemAudio => SupportsSystemAudioOnPlatform(
+    public bool SupportsSystemAudio => OperatingSystem.IsLinux() || SupportsSystemAudioOnPlatform(
         OperatingSystem.IsWindows(),
         OperatingSystem.IsMacOS(),
         Environment.OSVersion.Version,
@@ -843,11 +843,14 @@ public partial class MainViewModel : ObservableObject
                 $"settings-{Environment.ProcessId}.json"))
             : new SettingsService();
         
-        IFFmpegPlatformProvider ffmpegPlatformProvider = OperatingSystem.IsWindows() ? new ScreenRecorder.Platform.Windows.WindowsFFmpegProvider() : new ScreenRecorder.Platform.macOS.MacOsFFmpegProvider();
+        IFFmpegPlatformProvider ffmpegPlatformProvider = OperatingSystem.IsWindows() ? new ScreenRecorder.Platform.Windows.WindowsFFmpegProvider()
+            : OperatingSystem.IsLinux() ? new ScreenRecorder.Platform.Linux.LinuxFFmpegProvider() : new ScreenRecorder.Platform.macOS.MacOsFFmpegProvider();
 
         _encoderDetector = new FFmpegEncoderDetector(ffmpegPlatformProvider);
-        _displayService = OperatingSystem.IsWindows() ? new ScreenRecorder.Platform.Windows.Display.WindowsDisplayService() : new ScreenRecorder.Platform.macOS.MacOsDisplayService();
-        _audioDeviceService = OperatingSystem.IsWindows() ? new ScreenRecorder.Platform.Windows.Audio.WindowsAudioDeviceService() : new ScreenRecorder.Platform.macOS.MacOsAudioDeviceService();
+        _displayService = OperatingSystem.IsWindows() ? new ScreenRecorder.Platform.Windows.Display.WindowsDisplayService()
+            : OperatingSystem.IsLinux() ? new ScreenRecorder.Platform.Linux.LinuxDesktopCatalog() : new ScreenRecorder.Platform.macOS.MacOsDisplayService();
+        _audioDeviceService = OperatingSystem.IsWindows() ? new ScreenRecorder.Platform.Windows.Audio.WindowsAudioDeviceService()
+            : OperatingSystem.IsLinux() ? new ScreenRecorder.Platform.Linux.LinuxDesktopCatalog() : new ScreenRecorder.Platform.macOS.MacOsAudioDeviceService();
         _macOsScreenCapturePermissionService = OperatingSystem.IsMacOS()
             ? new MacOsScreenCapturePermissionService()
             : null;
@@ -871,7 +874,7 @@ public partial class MainViewModel : ObservableObject
 
         // Both supported platforms share the record-first project/export lifecycle.
         // Capture engines, audio selection and cursor policy remain platform-owned.
-        if (!forScreenshot && (OperatingSystem.IsMacOS() || OperatingSystem.IsWindows()))
+        if (!forScreenshot && (OperatingSystem.IsMacOS() || OperatingSystem.IsWindows() || OperatingSystem.IsLinux()))
             ConfigureRecordingContent(new ScreenRecorder.UI.Projects.ProjectClient(
                 (command, request, ct) => _ipcClient.SendCommandAsync(command, request, timeoutMs: 45000, cancellationToken: ct),
                 (request, ct) => _ipcClient.SendProjectFrameAsync(request, ct)), CheckProjectScreenPermission, EnsureRecorderProcessAsync);
@@ -1101,6 +1104,12 @@ public partial class MainViewModel : ObservableObject
     {
         AvailableCursorEffects.Clear();
         AvailableCursorEffects.Add(new CursorEffectOption(CursorEffectMode.Default, Strings["CursorDefault"]));
+        if (OperatingSystem.IsLinux())
+        {
+            AvailableCursorEffects.Add(new CursorEffectOption(CursorEffectMode.Hidden, Strings["CursorHidden"]));
+            SelectedCursorEffect = AvailableCursorEffects.FirstOrDefault(c => c.Mode == preferred) ?? AvailableCursorEffects[0];
+            return;
+        }
         AvailableCursorEffects.Add(new CursorEffectOption(CursorEffectMode.PresentationStick, Strings["CursorPresentationStick"]));
         AvailableCursorEffects.Add(new CursorEffectOption(CursorEffectMode.HighlightHalo, Strings["CursorHighlight"]));
         AvailableCursorEffects.Add(new CursorEffectOption(CursorEffectMode.HaloWithClickRipple, Strings["CursorClickRipple"]));

@@ -55,3 +55,4 @@ target_link_libraries(OpenCam.ObsLinuxProbe PRIVATE probe-obs PkgConfig::AV PkgC
 set_target_properties(OpenCam.ObsLinuxProbe PROPERTIES BUILD_RPATH "${OBS_RUNTIME}/lib")
 target_compile_options(OpenCam.ObsLinuxProbe PRIVATE -Wall -Wextra -Werror=return-type)
 install(TARGETS OpenCam.ObsLinuxProbe RUNTIME DESTINATION bin)
+install(PROGRAMS $<TARGET_FILE:OpenCam.ObsLinuxProbe> DESTINATION bin RENAME OpenCam.ObsCapture)

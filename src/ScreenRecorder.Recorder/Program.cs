@@ -333,5 +333,12 @@ public class Program
             services.AddSingleton<ISystemAudioLoopbackCapture, ScreenRecorder.Platform.macOS.MacOsAudioLoopbackCapture>();
             services.AddSingleton<IMicrophoneCapture, ScreenRecorder.Platform.macOS.MacOsMicrophoneCapture>();
         }
+        else if (OperatingSystem.IsLinux())
+        {
+            services.AddSingleton<IDisplayService, ScreenRecorder.Platform.Linux.LinuxDesktopCatalog>();
+            services.AddSingleton<IAudioDeviceService, ScreenRecorder.Platform.Linux.LinuxDesktopCatalog>();
+            services.AddSingleton<IFFmpegPlatformProvider, ScreenRecorder.Platform.Linux.LinuxFFmpegProvider>();
+        }
+        else throw new PlatformNotSupportedException("This operating system is not supported.");
     }
 }

@@ -18,6 +18,10 @@ public sealed class PreflightAudioCaptureFactory(IPreflightAudioPlatformProvider
             return new FFmpegPreflightAudioCapture(provider,
                 new MacOsAudioLoopbackCapture { RequireConfirmedShutdown = true },
                 new MacOsMicrophoneCapture { RequireConfirmedShutdown = true });
+        if (OperatingSystem.IsLinux())
+            return new FFmpegPreflightAudioCapture(provider,
+                new ScreenRecorder.Platform.Linux.LinuxSystemAudioCapture(),
+                new ScreenRecorder.Platform.Linux.LinuxMicrophoneCapture());
         throw new PlatformNotSupportedException("Audio confirmation requires Windows or macOS.");
     }
 }

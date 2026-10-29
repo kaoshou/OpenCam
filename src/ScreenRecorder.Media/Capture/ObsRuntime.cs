@@ -21,6 +21,7 @@ public sealed class ObsRuntime
         Root = root;
         Platform = platform;
         HelperPath = platform == "win-x64" ? Path.Combine(root, "OpenCam.ObsCapture.exe")
+            : platform == "linux-x64" ? Path.Combine(root, "bin", "OpenCam.ObsCapture")
             : Path.Combine(root, "Contents", "MacOS", "OpenCam.ObsCapture");
         Backends = backends;
         AudioModes = audio;
@@ -28,12 +29,30 @@ public sealed class ObsRuntime
     }
 
     public static string? CurrentPlatform => OperatingSystem.IsWindows() && RuntimeInformation.ProcessArchitecture == Architecture.X64
-        ? "win-x64" : OperatingSystem.IsMacOS() && RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "osx-arm64" : null;
+        ? "win-x64" : OperatingSystem.IsMacOS() && RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "osx-arm64"
+        : OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture == Architecture.X64 ? "linux-x64" : null;
+
+    internal static bool AcceptsBackend(string? platform, string? backend) => platform switch
+    {
+        "win-x64" => backend is "wgc" or "dxgi",
+        "osx-arm64" => backend == "sck",
+        "linux-x64" => backend is "x11" or "pipewire",
+        _ => false
+    };
+
+    public static string DefaultBackend(string platform) => platform switch
+    {
+        "win-x64" => "wgc",
+        "osx-arm64" => "sck",
+        "linux-x64" => Environment.GetEnvironmentVariable("XDG_SESSION_TYPE") == "wayland" ||
+            !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY")) ? "pipewire" : "x11",
+        _ => throw new PlatformNotSupportedException()
+    };
 
     public static ObsRuntime? TryLoad(string root, string? platform = null)
     {
         platform ??= CurrentPlatform;
-        if (platform is not ("win-x64" or "osx-arm64")) return null;
+        if (platform is not ("win-x64" or "osx-arm64" or "linux-x64")) return null;
         try
         {
             root = Path.GetFullPath(root);
@@ -46,7 +65,7 @@ public sealed class ObsRuntime
                 value.GetProperty("obsVersion").GetString() != "33.0.0" || value.GetProperty("platform").GetString() != platform ||
                 value.GetProperty("sourceRevision").GetString() != PinnedSourceRevision) return null;
             var capabilities = value.GetProperty("capabilities");
-            var backends = ReadSet(capabilities, "backends", ["wgc", "dxgi", "sck", "synthetic"]);
+            var backends = ReadSet(capabilities, "backends", platform == "linux-x64" ? ["x11", "pipewire"] : ["wgc", "dxgi", "sck", "synthetic"]);
             var audio = ReadSet(capabilities, "audio", ["none", "system", "microphone", "both", "silence"]);
             var encoders = ReadSet(capabilities, "encoders", ["cpu", "nvenc", "qsv", "amf", "apple"]);
             var files = value.GetProperty("files");

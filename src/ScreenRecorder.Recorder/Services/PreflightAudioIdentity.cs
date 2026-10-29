@@ -13,6 +13,12 @@ public static class PreflightAudioIdentity
         var microphone = configuration.AudioSource is AudioSourceType.MicrophoneOnly or AudioSourceType.SystemAndMicrophone;
         var system = configuration.AudioSource is AudioSourceType.SystemOnly or AudioSourceType.SystemAndMicrophone;
         if (!microphone && !system) return "disabled";
+        if (OperatingSystem.IsLinux())
+        {
+            var audio = ScreenRecorder.Platform.Linux.LinuxDesktopCatalog.ReadAudio();
+            return (system ? audio.ResolveSystem(configuration.SystemAudioDeviceId) : "disabled") + "\n" +
+                (microphone ? audio.ResolveMicrophone(configuration.MicrophoneDeviceId) : "disabled");
+        }
         return OperatingSystem.IsWindows() ? WindowsAudioEndpointIdentity.Read(microphone, system)
             : OperatingSystem.IsMacOS() ? MacOsAudioEndpointIdentity.Read(microphone, system)
             : throw new PlatformNotSupportedException();

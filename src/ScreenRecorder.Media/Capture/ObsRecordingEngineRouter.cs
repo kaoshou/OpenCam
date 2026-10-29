@@ -76,7 +76,7 @@ public sealed class ObsRecordingEngineRouter : IScreenRecorderEngine, IBoundReco
                 {
                     var request = ObsCaptureRequest.Create(config, actualBounds, monitor, _encoder, false);
                     _ = request.Serialize();
-                    var backend = currentRuntime.Platform == "win-x64" ? "wgc" : "sck";
+                    var backend = ObsRuntime.DefaultBackend(currentRuntime.Platform);
                     if (!currentRuntime.Backends.Contains(backend) || !currentRuntime.AudioModes.Contains(request.Audio) ||
                         !currentRuntime.Encoders.Contains(request.Encoder)) monitor = null;
                 }
@@ -155,6 +155,7 @@ public sealed class ObsRecordingEngineRouter : IScreenRecorderEngine, IBoundReco
         {
             "win-x64" => config.WindowsCaptureMode == WindowsCaptureMode.Automatic,
             "osx-arm64" => config.NativeCaptureEnabled,
+            "linux-x64" => true,
             _ => false
         };
 }

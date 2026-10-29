@@ -18,6 +18,10 @@ internal sealed record ProjectMediaBackend(Func<IProjectMediaProcess> CreateProc
         if (platform == OSPlatform.OSX)
             return new(() => new MacProjectMediaProcess(executable), () => new MacProjectMediaProcess(executable),
                 File.Exists(macAudioHelper) ? () => new MacProjectAudioOutput(macAudioHelper) : null);
+        if (platform == OSPlatform.Linux)
+            return new(() => new ScreenRecorder.Platform.Linux.LinuxProjectMediaProcess(executable),
+                () => new ScreenRecorder.Platform.Linux.LinuxProjectMediaProcess(executable),
+                () => new ScreenRecorder.Platform.Linux.LinuxProjectAudioOutput(Path.Combine(AppContext.BaseDirectory, "OpenCam.PulsePlayback")));
         return null;
     }
 }

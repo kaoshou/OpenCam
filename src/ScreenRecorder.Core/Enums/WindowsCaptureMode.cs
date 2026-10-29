@@ -2,5 +2,5 @@
 namespace ScreenRecorder.Core.Enums;
 
 public enum WindowsCaptureMode { CompatibleGdi = 0, ModernExperimental = 1, Automatic = 2 }
-public enum CaptureBackend { PlatformDefault = 0, Gdi = 1, DesktopDuplication = 2, WindowsGraphicsCapture = 3, ScreenCaptureKit = 4 }
+public enum CaptureBackend { PlatformDefault = 0, Gdi = 1, DesktopDuplication = 2, WindowsGraphicsCapture = 3, ScreenCaptureKit = 4, X11 = 5, PipeWire = 6 }
 public enum CaptureFallbackReason { None, FilterUnavailable, MappingUncertain, UnsupportedTopology, StartupFailed, AdapterIdentityUncertain }

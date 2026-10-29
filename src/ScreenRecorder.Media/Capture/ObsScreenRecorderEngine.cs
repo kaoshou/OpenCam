@@ -295,10 +295,11 @@ public sealed class ObsScreenRecorderEngine : IScreenRecorderEngine, IBoundRecor
                     value.TryGetProperty("monitor", out var reportedMonitor) && reportedMonitor.GetString() != _request.Monitor)
                     throw new JsonException();
                 var backend = value.GetProperty("backend").GetString();
-                if (UseSyntheticCaptureSource ? backend != "synthetic" : OperatingSystem.IsWindows()
-                    ? backend is not ("wgc" or "dxgi") : backend != "sck") throw new JsonException();
+                if (UseSyntheticCaptureSource ? backend != "synthetic" :
+                    !ObsRuntime.AcceptsBackend(ObsRuntime.CurrentPlatform, backend)) throw new JsonException();
                 var captureBackend = backend switch { "wgc" => CaptureBackend.WindowsGraphicsCapture,
                     "dxgi" => CaptureBackend.DesktopDuplication, "sck" => CaptureBackend.ScreenCaptureKit,
+                    "x11" => CaptureBackend.X11, "pipewire" => CaptureBackend.PipeWire,
                     _ => CaptureBackend.PlatformDefault };
                 if (_pinnedCapture is not null && _pinnedCapture.Backend != captureBackend) throw new JsonException();
                 ActiveCapture = new(captureBackend, CaptureFallbackReason.None, monitor.DeviceName, null, null,

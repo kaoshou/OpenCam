@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <ProjectReference Include="../ScreenRecorder.Platform.Linux/ScreenRecorder.Platform.Linux.csproj" />
     <ProjectReference Include="..\ScreenRecorder.Core\ScreenRecorder.Core.csproj" />
     <ProjectReference Include="..\ScreenRecorder.Infrastructure\ScreenRecorder.Infrastructure.csproj" />
     <ProjectReference Include="..\ScreenRecorder.Media\ScreenRecorder.Media.csproj" />

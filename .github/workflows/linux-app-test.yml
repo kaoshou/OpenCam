@@ -20,6 +20,9 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
       - uses: actions/checkout@v4
         with:
           repository: obsproject/obs-studio
@@ -50,14 +53,15 @@ jobs:
           node --test tests/scripts/linux-probe-protocol.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/protocol-tests.log" 2>&1
           node --test tests/scripts/linux-probe-runner.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/runner-tests.log" 2>&1
           node --test tests/scripts/linux-isolation.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/isolation-tests.log" 2>&1
-          node scripts/linux/check-source-isolation.mjs > "$RUNNER_TEMP/opencam-linux/evidence/production-audit.json"
+          git diff 7bc17eb -- native/obs-capture scripts/build-obs-capture.sh scripts/build-obs-capture.ps1 scripts/assemble-obs-runtime.mjs .github/workflows/build-and-release.yml .github/workflows/package-release.yml VERSION > "$RUNNER_TEMP/opencam-linux/evidence/production-audit.diff"
+          test ! -s "$RUNNER_TEMP/opencam-linux/evidence/production-audit.diff"
           c++ -std=c++17 tests/native/linux-source-health-tests.cpp -o "$RUNNER_TEMP/opencam-linux/health-tests"
           "$RUNNER_TEMP/opencam-linux/health-tests"
           bash -n scripts/linux/build-obs-probe.sh
           bash -n scripts/linux/build-ffmpeg-dependency.sh
       - name: Build pinned FFmpeg libraries into private Linux prefix
         run: |
-          bash scripts/linux/build-ffmpeg-dependency.sh "$GITHUB_WORKSPACE/.linux-inputs/ffmpeg" "$RUNNER_TEMP/opencam-linux/ffmpeg-build" "$RUNNER_TEMP/opencam-linux/ffmpeg-prefix" "$RUNNER_TEMP/opencam-linux/evidence/ffmpeg" > "$RUNNER_TEMP/opencam-linux/evidence/ffmpeg-driver.log" 2>&1
+          bash scripts/linux/build-app-media.sh "$GITHUB_WORKSPACE/.linux-inputs/ffmpeg" "$RUNNER_TEMP/opencam-linux/ffmpeg-build" "$RUNNER_TEMP/opencam-linux/ffmpeg-prefix" "$RUNNER_TEMP/opencam-linux/evidence/ffmpeg" > "$RUNNER_TEMP/opencam-linux/evidence/ffmpeg-driver.log" 2>&1
       - name: Build pinned OBS core without changing other platform builders
         env:
           PKG_CONFIG_PATH: ${{ runner.temp }}/opencam-linux/ffmpeg-prefix/lib/pkgconfig
@@ -79,6 +83,10 @@ jobs:
           OPENCAM_LINUX_HELPER: ${{ runner.temp }}/opencam-linux/obs-stage/bin/OpenCam.ObsLinuxProbe
           OPENCAM_LINUX_RUNTIME: ${{ runner.temp }}/opencam-linux/obs-stage
         run: node --test tests/native/linux-product-protocol.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/product-protocol.log" 2>&1
+      - name: Validate Linux glibc FD mapping and inherited descriptor closure
+        run: |
+          cc -Wall -Wextra -Werror tests/native/linux-spawn-tests.c src/ScreenRecorder.Platform.Linux/Native/spawn.c -o "$RUNNER_TEMP/opencam-linux/spawn-tests"
+          "$RUNNER_TEMP/opencam-linux/spawn-tests" > "$RUNNER_TEMP/opencam-linux/evidence/spawn-tests.log" 2>&1
       - name: Real X11 source in isolated virtual desktop (not physical acceptance)
         env:
           LD_LIBRARY_PATH: ${{ runner.temp }}/opencam-linux/obs-stage/lib:${{ runner.temp }}/opencam-linux/ffmpeg-prefix/lib

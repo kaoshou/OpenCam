@@ -31,6 +31,12 @@ public sealed class RecordingEngineFactory(
         var runtime = ObsRuntime.TryLoad(GetRuntimeDirectory(AppContext.BaseDirectory));
         Serilog.Log.Information("Recording startup stage: Stage={Stage}, ElapsedMs={ElapsedMs}, Available={Available}",
             "runtime_factory_validation", clock.Elapsed.TotalMilliseconds, runtime is not null);
+        if (OperatingSystem.IsLinux())
+        {
+            if (runtime is null || displayService is null)
+                throw new IOException("Linux recording core is missing or damaged; use the complete Linux test package.");
+            return new ScreenRecorder.Platform.Linux.LinuxRecordingEngine(runtime, displayService, pinnedCapture);
+        }
 #if OPENCAM_OBS_ONLY_TEST
         if (runtime is null)
             throw new IOException("The recording core is missing or damaged. Recording did not start; reinstall the complete application package.");

@@ -7,6 +7,17 @@ namespace ScreenRecorder.Media.Tests;
 
 public sealed class LinuxRuntimeTests : IDisposable
 {
+    [Theory]
+    [InlineData("win-x64", "wgc", true)]
+    [InlineData("win-x64", "dxgi", true)]
+    [InlineData("win-x64", "x11", false)]
+    [InlineData("osx-arm64", "sck", true)]
+    [InlineData("osx-arm64", "pipewire", false)]
+    [InlineData("linux-x64", "x11", true)]
+    [InlineData("linux-x64", "pipewire", true)]
+    [InlineData("linux-x64", "sck", false)]
+    public void NativeBackendIsPlatformSpecific(string platform, string backend, bool accepted) =>
+        Assert.Equal(accepted, ObsRuntime.AcceptsBackend(platform, backend));
     private readonly string root = Path.Combine(Path.GetTempPath(), "opencam-linux-runtime-" + Guid.NewGuid().ToString("N"));
     [Fact]
     public void LinuxManifestRequiresExactInventoryAndLinuxBackends()
