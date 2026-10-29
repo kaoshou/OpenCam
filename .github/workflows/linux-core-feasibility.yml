@@ -81,6 +81,7 @@ jobs:
           LIBGL_ALWAYS_SOFTWARE: '1'
           XDG_SESSION_TYPE: x11
           OPENCAM_LINUX_PROBE_DIAGNOSTICS: '1'
+          OPENCAM_LINUX_FIXTURE_AUDIO: '1'
         run: |
           dbus-run-session -- xvfb-run -a -s '-screen 0 640x360x24' bash -c '
             set -euo pipefail
@@ -98,7 +99,7 @@ jobs:
             trap "kill $pattern_pid 2>/dev/null || true; pulseaudio --kill 2>/dev/null || true" EXIT
             node scripts/linux/run-capture-probe.mjs "$OPENCAM_LINUX_HELPER" "$OPENCAM_LINUX_RUNTIME" "$RUNNER_TEMP/opencam-linux/evidence/x11-20fps" 3 "{\"protocol\":1,\"synthetic\":false,\"width\":640,\"height\":360,\"fps\":20,\"x\":0,\"y\":0,\"monitorWidth\":640,\"monitorHeight\":360,\"cropX\":0,\"cropY\":0,\"monitor\":\"xshm:0\",\"audio\":\"none\",\"systemDevice\":\"\",\"microphone\":\"\",\"cursor\":true,\"encoder\":\"cpu\",\"quality\":23}" > "$RUNNER_TEMP/opencam-linux/evidence/x11-driver.log" 2>&1
             for audio in system microphone both; do
-              node scripts/linux/run-capture-probe.mjs "$OPENCAM_LINUX_HELPER" "$OPENCAM_LINUX_RUNTIME" "$RUNNER_TEMP/opencam-linux/evidence/x11-20fps-$audio-silent" 3 "{\"protocol\":1,\"synthetic\":false,\"width\":640,\"height\":360,\"fps\":20,\"x\":0,\"y\":0,\"monitorWidth\":640,\"monitorHeight\":360,\"cropX\":0,\"cropY\":0,\"monitor\":\"xshm:0\",\"audio\":\"$audio\",\"systemDevice\":\"opencam_test\",\"microphone\":\"opencam_mic\",\"cursor\":true,\"encoder\":\"cpu\",\"quality\":23}" > "$RUNNER_TEMP/opencam-linux/evidence/x11-$audio-driver.log" 2>&1
+              node scripts/linux/run-capture-probe.mjs "$OPENCAM_LINUX_HELPER" "$OPENCAM_LINUX_RUNTIME" "$RUNNER_TEMP/opencam-linux/evidence/x11-20fps-$audio-silent" 3 "{\"protocol\":1,\"synthetic\":false,\"width\":640,\"height\":360,\"fps\":20,\"x\":0,\"y\":0,\"monitorWidth\":640,\"monitorHeight\":360,\"cropX\":0,\"cropY\":0,\"monitor\":\"xshm:0\",\"audio\":\"$audio\",\"systemDevice\":\"opencam_test.monitor\",\"microphone\":\"opencam_mic\",\"cursor\":true,\"encoder\":\"cpu\",\"quality\":23}" > "$RUNNER_TEMP/opencam-linux/evidence/x11-$audio-driver.log" 2>&1
             done
           '
       - name: Preserve logs only; this is not a working OpenCam recorder
