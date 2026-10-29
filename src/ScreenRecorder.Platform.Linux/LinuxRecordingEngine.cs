@@ -9,23 +9,28 @@ namespace ScreenRecorder.Platform.Linux;
 /// <summary>Linux endpoint normalization around the shared, owned-output OBS engine.</summary>
 public sealed class LinuxRecordingEngine : IScreenRecorderEngine, IBoundRecordingOutput, IRecordingAudioLevelSource
 {
-    private readonly ObsScreenRecorderEngine inner;
+    private readonly IScreenRecorderEngine inner;
     public LinuxRecordingEngine(ObsRuntime runtime, IDisplayService displays, CaptureSelection? pinned)
-    {
-        inner = new(runtime.HelperPath, runtime.Root, (config, bounds, capture) => ObsRecordingEngineRouter.ResolveMonitor(
+        : this(new ObsScreenRecorderEngine(runtime.HelperPath, runtime.Root, (config, bounds, capture) => ObsRecordingEngineRouter.ResolveMonitor(
             config, bounds, capture, displays.GetMonitors(), m => (displays as IRecordingDisplayIdentityService)?.GetRecordingDisplayIdentity(m)),
-            HardwareEncoderType.SoftwareCpu, pinned, TimeSpan.FromSeconds(70), allowCompatibilityFallback: false);
+            HardwareEncoderType.SoftwareCpu, pinned, TimeSpan.FromSeconds(70), allowCompatibilityFallback: false)) { }
+    internal LinuxRecordingEngine(IScreenRecorderEngine engine) {
+        inner = engine;
+        inner.EngineErrorOccurred += RelayError; inner.EngineWarningOccurred += RelayWarning; inner.AudioDeviceLost += RelayAudioLost;
     }
-    public Stream? OutputStream { get => inner.OutputStream; set => inner.OutputStream = value; }
+    public Stream? OutputStream { get => ((IBoundRecordingOutput)inner).OutputStream; set => ((IBoundRecordingOutput)inner).OutputStream = value; }
     public bool UseSyntheticCaptureSource { get => inner.UseSyntheticCaptureSource; set => inner.UseSyntheticCaptureSource = value; }
     public bool IsRunning => inner.IsRunning;
     public TimeSpan CurrentRecordedTime => inner.CurrentRecordedTime;
     public long CurrentFramesRecorded => inner.CurrentFramesRecorded;
     public HardwareEncoderType ActiveEncoder => inner.ActiveEncoder;
     public CaptureSelection? ActiveCapture => inner.ActiveCapture;
-    public event EventHandler<string>? EngineErrorOccurred { add => inner.EngineErrorOccurred += value; remove => inner.EngineErrorOccurred -= value; }
-    public event EventHandler<string>? EngineWarningOccurred { add => inner.EngineWarningOccurred += value; remove => inner.EngineWarningOccurred -= value; }
-    public event EventHandler? AudioDeviceLost { add => inner.AudioDeviceLost += value; remove => inner.AudioDeviceLost -= value; }
+    public event EventHandler<string>? EngineErrorOccurred;
+    public event EventHandler<string>? EngineWarningOccurred;
+    public event EventHandler? AudioDeviceLost;
+    private void RelayError(object? sender, string error) => EngineErrorOccurred?.Invoke(this, error);
+    private void RelayWarning(object? sender, string warning) => EngineWarningOccurred?.Invoke(this, warning);
+    private void RelayAudioLost(object? sender, EventArgs args) => AudioDeviceLost?.Invoke(this, args);
     public Task StartRecordingAsync(string path, RecordingConfiguration config, CaptureRegion bounds, CancellationToken cancellationToken = default)
     {
         if (!OperatingSystem.IsLinux() || config.EditablePointerEnabled || config.CursorEffect is not (CursorEffectMode.Default or CursorEffectMode.Hidden))
@@ -39,6 +44,10 @@ public sealed class LinuxRecordingEngine : IScreenRecorderEngine, IBoundRecordin
         return inner.StartRecordingAsync(path, c, bounds, cancellationToken);
     }
     public Task StopRecordingAsync(CancellationToken cancellationToken = default) => inner.StopRecordingAsync(cancellationToken);
-    public (AudioLevelSample? SystemAudio, AudioLevelSample? Microphone) ReadInputLevels(DateTimeOffset now) => inner.ReadInputLevels(now);
-    public ValueTask DisposeAsync() => inner.DisposeAsync();
+    public (AudioLevelSample? SystemAudio, AudioLevelSample? Microphone) ReadInputLevels(DateTimeOffset now) =>
+        (inner as IRecordingAudioLevelSource)?.ReadInputLevels(now) ?? (null, null);
+    public ValueTask DisposeAsync() {
+        inner.EngineErrorOccurred -= RelayError; inner.EngineWarningOccurred -= RelayWarning; inner.AudioDeviceLost -= RelayAudioLost;
+        return inner.DisposeAsync();
+    }
 }
