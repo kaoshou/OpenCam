@@ -33,7 +33,11 @@ jobs:
       - name: Install build-only Ubuntu prerequisites
         run: |
           sudo apt-get -o Acquire::Retries=3 update
-          sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends build-essential cmake extra-cmake-modules ninja-build nasm pkg-config zlib1g-dev libsimde-dev uthash-dev libjansson-dev uuid-dev libx11-xcb-dev libxcb-xinput-dev libxkbcommon-dev libwayland-dev libdrm-dev libegl1-mesa-dev libpulse-dev libx264-dev libpipewire-0.3-dev libglib2.0-dev libxcb-composite0-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-xfixes0-dev libxcb-xinerama0-dev
+          sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends build-essential cmake extra-cmake-modules ninja-build nasm pkg-config zlib1g-dev libsimde-dev uthash-dev libjansson-dev uuid-dev libx11-xcb-dev libxcb-xinput-dev libxkbcommon-dev libwayland-dev libdrm-dev libegl1-mesa-dev libpulse-dev libx264-dev libpipewire-0.3-dev libglib2.0-dev libxcb-composite0-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-xfixes0-dev libxcb-xinerama0-dev xvfb xauth dbus-x11 pulseaudio pulseaudio-utils ffmpeg
+      - name: Restore verified FFmpeg version metadata for upstream CMake
+        run: |
+          git -C .linux-inputs/ffmpeg fetch --depth 1 origin tag n8.1.3
+          test "$(git -C .linux-inputs/ffmpeg rev-parse 'n8.1.3^{commit}')" = 1041abdc962f4cc4f394aa8de9dc5236c0c3b9e7
       - name: Check production source isolation and input tests
         env:
           OPENCAM_LINUX_OBS_SOURCE: ${{ github.workspace }}/.linux-inputs/obs
@@ -55,6 +59,15 @@ jobs:
           LD_LIBRARY_PATH: ${{ runner.temp }}/opencam-linux/ffmpeg-prefix/lib
         run: |
           bash scripts/linux/build-obs-probe.sh "$GITHUB_WORKSPACE/.linux-inputs/obs" "$RUNNER_TEMP/opencam-linux/obs-build" "$RUNNER_TEMP/opencam-linux/obs-stage" "$RUNNER_TEMP/opencam-linux/evidence/obs" > "$RUNNER_TEMP/opencam-linux/evidence/obs-driver.log" 2>&1
+      - name: Build Linux-only native source probe from unchanged pinned sources
+        env:
+          PKG_CONFIG_PATH: ${{ runner.temp }}/opencam-linux/obs-stage/lib/pkgconfig:${{ runner.temp }}/opencam-linux/ffmpeg-prefix/lib/pkgconfig
+          LD_LIBRARY_PATH: ${{ runner.temp }}/opencam-linux/obs-stage/lib:${{ runner.temp }}/opencam-linux/ffmpeg-prefix/lib
+        run: |
+          cmake -S native/obs-linux-probe -B "$RUNNER_TEMP/opencam-linux/probe-build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$RUNNER_TEMP/opencam-linux/obs-stage" -DOBS_SOURCE="$GITHUB_WORKSPACE/.linux-inputs/obs" -DOBS_RUNTIME="$RUNNER_TEMP/opencam-linux/obs-stage" > "$RUNNER_TEMP/opencam-linux/evidence/probe-configure.log" 2>&1
+          cmake --build "$RUNNER_TEMP/opencam-linux/probe-build" --parallel 2 > "$RUNNER_TEMP/opencam-linux/evidence/probe-build.log" 2>&1
+          cmake --install "$RUNNER_TEMP/opencam-linux/probe-build" > "$RUNNER_TEMP/opencam-linux/evidence/probe-install.log" 2>&1
+          OPENCAM_LINUX_HELPER="$RUNNER_TEMP/opencam-linux/obs-stage/bin/OpenCam.ObsLinuxProbe" OPENCAM_LINUX_RUNTIME="$RUNNER_TEMP/opencam-linux/obs-stage" node --test tests/native/linux-obs-probe.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/probe-input-tests.log" 2>&1
       - name: Preserve logs only; this is not a working OpenCam recorder
         if: always()
         uses: actions/upload-artifact@v4
