@@ -4,6 +4,13 @@ namespace ScreenRecorder.Media.Tests;
 public sealed class LinuxCatalogContextTests
 {
     [Fact]
+    public void FailedQueryReportsExitAndSafeCodeWithoutRawDeviceDetails()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        var error = Assert.Throws<IOException>(() => LinuxDesktopCatalog.Run("/bin/sh", "-c", "printf '%s\\n' 'OCLINUX {\"event\":\"error\",\"code\":\"graphics_startup\",\"device\":\"private-device\"}' >&2; exit 42"));
+        Assert.Contains("exit=42", error.Message); Assert.Contains("graphics_startup", error.Message); Assert.DoesNotContain("private-device", error.Message);
+    }
+    [Fact]
     public void SynchronousCatalogQueryDoesNotWaitForBlockedUiContext()
     {
         if (OperatingSystem.IsWindows()) return;

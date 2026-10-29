@@ -41,7 +41,16 @@ public sealed class LinuxDesktopCatalog : IDisplayService, IRecordingDisplayIden
         var stdout = Read(process.StandardOutput); var stderr = Read(process.StandardError);
         if (!process.WaitForExit(12000)) { process.Kill(true); process.WaitForExit(); throw new IOException("Linux device query timed out."); }
         Task.WhenAll(stdout, stderr).GetAwaiter().GetResult();
-        if (process.ExitCode != 0) throw new IOException("Linux device query failed; check the desktop/audio session and test package dependencies.");
+        if (process.ExitCode != 0) {
+            var code = "native_exit";
+            foreach (var line in stderr.Result.Split('\n').Where(l => l.StartsWith("OCLINUX ", StringComparison.Ordinal))) {
+                try { using var json = JsonDocument.Parse(line[8..]); var value = json.RootElement;
+                    if (value.GetProperty("event").GetString() == "error" && value.TryGetProperty("code", out var c) &&
+                        c.GetString() is { } candidate && Regex.IsMatch(candidate, "^[a-z_]{1,64}$")) code = candidate;
+                } catch (Exception e) when (e is JsonException or KeyNotFoundException or InvalidOperationException) { }
+            }
+            throw new IOException($"Linux device query failed (exit={process.ExitCode}, code={code}); check the desktop/audio session and test package dependencies.");
+        }
         return stdout.Result.Length == 0 ? stderr.Result : stdout.Result;
     }
     public IReadOnlyList<MonitorInfo> GetMonitors()

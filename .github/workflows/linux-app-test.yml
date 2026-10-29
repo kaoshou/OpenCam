@@ -129,7 +129,7 @@ jobs:
           OPENCAM_LINUX_PROBE_DIAGNOSTICS: '1'
           OPENCAM_LINUX_FIXTURE_AUDIO: '1'
         run: |
-          dbus-run-session -- xvfb-run -a -s '-screen 0 640x360x24' bash -c '
+          dbus-run-session -- xvfb-run -a -s '-noreset -screen 0 640x360x24' bash -c '
             set -euo pipefail
             export PULSE_RUNTIME_PATH="$RUNNER_TEMP/opencam-linux/pulse"
             mkdir -m 700 "$PULSE_RUNTIME_PATH"
@@ -172,7 +172,7 @@ jobs:
           dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release --no-build --filter 'FullyQualifiedName~Linux|FullyQualifiedName~ProjectMediaBackendTests' -m:1 > "$RUNNER_TEMP/opencam-linux/evidence/linux-managed-tests.log" 2>&1
           unset LD_LIBRARY_PATH LD_PRELOAD
           export PATH="$RUNNER_TEMP/opencam-linux/Relocated Service Test:$PATH"
-          dbus-run-session -- xvfb-run -a -s '-screen 0 1280x1000x24' bash -c '
+          dbus-run-session -- xvfb-run -a -s '-noreset -screen 0 1280x1000x24' bash -c '
             set -euo pipefail
             export PULSE_RUNTIME_PATH="$RUNNER_TEMP/opencam-linux/app-pulse"
             export XDG_DATA_HOME="$RUNNER_TEMP/opencam-linux/app-user-data"
@@ -182,17 +182,27 @@ jobs:
             pactl load-module module-remap-source master=opencam_test.monitor source_name=opencam_mic > "$RUNNER_TEMP/opencam-linux/evidence/app-virtual-mic-module.txt"
             pactl -f json list sources > "$RUNNER_TEMP/opencam-linux/evidence/pulse-sources.json"
             pactl -f json list sinks > "$RUNNER_TEMP/opencam-linux/evidence/pulse-sinks.json"
+            for attempt in $(seq 1 10); do
+              if "$RUNNER_TEMP/opencam-linux/OpenCam Linux Test/obs-runtime/bin/OpenCam.ObsCapture" --runtime "$RUNNER_TEMP/opencam-linux/OpenCam Linux Test/obs-runtime" --mode enumerate --backend x11 > "$RUNNER_TEMP/opencam-linux/evidence/enumerate-$attempt.log" 2>&1; then
+                printf "PASS %s\n" "$attempt"
+              else
+                status=$?
+                printf "FAIL exit=%s attempt=%s\n" "$status" "$attempt"
+                gdb -batch -ex run -ex "thread apply all bt" --args "$RUNNER_TEMP/opencam-linux/OpenCam Linux Test/obs-runtime/bin/OpenCam.ObsCapture" --runtime "$RUNNER_TEMP/opencam-linux/OpenCam Linux Test/obs-runtime" --mode enumerate --backend x11 > "$RUNNER_TEMP/opencam-linux/evidence/enumeration-backtrace.log" 2>&1 || true
+                exit 1
+              fi
+            done
             (while true; do xsetroot -solid "#e04020"; sleep .2; xsetroot -solid "#2040e0"; sleep .2; done) &
             pattern_pid=$!
             trap "kill $pattern_pid 2>/dev/null || true; pulseaudio --kill 2>/dev/null || true" EXIT
             (while true; do ffmpeg -v error -f lavfi -i "sine=frequency=440:duration=4:sample_rate=48000" -f pulse opencam_test; sleep 4; done) &
             tone_pid=$!
             trap "kill $pattern_pid $tone_pid 2>/dev/null || true; pulseaudio --kill 2>/dev/null || true" EXIT
+            node scripts/linux/smoke-app.mjs "$RUNNER_TEMP/opencam-linux/OpenCam Linux Test" "$RUNNER_TEMP/opencam-linux/evidence/app-ui" > "$RUNNER_TEMP/opencam-linux/evidence/app-ui.log" 2>&1
             OPENCAM_LINUX_TEST_SECONDS=5 OPENCAM_LINUX_TEST_FPS=30 dotnet "$RUNNER_TEMP/opencam-linux/Relocated Service Test/ScreenRecorder.LinuxAppProbe.dll" "$RUNNER_TEMP/opencam-linux/evidence/app-project-smoke" > "$RUNNER_TEMP/opencam-linux/evidence/app-project-smoke.log" 2>&1
             node scripts/linux/verify-app-media.mjs "$RUNNER_TEMP/opencam-linux/evidence/app-project-smoke/result.json" > "$RUNNER_TEMP/opencam-linux/evidence/app-smoke-media-validation.log" 2>&1
             OPENCAM_LINUX_TEST_SECONDS=300 OPENCAM_LINUX_TEST_FPS=30 dotnet "$RUNNER_TEMP/opencam-linux/Relocated Service Test/ScreenRecorder.LinuxAppProbe.dll" "$RUNNER_TEMP/opencam-linux/evidence/app-project" > "$RUNNER_TEMP/opencam-linux/evidence/app-project.log" 2>&1
             OPENCAM_LINUX_TEST_SECONDS=10 OPENCAM_LINUX_TEST_FPS=20 dotnet "$RUNNER_TEMP/opencam-linux/Relocated Service Test/ScreenRecorder.LinuxAppProbe.dll" "$RUNNER_TEMP/opencam-linux/evidence/app-project-20fps" > "$RUNNER_TEMP/opencam-linux/evidence/app-project-20fps.log" 2>&1
-            node scripts/linux/smoke-app.mjs "$RUNNER_TEMP/opencam-linux/OpenCam Linux Test" "$RUNNER_TEMP/opencam-linux/evidence/app-ui" > "$RUNNER_TEMP/opencam-linux/evidence/app-ui.log" 2>&1
           '
           node scripts/linux/verify-app-media.mjs "$RUNNER_TEMP/opencam-linux/evidence/app-project/result.json" > "$RUNNER_TEMP/opencam-linux/evidence/app-media-validation.log" 2>&1
           node scripts/linux/verify-app-media.mjs "$RUNNER_TEMP/opencam-linux/evidence/app-project-20fps/result.json" > "$RUNNER_TEMP/opencam-linux/evidence/app-media-validation-20fps.log" 2>&1
