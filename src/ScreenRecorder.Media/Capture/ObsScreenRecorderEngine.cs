@@ -290,7 +290,7 @@ public sealed class ObsScreenRecorderEngine : IScreenRecorderEngine, IBoundRecor
         switch (value.GetProperty("event").GetString())
         {
             case "ready":
-                if (_ready.Task.IsCompleted || _stoppedEvent || value.GetProperty("protocol").GetInt32() != 1 ||
+                if (_ready.Task.IsCompleted || _stoppedEvent || value.GetProperty("protocol").GetInt32() != _request!.Protocol ||
                     value.GetProperty("encoder").GetString() != _request!.Encoder ||
                     value.TryGetProperty("monitor", out var reportedMonitor) && reportedMonitor.GetString() != _request.Monitor)
                     throw new JsonException();

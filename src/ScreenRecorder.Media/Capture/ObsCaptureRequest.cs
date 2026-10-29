@@ -9,7 +9,8 @@ namespace ScreenRecorder.Media.Capture;
 /// <summary>The entire untrusted-input surface exposed by the isolated recording helper.</summary>
 public sealed record ObsCaptureRequest(int Protocol, bool Synthetic, int Fps, int Width, int Height,
     int X, int Y, string Monitor, int MonitorWidth, int MonitorHeight, int CropX, int CropY,
-    string Audio, string Microphone, string SystemDevice, bool Cursor, string Encoder, int Quality)
+    string Audio, string Microphone, string SystemDevice, bool Cursor, string Encoder, int Quality,
+    int SystemAudioVolumePercent = 100, int MicrophoneVolumePercent = 100)
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
@@ -37,10 +38,11 @@ public sealed record ObsCaptureRequest(int Protocol, bool Synthetic, int Fps, in
         var microphone = NormalizeMicrophoneIdentity(config.MicrophoneDeviceId, OperatingSystem.IsMacOS());
         var system = config.SystemAudioDeviceId;
         if (string.IsNullOrWhiteSpace(system) || system == "default_system") system = "default";
-        return new(1, synthetic, config.Fps, bounds.Width, bounds.Height, bounds.X, bounds.Y,
+        return new(config.SystemAudioVolumePercent == 100 && config.MicrophoneVolumePercent == 100 ? 1 : 2,
+            synthetic, config.Fps, bounds.Width, bounds.Height, bounds.X, bounds.Y,
             monitor.DeviceName, display.Width, display.Height, checked(bounds.X - display.X), checked(bounds.Y - display.Y),
             audio, microphone, system, config.CursorEffect is not (CursorEffectMode.Hidden or CursorEffectMode.PresentationStick),
-            EncoderName(encoder), config.VideoQualityValue);
+            EncoderName(encoder), config.VideoQualityValue, config.SystemAudioVolumePercent, config.MicrophoneVolumePercent);
     }
 
     internal static string NormalizeMicrophoneIdentity(string? deviceId, bool isMacOS)

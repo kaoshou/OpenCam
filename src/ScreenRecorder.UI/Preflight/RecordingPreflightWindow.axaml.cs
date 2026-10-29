@@ -2,6 +2,9 @@
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Automation;
+using Avalonia.Media;
 using Avalonia.Interactivity;
 using ScreenRecorder.Core.Enums;
 using ScreenRecorder.Core.Models;
@@ -24,6 +27,10 @@ public partial class RecordingPreflightWindow : Window
     public RecordingPreparationState? PreparationState { get; private set; }
     private string? _pendingAction;
     private readonly SemaphoreSlim _action = new(1, 1);
+    private CancellationTokenSource _volumeDebounce = new();
+    private Task _volumeUpdate = Task.CompletedTask;
+    private bool _volumePending, _volumeChanged, _syncingVolumes;
+    private int _appliedSystemVolume = 100, _appliedMicrophoneVolume = 100;
     public PreflightRequest Request { get; private set; } = new(Guid.NewGuid());
     private static LanguageManager Strings => LanguageManager.Instance;
     public RecordingPreflightWindow(RecordingConfiguration configuration,
@@ -36,16 +43,27 @@ public partial class RecordingPreflightWindow : Window
         Title = Heading.Text = Strings["PreflightTitle"];
         Privacy.Text = Strings["PreflightPrivacy"];
         MicrophoneLabel.Text = Strings["PreflightMicrophone"]; SystemLabel.Text = Strings["PreflightSystem"];
-        TrialButton.Content = Strings["PreflightTrial"]; ReplayButton.Content = Strings["PreflightReplay"];
+        TrialButton.Content = Strings["PreflightTrial"]; ReplayButton.Content = Strings["PreflightMixReplay"];
+        MixLabel.Text = Strings["PreflightMixLabel"];
+        VolumeHint.Text = Strings["PreflightVolumeHint"];
+        ResetVolumesButton.Content = Strings["PreflightVolumeReset"];
+        SystemVolume.Value = _configuration.SystemAudioVolumePercent;
+        MicrophoneVolume.Value = _configuration.MicrophoneVolumePercent;
+        AutomationProperties.SetName(SystemVolume, Strings["PreflightSystemVolume"]);
+        AutomationProperties.SetName(MicrophoneVolume, Strings["PreflightMicrophoneVolume"]);
         StopReplayButton.Content = Strings["PreflightStopReplay"]; RecheckButton.Content = Strings["PreflightRecheck"];
         DisableMicrophone.Content = Strings["PreflightDisableMic"]; DisableSystem.Content = Strings["PreflightDisableSystem"];
         CancelButton.Content = Strings["Cancel"]; StartButton.Content = Strings["PreflightStart"];
         ResetModel();
+        SystemVolume.ValueChanged += OnVolumeChanged;
+        MicrophoneVolume.ValueChanged += OnVolumeChanged;
         if (preparationOnly) SetPreparationState(RecordingPreparationState.Preparing);
         Opened += (_, _) => { if (!preparationOnly) _poll = PollAsync(begin: true, _pollCancellation.Token); };
     }
     private void ResetModel()
     {
+        _appliedSystemVolume = _configuration.SystemAudioVolumePercent;
+        _appliedMicrophoneVolume = _configuration.MicrophoneVolumePercent;
         Request = new(Guid.NewGuid()); _model = new(Request.OperationId); DataContext = _model;
         Render();
     }
@@ -79,6 +97,7 @@ public partial class RecordingPreflightWindow : Window
     private void Render()
     {
         var status = _model.Status;
+        _model.AudioBalancePending = _volumePending;
         SilenceNotice.Text = _model.SilenceNoticeKey is { } notice ? Strings[notice] : "";
         var microphoneEnabled = _configuration.AudioSource is AudioSourceType.MicrophoneOnly or AudioSourceType.SystemAndMicrophone;
         var systemEnabled = _configuration.AudioSource is AudioSourceType.SystemOnly or AudioSourceType.SystemAndMicrophone;
@@ -89,14 +108,34 @@ public partial class RecordingPreflightWindow : Window
         var monitoring = status.Phase is PreflightPhase.Preparing or PreflightPhase.Checking or PreflightPhase.TrialRecording;
         MicrophoneMeter.IsVisible = microphoneEnabled && monitoring;
         SystemMeter.IsVisible = systemEnabled && monitoring;
-        MicrophoneMeter.Value = microphoneEnabled && status.Microphone.State == PreflightSourceState.Live ? status.Microphone.Rms : 0;
-        SystemMeter.Value = systemEnabled && status.SystemAudio.State == PreflightSourceState.Live ? status.SystemAudio.Rms : 0;
+        // The server meters already include the applied gain. While dragging,
+        // show an estimate for the requested attenuation; never multiply twice.
+        static double Estimated(double rms, int requested, int applied) => applied == 0 ? 0 : rms * requested / applied;
+        MicrophoneMeter.Value = microphoneEnabled ? Estimated(status.Microphone.Rms, _configuration.MicrophoneVolumePercent, _appliedMicrophoneVolume) : 0;
+        SystemMeter.Value = systemEnabled ? Estimated(status.SystemAudio.Rms, _configuration.SystemAudioVolumePercent, _appliedSystemVolume) : 0;
+        var adjustable = !_model.Busy && !_closing && PreparationState is null &&
+            status.Phase is PreflightPhase.Checking or PreflightPhase.Reviewing;
+        SystemVolume.IsEnabled = systemEnabled && adjustable;
+        MicrophoneVolume.IsEnabled = microphoneEnabled && adjustable;
+        ResetVolumesButton.IsEnabled = adjustable;
+        SystemVolumeValue.Text = $"{_configuration.SystemAudioVolumePercent}%";
+        MicrophoneVolumeValue.Text = $"{_configuration.MicrophoneVolumePercent}%";
+        if (_configuration.SystemAudioVolumePercent == 0 && systemEnabled && status.ErrorCode is null && status.SystemAudio.State != PreflightSourceState.Unavailable) SystemStatus.Text = Strings["PreflightVolumeZero"];
+        if (_configuration.MicrophoneVolumePercent == 0 && microphoneEnabled && status.ErrorCode is null && status.Microphone.State != PreflightSourceState.Unavailable) MicrophoneStatus.Text = Strings["PreflightVolumeZero"];
+        var mix = !_volumePending && status.MixLevel is { } measured && DateTimeOffset.UtcNow - measured.CapturedAt <= TimeSpan.FromSeconds(1)
+            ? measured : (AudioLevelSample?)null;
+        MixMeter.Value = mix?.Rms ?? 0;
+        var overload = mix is { Peak: >= .98 };
+        MixMeter.Foreground = overload ? Brushes.OrangeRed : Brush.Parse("#2563EB");
+        MixStatus.Text = Strings[_volumePending ? "PreflightVolumeUpdating" : overload ? "PreflightMixHigh" :
+            mix is null ? "PreflightMixWaiting" : "PreflightMixLive"];
+        VolumeNotice.Text = _volumeChanged && (_volumePending || !status.HasTrial) ? Strings["PreflightVolumeChanged"] : "";
         DisableMicrophone.IsVisible = microphoneEnabled;
         DisableSystem.IsVisible = systemEnabled;
         TrialProgress.IsVisible = status.Phase == PreflightPhase.TrialRecording;
         TrialProgress.Value = status.TrialSeconds;
         StopReplayButton.IsEnabled = status.Playing && !_model.Busy;
-        RecheckButton.IsEnabled = !_model.Busy && status.Phase != PreflightPhase.Stopping;
+        RecheckButton.IsEnabled = !_model.Busy && !_volumePending && status.Phase != PreflightPhase.Stopping;
         DisableMicrophone.IsEnabled = !_model.Busy && _configuration.AudioSource is AudioSourceType.MicrophoneOnly or AudioSourceType.SystemAndMicrophone;
         DisableSystem.IsEnabled = !_model.Busy && _configuration.AudioSource is AudioSourceType.SystemOnly or AudioSourceType.SystemAndMicrophone;
         ErrorLabel.IsVisible = status.ErrorCode is not null || _model.ConnectionFailed;
@@ -141,12 +180,12 @@ public partial class RecordingPreflightWindow : Window
     private async Task ActionAsync(string command)
     {
         if (!await _action.WaitAsync(0)) return;
-        try { _model.Busy = true; _pendingAction = command; RenderPlaceholder(); await SendAsync(command, Request, _pollCancellation.Token); }
+        try { _model.Busy = true; _pendingAction = command; Render(); await SendAsync(command, Request, _pollCancellation.Token); }
         catch { Failure(); }
         finally { _pendingAction = null; _model.Busy = false; _action.Release(); Render(); }
     }
-    private async void OnTrial(object? sender, RoutedEventArgs e) => await ActionAsync("RecordPreflightTrial");
-    private async void OnReplay(object? sender, RoutedEventArgs e) => await ActionAsync("PlayPreflightTrial");
+    private async void OnTrial(object? sender, RoutedEventArgs e) { if (_model.CanTrial) await ActionAsync("RecordPreflightTrial"); }
+    private async void OnReplay(object? sender, RoutedEventArgs e) { if (_model.CanReplay) await ActionAsync("PlayPreflightTrial"); }
     private async void OnStopReplay(object? sender, RoutedEventArgs e) => await ActionAsync("StopPreflightReplay");
     private async Task StopPollingAsync()
     { _pollCancellation.Cancel(); await _poll; }
@@ -165,12 +204,15 @@ public partial class RecordingPreflightWindow : Window
             await SendAsync("GetPreflightStatus", Request, deadline.Token);
         }
     }
-    private async Task RecheckAsync(AudioSourceType? audio = null)
+    private async Task RecheckAsync(AudioSourceType? audio = null, bool waitForAction = false)
     {
-        if (_closing || !await _action.WaitAsync(0)) return;
+        if (_closing) return;
+        if (waitForAction) await _action.WaitAsync();
+        else if (!await _action.WaitAsync(0)) return;
         try
         {
-            _model.Busy = true; RenderPlaceholder(); await StopPollingAsync(); await EndAsync(false);
+            if (_closing) return;
+            _model.Busy = true; Render(); await StopPollingAsync(); await EndAsync(false);
             if (_closing) return;
             if (audio is { } source) _configuration.AudioSource = source;
             _pollCancellation.Dispose(); _pollCancellation = new(); ResetModel();
@@ -179,6 +221,46 @@ public partial class RecordingPreflightWindow : Window
         catch (Exception ex) { Serilog.Log.Warning(ex, "Cannot restart preflight audio check"); Failure(); }
         finally { _model.Busy = false; _action.Release(); Render(); }
     }
+
+    private void OnVolumeChanged(object? sender, RangeBaseValueChangedEventArgs e)
+    {
+        if (_syncingVolumes) return;
+        if (_closing || PreparationState is not null || _model.Busy ||
+            _model.Status.Phase is not (PreflightPhase.Checking or PreflightPhase.Reviewing))
+        {
+            _syncingVolumes = true;
+            try { SystemVolume.Value = _configuration.SystemAudioVolumePercent; MicrophoneVolume.Value = _configuration.MicrophoneVolumePercent; }
+            finally { _syncingVolumes = false; }
+            return;
+        }
+        _configuration.SystemAudioVolumePercent = (int)Math.Round(SystemVolume.Value);
+        _configuration.MicrophoneVolumePercent = (int)Math.Round(MicrophoneVolume.Value);
+        _volumePending = _volumeChanged = true;
+        _volumeDebounce.Cancel(); _volumeDebounce.Dispose(); _volumeDebounce = new();
+        var cancellation = _volumeDebounce.Token;
+        _volumeUpdate = UpdateVolumesAsync(cancellation);
+        Render();
+    }
+
+    private async Task UpdateVolumesAsync(CancellationToken ct)
+    {
+        try
+        {
+            await Task.Delay(300, ct);
+            // Reuse the acknowledged stop/start lifecycle. A fresh operation
+            // invalidates both the old trial and its cached confirmation.
+            await RecheckAsync(waitForAction: true);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+        catch (Exception ex) { Serilog.Log.Warning(ex, "Cannot apply preflight audio balance"); Failure(); }
+        finally
+        {
+            if (!ct.IsCancellationRequested) { _volumePending = false; Render(); }
+        }
+    }
+
+    private void OnResetVolumes(object? sender, RoutedEventArgs e)
+    { SystemVolume.Value = 100; MicrophoneVolume.Value = 100; }
     private async void OnRecheck(object? sender, RoutedEventArgs e) => await RecheckAsync();
     private async void OnDisableMicrophone(object? sender, RoutedEventArgs e)
     {
@@ -202,6 +284,8 @@ public partial class RecordingPreflightWindow : Window
         }
         if (confirm && !_model.CanStart) return;
         _closing = true; _model.Busy = true; RenderPlaceholder();
+        _volumeDebounce.Cancel();
+        await _volumeUpdate;
         await _action.WaitAsync();
         try
         {
@@ -239,6 +323,7 @@ public partial class RecordingPreflightWindow : Window
         }
         _model.Busy = true;
         AudioCards.IsVisible = AudioActions.IsVisible = StartButton.IsVisible = false;
+        MixArea.IsVisible = false;
         SilenceArea.IsVisible = false;
         TrialProgress.IsVisible = ErrorLabel.IsVisible = false;
         CancelButton.IsEnabled = state == RecordingPreparationState.Failed;
@@ -255,6 +340,7 @@ public partial class RecordingPreflightWindow : Window
         _confirmation.TrySetResult(null);
         _pollCancellation.Cancel();
         _pollCancellation.Dispose();
+        _volumeDebounce.Cancel(); _volumeDebounce.Dispose();
         base.OnClosed(e);
     }
 }

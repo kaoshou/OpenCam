@@ -98,6 +98,7 @@ public sealed partial class PreflightAudioSession(
             Phase = _phase, Microphone = mic, SystemAudio = sys,
             ErrorCode = _error ?? _replay?.ErrorCode, AudioReady = _phase == PreflightPhase.Checking && ready,
             HasTrial = _trialReady, Playing = _replay?.Playing == true,
+            MixLevel = _monitor && _capture is { IsRunning: true } active ? active.ReadMix(now) : null,
             TrialSeconds = _clock?.IsRunning == true ? Math.Clamp(_clock.Elapsed.TotalSeconds, 0, 5) : _trialSeconds
         };
     }

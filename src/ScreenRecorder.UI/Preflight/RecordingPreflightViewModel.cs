@@ -20,6 +20,8 @@ public sealed class RecordingPreflightViewModel(Guid operation) : ObservableObje
     private Guid? _server;
     private long _sequence;
     private bool _busy, _connectionFailed;
+    private bool _audioBalancePending;
+    public bool AudioBalancePending { get => _audioBalancePending; set { SetProperty(ref _audioBalancePending, value); Changed(); } }
     public bool ConnectionFailed { get => _connectionFailed; set { SetProperty(ref _connectionFailed, value); Changed(); } }
     public bool Busy { get => _busy; set { SetProperty(ref _busy, value); Changed(); } }
     public string? SilenceNoticeKey => Status.Phase != PreflightPhase.Checking ? null :
@@ -33,12 +35,12 @@ public sealed class RecordingPreflightViewModel(Guid operation) : ObservableObje
     public bool ShowSilenceNotice => SilenceNoticeKey is not null;
     // Audio checking is advisory. Ownership must still be known and shutdown
     // confirmed by EndPreflight before the real recording is started.
-    public bool CanStart => !Busy && !ConnectionFailed &&
+    public bool CanStart => !Busy && !AudioBalancePending && !ConnectionFailed &&
         Status.Phase is PreflightPhase.Checking or PreflightPhase.Reviewing or PreflightPhase.Failed;
-    public bool CanTrial => !Busy && !ConnectionFailed && Status.ErrorCode is null && !Status.Playing &&
+    public bool CanTrial => !Busy && !AudioBalancePending && !ConnectionFailed && Status.ErrorCode is null && !Status.Playing &&
         (Status.Microphone.State != PreflightSourceState.Disabled || Status.SystemAudio.State != PreflightSourceState.Disabled) &&
         (Status.Phase == PreflightPhase.Checking && Status.AudioReady || Status.Phase == PreflightPhase.Reviewing && Status.HasTrial);
-    public bool CanReplay => !Busy && Status.Phase == PreflightPhase.Reviewing && Status.HasTrial && !Status.Playing && Status.ErrorCode is null;
+    public bool CanReplay => !Busy && !AudioBalancePending && Status.Phase == PreflightPhase.Reviewing && Status.HasTrial && !Status.Playing && Status.ErrorCode is null;
     public bool Apply(PreflightReply reply)
     {
         if (reply.Sequence < _sequence || reply.Status.OperationId != operation || _server is { } server && server != reply.ServerInstanceId ||

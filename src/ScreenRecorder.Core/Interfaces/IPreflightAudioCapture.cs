@@ -10,6 +10,7 @@ public interface IPreflightAudioCapture : IAsyncDisposable
     Task StopAsync(CancellationToken ct);
     PreflightSourceResult ReadMicrophone(DateTimeOffset now);
     PreflightSourceResult ReadSystemAudio(DateTimeOffset now);
+    AudioLevelSample? ReadMix(DateTimeOffset now) => null;
     bool IsRunning { get; }
     string? ErrorCode { get; }
 }

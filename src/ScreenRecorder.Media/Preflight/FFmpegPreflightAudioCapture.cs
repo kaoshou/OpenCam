@@ -21,6 +21,8 @@ public sealed class FFmpegPreflightAudioCapture(
     bool synthetic = false) : IPreflightAudioCapture
 {
     private readonly object _levels = new();
+    private readonly PreflightAudioMeters _meters = new();
+    private int _systemVolume = 100, _micVolume = 100;
     private readonly SemaphoreSlim _lifecycle = new(1, 1);
     private Process? _process;
     private Task _stderr = Task.CompletedTask, _copy = Task.CompletedTask;
@@ -41,6 +43,8 @@ public sealed class FFmpegPreflightAudioCapture(
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (_started) throw new InvalidOperationException("Audio capture instances are single use.");
             _started = true;
+            _systemVolume = configuration.SystemAudioVolumePercent;
+            _micVolume = configuration.MicrophoneVolumePercent;
             _systemSelected = configuration.AudioSource is AudioSourceType.SystemOnly or AudioSourceType.SystemAndMicrophone;
             _micSelected = configuration.AudioSource is AudioSourceType.MicrophoneOnly or AudioSourceType.SystemAndMicrophone;
             if (!_systemSelected && !_micSelected) throw new InvalidOperationException("No audio source selected.");
@@ -157,6 +161,7 @@ public sealed class FFmpegPreflightAudioCapture(
         {
             void ObserveLine(string line)
             {
+                _meters.Observe(line, DateTimeOffset.UtcNow);
                 if (line.StartsWith("out_time_us=", StringComparison.Ordinal) &&
                     long.TryParse(line.AsSpan(12), NumberStyles.Integer, CultureInfo.InvariantCulture, out var time) && time > 0)
                     _ack.TrySetResult(true);
@@ -208,16 +213,25 @@ public sealed class FFmpegPreflightAudioCapture(
     {
         lock (_levels)
         {
-            if (_micSelected && _readLevels && IsRunning && _observerUnavailable)
+            var measured = _readLevels && IsRunning ? _meters.Read("microphone", now) : null;
+            if (_micSelected && _readLevels && IsRunning && _observerUnavailable && measured is null)
                 return new(PreflightSourceState.Unavailable);
-            return PreflightReadiness.Resolve(_micSelected,
-                _readLevels && IsRunning ? (microphone as IAudioLevelSource)?.ReadLatestLevel(now) ?? observer?.ReadLatestLevel(now) : null, now);
+            var raw = measured ?? (_readLevels && IsRunning ? (microphone as IAudioLevelSource)?.ReadLatestLevel(now) ?? observer?.ReadLatestLevel(now) : null);
+            return Attenuate(PreflightReadiness.Resolve(_micSelected, raw, now), _micVolume);
         }
     }
     public PreflightSourceResult ReadSystemAudio(DateTimeOffset now)
     {
-        lock (_levels) return PreflightReadiness.Resolve(_systemSelected,
-            _readLevels && IsRunning ? (system as IAudioLevelSource)?.ReadLatestLevel(now) : null, now);
+        lock (_levels) return Attenuate(PreflightReadiness.Resolve(_systemSelected,
+            _readLevels && IsRunning ? _meters.Read("system", now) ?? (system as IAudioLevelSource)?.ReadLatestLevel(now) : null, now), _systemVolume);
+    }
+
+    private static PreflightSourceResult Attenuate(PreflightSourceResult source, int percent) =>
+        source with { Rms = source.Rms * percent / 100d, Peak = source.Peak * percent / 100d };
+
+    public AudioLevelSample? ReadMix(DateTimeOffset now)
+    {
+        lock (_levels) return _readLevels && IsRunning ? _meters.Read("mix", now) : null;
     }
 
     public async Task StopAsync(CancellationToken ct)

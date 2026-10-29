@@ -12,6 +12,7 @@ public sealed record PreflightStatus(Guid OperationId, long ConfigurationRevisio
     double TrialSeconds = 0, bool Playing = false)
 {
     public bool AudioReady { get; init; }
+    public AudioLevelSample? MixLevel { get; init; }
     public static PreflightStatus Empty => new(Guid.Empty, 0, PreflightPhase.Closed,
         new(PreflightSourceState.Disabled), new(PreflightSourceState.Disabled), CaptureRegion.Empty);
 }

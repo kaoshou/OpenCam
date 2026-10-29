@@ -112,14 +112,17 @@ public class PreflightAudioCaptureTests(Xunit.Abstractions.ITestOutputHelper out
     public async Task UnavailableBestEffortMeterDoesNotPreventActualAudioTrial(bool throws)
     {
         var meter = new UnavailableMeter(throws);
-        await using var capture = new FFmpegPreflightAudioCapture(new ToneInput(), observer: meter);
         using var output = new MemoryStream();
+        await using var capture = new FFmpegPreflightAudioCapture(new ToneInput(), observer: meter);
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
         await capture.StartAsync(new() { AudioSource = AudioSourceType.MicrophoneOnly, MicrophoneDeviceId = "selected-device" },
             output, deadline.Token);
         Assert.True(capture.IsRunning);
         Assert.Null(capture.ErrorCode);
-        Assert.Equal(PreflightSourceState.Unavailable, capture.ReadMicrophone(DateTimeOffset.UtcNow).State);
+        // The real audio pipeline now supplies its own meter even if the
+        // optional device observer is unavailable. Keep testing actual audio.
+        Assert.Equal(PreflightSourceState.Live, capture.ReadMicrophone(DateTimeOffset.UtcNow).State);
+        Assert.InRange(capture.ReadMicrophone(DateTimeOffset.UtcNow).Rms, .06, .065);
         await Task.Delay(200, deadline.Token);
         await capture.StopAsync(deadline.Token);
         Assert.Null(capture.ErrorCode);
@@ -235,7 +238,9 @@ public class PreflightAudioCaptureTests(Xunit.Abstractions.ITestOutputHelper out
         try
         {
             await capture.StartAsync(new() { AudioSource = AudioSourceType.SystemOnly }, null, deadline.Token);
-            Assert.Equal(.2, capture.ReadSystemAudio(DateTimeOffset.UtcNow).Rms);
+            // The encoded pipeline's real tone measurement takes precedence
+            // over the stub device observer's arbitrary .2 reading.
+            Assert.InRange(capture.ReadSystemAudio(DateTimeOffset.UtcNow).Rms, .06, .065);
             await capture.StopAsync(deadline.Token);
             var reads = system.Reads;
             Assert.Equal(PreflightSourceState.Waiting, capture.ReadSystemAudio(DateTimeOffset.UtcNow).State);

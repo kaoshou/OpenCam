@@ -159,8 +159,10 @@ public class RecordingPreflightUiTests
         {
             Assert.Equal(strings["PreflightPreparing"], window.FindControl<TextBlock>("StatusMessage")!.Text);
             window.Show(); window.UpdateLayout();
-            Assert.Equal(480, window.Height);
-            Assert.Equal(420, window.MinHeight);
+            Assert.InRange(window.Height, 480, 800);
+            Assert.True(window.MinHeight <= window.Height);
+            Assert.True(window.FindControl<Slider>("MicrophoneVolume")!.IsEffectivelyVisible);
+            Assert.True(window.FindControl<Slider>("SystemVolume")!.IsEffectivelyVisible);
             var placeholder = window.FindControl<Border>("StatusArea")!;
             var message = window.FindControl<TextBlock>("StatusMessage")!;
             var activity = window.FindControl<ProgressBar>("StatusActivity")!;

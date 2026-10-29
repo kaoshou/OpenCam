@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="using:ScreenRecorder.UI.Preflight" x:Class="ScreenRecorder.UI.Preflight.RecordingPreflightWindow"
-        x:DataType="local:RecordingPreflightViewModel" Width="740" Height="480" MinWidth="640" MinHeight="420"
+        x:DataType="local:RecordingPreflightViewModel" Width="740" Height="610" MinWidth="640" MinHeight="480"
         WindowStartupLocation="CenterOwner" Background="#F8FAFC" RequestedThemeVariant="Light" Icon="/Assets/app_icon.png">
   <Window.Styles>
     <Style Selector="Button"><Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="CornerRadius" Value="8"/><Setter Property="Padding" Value="14,9"/></Style>
@@ -24,6 +24,10 @@
             <StackPanel Spacing="7">
               <TextBlock x:Name="MicrophoneLabel" FontWeight="SemiBold"/>
               <ProgressBar x:Name="MicrophoneMeter" Maximum="1" Height="8"/>
+              <Grid ColumnDefinitions="*,Auto">
+                <Slider x:Name="MicrophoneVolume" Minimum="0" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True" SmallChange="1" LargeChange="10"/>
+                <TextBlock x:Name="MicrophoneVolumeValue" Grid.Column="1" MinWidth="45" TextAlignment="Right" VerticalAlignment="Center"/>
+              </Grid>
               <TextBlock x:Name="MicrophoneStatus" FontSize="12" TextWrapping="Wrap"/>
               <Button x:Name="DisableMicrophone" Classes="quiet" Click="OnDisableMicrophone" FontSize="11"/>
             </StackPanel>
@@ -32,11 +36,26 @@
             <StackPanel Spacing="7">
               <TextBlock x:Name="SystemLabel" FontWeight="SemiBold"/>
               <ProgressBar x:Name="SystemMeter" Maximum="1" Height="8"/>
+              <Grid ColumnDefinitions="*,Auto">
+                <Slider x:Name="SystemVolume" Minimum="0" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True" SmallChange="1" LargeChange="10"/>
+                <TextBlock x:Name="SystemVolumeValue" Grid.Column="1" MinWidth="45" TextAlignment="Right" VerticalAlignment="Center"/>
+              </Grid>
               <TextBlock x:Name="SystemStatus" FontSize="12" TextWrapping="Wrap"/>
               <Button x:Name="DisableSystem" Classes="quiet" Click="OnDisableSystem" FontSize="11"/>
             </StackPanel>
           </Border>
         </Grid>
+        <Border x:Name="MixArea" Background="White" CornerRadius="10" Padding="14,10" BorderBrush="#E2E8F0" BorderThickness="1">
+          <StackPanel Spacing="7">
+            <Grid ColumnDefinitions="*,Auto"><TextBlock x:Name="MixLabel" FontWeight="SemiBold"/><TextBlock x:Name="MixStatus" Grid.Column="1" FontSize="12"/></Grid>
+            <ProgressBar x:Name="MixMeter" Maximum="1" Height="8"/>
+            <TextBlock x:Name="VolumeHint" TextWrapping="Wrap" FontSize="12" Foreground="#64748B"/>
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock x:Name="VolumeNotice" TextWrapping="Wrap" FontSize="12" Foreground="#92400E" VerticalAlignment="Center"/>
+              <Button x:Name="ResetVolumesButton" Grid.Column="1" Classes="quiet" Click="OnResetVolumes"/>
+            </Grid>
+          </StackPanel>
+        </Border>
         <Border x:Name="StatusArea" Background="#F1F5F9" CornerRadius="10" Padding="14" MinHeight="110">
           <StackPanel Spacing="9">
             <TextBlock x:Name="StatusMessage" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap"/>

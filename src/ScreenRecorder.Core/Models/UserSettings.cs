@@ -41,6 +41,9 @@ public class UserSettings
     }
     public bool RecordSystemAudio { get; set; } = true;
     public bool RecordMicrophone { get; set; } = false;
+    private int _systemAudioVolumePercent = 100, _microphoneVolumePercent = 100;
+    public int SystemAudioVolumePercent { get => _systemAudioVolumePercent; set => _systemAudioVolumePercent = Math.Clamp(value, 0, 100); }
+    public int MicrophoneVolumePercent { get => _microphoneVolumePercent; set => _microphoneVolumePercent = Math.Clamp(value, 0, 100); }
     public bool AutoExportRecordingOnStop { get; set; } = true;
     public string? SelectedMicrophoneId { get; set; }
     public string CaptureRangeMode { get; set; } = "Monitor"; // Monitor, CustomRegion

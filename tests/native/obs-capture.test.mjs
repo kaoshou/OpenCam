@@ -80,6 +80,53 @@ test('invalid request never emits media',async()=>{
   assert.ok(result.events.some(e=>e.event==='error'&&e.code==='invalid_request'),result.log);
 });
 
+test('audio balance protocol preserves independent source gains in the encoded mix', { skip:!helper||!runtime }, async()=>{
+  const result=await record({...request,protocol:2,audio:'both',systemAudioVolumePercent:25,microphoneVolumePercent:100},{seconds:2});
+  assert.equal(result.code,0,result.log);
+  assert.ok(result.events.some(e=>e.event==='ready'&&e.protocol===2),result.log);
+  const root=mkdtempSync(join(tmpdir(),'opencam-balance-test-'));
+  const path=join(root,'mix.mkv');writeFileSync(path,result.bytes);
+  const pcm=spawnSync(ffmpeg,['-v','error','-i',path,'-map','0:a:0','-ar','48000','-ac','1','-f','f32le','-'],{maxBuffer:4*1024*1024});
+  assert.equal(pcm.status,0,pcm.stderr?.toString());
+  // Independent tones from the two real libobs sources. Frequency projection
+  // rejects applying either gain to both sources or averaging the mixed output.
+  const amplitude=frequency=>{
+    let maximum=0;const count=pcm.stdout.length/4,window=960;
+    // Measure a complete active 20ms window, not whole-file average: the
+    // 100ms pulse duty cycle depends on where startup/stop cut the recording.
+    for(let start=0;start+window<=count;start+=480) {
+      let re=0,im=0;
+      for(let i=0;i<window;i++){const value=pcm.stdout.readFloatLE((start+i)*4),phase=2*Math.PI*frequency*i/48000;re+=value*Math.cos(phase);im+=value*Math.sin(phase);}
+      maximum=Math.max(maximum,2*Math.hypot(re,im)/window);
+    }
+    return maximum;
+  };
+  const system=amplitude(1000),mic=amplitude(1500);
+  // Two .2 channels downmixed to mono at sqrt(.5) each yield about .283.
+  // Averaging two sources would halve this and must fail.
+  assert.ok(mic>.23&&mic<.34,`microphone amplitude ${mic}`);
+  assert.ok(system/mic>.20&&system/mic<.30,`source ratio ${system/mic}`);
+});
+
+test('out-of-range audio gain is rejected before any media is emitted', { skip:!helper||!runtime }, async()=>{
+  const result=await record({...request,protocol:2,systemAudioVolumePercent:101,microphoneVolumePercent:100},{seconds:.1});
+  assert.equal(result.code,2,result.log);assert.equal(result.bytes.length,0);
+});
+
+test('zero gain keeps selected sources ready while encoding silence', { skip:!helper||!runtime }, async()=>{
+  for(const audio of ['system','microphone','both']) {
+    const result=await record({...request,protocol:2,audio,systemAudioVolumePercent:0,microphoneVolumePercent:0},{seconds:1.2});
+    assert.equal(result.code,0,result.log);
+    const ready=result.events.find(e=>e.event==='ready');assert.ok(ready,result.log);
+    if(audio!=='microphone')assert.equal(ready.startup.systemSamples,true);
+    if(audio!=='system')assert.equal(ready.startup.microphoneSamples,true);
+    const root=mkdtempSync(join(tmpdir(),'opencam-zero-gain-test-')),path=join(root,'silent.mkv');writeFileSync(path,result.bytes);
+    const pcm=spawnSync(ffmpeg,['-v','error','-i',path,'-map','0:a:0','-f','f32le','-'],{maxBuffer:4*1024*1024});
+    assert.equal(pcm.status,0,pcm.stderr?.toString());assert.ok(pcm.stdout.length>0);
+    for(let i=0;i<pcm.stdout.length;i+=4)assert.ok(Math.abs(pcm.stdout.readFloatLE(i))<.001);
+  }
+});
+
 test('source failure cannot keep encoding a stale texture as a healthy recording',async()=>{
   const result=await record(request,{seconds:4,env:{OPENCAM_OBS_TEST_SOURCE_FAILURE_MS:'1200'}});
   assert.notEqual(result.code,0,result.log);

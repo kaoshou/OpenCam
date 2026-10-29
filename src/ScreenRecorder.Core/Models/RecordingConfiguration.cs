@@ -34,6 +34,10 @@ public class RecordingConfiguration
 
     public AudioSourceType AudioSource { get; set; } = AudioSourceType.SystemAndMicrophone;
 
+    private int _systemAudioVolumePercent = 100, _microphoneVolumePercent = 100;
+    public int SystemAudioVolumePercent { get => _systemAudioVolumePercent; set => _systemAudioVolumePercent = Math.Clamp(value, 0, 100); }
+    public int MicrophoneVolumePercent { get => _microphoneVolumePercent; set => _microphoneVolumePercent = Math.Clamp(value, 0, 100); }
+
     public string? SystemAudioDeviceId { get; set; }
 
     public string? MicrophoneDeviceId { get; set; }
@@ -107,6 +111,8 @@ public class RecordingConfiguration
         AudioSource = updates.AudioSource;
         SystemAudioDeviceId = updates.SystemAudioDeviceId;
         MicrophoneDeviceId = updates.MicrophoneDeviceId;
+        SystemAudioVolumePercent = updates.SystemAudioVolumePercent;
+        MicrophoneVolumePercent = updates.MicrophoneVolumePercent;
         CursorEffect = updates.CursorEffect;
         PresentationPointer = updates.PresentationPointer;
         IsRecoverySilenceMode = false;

@@ -303,7 +303,7 @@ public partial class MainViewModel
                 !newContent && insertionTicks is null && vm.State.Mode == ProjectMode.Paused);
             if (checkedConfiguration is null) return;
             configuration = checkedConfiguration;
-            ApplyPreflightAudioSelection(configuration);
+            await ApplyPreflightAudioSelectionAsync(configuration);
             _activeDiskWarningThresholdBytes = configuration.DiskWarningThresholdBytes;
             if (insertionTicks is { } ticks)
                 await vm.StartInsertionAsync(configuration, ticks, revision!.Value);
@@ -319,10 +319,14 @@ public partial class MainViewModel
     public Task StartEditorRecordingAsync(long? insertionTicks = null, long? revision = null) =>
         CaptureContentAsync(false, insertionTicks, revision);
 
-    private void ApplyPreflightAudioSelection(ScreenRecorder.Core.Models.RecordingConfiguration configuration)
+    private async Task ApplyPreflightAudioSelectionAsync(ScreenRecorder.Core.Models.RecordingConfiguration configuration)
     {
+        _systemAudioVolumePercent = configuration.SystemAudioVolumePercent;
+        _microphoneVolumePercent = configuration.MicrophoneVolumePercent;
         RecordMicrophone = configuration.AudioSource is ScreenRecorder.Core.Enums.AudioSourceType.MicrophoneOnly or ScreenRecorder.Core.Enums.AudioSourceType.SystemAndMicrophone;
         RecordSystemAudio = configuration.AudioSource is ScreenRecorder.Core.Enums.AudioSourceType.SystemOnly or ScreenRecorder.Core.Enums.AudioSourceType.SystemAndMicrophone;
+        PersistUserSettings();
+        await FlushPendingUserSettingsAsync();
     }
 
     public async Task<bool> LeaveContentEditorAsync()

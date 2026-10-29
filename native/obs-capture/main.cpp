@@ -101,14 +101,20 @@ static bool stopRequested() {
 struct Request {
     int width, height, fps, x, y, monitorWidth, monitorHeight, cropX, cropY, quality;
     bool synthetic, cursor; std::string audio, microphone, systemDevice, monitor, encoder;
+    int protocol=1, systemVolume=100, micVolume=100;
     bool hasAudio() const {return audio != "none";}
     bool system() const {return audio == "system" || audio == "both";}
     bool mic() const {return audio == "microphone" || audio == "both";}
 };
 static Request request(obs_data_t *d) {
-    if (!d || obs_data_get_int(d,"protocol") != 1) throw std::runtime_error("invalid_request");
+    if (!d || (obs_data_get_int(d,"protocol") != 1 && obs_data_get_int(d,"protocol") != 2)) throw std::runtime_error("invalid_request");
     auto number = [&](const char *key) {double v = obs_data_get_double(d,key); if (!std::isfinite(v) || v < -1000000 || v > 1000000 || std::floor(v) != v) throw std::runtime_error("invalid_request"); return static_cast<int>(v);};
     Request r{number("width"),number("height"),number("fps"),number("x"),number("y"),number("monitorWidth"),number("monitorHeight"),number("cropX"),number("cropY"),number("quality"),obs_data_get_bool(d,"synthetic"),obs_data_get_bool(d,"cursor"),obs_data_get_string(d,"audio"),obs_data_get_string(d,"microphone"),obs_data_get_string(d,"systemDevice"),obs_data_get_string(d,"monitor"),obs_data_get_string(d,"encoder")};
+    r.protocol=number("protocol");
+    r.systemVolume=obs_data_has_user_value(d,"systemAudioVolumePercent")?number("systemAudioVolumePercent"):100;
+    r.micVolume=obs_data_has_user_value(d,"microphoneVolumePercent")?number("microphoneVolumePercent"):100;
+    if(r.systemVolume<0||r.systemVolume>100||r.micVolume<0||r.micVolume>100 ||
+       (r.protocol==1&&(r.systemVolume!=100||r.micVolume!=100)))throw std::runtime_error("invalid_request");
     if (r.width < 2 || r.height < 2 || r.width > 16384 || r.height > 16384 || r.width % 2 || r.height % 2 || r.fps < 1 || r.fps > 120 || r.cropX < 0 || r.cropY < 0 || r.cropX + r.width > r.monitorWidth || r.cropY + r.height > r.monitorHeight || (r.quality != 18 && r.quality != 23 && r.quality != 28)) throw std::runtime_error("invalid_request");
     if (r.audio != "none" && r.audio != "system" && r.audio != "microphone" && r.audio != "both" && r.audio != "silence") throw std::runtime_error("invalid_audio");
     if (r.encoder != "cpu" && r.encoder != "nvenc" && r.encoder != "qsv" && r.encoder != "amf" && r.encoder != "apple") throw std::runtime_error("invalid_encoder");
@@ -382,8 +388,9 @@ static int run(int argc,char **argv) {
             // recovery mode; do not make it pass by adding a generated device.
             obs_source_info sourceInfo{};sourceInfo.id="opencam_clock_source";sourceInfo.type=OBS_SOURCE_TYPE_INPUT;sourceInfo.output_flags=OBS_SOURCE_VIDEO|OBS_SOURCE_CUSTOM_DRAW|(r.hasAudio()&&r.audio!="silence"?OBS_SOURCE_AUDIO:0);
             sourceInfo.get_name=name;sourceInfo.create=testCreate;sourceInfo.destroy=destroy;sourceInfo.get_width=testWidth;sourceInfo.get_height=testHeight;sourceInfo.video_render=testRender;sourceInfo.get_properties=testProperties;obs_register_source(&sourceInfo);
-            screen=source("opencam_clock_source","clock",settings); system=obs_source_get_ref(screen);
-            if(r.mic())mic=obs_source_get_ref(screen);
+            screen=source("opencam_clock_source","clock",settings);
+            if(r.system())system=obs_source_get_ref(screen);
+            if(r.mic()){mic=source("opencam_clock_source","microphone",settings);obs_set_output_source(2,mic);}
         }else {
             auto monitor=monitorId(r);
             s.captureWidth=monitor.width;s.captureHeight=monitor.height;
@@ -441,6 +448,8 @@ static int run(int argc,char **argv) {
             }
         }
         obs_set_output_source(0,obs_scene_get_source(scene));
+        if(system)obs_source_set_volume(system,static_cast<float>(r.systemVolume)/100.0f);
+        if(mic)obs_source_set_volume(mic,static_cast<float>(r.micVolume)/100.0f);
         if(system)obs_source_add_audio_capture_callback(system,sample,nullptr);
         if(mic)obs_source_add_audio_capture_callback(mic,sample,reinterpret_cast<void *>(1));
         if(r.synthetic&&r.hasAudio()&&r.audio!="silence") {
@@ -450,8 +459,13 @@ static int run(int argc,char **argv) {
                     uint64_t target=s.epoch+frame*1000000000ULL/48000;
                     if(os_gettime_ns()<target) {os_sleep_ms(1);continue;}
                     double seconds=frame/48000.0;
-                    for(int i=0;i<480;++i){double t=seconds+i/48000.0;float value=r.audio=="silence"?0.0f:static_cast<float>(std::fmod(t,1.0)<0.10?0.2*std::sin(t*2*3.141592653589793*1000):0);samples[0][i]=samples[1][i]=value;}
-                    obs_source_audio a{};a.data[0]=reinterpret_cast<uint8_t *>(samples[0]);a.data[1]=reinterpret_cast<uint8_t *>(samples[1]);a.frames=480;a.speakers=SPEAKERS_STEREO;a.samples_per_sec=48000;a.format=AUDIO_FORMAT_FLOAT_PLANAR;a.timestamp=target;obs_source_output_audio(screen,&a);frame+=480;
+                    for(auto *src:{system,mic}) {
+                        if(!src)continue;
+                        const double frequency=src==mic?1500:1000;
+                        for(int i=0;i<480;++i){double t=seconds+i/48000.0;float value=static_cast<float>(std::fmod(t,1.0)<0.10?0.2*std::sin(t*2*3.141592653589793*frequency):0);samples[0][i]=samples[1][i]=value;}
+                        obs_source_audio a{};a.data[0]=reinterpret_cast<uint8_t *>(samples[0]);a.data[1]=reinterpret_cast<uint8_t *>(samples[1]);a.frames=480;a.speakers=SPEAKERS_STEREO;a.samples_per_sec=48000;a.format=AUDIO_FORMAT_FLOAT_PLANAR;a.timestamp=target;obs_source_output_audio(src,&a);
+                    }
+                    frame+=480;
                 }
             });
         }
@@ -521,7 +535,7 @@ static int run(int argc,char **argv) {
 #else
                 const char *backend=r.synthetic?"synthetic":"wgc";
 #endif
-                event(std::string("{\"event\":\"ready\",\"protocol\":1,\"backend\":\"")+backend+"\",\"encoder\":\""+r.encoder+"\""+startupDetails()+"}");
+                event(std::string("{\"event\":\"ready\",\"protocol\":")+std::to_string(r.protocol)+",\"backend\":\""+backend+"\",\"encoder\":\""+r.encoder+"\""+startupDetails()+"}");
                 s.stage="recording";
             }
             if(!ready&&now>deadline)throw std::runtime_error("capture_start_timeout");

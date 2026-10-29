@@ -635,6 +635,8 @@ public partial class MainViewModel : ObservableObject
         PersistUserSettings();
     }
 
+    private int _systemAudioVolumePercent = 100, _microphoneVolumePercent = 100;
+
     public RecordingConfiguration BuildProjectConfiguration() => ApplyRuntimeSettings(new RecordingConfiguration
     {
         ProjectName = NextProjectName,
@@ -650,6 +652,8 @@ public partial class MainViewModel : ObservableObject
         MonitorIndex = SelectedMonitor?.Index ?? 0,
         Region = new CaptureRegion(RegionX, RegionY, RegionWidth, RegionHeight),
         MicrophoneDeviceId = RecordMicrophone ? SelectedMicrophone?.Id : null,
+        SystemAudioVolumePercent = _systemAudioVolumePercent,
+        MicrophoneVolumePercent = _microphoneVolumePercent,
         AudioSource = ResolveAudioSource(SupportsSystemAudio, RecordSystemAudio, RecordMicrophone)
     }, _videoQualityPreset, _deleteWorkingFileAfterRemux, _diskWarningThresholdGb, _diskCriticalThresholdMb);
 
@@ -708,6 +712,8 @@ public partial class MainViewModel : ObservableObject
                 RecordMicrophone),
             MicrophoneDeviceId = RecordMicrophone ? SelectedMicrophone?.Id : null,
             SystemAudioDeviceId = null,
+            SystemAudioVolumePercent = _systemAudioVolumePercent,
+            MicrophoneVolumePercent = _microphoneVolumePercent,
             CursorEffect = SelectedCursorEffect?.Mode ?? CursorEffectMode.Default,
             PresentationPointer = CurrentPresentationPointer
         };
@@ -988,6 +994,8 @@ public partial class MainViewModel : ObservableObject
             SelectedFps = s.Fps;
             RecordSystemAudio = SupportsSystemAudio && s.RecordSystemAudio;
             RecordMicrophone = s.RecordMicrophone;
+            _systemAudioVolumePercent = s.SystemAudioVolumePercent;
+            _microphoneVolumePercent = s.MicrophoneVolumePercent;
             MinimizeOnRecord = s.MinimizeOnRecord;
             MicrophoneSilenceReminderEnabled = s.MicrophoneSilenceReminderEnabled;
             ApplyAnnotationSettings(s);
@@ -1186,6 +1194,8 @@ public partial class MainViewModel : ObservableObject
                 PresentationPointer = CurrentPresentationPointer,
                 RecordSystemAudio = RecordSystemAudio,
                 RecordMicrophone = RecordMicrophone,
+                SystemAudioVolumePercent = _systemAudioVolumePercent,
+                MicrophoneVolumePercent = _microphoneVolumePercent,
                 SelectedMicrophoneId = SelectedMicrophone?.Id,
                 CaptureRangeMode = rangeMode,
                 SelectedMonitorIndex = SelectedMonitor?.Index ?? 0,
@@ -1239,6 +1249,8 @@ public partial class MainViewModel : ObservableObject
 
     public void ApplyNewSettings(UserSettings newSettings)
     {
+        _systemAudioVolumePercent = newSettings.SystemAudioVolumePercent;
+        _microphoneVolumePercent = newSettings.MicrophoneVolumePercent;
         _newProjectAutoExport = newSettings.AutoExportRecordingOnStop;
         OnPropertyChanged(nameof(AutoExportRecordingOnStop));
         ApplyAnnotationSettings(newSettings);
@@ -1418,6 +1430,8 @@ public partial class MainViewModel : ObservableObject
                 MonitorIndex = SelectedMonitor?.Index ?? 0,
                 Region = new CaptureRegion(RegionX, RegionY, RegionWidth, RegionHeight),
                 MicrophoneDeviceId = RecordMicrophone ? SelectedMicrophone?.Id : null,
+                SystemAudioVolumePercent = _systemAudioVolumePercent,
+                MicrophoneVolumePercent = _microphoneVolumePercent,
                 AudioSource = ResolveAudioSource(
                     SupportsSystemAudio,
                     RecordSystemAudio,
@@ -1431,7 +1445,7 @@ public partial class MainViewModel : ObservableObject
             var checkedConfiguration = await CheckBeforeRecordingAsync(config, false);
             if (checkedConfiguration is null) return;
             config = checkedConfiguration;
-            ApplyPreflightAudioSelection(config);
+            await ApplyPreflightAudioSelectionAsync(config);
 
             // macOS native audio may need two FFmpeg startup attempts (hardware
             // encoder then CPU fallback). Keep the UI request alive for both.
@@ -1517,7 +1531,7 @@ public partial class MainViewModel : ObservableObject
                 StatusMessage = Strings["StatusResuming"];
                 var checkedConfiguration = await CheckBeforeRecordingAsync(BuildProjectConfiguration(), true);
                 if (checkedConfiguration is null) return;
-                ApplyPreflightAudioSelection(checkedConfiguration);
+                await ApplyPreflightAudioSelectionAsync(checkedConfiguration);
 
                 // Send one authoritative snapshot immediately before resume.
                 // This avoids racing fire-and-forget updates when the user

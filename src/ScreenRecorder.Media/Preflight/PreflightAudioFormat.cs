@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 using ScreenRecorder.Core.Enums;
 using ScreenRecorder.Core.Models;
+using System.Globalization;
 
 namespace ScreenRecorder.Media.Preflight;
 
@@ -28,15 +29,25 @@ public static class PreflightAudioFormat
         if (useSystem && useMic)
         {
             // Indices belong to this audio-only command, never the video pipeline.
-            var filters = mac
-                ? "[0:a]aresample=48000:async=1:first_pts=0[sys];[1:a]aresample=48000:async=1:first_pts=0[mic];" +
-                  "[sys][mic]amix=inputs=2:duration=longest:dropout_transition=0,aformat=sample_rates=48000:channel_layouts=stereo[aout]"
-                : "[0:a][1:a]amix=inputs=2:duration=longest[aout]";
+            var filters = "[0:a]" + SourceFilters("system", configuration.SystemAudioVolumePercent, mac) + "[sys];" +
+                "[1:a]" + SourceFilters("microphone", configuration.MicrophoneVolumePercent, mac) + "[mic];" +
+                "[sys][mic]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0," +
+                "aformat=sample_rates=48000:channel_layouts=stereo," + MeterFilters("mix") + "[aout]";
             return $"{system!.Trim()} {microphone!.Trim()} -filter_complex \"{filters}\" -map \"[aout]\"";
         }
         var input = useSystem ? system : microphone;
-        return input!.Trim() + (mac
-            ? " -map 0:a -af \"aresample=48000:async=1:first_pts=0,aformat=sample_rates=48000:channel_layouts=stereo\""
-            : " -map 0:a");
+        return input!.Trim() + " -map 0:a -af \"" +
+            SourceFilters(useSystem ? "system" : "microphone", useSystem ? configuration.SystemAudioVolumePercent : configuration.MicrophoneVolumePercent, mac) +
+            "," + MeterFilters("mix") + "\"";
     }
+
+    private static string SourceFilters(string role, int percent, bool mac) =>
+        (mac ? "aresample=48000:async=1:first_pts=0," : "aresample=48000,") +
+        "aformat=sample_rates=48000:channel_layouts=stereo," + MeterFilters(role) +
+        ",volume=" + (percent / 100d).ToString("0.00", CultureInfo.InvariantCulture);
+
+    private static string MeterFilters(string role) =>
+        "astats=metadata=1:reset=1:measure_perchannel=none:measure_overall=Peak_level+RMS_level," +
+        $"ametadata@oc_{role}_peak=mode=print:key=lavfi.astats.Overall.Peak_level," +
+        $"ametadata@oc_{role}_rms=mode=print:key=lavfi.astats.Overall.RMS_level";
 }
