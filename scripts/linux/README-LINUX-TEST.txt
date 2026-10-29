@@ -41,3 +41,7 @@ Linux-specific OBS embedded-component notices are in linux-notices/obs-embedded/
 This Linux build uses FFmpeg n8.1.3 with GPL/libx264 enabled; the Windows/macOS
 runtime inventories in the general notices do not describe this Linux artifact.
 See SOURCE.txt and build-evidence/ffmpeg-config.mak for its exact inputs/options.
+CoreCLR's optional LTTng tracing provider may lack the older liblttng-ust.so.0
+ABI on Ubuntu 24.04. This affects optional PerfCollect/LTTng tracing, not the
+recording, preview/export, logging or EventPipe paths tested here. Do not create
+an ABI symlink to the newer library. Other missing native libraries remain errors.

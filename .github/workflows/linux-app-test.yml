@@ -55,6 +55,7 @@ jobs:
           node --test tests/scripts/linux-probe-runner.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/runner-tests.log" 2>&1
           node --test tests/scripts/linux-isolation.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/isolation-tests.log" 2>&1
           node --test tests/scripts/linux-app-assembly.test.mjs tests/scripts/linux-app-media-validation.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/package-unit-tests.log" 2>&1
+          node --test tests/scripts/linux-elf-policy.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/elf-policy-tests.log" 2>&1
           git diff 7bc17eb -- native/obs-capture scripts/build-obs-capture.sh scripts/build-obs-capture.ps1 scripts/assemble-obs-runtime.mjs .github/workflows/build-and-release.yml .github/workflows/package-release.yml VERSION > "$RUNNER_TEMP/opencam-linux/evidence/production-audit.diff"
           test ! -s "$RUNNER_TEMP/opencam-linux/evidence/production-audit.diff"
           c++ -std=c++17 tests/native/linux-source-health-tests.cpp -o "$RUNNER_TEMP/opencam-linux/health-tests"
@@ -225,9 +226,10 @@ jobs:
           while IFS= read -r -d '' binary; do
             if file -b "$binary" | grep -q '^ELF'; then
               printf '\nFILE %s\n' "${binary#"$package_directory/"}" >> "$RUNNER_TEMP/opencam-linux/evidence/elf-dependencies.txt"
-              dependencies=$(ldd "$binary")
+              needed=$(patchelf --print-needed "$binary")
+              if [[ -n "$needed" ]]; then dependencies=$(ldd "$binary" 2>&1); else dependencies="No DT_NEEDED libraries"; fi
               printf '%s\n' "$dependencies" >> "$RUNNER_TEMP/opencam-linux/evidence/elf-dependencies.txt"
-              if [[ "$dependencies" == *'not found'* ]]; then exit 1; fi
+              node scripts/linux/elf-policy.mjs "${binary#"$package_directory/"}" <<< "$dependencies" >> "$RUNNER_TEMP/opencam-linux/evidence/elf-dependencies.txt"
               rpath=$(patchelf --print-rpath "$binary")
               if [[ "$rpath" == *"$RUNNER_TEMP"* || "$rpath" == *"$GITHUB_WORKSPACE"* ]]; then exit 1; fi
             fi
