@@ -30,7 +30,9 @@ public sealed class LinuxDesktopCatalog : IDisplayService, IRecordingDisplayIden
         using var process = Process.Start(start) ?? throw new IOException("Linux device query did not start.");
         async Task<string> Read(StreamReader reader) {
             var result = new System.Text.StringBuilder(); var buffer = new char[4096]; int n;
-            while ((n = await reader.ReadAsync(buffer)) > 0) {
+            // Enumeration is also called synchronously while the UI is being
+            // constructed. Never schedule pipe draining back onto that blocked UI.
+            while ((n = await reader.ReadAsync(buffer).ConfigureAwait(false)) > 0) {
                 if (result.Length + n > 1024 * 1024) { process.Kill(true); throw new IOException("Device query exceeded its limit."); }
                 result.Append(buffer, 0, n);
             }

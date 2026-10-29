@@ -1351,7 +1351,7 @@ public partial class MainViewModel : ObservableObject
         }
         catch
         {
-            if (AvailableMonitors.Count == 0)
+            if (!OperatingSystem.IsLinux() && AvailableMonitors.Count == 0)
             {
                 AvailableMonitors.Add(new MonitorDisplayOption(0, Strings.GetFormatted("MonitorPrimaryFormat", 1), 1920, 1080, true));
                 SelectedMonitor = AvailableMonitors[0];
@@ -1377,7 +1377,7 @@ public partial class MainViewModel : ObservableObject
         }
         catch
         {
-            if (AvailableMicrophones.Count == 0)
+            if (!OperatingSystem.IsLinux() && AvailableMicrophones.Count == 0)
             {
                 var defaultMic = new AudioDeviceOption("default_mic", Strings["DefaultMicOption"], true, true);
                 AvailableMicrophones.Add(defaultMic);
