@@ -47,7 +47,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/opencam-linux/evidence"
           git rev-parse HEAD > "$RUNNER_TEMP/opencam-linux/evidence/revision.txt"
-          git diff e0c369e6495532cc0393c349dc428ffb8a00327e -- src native/obs-capture scripts/build-obs-capture.sh scripts/build-obs-capture.ps1 scripts/assemble-obs-runtime.mjs .github/workflows/build-and-release.yml .github/workflows/package-release.yml VERSION > "$RUNNER_TEMP/opencam-linux/evidence/production-diff.txt"
+          git diff e0c369e6495532cc0393c349dc428ffb8a00327e -- src/ScreenRecorder.Platform.Windows src/ScreenRecorder.Platform.macOS native/obs-capture scripts/build-obs-capture.sh scripts/build-obs-capture.ps1 scripts/assemble-obs-runtime.mjs .github/workflows/build-and-release.yml .github/workflows/package-release.yml VERSION > "$RUNNER_TEMP/opencam-linux/evidence/production-diff.txt"
           test ! -s "$RUNNER_TEMP/opencam-linux/evidence/production-diff.txt"
           node --test tests/scripts/linux-obs-inputs.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/input-tests.log" 2>&1
           node --test tests/scripts/linux-probe-protocol.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/protocol-tests.log" 2>&1
