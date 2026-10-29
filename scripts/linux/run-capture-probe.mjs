@@ -22,7 +22,7 @@ export async function runCaptureProbe({ helper, stage, request, seconds = 3, evi
   await writeFile(join(evidenceDirectory, 'request-redacted.json'), JSON.stringify(redacted, null, 2), { flag: 'wx' });
   const events = [], reasons = [], log = [], decoder = new StringDecoder('utf8');
   let child, closed = false, stopping = false, mediaBytes = 0, stderrBytes = 0, line = '';
-  let stopTimer, killTimer, leaseTimer;
+  let stopTimer, killTimer, leaseTimer, readyAt, stopAt;
   const fail = code => { if (!reasons.includes(code)) reasons.push(code); };
   const media = join(evidenceDirectory, 'capture.mkv');
   const output = createWriteStream(media, { flags: 'wx', mode: 0o600 });
@@ -30,6 +30,7 @@ export async function runCaptureProbe({ helper, stage, request, seconds = 3, evi
   const stop = () => {
     if (closed || stopping || !child) return;
     stopping = true;
+    stopAt = performance.now();
     if (child.stdin.writable) child.stdin.end('STOP\n');
     killTimer = setTimeout(() => { if (!closed) { fail('cleanup_timeout'); child.kill('SIGKILL'); } }, stopTimeoutMs);
   };
@@ -60,6 +61,7 @@ export async function runCaptureProbe({ helper, stage, request, seconds = 3, evi
           events.push(event);
           if (event.event === 'error') { fail(/^[a-z_]{1,64}$/.test(event.code) ? event.code : 'native_error'); stop(); }
           if (event.event === 'ready' && !stopTimer) {
+            readyAt = performance.now();
             clearTimeout(leaseTimer); stopTimer = setTimeout(stop, seconds * 1000);
           }
         }
@@ -91,7 +93,8 @@ export async function runCaptureProbe({ helper, stage, request, seconds = 3, evi
       await writeFile(join(evidenceDirectory, 'decode.log'), decoded.stderr, { flag: 'wx' });
       const hashes = await execute('ffmpeg', ['-xerror', '-v', 'error', '-i', media, '-map', '0:v:0', '-f', 'framehash', '-'], options);
       await writeFile(join(evidenceDirectory, 'framehash.txt'), hashes.stdout, { flag: 'wx' });
-      mediaProbe = { ...JSON.parse(probe.stdout), expected: { ...request, backend: request.backend ?? 'x11' },
+      mediaProbe = { ...JSON.parse(probe.stdout), expected: { ...request, backend: request.backend ?? 'x11',
+          seconds: readyAt !== undefined && stopAt !== undefined ? (stopAt - readyAt) / 1000 : seconds },
         packetScanComplete: true, frameScanComplete: true,
         frameHashes: hashes.stdout.split('\n').filter(l => l && !l.startsWith('#')).map(l => l.split(',').at(-1).trim()) };
     } catch (error) {

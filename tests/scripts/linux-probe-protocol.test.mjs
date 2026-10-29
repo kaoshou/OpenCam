@@ -8,7 +8,7 @@ function complete() {
     { event: 'audio_health', source: 'system', state: 'healthy' },
     { event: 'ready', backend: 'x11' }, { event: 'stopped', backend: 'x11' },
   ], mediaProbe: {
-    expected: { backend: 'x11', width: 320, height: 180, fps: 30, audio: 'system' },
+    expected: { backend: 'x11', width: 320, height: 180, fps: 30, audio: 'system', seconds: .099 },
     streams: [{ index: 0, codec_type: 'video', width: 320, height: 180, avg_frame_rate: '30/1' },
       { index: 1, codec_type: 'audio', sample_rate: '48000', channels: 2 }],
     packets: [
@@ -46,6 +46,11 @@ for (const [name, change, reason] of [
   ['missing duration is not valid timing', f => delete f.mediaProbe.packets[0].duration_time, 'packet_timing_invalid'],
   ['partial packet scans cannot pass', f => f.mediaProbe.packetScanComplete = false, 'incomplete_media_scan'],
   ['error remains failure despite later ready', f => f.events.unshift({ event: 'error', code: 'audio_lost' }), 'audio_lost'],
+  ['session closure is terminal even with later stopped', f => f.events.splice(3, 0, { event: 'session_closed' }), 'source_lifecycle_failed'],
+  ['source loss cannot recover by replaying readiness', f => f.events.splice(3, 0, { event: 'source_lost' }, { event: 'ready', backend: 'x11' }), 'source_lifecycle_failed'],
+  ['unhealthy endpoint overrides historical healthy samples', f => f.events.splice(3, 0, { event: 'audio_health', source: 'system', state: 'lost' }), 'audio_lifecycle_failed'],
+  ['unknown endpoint health is not successful capture', f => f.events.splice(3, 0, { event: 'audio_health', source: 'system', state: 'unverifiable' }), 'audio_lifecycle_failed'],
+  ['short valid media cannot pass a longer capture request', f => f.mediaProbe.expected.seconds = 30, 'media_coverage_insufficient'],
 ]) test(name, async () => {
   const { evaluateProbeEvidence } = await api(); const f = complete(); change(f);
   const result = evaluateProbeEvidence(f); assert.equal(result.status, 'FAIL'); assert.ok(result.reasons.includes(reason), JSON.stringify(result));

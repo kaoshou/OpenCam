@@ -28,9 +28,11 @@ export function evaluateProbeEvidence({ exitCode, events = [], mediaProbe, fullD
   if (!Array.isArray(events)) return { status: 'FAIL', reasons: ['invalid_events'] };
   const errors = events.filter(e => e?.event === 'error');
   for (const e of errors) fail(typeof e.code === 'string' ? e.code : 'native_error');
+  if (events.some(e => ['session_closed', 'source_lost'].includes(e?.event))) fail('source_lifecycle_failed');
+  if (events.some(e => e?.event === 'audio_health' && e.state !== 'healthy')) fail('audio_lifecycle_failed');
   // Environment absence is manual only before recording starts, never a way to
   // relabel a device failure or an interrupted recording as a harmless skip.
-  if (!errors.length && !events.some(e => e?.event === 'ready') && events.some(e => e?.event === 'environment_unavailable'))
+  if (!reasons.length && !events.some(e => e?.event === 'ready') && events.some(e => e?.event === 'environment_unavailable'))
     return { status: 'REQUIRES_MANUAL_VALIDATION', reasons: ['desktop_environment_unavailable'] };
   if (exitCode !== 0) fail('helper_failed');
   if (!events.some(e => e?.event === 'ready')) fail('missing_ready');
@@ -40,7 +42,7 @@ export function evaluateProbeEvidence({ exitCode, events = [], mediaProbe, fullD
   if (!expected || !['x11', 'pipewire'].includes(expected.backend) ||
       !['none', 'system', 'microphone', 'both'].includes(expected.audio) ||
       !Number.isInteger(expected.width) || expected.width < 2 || !Number.isInteger(expected.height) || expected.height < 2 ||
-      !Number.isInteger(expected.fps) || expected.fps < 1) {
+      !Number.isInteger(expected.fps) || expected.fps < 1 || !Number.isFinite(expected.seconds) || expected.seconds <= 0) {
     fail('invalid_expected_capture'); return { status: 'FAIL', reasons };
   }
   for (const e of events.filter(e => ['source_ready', 'ready', 'stopped'].includes(e?.event)))
@@ -60,6 +62,17 @@ export function evaluateProbeEvidence({ exitCode, events = [], mediaProbe, fullD
     if (!events.some(e => e?.event === 'audio_health' && e.source === role && e.state === 'healthy')) fail('audio_health_missing');
   if (mediaProbe.packetScanComplete !== true || mediaProbe.frameScanComplete !== true) fail('incomplete_media_scan');
   if (!validPackets(mediaProbe.packets, streams)) fail('packet_timing_invalid');
+  else {
+    const minimum = Math.max(.001, expected.seconds - Math.max(.25, 2 / expected.fps));
+    for (const stream of streams) {
+      const packets = mediaProbe.packets.filter(p => p.stream_index === stream.index);
+      const start = Math.min(...packets.map(p => number(p.pts_time)));
+      const end = Math.max(...packets.map(p => number(p.pts_time) + number(p.duration_time)));
+      if (end - start < minimum) fail('media_coverage_insufficient');
+    }
+    if (!Array.isArray(mediaProbe.frameHashes) || mediaProbe.frameHashes.length < Math.floor(minimum * expected.fps))
+      fail('media_coverage_insufficient');
+  }
   if (!Array.isArray(mediaProbe.frameHashes) || mediaProbe.frameHashes.some(h => typeof h !== 'string' || !h) ||
       new Set(mediaProbe.frameHashes).size < 2) fail('unchanging_frames');
   return { status: reasons.length ? 'FAIL' : 'PASS', reasons };

@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Isolated diagnostic program; never selected by OpenCam's production factory.
 #include "mux.hpp"
+#include "linux-sources.hpp"
 #include <obs-nix-platform.h>
 #include <util/platform.h>
 #include <X11/Xlib.h>
 #include <wayland-client.h>
 #include <glib.h>
+#include <gio/gio.h>
 #include <poll.h>
 #include <unistd.h>
 #include <algorithm>
@@ -22,12 +24,13 @@
 namespace fs = std::filesystem;
 static std::mutex logMutex;
 static std::string backend;
+static opencam::LinuxSourceHealth sourceHealth;
 static void emit(const char *name, const std::string &fields = "")
 {
     std::lock_guard<std::mutex> guard(logMutex);
     std::cerr << "OCLINUX {\"event\":\"" << name << "\",\"backend\":\"" << backend << "\"" << fields << "}\n";
 }
-static std::string quoted(const std::string &text)
+static std::string jsonQuote(const std::string &text)
 {
     std::string out = "\"";
     const char hex[] = "0123456789abcdef";
@@ -40,6 +43,15 @@ static std::string quoted(const std::string &text)
 }
 static void logger(int level, const char *format, va_list args, void *)
 {
+    // Pinned OBS 33.0.0 only logs this transport transition; observe its exact
+    // fixed format without retaining addresses, errors or permission tokens.
+    if (backend == "pipewire" && std::strcmp(format, "[pipewire] Stream %p state: \"%s\" (error: %s)") == 0) {
+        va_list copy; va_copy(copy, args);
+        (void)va_arg(copy, void *);
+        const char *status = va_arg(copy, const char *);
+        sourceHealth.streamState(status);
+        va_end(copy);
+    }
     // Opt-in only for generated desktop/audio fixtures; may include device IDs.
     if (std::getenv("OPENCAM_LINUX_PROBE_DIAGNOSTICS") && level <= LOG_INFO) {
         std::lock_guard<std::mutex> guard(logMutex);
@@ -143,6 +155,7 @@ static void outputError(void *opaque, calldata_t *data)
 static void audioSample(void *role, obs_source_t *, const audio_data *audio, bool)
 {
     if (!audio->frames) return;
+    sourceHealth.noteSamples(role != nullptr, audio->frames, os_gettime_ns());
     if (role) state->micSamples = true; else state->systemSamples = true;
 }
 int main(int argc, char **argv)
@@ -163,6 +176,7 @@ int main(int argc, char **argv)
     auto root = fs::path(argv[2]);
     if (!root.is_absolute()) { emit("error", ",\"code\":\"runtime_path\""); return 2; }
     Display *x11 = nullptr; wl_display *wayland = nullptr;
+    GDBusConnection *bus = nullptr; guint sessionSubscription = 0;
     bool started = false, ready = false;
     obs_source_t *screen = nullptr, *system = nullptr, *mic = nullptr;
     obs_encoder_t *video = nullptr, *audio = nullptr;
@@ -175,11 +189,28 @@ int main(int argc, char **argv)
         if ((!x11 && backend == "x11") || (!wayland && backend == "pipewire")) {
             emit("environment_unavailable", ",\"code\":\"desktop_missing\""); return 2;
         }
+        obs_set_nix_platform(backend == "x11" ? OBS_NIX_PLATFORM_X11_EGL : OBS_NIX_PLATFORM_WAYLAND);
+        obs_set_nix_platform_display(backend == "x11" ? static_cast<void *>(x11) : static_cast<void *>(wayland));
         if (!obs_startup("en-US", nullptr, nullptr)) throw std::runtime_error("core_startup");
         started = true;
         if (obs_get_version() != LIBOBS_API_VER) throw std::runtime_error("core_version");
-        obs_set_nix_platform(backend == "x11" ? OBS_NIX_PLATFORM_X11_EGL : OBS_NIX_PLATFORM_WAYLAND);
-        obs_set_nix_platform_display(backend == "x11" ? static_cast<void *>(x11) : static_cast<void *>(wayland));
+        sourceHealth.pipewire = backend == "pipewire";
+        sourceHealth.systemSelected = s.request.audio == "system" || s.request.audio == "both";
+        sourceHealth.microphoneSelected = s.request.audio == "microphone" || s.request.audio == "both";
+        if (backend == "pipewire") {
+            GError *error = nullptr;
+            bus = g_bus_get_sync(G_BUS_TYPE_SESSION, nullptr, &error);
+            if (error) g_error_free(error);
+            if (!bus) throw std::runtime_error("portal_bus_unavailable");
+            // GLib shares the session-bus connection within this helper. Portal
+            // Session::Closed is unicast to its owner; no other application's
+            // session or restore token is inspected or closed here.
+            sessionSubscription = g_dbus_connection_signal_subscribe(bus, "org.freedesktop.portal.Desktop",
+                "org.freedesktop.portal.Session", "Closed", nullptr, nullptr, G_DBUS_SIGNAL_FLAGS_NONE,
+                [](GDBusConnection *, const gchar *, const gchar *, const gchar *, const gchar *, GVariant *, gpointer) {
+                    sourceHealth.sessionClosed(); emit("session_closed");
+                }, nullptr, nullptr);
+        }
         auto data = (root / "share" / "obs" / "libobs").string() + "/";
         obs_add_data_path(data.c_str());
         auto graphics = (root / "lib" / "libobs-opengl.so").string();
@@ -201,14 +232,14 @@ int main(int argc, char **argv)
                 auto *props = obs_get_source_properties("xshm_input_v2");
                 auto *list = props ? obs_properties_get(props, "screen") : nullptr;
                 for (size_t i = 0; list && i < obs_property_list_item_count(list); ++i)
-                    emit("display", ",\"id\":" + quoted("xshm:" + std::to_string(obs_property_list_item_int(list, i))));
+                    emit("display", ",\"id\":" + jsonQuote("xshm:" + std::to_string(obs_property_list_item_int(list, i))));
                 if (props) obs_properties_destroy(props);
             }
             for (const auto *type : {"pulse_output_capture", "pulse_input_capture"}) {
                 auto *props = obs_get_source_properties(type);
                 auto *list = props ? obs_properties_get(props, "device_id") : nullptr;
                 for (size_t i = 0; list && i < obs_property_list_item_count(list); ++i)
-                    emit("audio_device", ",\"source\":" + quoted(type) + ",\"id\":" + quoted(obs_property_list_item_string(list, i)));
+                    emit("audio_device", ",\"source\":" + jsonQuote(type) + ",\"id\":" + jsonQuote(obs_property_list_item_string(list, i)));
                 if (props) obs_properties_destroy(props);
             }
             result = 0;
@@ -223,7 +254,7 @@ int main(int argc, char **argv)
             } else {
                 obs_data_set_bool(settings, "ShowCursor", true);
                 emit("permission_wait");
-                screen = obs_source_create_private("pipewire-screen-capture-source", "screen", settings);
+                screen = obs_source_create_private("pipewire-desktop-capture-source", "screen", settings);
             }
             obs_data_release(settings);
             if (!screen) throw std::runtime_error("capture_source");
@@ -245,7 +276,9 @@ int main(int argc, char **argv)
             auto deadline = os_gettime_ns() + (backend == "pipewire" ? 60000000000ULL : 10000000000ULL);
             while (obs_source_get_width(screen) != static_cast<uint32_t>(s.request.width) ||
                    obs_source_get_height(screen) != static_cast<uint32_t>(s.request.height) ||
+                   (backend == "pipewire" && !sourceHealth.streaming()) ||
                    (system && !s.systemSamples) || (mic && !s.micSamples)) {
+                if (auto *reason = sourceHealth.terminalFailure()) throw std::runtime_error(reason);
                 if (command()) throw std::runtime_error("capture_cancelled");
                 if (os_gettime_ns() > deadline) throw std::runtime_error("source_timeout");
                 pump();
@@ -276,19 +309,27 @@ int main(int argc, char **argv)
             signal_handler_connect(obs_output_get_signal_handler(output), "deactivate", deactivated, &s);
             signal_handler_connect(obs_output_get_signal_handler(output), "stop", outputError, &s);
             stage = "output_start";
+            sourceHealth.arm();
+            if (auto *reason = sourceHealth.failure(os_gettime_ns())) throw std::runtime_error(reason);
             if (!obs_output_start(output)) throw std::runtime_error("output_start");
             deadline = os_gettime_ns() + 10000000000ULL;
             while (!s.mux.frames || !s.mux.bytes) {
+                if (auto *reason = sourceHealth.failure(os_gettime_ns())) throw std::runtime_error(reason);
                 if (s.mux.failed || s.failed || command() || os_gettime_ns() > deadline) throw std::runtime_error("first_frame");
                 pump();
             }
             ready = true; emit("ready"); stage = "recording";
             deadline = os_gettime_ns() + 600000000000ULL; // Diagnostic bounded lease, not a production duration limit.
             while (!command()) {
+                if (auto *reason = sourceHealth.failure(os_gettime_ns())) throw std::runtime_error(reason);
+                if (obs_source_get_width(screen) != static_cast<uint32_t>(s.request.width) ||
+                    obs_source_get_height(screen) != static_cast<uint32_t>(s.request.height))
+                    throw std::runtime_error("source_geometry_changed");
                 if (s.mux.failed || s.failed || !obs_output_active(output)) throw std::runtime_error("output_failed");
                 if (os_gettime_ns() > deadline) throw std::runtime_error("lease_timeout");
                 pump();
             }
+            sourceHealth.disarm();
             obs_output_stop(output); deadline = os_gettime_ns() + 5000000000ULL;
             while (!s.stopped && os_gettime_ns() < deadline) pump();
             if (!s.stopped || s.failed || s.mux.failed) throw std::runtime_error("stop_failed");
@@ -299,8 +340,11 @@ int main(int argc, char **argv)
     } catch (const std::exception &e) {
         auto code = std::string(e.what());
         if (code.empty() || code.size() > 64 || code.find_first_not_of("abcdefghijklmnopqrstuvwxyz_") != std::string::npos) code = "native_failure";
-        emit("error", ",\"code\":" + quoted(code) + ",\"stage\":" + quoted(stage));
+        emit("error", ",\"code\":" + jsonQuote(code) + ",\"stage\":" + jsonQuote(stage));
     }
+    sourceHealth.disarm();
+    if (sessionSubscription) g_dbus_connection_signal_unsubscribe(bus, sessionSubscription);
+    if (bus) g_object_unref(bus);
     if (output) { if (obs_output_active(output)) obs_output_force_stop(output); obs_output_release(output); }
     if (system) obs_source_remove_audio_capture_callback(system, audioSample, nullptr);
     if (mic) obs_source_remove_audio_capture_callback(mic, audioSample, reinterpret_cast<void *>(1));
