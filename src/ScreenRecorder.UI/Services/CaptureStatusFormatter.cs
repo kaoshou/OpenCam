@@ -15,6 +15,8 @@ internal static class CaptureStatusFormatter
             CaptureBackend.DesktopDuplication => "Desktop Duplication",
             CaptureBackend.WindowsGraphicsCapture => "Windows Graphics Capture",
             CaptureBackend.ScreenCaptureKit => "ScreenCaptureKit",
+            CaptureBackend.X11 => "OBS X11",
+            CaptureBackend.PipeWire => "OBS PipeWire / Portal",
             _ => null
         };
         if (name == null) return strings["ActualCapturePending"];

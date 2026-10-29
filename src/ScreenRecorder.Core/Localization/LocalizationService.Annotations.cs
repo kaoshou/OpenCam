@@ -6,6 +6,7 @@ public partial class LocalizationService
     static LocalizationService()
     {
         foreach(var row in new (string Key,string Zh,string En,string Ja)[]{
+            ("LinuxTestNotice","Linux 開發測試版：目前使用 CPU 編碼；教鞭、螢幕註記與全域快捷鍵尚未開放。Wayland 請在系統分享視窗選擇相同尺寸的目標螢幕。請先短錄並檢查影音。","Linux development test: CPU encoding; teaching pointers, annotations and global shortcuts are not yet enabled. On Wayland, choose the matching-size display in the system sharing dialog. Verify a short recording first.","Linux 開発テスト版：CPU エンコードを使用します。教鞭、画面への書き込み、グローバルショートカットは未対応です。Wayland ではシステムの共有画面で同じ解像度の画面を選び、まず短い録画を確認してください。"),
             ("AnnotationsTitle","螢幕註記","Screen annotations","画面への書き込み"),
             ("AnnotationsHotkeyTogglePen","開啟／關閉畫筆","Toggle drawing","描画の切り替え"),
             ("AnnotationsHotkeyToolbar","開啟／隱藏工具列","Show / hide toolbar","ツールバーの表示切り替え"),

@@ -177,6 +177,7 @@ public partial class MainViewModel : ObservableObject
     public string ActualEncoderText => EncoderStatusFormatter.Format(_actualEncoder, LocalizationService.Instance);
     private CaptureSelection? _actualCapture;
     public string ActualCaptureText => CaptureStatusFormatter.Format(_actualCapture, LocalizationService.Instance);
+    public bool IsLinuxTestBuild => OperatingSystem.IsLinux();
     public bool ShowCaptureStatus => OperatingSystem.IsWindows() || OperatingSystem.IsLinux() ||
         (OperatingSystem.IsMacOS() && _nativeCaptureEnabled);
     private void SetActualCapture(CaptureSelection? value)

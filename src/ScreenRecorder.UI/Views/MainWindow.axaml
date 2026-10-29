@@ -182,6 +182,9 @@
                     Padding="14,12" Margin="0,0,8,0" BoxShadow="0 4 16 #0F172A08">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Spacing="9" Margin="0,0,6,0">
+                    <Border IsVisible="{Binding IsLinuxTestBuild}" Background="#FFFBEB" BorderBrush="#FDE68A" BorderThickness="1" CornerRadius="8" Padding="10">
+                        <TextBlock Text="{Binding Strings[LinuxTestNotice]}" TextWrapping="Wrap" FontSize="12" Foreground="#92400E" />
+                    </Border>
                     <!-- 錄影目標即時提示徽章 (冰藍漸層微光標籤) -->
                     <Border BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="8" Padding="12,7">
                         <Border.Background>
