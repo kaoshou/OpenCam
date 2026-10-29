@@ -1,0 +1,73 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Ubuntu packaging feasibility experiment
+
+on:
+  push:
+    branches: ['codex/ubuntu-package-spike-20261030']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ubuntu-spike:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Install virtual desktop test dependencies
+        run: |
+          sudo apt-get -o Acquire::Retries=3 update
+          sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends xvfb xauth x11-utils scrot dbus-x11 libice6 libsm6 libfontconfig1 libx11-6 libxext6 libxrandr2 libxi6 libxcursor1 libxrender1 libgl1 fonts-noto-cjk ffmpeg
+      - name: Record environment and unchanged application sources
+        run: |
+          mkdir -p spike/evidence
+          uname -a > spike/evidence/uname.txt
+          cat /etc/os-release > spike/evidence/os-release.txt
+          dotnet --info > spike/evidence/dotnet.txt
+          git rev-parse HEAD > spike/evidence/revision.txt
+          git diff e0c369e6495532cc0393c349dc428ffb8a00327e -- src native > spike/evidence/application-source-diff.txt
+          test ! -s spike/evidence/application-source-diff.txt
+          node --check scripts/ubuntu-spike/smoke.mjs
+          bash -n scripts/ubuntu-spike/Start-OpenCam.sh
+      - name: Publish unchanged Linux x64 app with NativeOnly safety
+        run: |
+          dotnet publish src/ScreenRecorder.UI/ScreenRecorder.UI.csproj -c Release -r linux-x64 --self-contained true -p:OpenCamNativeOnlyTest=true -p:PublishSingleFile=false -m:1 -o spike/package > spike/evidence/publish.log 2>&1
+          dotnet publish tests/ScreenRecorder.UbuntuSpikeProbe/ScreenRecorder.UbuntuSpikeProbe.csproj -c Release -r linux-x64 --self-contained true -p:OpenCamNativeOnlyTest=true -m:1 -o spike/probe > spike/evidence/probe-build.log 2>&1
+          cp scripts/ubuntu-spike/Start-OpenCam.sh scripts/ubuntu-spike/README-UBUNTU-TEST.txt spike/package/
+          chmod +x spike/package/Start-OpenCam.sh
+      - name: Probe actual Linux platform rejection
+        run: spike/probe/ScreenRecorder.UbuntuSpikeProbe spike/evidence/platform-probe.json
+      - name: Normal application startup in disposable X11 session
+        run: dbus-run-session -- xvfb-run -a -s '-screen 0 1280x1000x24' node scripts/ubuntu-spike/smoke.mjs spike/package spike/evidence
+      - name: Package clearly labelled experiment and source notices
+        run: |
+          cp LICENSE NOTICE.md THIRD-PARTY-NOTICES.md spike/package/
+          cp -R third-party/licenses spike/package/third-party-licenses
+          runtime_license=$(find "$HOME/.nuget/packages/microsoft.netcore.app.runtime.linux-x64" -maxdepth 2 -iname 'LICENSE.TXT' -print -quit)
+          runtime_notices=$(find "$HOME/.nuget/packages/microsoft.netcore.app.runtime.linux-x64" -maxdepth 2 -iname 'THIRD-PARTY-NOTICES.TXT' -print -quit)
+          test -n "$runtime_license" && test -n "$runtime_notices"
+          cp "$runtime_license" spike/package/DOTNET-LICENSE.txt
+          cp "$runtime_notices" spike/package/DOTNET-THIRD-PARTY-NOTICES.txt
+          cp -R spike/evidence spike/package/diagnostics
+          printf 'OpenCam %s Ubuntu packaging spike\nSPDX-License-Identifier: AGPL-3.0-or-later\nCorresponding source: https://github.com/%s/tree/%s\nNOT A WORKING LINUX RECORDER\n' "$(cat VERSION)" "$GITHUB_REPOSITORY" "$GITHUB_SHA" > spike/package/SOURCE.txt
+          version=$(cat VERSION)
+          tar -czf "spike/OpenCam_v${version}_Ubuntu24.04_x64_PackagingSpike_${GITHUB_SHA:0:7}.tar.gz" -C spike/package .
+          sha256sum spike/*.tar.gz > spike/SHA256SUMS.txt
+      - name: Preserve experiment result and diagnostic package
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenCam-Ubuntu-24.04-x64-Packaging-Spike-${{ github.sha }}
+          path: |
+            spike/*.tar.gz
+            spike/SHA256SUMS.txt
+            spike/evidence/
+          if-no-files-found: error
+          retention-days: 14
