@@ -33,7 +33,7 @@ jobs:
       - name: Install build-only Ubuntu prerequisites
         run: |
           sudo apt-get -o Acquire::Retries=3 update
-          sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends build-essential cmake extra-cmake-modules ninja-build nasm pkg-config zlib1g-dev libsimde-dev uthash-dev libjansson-dev uuid-dev libx11-xcb-dev libxcb-xinput-dev libxkbcommon-dev libwayland-dev libdrm-dev libegl1-mesa-dev libpulse-dev libx264-dev libpipewire-0.3-dev libglib2.0-dev libxcb-composite0-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-xfixes0-dev libxcb-xinerama0-dev xvfb xauth dbus-x11 pulseaudio pulseaudio-utils ffmpeg
+          sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends build-essential cmake extra-cmake-modules ninja-build nasm pkg-config zlib1g-dev libsimde-dev uthash-dev libjansson-dev uuid-dev libx11-xcb-dev libxcb-xinput-dev libxkbcommon-dev libwayland-dev libdrm-dev libegl1-mesa-dev libpulse-dev libx264-dev libpipewire-0.3-dev libglib2.0-dev libxcb-composite0-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-xfixes0-dev libxcb-xinerama0-dev xvfb xauth dbus-x11 pulseaudio pulseaudio-utils ffmpeg gdb
       - name: Restore verified FFmpeg version metadata for upstream CMake
         run: |
           git -C .linux-inputs/ffmpeg fetch --depth 1 origin tag n8.1.3
@@ -49,6 +49,8 @@ jobs:
           node --test tests/scripts/linux-obs-inputs.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/input-tests.log" 2>&1
           node --test tests/scripts/linux-probe-protocol.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/protocol-tests.log" 2>&1
           node --test tests/scripts/linux-probe-runner.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/runner-tests.log" 2>&1
+          node --test tests/scripts/linux-isolation.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/isolation-tests.log" 2>&1
+          node scripts/linux/check-source-isolation.mjs > "$RUNNER_TEMP/opencam-linux/evidence/production-audit.json"
           c++ -std=c++17 tests/native/linux-source-health-tests.cpp -o "$RUNNER_TEMP/opencam-linux/health-tests"
           "$RUNNER_TEMP/opencam-linux/health-tests"
           bash -n scripts/linux/build-obs-probe.sh
@@ -87,7 +89,10 @@ jobs:
             pulseaudio -n --daemonize=yes --exit-idle-time=-1 --load=module-native-protocol-unix --load="module-null-sink sink_name=opencam_test"
             trap "pulseaudio --kill 2>/dev/null || true" EXIT
             pactl load-module module-remap-source master=opencam_test.monitor source_name=opencam_mic > "$RUNNER_TEMP/opencam-linux/evidence/virtual-mic-module.txt"
-            OPENCAM_LINUX_REAL_CAPTURE=1 node --test tests/native/linux-obs-probe.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/probe-x11-tests.log" 2>&1
+            if ! OPENCAM_LINUX_REAL_CAPTURE=1 node --test tests/native/linux-obs-probe.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/probe-x11-tests.log" 2>&1; then
+              gdb -batch -ex run -ex "thread apply all bt" --args "$OPENCAM_LINUX_HELPER" --runtime "$OPENCAM_LINUX_RUNTIME" --mode enumerate --backend x11 > "$RUNNER_TEMP/opencam-linux/evidence/probe-x11-backtrace.log" 2>&1 || true
+              exit 1
+            fi
             (while true; do xsetroot -solid "#e04020"; sleep .2; xsetroot -solid "#2040e0"; sleep .2; done) &
             pattern_pid=$!
             trap "kill $pattern_pid 2>/dev/null || true; pulseaudio --kill 2>/dev/null || true" EXIT

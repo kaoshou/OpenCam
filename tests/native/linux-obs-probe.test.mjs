@@ -24,7 +24,7 @@ for (const [name, change] of [
   assert.ok(result.events.some(e => e.event === 'error' && e.code === 'invalid_request'));
 });
 test('enumeration does not claim recording ready', { skip: !enabled || process.env.OPENCAM_LINUX_REAL_CAPTURE !== '1' }, () => {
-  const result = run(base, 'x11', 'enumerate'); assert.equal(result.status, 0, result.stderr?.toString());
+  const result = run(base, 'x11', 'enumerate'); assert.equal(result.status, 0, JSON.stringify({ signal: result.signal, error: result.error?.message }) + '\n' + result.stderr?.toString());
   assert.equal(result.stdout.length, 0); assert.ok(result.events.some(e => e.event === 'display'));
   assert.ok(!result.events.some(e => e.event === 'ready'));
 });
