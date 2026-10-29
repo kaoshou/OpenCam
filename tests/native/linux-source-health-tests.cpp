@@ -29,4 +29,10 @@ int main()
     assert(audio.failure(2500000100ULL) == nullptr);
     audio.disarm();
     assert(audio.failure(9999999999ULL) == nullptr); // Deliberate shutdown is not source loss.
+    LinuxSourceHealth racing;
+    racing.systemSelected = true; racing.arm();
+    // Main thread reads clock, then the audio callback stores a newer timestamp
+    // before the main thread reads the atomic. This is fresh data, not a stall.
+    racing.noteSamples(false, 480, 2000000001ULL);
+    assert(racing.failure(2000000000ULL) == nullptr);
 }

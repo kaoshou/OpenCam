@@ -14,4 +14,5 @@ int main() {
     assert(meter.peak() == 0 && meter.ageUs(5000000000) == 2000000);
     meter.note(channels, 2, 0, false, 6000000000);
     assert(meter.ageUs(6000000000) == 3000000); // zero frames never fake health
+    assert(meter.ageUs(2999999999) == 0); // callback races a clock snapshot
 }

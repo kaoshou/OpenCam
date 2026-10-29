@@ -18,6 +18,6 @@ public:
         value.store(std::min(maximum, 1.f)); timestamp.store(now);
     }
     float peak() const { return value.load(); }
-    int64_t ageUs(uint64_t now) const { auto at = timestamp.load(); return at && now >= at ? static_cast<int64_t>((now-at)/1000) : -1; }
+    int64_t ageUs(uint64_t now) const { auto at = timestamp.load(); return !at ? -1 : now < at ? 0 : static_cast<int64_t>((now-at)/1000); }
 };
 }

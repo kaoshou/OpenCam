@@ -31,7 +31,9 @@ public:
         if (!armed) return nullptr;
         if (auto *reason = terminalFailure()) return reason;
         if (pipewire && !active) return "pipewire_health_unverifiable";
-        auto stale = [now](uint64_t at) { return !at || now < at || now - at > 2000000000ULL; };
+        // A callback may publish a newer timestamp after the polling thread
+        // captured `now`. Saturate its age at zero instead of declaring loss.
+        auto stale = [now](uint64_t at) { return !at || (now >= at && now - at > 2000000000ULL); };
         if ((systemSelected && stale(systemAt)) || (microphoneSelected && stale(microphoneAt)))
             return "audio_health_unverifiable";
         return nullptr;
