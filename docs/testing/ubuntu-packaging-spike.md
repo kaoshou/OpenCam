@@ -28,3 +28,30 @@ On Ubuntu 24.04 x64 with a normal desktop, extract the entire tarball, read READ
 Wayland, real PipeWire/PulseAudio devices, hardware encoding, multi-monitor/DPI, annotations and long-duration A/V synchronization are not covered. A usable Linux recorder needs a separately designed Linux platform adapter and OBS deployment/capture/audio path.
 
 Reference: https://docs.avaloniaui.net/docs/platform-specific-guides/linux
+
+## Executed result — 2026-10-30 Asia/Taipei
+
+Tested commit: `680469c57cce4a409bee8460168e5e8610128c93`. [Ubuntu run 40912458217](https://github.com/kaoshou/OpenCam/actions/runs/40912458217) completed successfully. An earlier run failed before publishing because the checkout lacked the baseline commit; fetching history fixed that test-infrastructure issue. It is not a recording success result.
+
+Environment reported Ubuntu 24.04.5 LTS, x64, .NET 8.0.33 and an Xvfb X11 virtual desktop.
+
+| Check | Actual result | Evidence |
+| --- | --- | --- |
+| Self-contained linux-x64 publish | PASS | publish.log, probe-build.log |
+| Normal startup, not screenshot mode | Window observed, still alive after observation | normal-startup.json, normal-window-tree.txt, normal-startup.png |
+| Process cleanup | Test requested termination after observation; exit 143 | normal-startup.json; not a spontaneous crash |
+| OBS Linux recognition | NOT SUPPORTED: CurrentPlatform null | platform-probe.json |
+| Missing platform safety | NativeOnly true, legacy recording type absent, recording factory refused | platform-probe.json |
+| Display provider | DllNotFoundException for macOS CoreGraphics on Ubuntu | platform-probe.json |
+| Real monitor enumeration | NOT VALIDATED; displayed monitor is a UI fallback, not a detected Linux monitor | source audit, normal-startup.png |
+| Editing, preflight, media export | NOT VALIDATED | Linux project/media paths are not implemented/validated |
+| Physical screen/system/microphone recording, sync | NOT SUPPORTED / REQUIRES MANUAL VALIDATION AFTER IMPLEMENTATION | No physical recording claim |
+
+[Download diagnostic artifact](https://github.com/kaoshou/OpenCam/actions/runs/40912458217/artifacts/12914232385) (GitHub sign-in required; configured retention 14 days). It contains the tarball and evidence. The archive includes .NET runtime notices, project notices and SOURCE.txt for the exact tested commit. The published application's src/ and native/ trees are unchanged from the release baseline. No master merge, version change or Release publication was performed for this experiment.
+
+Archive: `OpenCam_v1.2.0_Ubuntu24.04_x64_PackagingSpike_680469c.tar.gz`.
+SHA-256: `b562642b7beb256024c91f8c0ad1740471952e9f96a67bd405d89cb0ce382cf1`.
+
+Local evidence copy: `/Users/yhcheng/Documents/Codex/outputs/opencam-ubuntu-spike-20261030/`.
+
+Conclusion: packaging and basic GUI startup are feasible, but packaging alone does not add Linux recording. Next work requires an approved Linux adapter/OBS-runtime design, X11/Wayland capture, Linux audio and preview/export ownership paths, followed by physical recording acceptance. This spike must not be advertised as Linux recorder support.
