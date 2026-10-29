@@ -34,8 +34,21 @@ try {
         AudioSource = AudioSourceType.SystemAndMicrophone, MicrophoneDeviceId = "opencam_mic", SystemAudioDeviceId = "opencam_test.monitor",
         CursorEffect = CursorEffectMode.Default, Fps = 30, EncoderType = HardwareEncoderType.SoftwareCpu,
         SystemAudioVolumePercent = 80, MicrophoneVolumePercent = 70, OutputDirectory = root };
+    config.Fps = Environment.GetEnvironmentVariable("OPENCAM_LINUX_TEST_FPS") == "20" ? 20 : 30;
+    var seconds = int.TryParse(Environment.GetEnvironmentVariable("OPENCAM_LINUX_TEST_SECONDS"), out var requested) && requested is >= 5 and <= 300 ? requested : 5;
+    await using (var trial = new FileStream(Path.Combine(root, "audio-trial.mkv"), FileMode.CreateNew, FileAccess.Write))
+    await using (var preflight = new PreflightAudioCaptureFactory(provider).Create()) {
+        await preflight.StartAsync(config, trial, default); await Task.Delay(1200);
+        if (!preflight.IsRunning || preflight.ErrorCode is not null) throw new IOException("Linux audio confirmation did not become healthy.");
+        await preflight.StopAsync(default);
+        if (trial.Length == 0 || preflight.ErrorCode is not null) throw new IOException("Audio trial did not seal cleanly.");
+    }
+    await using (var playback = new LinuxProjectAudioOutput(Path.Combine(AppContext.BaseDirectory, "OpenCam.PulsePlayback"))) {
+        await playback.StartAsync(default); await playback.WriteAsync(new byte[8192], default); await playback.CompleteAsync(default);
+        if (playback.PositionSamples != 1024) throw new IOException("Playback clock did not acknowledge actual drained samples.");
+    }
     // First real segment at 30 FPS, pause, resume, stop: source files must survive.
-    Check(await project.StartAsync(config, Guid.NewGuid())); await Task.Delay(5000);
+    Check(await project.StartAsync(config, Guid.NewGuid())); await Task.Delay(seconds * 1000);
     Check(await project.PauseAsync(Guid.NewGuid()));
     Check(await project.StartAsync(config, Guid.NewGuid())); await Task.Delay(3000);
     Check(await project.FinishAsync(Guid.NewGuid()));
@@ -53,6 +66,7 @@ try {
     for (var attempt = 0; attempt < 600 && project.ExportStatus?.State == RecordingExportState.Running; attempt++) await Task.Delay(100);
     if (project.ExportStatus?.State != RecordingExportState.Succeeded) throw new IOException("Export failed: " + project.ExportStatus?.Error);
     var result = new { status = "PASS", scope = "virtual-source production-services integration, not physical sync",
+        fps = config.Fps, firstSegmentSeconds = seconds, audioPreflightAndPlayback = "PASS",
         project = project.ProjectDirectory, sources = project.Current.Sources.Length, mp4 = project.ExportStatus.FinalPath };
     await File.WriteAllTextAsync(Path.Combine(root, "result.json"), JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }));
     Console.WriteLine(JsonSerializer.Serialize(result)); return 0;

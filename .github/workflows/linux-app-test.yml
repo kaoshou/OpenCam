@@ -154,6 +154,33 @@ jobs:
             node scripts/linux/smoke-app.mjs "$RUNNER_TEMP/opencam-linux/OpenCam Linux Test" "$RUNNER_TEMP/opencam-linux/evidence/app-ui" > "$RUNNER_TEMP/opencam-linux/evidence/app-ui.log" 2>&1
           '
           find "$RUNNER_TEMP/opencam-linux/evidence/app-project" -name '*.mp4' -exec ffmpeg -xerror -v error -i {} -f null - \; > "$RUNNER_TEMP/opencam-linux/evidence/app-mp4-decode.log" 2>&1
+      - name: Audit ELF relocation and include source notices
+        run: |
+          package_directory="$RUNNER_TEMP/opencam-linux/OpenCam Linux Test"
+          while IFS= read -r -d '' binary; do
+            if file -b "$binary" | grep -q '^ELF'; then
+              printf '\nFILE %s\n' "${binary#"$package_directory/"}" >> "$RUNNER_TEMP/opencam-linux/evidence/elf-dependencies.txt"
+              dependencies=$(ldd "$binary")
+              printf '%s\n' "$dependencies" >> "$RUNNER_TEMP/opencam-linux/evidence/elf-dependencies.txt"
+              if [[ "$dependencies" == *'not found'* ]]; then exit 1; fi
+              rpath=$(patchelf --print-rpath "$binary")
+              if [[ "$rpath" == *"$RUNNER_TEMP"* || "$rpath" == *"$GITHUB_WORKSPACE"* ]]; then exit 1; fi
+            fi
+          done < <(find "$package_directory" -type f -print0)
+          dpkg-query -W > "$RUNNER_TEMP/opencam-linux/evidence/ubuntu-package-versions.txt"
+          mkdir "$package_directory/build-evidence"
+          cp "$RUNNER_TEMP/opencam-linux/evidence/ffmpeg/config.mak" "$package_directory/build-evidence/ffmpeg-config.mak"
+          cp "$RUNNER_TEMP/opencam-linux/evidence/elf-dependencies.txt" "$RUNNER_TEMP/opencam-linux/evidence/ubuntu-package-versions.txt" "$package_directory/build-evidence/"
+          bash scripts/linux/package-verified-app.sh "$package_directory" "$RUNNER_TEMP/opencam-linux/artifacts" "$GITHUB_WORKSPACE/.linux-inputs/obs" "$GITHUB_WORKSPACE/.linux-inputs/ffmpeg" "$GITHUB_SHA"
+      - name: Upload Linux development test package and corresponding sources (not Release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenCam-v1.2.0-Ubuntu24.04-x64-Test-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/opencam-linux/artifacts/*.tar.gz
+            ${{ runner.temp }}/opencam-linux/artifacts/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
       - name: Preserve measured build and test logs
         if: always()
         uses: actions/upload-artifact@v4
