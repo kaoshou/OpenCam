@@ -980,6 +980,8 @@ public partial class MainViewModel : ObservableObject
         try
         {
             var s = await _settingsService.LoadSettingsAsync();
+            _newProjectAutoExport = s.AutoExportRecordingOnStop;
+            OnPropertyChanged(nameof(AutoExportRecordingOnStop));
             _webPlayerLanguages = s.WebPlayerLanguages;
             _recordingPreflightMode = s.RecordingPreflightMode;
             RecentProjectPaths = (s.RecentProjectPaths ?? []).Where(p => !string.IsNullOrWhiteSpace(p)).Distinct().Take(20).ToList();
@@ -1176,6 +1178,7 @@ public partial class MainViewModel : ObservableObject
             {
                 WebPlayerLanguages = _webPlayerLanguages,
                 RecentProjectPaths = RecentProjectPaths.Take(20).ToList(),
+                AutoExportRecordingOnStop = _newProjectAutoExport,
                 Fps = SelectedFps,
                 Language = Strings.CurrentLanguage,
                 EncoderType = SelectedEncoder?.Type ?? HardwareEncoderType.Auto,
@@ -1236,6 +1239,8 @@ public partial class MainViewModel : ObservableObject
 
     public void ApplyNewSettings(UserSettings newSettings)
     {
+        _newProjectAutoExport = newSettings.AutoExportRecordingOnStop;
+        OnPropertyChanged(nameof(AutoExportRecordingOnStop));
         ApplyAnnotationSettings(newSettings);
         _webPlayerLanguages = newSettings.WebPlayerLanguages;
         if (CanEditPausedSettings) RefreshTeachingPointerOptions(newSettings.PresentationPointer);

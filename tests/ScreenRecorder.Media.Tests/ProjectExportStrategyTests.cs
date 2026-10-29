@@ -61,12 +61,37 @@ public class ProjectExportStrategyTests
     public void TrimAndEffectsRenderButNameDoesNotMatter()
     {
         var project = Project();
-        foreach (var clip in new[] { project.Clips[0] with { InPts = 1 }, project.Clips[0] with { Muted = true },
-            project.Clips[0] with { Scale = 2 }, project.Clips[0] with { Volume = .5 } })
+        foreach (var clip in new[] { project.Clips[0] with { InPts = 1 },
+            project.Clips[0] with { Scale = 2 } })
             Assert.Equal(ProjectExportStrategy.Render, ProjectExportPlanner.Select(
                 ProjectRenderPlan.Create(project with { Clips = [clip] }), [Evidence()]).Strategy);
         Assert.Equal(ProjectExportStrategy.CopySingle, ProjectExportPlanner.Select(
             ProjectRenderPlan.Create(project with { Name = "renamed" }), [Evidence()]).Strategy);
+    }
+
+    [Theory]
+    [InlineData(1, "volume")][InlineData(2, "volume")]
+    [InlineData(1, "mute")][InlineData(2, "mute")]
+    [InlineData(1, "fade")][InlineData(2, "fade")]
+    public void AudioEditsKeepWholeVideoPackets(int count, string effect)
+    {
+        var project = Project(count);
+        var first = project.Clips[0];
+        first = effect switch { "mute" => first with { Muted = true },
+            "fade" => first with { FadeInTicks = 2000000, FadeOutTicks = 2000000 },
+            _ => first with { Volume = .5 } };
+        var plan = ProjectRenderPlan.Create(project with { Clips = project.Clips.SetItem(0, first) });
+        Assert.True(ProjectExportPlanner.HasOnlyWholeClips(plan));
+        Assert.Equal(ProjectExportStrategy.ConcatConvertAudio,
+            ProjectExportPlanner.Select(plan, Enumerable.Repeat(Evidence(), count).ToArray()).Strategy);
+    }
+
+    [Fact]
+    public void AudioEditWithoutSourceAudioKeepsConservativeRenderPath()
+    {
+        var project = Project();
+        var plan = ProjectRenderPlan.Create(project with { Clips = [project.Clips[0] with { Muted = true }] });
+        Assert.Equal(ProjectExportStrategy.Render, ProjectExportPlanner.Select(plan, [Evidence(null)]).Strategy);
     }
 
     [Fact]

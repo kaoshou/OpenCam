@@ -35,20 +35,33 @@ public sealed partial class ProjectFfmpegExporter
         try
         {
             ReportPhase(progress, RecordingExportPhase.ConvertingAudio);
-            await using (var manifest = create(manifestName))
+            using (new ProjectExportStepTimer(exportId, "CopyVideo"))
             {
-                await manifest.WriteAsync(Encoding.UTF8.GetBytes(ProjectMediaJob.CreateConcatManifest(evidence)), ct);
-                manifest.Flush(true);
+                if (sources.Count > 1)
+                {
+                    await using (var manifest = create(manifestName))
+                    {
+                        await manifest.WriteAsync(Encoding.UTF8.GetBytes(ProjectMediaJob.CreateConcatManifest(evidence)), ct);
+                        manifest.Flush(true);
+                    }
+                }
+                await using (var video = create(videoName))
+                {
+                    if (sources.Count == 1)
+                        await process.RunAsync(ProjectMediaJob.RemuxWholeRecording(plan, convertAudio: false, hasAudio: false),
+                            sources, video, ct);
+                    else
+                    {
+                        await using var manifest = directory.Read(manifestName);
+                        await process.RunAsync(ProjectMediaJob.ConcatWholeRecordings(evidence, totalBytes, videoOnly: true),
+                            [manifest, ..sources], video, ct);
+                    }
+                    video.Flush(true);
+                }
+                Remove(manifestName);
             }
-            await using (var manifest = directory.Read(manifestName))
-            await using (var video = create(videoName))
-            {
-                await process.RunAsync(ProjectMediaJob.ConcatWholeRecordings(evidence, totalBytes, videoOnly: true),
-                    [manifest, ..sources], video, ct);
-                video.Flush(true);
-            }
-            Remove(manifestName);
             progress.Report(.2);
+            using (new ProjectExportStepTimer(exportId, "RenderAudio"))
             await using (var audio = create(audioName))
             {
                 for (var i = 0; i < plan.Clips.Length; i++)
@@ -63,6 +76,7 @@ public sealed partial class ProjectFfmpegExporter
                 if (audio.Length != pcmBytes) throw new InvalidDataException("Normalized audio sample count mismatch.");
                 audio.Flush(true);
             }
+            using (new ProjectExportStepTimer(exportId, "Mux"))
             await using (var video = directory.Read(videoName))
             await using (var audio = directory.Read(audioName))
             await using (var output = create(temporary))

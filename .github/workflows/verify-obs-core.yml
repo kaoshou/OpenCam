@@ -186,7 +186,7 @@ jobs:
           $env:OPENCAM_OBS_ENABLED_RUNTIME = (Resolve-Path user-test-package/obs-runtime).Path
           $env:OPENCAM_OBS_RUNTIME = $env:OPENCAM_OBS_ENABLED_RUNTIME
           $env:OPENCAM_OBS_HELPER = Join-Path $env:OPENCAM_OBS_RUNTIME 'OpenCam.ObsCapture.exe'
-          dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release --no-build --no-restore --filter 'FullyQualifiedName~ObsPackageDeploymentTests|FullyQualifiedName~ObsNativeAcceptanceTests|FullyQualifiedName~VideoImport' --logger trx --results-directory obs-results/packaged-managed
+          dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release --no-build --no-restore --filter 'FullyQualifiedName~ObsPackageDeploymentTests|FullyQualifiedName~ObsNativeAcceptanceTests|FullyQualifiedName~VideoImport|FullyQualifiedName~ProjectExportStrategyTests|FullyQualifiedName~ProjectConcatExportTests' --logger trx --results-directory obs-results/packaged-managed
           if ($LASTEXITCODE -ne 0) { throw 'Actual packaged runtime validation failed.' }
           $name = "OpenCam_v$((Get-Content VERSION -Raw).Trim())_Windows_x64_NativeOnly_Test_$($env:GITHUB_SHA.Substring(0,7)).zip"
           Compress-Archive -Path user-test-package/* -DestinationPath $name
@@ -299,6 +299,19 @@ jobs:
           name="OpenCam_v$(cat VERSION)_macOS_arm64_Test_${GITHUB_SHA:0:7}.zip"
           ditto -c -k --sequesterRsrc --keepParent "$RUNNER_TEMP/bundle/OpenCam.app" "$name"
           shasum -a 256 "$name" > "$name.sha256"
+      - name: Validate export with the actual packaged macOS media tools
+        run: |
+          export PATH="$RUNNER_TEMP/bundle/OpenCam.app/Contents/MacOS:$PATH"
+          test "$(command -v ffmpeg)" = "$RUNNER_TEMP/bundle/OpenCam.app/Contents/MacOS/ffmpeg"
+          dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release -m:1 /nodeReuse:false --filter 'FullyQualifiedName~ProjectExportStrategyTests|FullyQualifiedName~ProjectConcatExportTests' --logger trx --results-directory macos-package-results
+      - name: Preserve packaged macOS export diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-packaged-export-${{ github.sha }}-${{ github.run_attempt }}
+          path: macos-package-results/
+          if-no-files-found: warn
+          retention-days: 7
       - name: Create official macOS disk image
         if: inputs.release_package
         run: |
@@ -369,7 +382,7 @@ jobs:
       - name: Test managed OBS contracts and native display identity
         run: |
           dotnet test tests/ScreenRecorder.Core.Tests/ScreenRecorder.Core.Tests.csproj -c Release -m:1 /nodeReuse:false --filter 'FullyQualifiedName~SettingsServiceTests' --logger trx --results-directory obs-managed-results
-          dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release -m:1 /nodeReuse:false --filter '(FullyQualifiedName~ScreenRecorder.Media.Tests.Obs&FullyQualifiedName!~ObsNativeAcceptanceTests)|FullyQualifiedName~RecordingDisplayIdentityTests' --logger trx --results-directory obs-managed-results
+          dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release -m:1 /nodeReuse:false --filter '(FullyQualifiedName~ScreenRecorder.Media.Tests.Obs&FullyQualifiedName!~ObsNativeAcceptanceTests)|FullyQualifiedName~RecordingDisplayIdentityTests|FullyQualifiedName~ProjectExportStrategyTests|FullyQualifiedName~ProjectConcatExportTests' --logger trx --results-directory obs-managed-results
       - name: Preserve portable managed diagnostics
         if: always()
         uses: actions/upload-artifact@v4

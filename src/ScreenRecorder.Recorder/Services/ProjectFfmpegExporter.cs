@@ -14,6 +14,8 @@ public sealed partial class ProjectFfmpegExporter(IProjectMediaProcess process, 
     public async Task<RecordingExportResult> ExportAsync(IProjectHandle owner, RecordingProject snapshot,
         string outputDirectory, Guid exportId, IProgress<double> progress, CancellationToken ct)
     {
+        using var timing = new ProjectExportTimingProgress(progress, exportId);
+        progress = timing;
         ct.ThrowIfCancellationRequested();
         if (exportId == Guid.Empty || owner.Current.ProjectId != snapshot.ProjectId || owner.Current.Revision != snapshot.Revision)
             throw new InvalidOperationException("Export must use the owned, saved revision.");

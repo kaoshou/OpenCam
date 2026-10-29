@@ -85,7 +85,12 @@ public partial class MainViewModel
     {
         if (!CanChangeProjectExportPolicy) return;
         if (HasRecordingProject) await _content!.Workspace.SetAutoExportOnStopAsync(value);
-        else _newProjectAutoExport = value;
+        if (!HasRecordingProject || _content!.Workspace.State.AutoExportOnStop == value)
+        {
+            _newProjectAutoExport = value;
+            PersistUserSettings();
+            await FlushPendingUserSettingsAsync();
+        }
         OnPropertyChanged(nameof(AutoExportRecordingOnStop));
     }
     public Func<string, Task<string?>>? RequestMp4Destination { get; set; }

@@ -300,7 +300,18 @@ public partial class MainWindow : Window
     private async void OnOpenRecordingProject(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not MainViewModel vm || !vm.CanManageRecordingProject) return;
+        IStorageFolder? startLocation = null;
+        try
+        {
+            if (Directory.Exists(vm.OutputDirectory))
+                startLocation = await StorageProvider.TryGetFolderFromPathAsync(vm.OutputDirectory);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            Serilog.Log.Warning(ex, "Unable to use the recording output directory as the project picker start location");
+        }
         var files = await StorageProvider.OpenFilePickerAsync(new() { Title = vm.Strings["HomeProjectOpen"], AllowMultiple = false,
+            SuggestedStartLocation = startLocation,
             FileTypeFilter = [new("OpenCam") { Patterns = ["*.opencam"] }] });
         if (files.FirstOrDefault()?.TryGetLocalPath() is { } path) await vm.OpenRecordingProjectAsync(path);
     }

@@ -41,6 +41,7 @@ public class UserSettings
     }
     public bool RecordSystemAudio { get; set; } = true;
     public bool RecordMicrophone { get; set; } = false;
+    public bool AutoExportRecordingOnStop { get; set; } = true;
     public string? SelectedMicrophoneId { get; set; }
     public string CaptureRangeMode { get; set; } = "Monitor"; // Monitor, CustomRegion
     public int SelectedMonitorIndex { get; set; } = 0;

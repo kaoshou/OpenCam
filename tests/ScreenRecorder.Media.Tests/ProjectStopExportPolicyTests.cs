@@ -6,6 +6,13 @@ namespace ScreenRecorder.Media.Tests;
 
 public partial class RecordingEncoderLifecycleTests
 {
+    [Fact]
+    public void AutoExportDefaultsToEnabledForNewAndOlderSettings()
+    {
+        Assert.True(new ScreenRecorder.Core.Models.UserSettings().AutoExportRecordingOnStop);
+        Assert.True(System.Text.Json.JsonSerializer.Deserialize<ScreenRecorder.Core.Models.UserSettings>("{}")!.AutoExportRecordingOnStop);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -25,8 +32,23 @@ public partial class RecordingEncoderLifecycleTests
         try
         {
             Assert.True(main.CanChangeProjectExportPolicy);
+            Assert.True(main.AutoExportRecordingOnStop);
             await main.SetProjectAutoExportAsync(false);
             Assert.False(main.AutoExportRecordingOnStop);
+            Assert.False((await main.SettingsService.LoadSettingsAsync()).AutoExportRecordingOnStop);
+            var reopenedMain = new ScreenRecorder.UI.ViewModels.MainViewModel(forScreenshot: true);
+            try
+            {
+                reopenedMain.ApplyNewSettings(await main.SettingsService.LoadSettingsAsync());
+                Assert.False(reopenedMain.AutoExportRecordingOnStop);
+                reopenedMain.SelectedFps = 20;
+                await reopenedMain.FlushPendingUserSettingsAsync();
+                Assert.False((await reopenedMain.SettingsService.LoadSettingsAsync()).AutoExportRecordingOnStop);
+            }
+            finally { reopenedMain.Cleanup(); }
+            await main.SetProjectAutoExportAsync(true);
+            Assert.True((await main.SettingsService.LoadSettingsAsync()).AutoExportRecordingOnStop);
+            await main.SetProjectAutoExportAsync(false);
             Assert.Null(coordinator.Current);
             if (createFirst)
             {

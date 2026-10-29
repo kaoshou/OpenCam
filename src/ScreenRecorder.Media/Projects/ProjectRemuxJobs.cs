@@ -55,7 +55,7 @@ public sealed partial class ProjectMediaJob
         job._exportArguments = ["-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-copyts",
             "-protocol_whitelist", "fd,pipe", "-i", "fd:", "-protocol_whitelist", "fd,pipe",
             "-f", "f32le", "-ar", "48000", "-ac", "2", "-fd", "3", "-i", "fd:",
-            "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac", "-avoid_negative_ts", "disabled",
+            "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-avoid_negative_ts", "disabled",
             "-f", "mp4", "-fd", "1", "fd:"];
         return job;
     }

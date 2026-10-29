@@ -14,7 +14,7 @@ public sealed class NativeMediaTheoryAttribute : TheoryAttribute
     public NativeMediaTheoryAttribute() { if (!OperatingSystem.IsWindows() && !OperatingSystem.IsMacOS()) Skip = "Native media backend required."; }
 }
 
-public class ProjectConcatExportTests
+public partial class ProjectConcatExportTests
 {
     private sealed class ExportDiagnostics : IDisposable
     {
@@ -27,15 +27,19 @@ public class ProjectConcatExportTests
             Serilog.Log.Logger = _logger;
         }
         public override string ToString() => string.Join(Environment.NewLine, _sink.Events);
+        public IEnumerable<Serilog.Events.LogEvent> Entries => _sink.Entries;
         public void Dispose() { Serilog.Log.Logger = _previous; _logger.Dispose(); }
     }
 
     private sealed class ExportDiagnosticSink : Serilog.Core.ILogEventSink
     {
         public System.Collections.Concurrent.ConcurrentQueue<string> Events { get; } = new();
+        public System.Collections.Concurrent.ConcurrentQueue<Serilog.Events.LogEvent> Entries { get; } = new();
         public void Emit(Serilog.Events.LogEvent entry)
         {
             Events.Enqueue($"{entry.Timestamp:O} {entry.RenderMessage()} {entry.Exception}");
+            Entries.Enqueue(entry);
+            while (Entries.Count > 64) Entries.TryDequeue(out _);
             while (Events.Count > 24) Events.TryDequeue(out _);
         }
     }
@@ -136,6 +140,8 @@ public class ProjectConcatExportTests
                     if (cancel) await Assert.ThrowsAnyAsync<OperationCanceledException>(Run);
                     else await Assert.ThrowsAsync<IOException>(Run);
                     Assert.Empty(Directory.GetFiles(destination));
+                    var timing = Assert.Single(diagnostics.Entries.Where(entry => entry.Properties.ContainsKey("Completed")));
+                    Assert.Equal(false, Assert.IsType<Serilog.Events.ScalarValue>(timing.Properties["Completed"]).Value);
                     Assert.DoesNotContain(RecordingExportPhase.Rendering, progress.Phases);
                     foreach (var original in sources)
                         Assert.Equal(original.Sha256, Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(

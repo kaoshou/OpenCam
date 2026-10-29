@@ -27,19 +27,24 @@ public sealed record ProjectSourceEvidence(ProjectStreamEvidence Video, ProjectS
 
 public static class ProjectExportPlanner
 {
+    // Whole visual ranges may still carry audio edits; the selected strategy must
+    // normalize those rather than copying the original sound unchanged.
     public static bool HasOnlyWholeClips(ProjectRenderPlan plan) => !plan.Clips.IsEmpty && plan.Clips.All(part =>
         part.Clip.InPts == part.Source.Timing.StartPts && part.Clip.OutPts == part.Source.Timing.StartPts + part.Source.Timing.DurationTs &&
-        part.Clip.Volume == 1 && !part.Clip.Muted && part.Clip.FadeInTicks == 0 && part.Clip.FadeOutTicks == 0 &&
         part.Clip.Crop == 0 && part.Clip.Scale == 1 && part.Clip.PositionX == 0 && part.Clip.PositionY == 0);
     public static ProjectExportDecision Select(ProjectRenderPlan plan, IReadOnlyList<ProjectSourceEvidence> sources)
     {
         ProjectExportDecision Render(string reason) => new(ProjectExportStrategy.Render, reason);
         if (plan.Clips.IsEmpty || sources.Count != plan.Clips.Length) return Render("Missing source evidence");
+        var audioEdited = plan.Clips.Any(part => part.Clip.Volume != 1 || part.Clip.Muted ||
+            part.Clip.FadeInTicks != 0 || part.Clip.FadeOutTicks != 0);
+        if (audioEdited && sources.Any(source => source.Audio is null))
+            return Render("Audio edits require a verified audio source for normalized export");
         for (var i = 0; i < plan.Clips.Length; i++)
         {
             var part = plan.Clips[i]; var clip = part.Clip; var source = part.Source; var video = sources[i].Video;
             if (clip.InPts != source.Timing.StartPts || clip.OutPts != source.Timing.StartPts + source.Timing.DurationTs ||
-                clip.Volume != 1 || clip.Muted || clip.FadeInTicks != 0 || clip.FadeOutTicks != 0 || clip.Crop != 0 ||
+                clip.Crop != 0 ||
                 clip.Scale != 1 || clip.PositionX != 0 || clip.PositionY != 0)
                 return Render("Timeline contains trims or effects");
             if (video.Codec != "h264" || video.Width != plan.Canvas.Width || video.Height != plan.Canvas.Height ||
@@ -52,8 +57,11 @@ public static class ProjectExportPlanner
                 return Render("Saved range differs from actual source timing");
         }
         if (sources.Count == 1)
+        {
+            if (audioEdited) return new(ProjectExportStrategy.ConcatConvertAudio, "Audio edits; preserve complete encoded video");
             return new(sources[0].Audio is { Codec: not "aac" } ? ProjectExportStrategy.ConvertAudioOnly : ProjectExportStrategy.CopySingle,
                 "Whole recording; preserve encoded video");
+        }
         if (sources.Count > 128) return Render("Too many simultaneous concat handles");
         var first = sources[0];
         foreach (var source in sources)
@@ -62,7 +70,7 @@ public static class ProjectExportPlanner
                     (source.Video.StartSeconds - source.FormatStartSeconds)) > .000001 ||
                 (first.Audio is not null && (first.Audio.Codec != "aac" || !first.Audio.CompatibleWith(source.Audio!))))
                 return Render("Segment stream parameters differ");
-        if (first.Audio is not null && sources.Any(s => s.Audio!.StartSeconds != s.Video.StartSeconds ||
+        if (audioEdited || first.Audio is not null && sources.Any(s => s.Audio!.StartSeconds != s.Video.StartSeconds ||
             Math.Abs(s.Audio.PacketCount * 1024d / s.Audio.SampleRate - (s.Video.EndSeconds - s.Video.StartSeconds)) > 1d / s.Audio.SampleRate))
             return new(ProjectExportStrategy.ConcatConvertAudio, "Preserve video; normalize AAC priming/padding once");
         return new(ProjectExportStrategy.ConcatCopy, "Compatible complete segments");
