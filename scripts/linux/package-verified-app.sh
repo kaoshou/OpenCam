@@ -36,6 +36,11 @@ cp "$runtime_notices" "$package_directory/linux-notices/DOTNET-THIRD-PARTY-NOTIC
 printf 'OpenCam 1.2.0 Ubuntu development test\nCommit: %s\nOBS: 72e86655715d9a25d69ce446aa4dd44ba58e10d2\nFFmpeg: 1041abdc962f4cc4f394aa8de9dc5236c0c3b9e7\nSource archives and build scripts accompany this package. OS libraries (including x264, PulseAudio, PipeWire, Mesa) are supplied by Ubuntu, not redistributed here.\n' "$tested_revision" > "$package_directory/SOURCE.txt"
 source_directory="$artifact_directory/corresponding-source"
 mkdir "$source_directory"
+mkdir "$source_directory/ubuntu-build-headers"
+cp -R /usr/include/simde "$source_directory/ubuntu-build-headers/"
+cp /usr/include/uthash.h "$source_directory/ubuntu-build-headers/"
+dpkg-query -W libsimde-dev uthash-dev > "$source_directory/ubuntu-build-headers/package-versions.txt"
+cp "$package_directory/linux-notices/obs-embedded/SIMDe-copyright.txt" "$package_directory/linux-notices/obs-embedded/uthash-copyright.txt" "$source_directory/ubuntu-build-headers/"
 git archive --format=tar.gz -o "$source_directory/OpenCam-$tested_revision.tar.gz" "$tested_revision"
 git -C "$obs_source" archive --format=tar.gz -o "$source_directory/OBS-72e8665.tar.gz" HEAD
 git -C "$ffmpeg_source" archive --format=tar.gz -o "$source_directory/FFmpeg-1041abd.tar.gz" HEAD
