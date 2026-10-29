@@ -48,6 +48,7 @@ jobs:
           test ! -s "$RUNNER_TEMP/opencam-linux/evidence/production-diff.txt"
           node --test tests/scripts/linux-obs-inputs.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/input-tests.log" 2>&1
           node --test tests/scripts/linux-probe-protocol.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/protocol-tests.log" 2>&1
+          node --test tests/scripts/linux-probe-runner.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/runner-tests.log" 2>&1
           bash -n scripts/linux/build-obs-probe.sh
           bash -n scripts/linux/build-ffmpeg-dependency.sh
       - name: Build pinned FFmpeg libraries into private Linux prefix
@@ -68,6 +69,27 @@ jobs:
           cmake --build "$RUNNER_TEMP/opencam-linux/probe-build" --parallel 2 > "$RUNNER_TEMP/opencam-linux/evidence/probe-build.log" 2>&1
           cmake --install "$RUNNER_TEMP/opencam-linux/probe-build" > "$RUNNER_TEMP/opencam-linux/evidence/probe-install.log" 2>&1
           OPENCAM_LINUX_HELPER="$RUNNER_TEMP/opencam-linux/obs-stage/bin/OpenCam.ObsLinuxProbe" OPENCAM_LINUX_RUNTIME="$RUNNER_TEMP/opencam-linux/obs-stage" node --test tests/native/linux-obs-probe.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/probe-input-tests.log" 2>&1
+      - name: Real X11 source in isolated virtual desktop (not physical acceptance)
+        env:
+          LD_LIBRARY_PATH: ${{ runner.temp }}/opencam-linux/obs-stage/lib:${{ runner.temp }}/opencam-linux/ffmpeg-prefix/lib
+          OPENCAM_LINUX_HELPER: ${{ runner.temp }}/opencam-linux/obs-stage/bin/OpenCam.ObsLinuxProbe
+          OPENCAM_LINUX_RUNTIME: ${{ runner.temp }}/opencam-linux/obs-stage
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          XDG_SESSION_TYPE: x11
+          OPENCAM_LINUX_PROBE_DIAGNOSTICS: '1'
+        run: |
+          dbus-run-session -- xvfb-run -a -s '-screen 0 640x360x24' bash -c '
+            set -euo pipefail
+            export PULSE_RUNTIME_PATH="$RUNNER_TEMP/opencam-linux/pulse"
+            mkdir -m 700 "$PULSE_RUNTIME_PATH"
+            pulseaudio -n --daemonize=yes --exit-idle-time=-1 --load=module-native-protocol-unix --load="module-null-sink sink_name=opencam_test"
+            trap "pulseaudio --kill 2>/dev/null || true" EXIT
+            OPENCAM_LINUX_REAL_CAPTURE=1 node --test tests/native/linux-obs-probe.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/probe-x11-tests.log" 2>&1
+            (while true; do xsetroot -solid "#e04020"; sleep .2; xsetroot -solid "#2040e0"; sleep .2; done) &
+            pattern_pid=$!
+            trap "kill $pattern_pid 2>/dev/null || true; pulseaudio --kill 2>/dev/null || true" EXIT
+            node scripts/linux/run-capture-probe.mjs "$OPENCAM_LINUX_HELPER" "$OPENCAM_LINUX_RUNTIME" "$RUNNER_TEMP/opencam-linux/evidence/x11-20fps" 3 "{\"protocol\":1,\"synthetic\":false,\"width\":640,\"height\":360,\"fps\":20,\"x\":0,\"y\":0,\"monitorWidth\":640,\"monitorHeight\":360,\"cropX\":0,\"cropY\":0,\"monitor\":\"xshm:0\",\"audio\":\"none\",\"systemDevice\":\"\",\"microphone\":\"\",\"cursor\":true,\"encoder\":\"cpu\",\"quality\":23}" > "$RUNNER_TEMP/opencam-linux/evidence/x11-driver.log" 2>&1
+          '
       - name: Preserve logs only; this is not a working OpenCam recorder
         if: always()
         uses: actions/upload-artifact@v4
