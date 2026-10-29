@@ -87,7 +87,7 @@ jobs:
           LD_LIBRARY_PATH: ${{ runner.temp }}/opencam-linux/ffmpeg-prefix/lib
         run: |
           tool="$RUNNER_TEMP/opencam-linux/ffmpeg-prefix/bin/ffmpeg"
-          "$tool" -v error -f lavfi -i anullsrc=r=48000:cl=stereo -t 0.1 -c:a pcm_f32le -f f32le "$RUNNER_TEMP/opencam-linux/evidence/format-check.f32le"
+          "$tool" -v error -f lavfi -i 'anullsrc=r=48000:cl=stereo,aformat=sample_fmts=flt' -t 0.1 -c:a pcm_f32le -f f32le "$RUNNER_TEMP/opencam-linux/evidence/format-check.f32le"
           "$tool" -v error -f f32le -ar 48000 -ac 2 -i "$RUNNER_TEMP/opencam-linux/evidence/format-check.f32le" -c:a pcm_s16le -f s16le "$RUNNER_TEMP/opencam-linux/evidence/format-check.s16le"
           "$tool" -v error -f lavfi -i color=c=red:s=64x36:r=20 -t 0.1 -c:v libx264 -pix_fmt yuv420p -f mp4 "$RUNNER_TEMP/opencam-linux/evidence/format-check.mp4"
           test -s "$RUNNER_TEMP/opencam-linux/evidence/format-check.f32le"
