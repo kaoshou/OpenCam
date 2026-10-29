@@ -37,3 +37,7 @@ audio sources and steps. No recordings are collected or uploaded automatically.
 License: AGPL-3.0-or-later for OpenCam; OBS/FFmpeg and other components retain
 their own licenses. See LICENSE, NOTICE.md, THIRD-PARTY-NOTICES.md, linux-notices/
 and the corresponding-source archive delivered alongside this test package.
+Linux-specific OBS embedded-component notices are in linux-notices/obs-embedded/.
+This Linux build uses FFmpeg n8.1.3 with GPL/libx264 enabled; the Windows/macOS
+runtime inventories in the general notices do not describe this Linux artifact.
+See SOURCE.txt and build-evidence/ffmpeg-config.mak for its exact inputs/options.

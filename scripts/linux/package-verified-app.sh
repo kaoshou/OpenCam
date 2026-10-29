@@ -16,6 +16,17 @@ mkdir "$artifact_directory" "$package_directory/linux-notices"
 cp LICENSE NOTICE.md THIRD-PARTY-NOTICES.md "$package_directory/"
 cp -R third-party/licenses "$package_directory/linux-notices/project-licenses"
 cp "$obs_source/COPYING" "$package_directory/linux-notices/OBS-COPYING.txt"
+cp "$obs_source/AUTHORS" "$package_directory/linux-notices/OBS-AUTHORS.txt"
+mkdir "$package_directory/linux-notices/obs-embedded"
+cp "$obs_source/deps/json11/LICENSE.txt" "$package_directory/linux-notices/obs-embedded/json11-LICENSE.txt"
+cp "$obs_source/deps/libcaption/LICENSE.txt" "$package_directory/linux-notices/obs-embedded/libcaption-LICENSE.txt"
+cp "$obs_source/deps/blake2/LICENSE.blake2" "$package_directory/linux-notices/obs-embedded/BLAKE2-LICENSE.txt"
+cp "$obs_source/deps/glad/include/KHR/khrplatform.h" "$package_directory/linux-notices/obs-embedded/Khronos-platform-header.txt"
+cp "$obs_source/deps/glad/include/EGL/eglplatform.h" "$package_directory/linux-notices/obs-embedded/EGL-platform-header.txt"
+# These installed headers are compiled into libobs, unlike separately supplied
+# OS shared libraries. Retain Ubuntu's exact installed copyright notices.
+cp /usr/share/doc/libsimde-dev/copyright "$package_directory/linux-notices/obs-embedded/SIMDe-copyright.txt"
+cp /usr/share/doc/uthash-dev/copyright "$package_directory/linux-notices/obs-embedded/uthash-copyright.txt"
 cp "$ffmpeg_source/COPYING.GPLv2" "$ffmpeg_source/COPYING.GPLv3" "$ffmpeg_source/COPYING.LGPLv2.1" "$package_directory/linux-notices/"
 runtime_license=$(find "${NUGET_PACKAGES:-$HOME/.nuget/packages}/microsoft.netcore.app.runtime.linux-x64" -maxdepth 2 -iname LICENSE.TXT -print -quit)
 runtime_notices=$(find "${NUGET_PACKAGES:-$HOME/.nuget/packages}/microsoft.netcore.app.runtime.linux-x64" -maxdepth 2 -iname THIRD-PARTY-NOTICES.TXT -print -quit)
