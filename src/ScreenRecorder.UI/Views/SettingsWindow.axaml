@@ -364,7 +364,7 @@
                                         <TextBlock Text="{Binding DisplayVersion}" FontSize="10.5" FontWeight="Bold" Foreground="#059669" />
                                     </Border>
                                 </StackPanel>
-                                <TextBlock Text="{Binding VersionLabelText}" FontSize="12" Foreground="#64748B" FontWeight="Medium" />
+                                <TextBlock Text="{Binding VersionLabelText}" FontSize="12" Foreground="#64748B" FontWeight="Medium" TextWrapping="Wrap" />
                                 
                                 <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,3,0,0">
                                     <TextBlock Text="{Binding Strings[AuthorLabel]}" FontSize="12.5" FontWeight="SemiBold" Foreground="#334155" />
@@ -417,7 +417,7 @@
                             <!-- FFmpeg -->
                             <StackPanel Spacing="2">
                                 <TextBlock Text="• FFmpeg &amp; ffprobe" FontWeight="SemiBold" FontSize="11.5" Foreground="#1E293B" />
-                                <TextBlock Text="{Binding Strings[LicenseFfmpegDesc]}" 
+                                <TextBlock Text="{Binding Strings[LicenseFfmpegDesc]}"
                                            FontSize="10.5" Foreground="#64748B" TextWrapping="Wrap" />
                             </StackPanel>
 

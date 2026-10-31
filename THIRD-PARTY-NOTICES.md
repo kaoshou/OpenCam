@@ -53,3 +53,11 @@ OBS/libobs 錄影核心及其相依元件保留原作者版權與授權。FFmpeg
 Windows packages also carry the required unmodified, authenticated Microsoft Visual C++ release runtime beside the OBS helper. Its separate Microsoft license and provenance are retained in `obs-runtime/licenses/`; OpenCam's AGPL and OBS's GPL do not relicense these DLLs. Users do not need to locate or install them separately.
 
 Upstream: https://github.com/obsproject/obs-studio/tree/72e86655715d9a25d69ce446aa4dd44ba58e10d2
+
+## Ubuntu Beta package inventory
+
+Ubuntu 24.04 x64 Beta packages have their own inventory; the Windows/macOS runtime versions and source bundles above do not describe this artifact. Linux uses OBS 33.0.0 at the pinned revision above and FFmpeg n8.1.3 at `1041abdc962f4cc4f394aa8de9dc5236c0c3b9e7`, built with GPL/libx264 support. See `SOURCE.txt`, `LINUX-TEST-INFO.json`, `obs-runtime/runtime.json` and `build-evidence/ffmpeg-config.mak` for the exact package.
+
+Linux attribution and license texts are retained in `linux-notices/`: OBS AUTHORS/COPYING, FFmpeg GPL/LGPL texts, .NET runtime license/aggregate notices, project-library licenses in `project-licenses/`, and compiled OBS embedded-component notices in `obs-embedded/` (json11, libcaption, BLAKE2, Khronos/EGL headers, SIMDe and uthash). The corresponding-source archive supplied beside each test package retains OpenCam, pinned OBS/FFmpeg sources, build recipes and the actual Ubuntu SIMDe/uthash build headers and copyright notices.
+
+Ubuntu-supplied shared libraries, including x264, PulseAudio, PipeWire and Mesa, remain system dependencies rather than bundled binaries. A Debian dependency declaration does not relicense these packages. If future packaging bundles additional libraries, their actual licenses and corresponding-source obligations must be reviewed before distribution. For the `.deb` Beta, application notices are installed beneath `/opt/opencam-beta/`; package documentation is also indexed under `/usr/share/doc/opencam-beta/`.

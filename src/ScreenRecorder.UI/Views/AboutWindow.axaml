@@ -21,7 +21,7 @@
 
                 <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
                     <TextBlock Text="{Binding Strings[AppName]}" FontSize="19" FontWeight="Bold" Foreground="#0F172A" />
-                    <TextBlock Text="{Binding VersionLabelText}" FontSize="12" Foreground="#64748B" FontWeight="Medium" />
+                    <TextBlock Text="{Binding VersionLabelText}" FontSize="12" Foreground="#64748B" FontWeight="Medium" TextWrapping="Wrap" />
                     
                     <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
                         <TextBlock Text="{Binding Strings[AuthorLabel]}" FontSize="12.5" FontWeight="SemiBold" Foreground="#334155" />
@@ -50,6 +50,10 @@
                 <StackPanel Spacing="10">
                     <TextBlock Text="{Binding Strings[ThirdPartyTitle]}" FontWeight="Bold" FontSize="12" Foreground="#0F172A" />
 
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="• OBS / libobs" FontWeight="SemiBold" FontSize="11" Foreground="#1E293B" />
+                        <TextBlock Text="{Binding Strings[LicenseObsDesc]}" FontSize="10" Foreground="#64748B" TextWrapping="Wrap" />
+                    </StackPanel>
                     <!-- FFmpeg -->
                     <StackPanel Spacing="2">
                         <TextBlock Text="• FFmpeg &amp; ffprobe" FontWeight="SemiBold" FontSize="11" Foreground="#1E293B" />

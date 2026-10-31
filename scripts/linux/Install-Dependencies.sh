@@ -15,12 +15,16 @@ if [[ "${ID:-}" != ubuntu || "${VERSION_ID:-}" != 24.04 ]]; then
   echo 'Automatic setup is validated only for Ubuntu 24.04 x64. No packages were changed.' >&2
   echo 'Do not replace GLIBC or create library ABI symlinks to bypass a version mismatch.' >&2; exit 2
 fi
-packages=(pulseaudio-utils xdg-utils libstdc++6 libgcc-s1 zlib1g libicu74 libssl3t64
-  libgssapi-krb5-2 libglib2.0-0t64 libuuid1 libpulse0 libx264-164 libpipewire-0.3-0t64
-  libdrm2 libwayland-client0 libegl1 libgl1 libfontconfig1 libx11-6 libx11-xcb1
-  libxcb-xinput0 libxkbcommon0 libjansson4 libxext6 libxrandr2 libxi6 libxcursor1
-  libxrender1 libice6 libsm6 libxcb-shm0 libxcb-randr0 libxcb-xfixes0
-  libxcb-xinerama0 libxcb-composite0)
+package_manifest="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)/runtime-packages.txt"
+if [[ ! -r "$package_manifest" ]]; then
+  echo 'Incomplete package: runtime-packages.txt is missing. No packages were changed.' >&2; exit 2
+fi
+packages=()
+while IFS= read -r package || [[ -n "$package" ]]; do
+  [[ "$package" =~ ^[a-z0-9][a-z0-9+.-]+$ ]] || { echo 'Invalid runtime dependency manifest.' >&2; exit 2; }
+  packages+=("$package")
+done < "$package_manifest"
+[[ ${#packages[@]} -gt 0 ]] || { echo 'Empty runtime dependency manifest.' >&2; exit 2; }
 missing=()
 for package in "${packages[@]}"; do
   if ! status=$(dpkg-query -W -f='${Status}' "$package" 2>/dev/null) || [[ "$status" != 'install ok installed' ]]; then

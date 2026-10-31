@@ -11,6 +11,7 @@ namespace ScreenRecorder.UI.Views;
 public partial class AboutWindow : Window
 {
     public LanguageManager Strings => LanguageManager.Instance;
+    public string VersionLabelText => Strings.GetFormatted("VersionLabel", ScreenRecorder.Core.ProductInfo.PackageDisplayVersion);
 
     public AboutWindow()
     {

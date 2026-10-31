@@ -6,6 +6,16 @@ namespace ScreenRecorder.Core.Tests;
 
 public class ProductInfoTests
 {
+    [Theory]
+    [InlineData("win-x64", "Windows x64 Build")]
+    [InlineData("osx-arm64", "macOS arm64 Build")]
+    [InlineData("linux-x64", "Linux x64 Beta Build")]
+    [InlineData("", "Development Build")]
+    [InlineData(null, "Development Build")]
+    [InlineData("unrecognized-rid", "Development Build")]
+    public void PackageDescription_UsesBuildTargetNotHost(string? rid, string expected)
+        => Assert.Equal(expected, ProductInfo.FormatBuildDescription(rid));
+
     [Fact]
     public void AssemblyMetadata_UsesCanonicalProductVersion()
     {

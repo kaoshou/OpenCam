@@ -290,7 +290,7 @@ public partial class MainViewModel : ObservableObject
     public string SystemAudioLabel => Strings[
         SupportsSystemAudio ? "AudioSystem" : "AudioSystemUnsupportedMac"];
     public string DisplayVersion => ProductInfo.DisplayVersion;
-    public string VersionLabelText => Strings.GetFormatted("VersionLabel", DisplayVersion);
+    public string VersionLabelText => Strings.GetFormatted("VersionLabel", ProductInfo.PackageDisplayVersion);
     public string VersionAndAboutText => Strings.GetFormatted("VersionAndAbout", DisplayVersion);
 
     internal static bool SupportsSystemAudioOnPlatform(

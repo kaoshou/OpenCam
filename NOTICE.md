@@ -1,6 +1,6 @@
 # OpenCam copyright and license notice
 
-OpenCam 1.0.0 integrates the OBS/libobs recording runtime. OBS Project contributors retain copyright in their code; OpenCam does not claim ownership of OBS, FFmpeg or their dependencies. Recording runtime notices and source provenance are supplied under `obs-runtime/licenses/` (inside `Contents/Resources` on macOS). FFmpeg/ffprobe also remain separate tools for audio checks, preview, media validation and export. See THIRD-PARTY-NOTICES.md for the two distinct dependency inventories.
+OpenCam integrates the OBS/libobs recording runtime. OBS Project contributors retain copyright in their code; OpenCam does not claim ownership of OBS, FFmpeg or their dependencies. Windows/macOS recording runtime notices and source provenance are supplied under `obs-runtime/licenses/` (inside `Contents/Resources` on macOS); Ubuntu Beta uses `linux-notices/` and `SOURCE.txt`. FFmpeg/ffprobe also remain separate tools for audio checks, preview, media validation and export. See THIRD-PARTY-NOTICES.md for the package-specific dependency inventories.
 
 Copyright (C) 2026 Yu-Han Cheng.
 

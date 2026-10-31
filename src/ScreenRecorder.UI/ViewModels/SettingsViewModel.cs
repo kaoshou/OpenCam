@@ -15,7 +15,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 {
     public LanguageManager Strings => LanguageManager.Instance;
     public string DisplayVersion => ProductInfo.DisplayVersion;
-    public string VersionLabelText => Strings.GetFormatted("VersionLabel", DisplayVersion);
+    public string VersionLabelText => Strings.GetFormatted("VersionLabel", ProductInfo.PackageDisplayVersion);
 
     private readonly ISettingsService _settingsService;
     private UserSettings _currentSettings = new();

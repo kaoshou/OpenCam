@@ -14,6 +14,7 @@ test "$(git -C "$obs_source" rev-parse HEAD)" = 72e86655715d9a25d69ce446aa4dd44b
 test "$(git -C "$ffmpeg_source" rev-parse HEAD)" = 1041abdc962f4cc4f394aa8de9dc5236c0c3b9e7
 mkdir "$artifact_directory" "$package_directory/linux-notices"
 cp LICENSE NOTICE.md THIRD-PARTY-NOTICES.md "$package_directory/"
+cp src/ScreenRecorder.UI/Assets/app_icon.png "$package_directory/app-icon.png"
 cp -R third-party/licenses "$package_directory/linux-notices/project-licenses"
 cp "$obs_source/COPYING" "$package_directory/linux-notices/OBS-COPYING.txt"
 cp "$obs_source/AUTHORS" "$package_directory/linux-notices/OBS-AUTHORS.txt"
@@ -45,6 +46,7 @@ git archive --format=tar.gz -o "$source_directory/OpenCam-$tested_revision.tar.g
 git -C "$obs_source" archive --format=tar.gz -o "$source_directory/OBS-72e8665.tar.gz" HEAD
 git -C "$ffmpeg_source" archive --format=tar.gz -o "$source_directory/FFmpeg-1041abd.tar.gz" HEAD
 cp "$package_directory/SOURCE.txt" "$source_directory/"
+node scripts/linux/build-deb.mjs "$package_directory" "$artifact_directory/OpenCam_${tested_revision:0:7}_Ubuntu24.04_amd64_Beta.deb" "$(tr -d '\n' < VERSION)" "$tested_revision"
 tar -czf "$artifact_directory/OpenCam_v1.2.0_Ubuntu24.04_x64_Test_${tested_revision:0:7}.tar.gz" -C "$package_directory" .
 tar -czf "$artifact_directory/OpenCam_v1.2.0_Linux_CorrespondingSource_${tested_revision:0:7}.tar.gz" -C "$source_directory" .
-(cd "$artifact_directory" && sha256sum ./*.tar.gz > SHA256SUMS.txt)
+(cd "$artifact_directory" && sha256sum ./*.tar.gz ./*.deb > SHA256SUMS.txt)

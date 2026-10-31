@@ -1,7 +1,19 @@
 OpenCam 1.2.0 — Ubuntu 24.04 x64 development test
 NOT A RELEASE. Check LINUX-TEST-INFO.json for the exact commit.
 
-Extract the entire archive to a local writable directory, then run:
+Recommended Ubuntu 24.04 amd64 installation (network required for dependencies):
+  sudo apt install ./OpenCam_*_Ubuntu24.04_amd64_Beta.deb
+Use the actual downloaded filename, or select this package in your desktop's
+package installer if supported. After installation, open "OpenCam Beta" in the
+application menu. No manual shell-script launch or .NET installation is needed.
+The application runs as your ordinary desktop user, never through sudo.
+Uninstall with: sudo apt remove opencam-beta
+Uninstalling does not remove your recordings, projects or personal settings.
+Application files and notices: /opt/opencam-beta/
+The Beta targets Ubuntu 24.04 x64; this does not imply Ubuntu 20.04 support.
+
+Alternative extracted test archive: extract the entire archive to a local
+writable directory, then run:
   ./Start-OpenCam.sh
 No .NET installation is required. Keep obs-runtime and all bundled files together.
 

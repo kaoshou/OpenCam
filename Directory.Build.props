@@ -6,6 +6,9 @@
     <FileVersion>$(OpenCamVersion).0</FileVersion>
     <InformationalVersion>$(OpenCamVersion)</InformationalVersion>
   </PropertyGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="OpenCamRuntimeIdentifier" Value="$(RuntimeIdentifier)" />
+  </ItemGroup>
   <PropertyGroup Condition="'$(OpenCamNativeOnlyTest)' == 'true'">
     <DefineConstants>$(DefineConstants);OPENCAM_OBS_ONLY_TEST</DefineConstants>
     <BaseOutputPath>bin/native-only/</BaseOutputPath>

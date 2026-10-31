@@ -9,6 +9,18 @@ public static class ProductInfo
 
     public static string DisplayVersion => $"v{Version}";
 
+    public static string PackageDisplayVersion => $"{DisplayVersion} ({FormatBuildDescription(typeof(ProductInfo).Assembly
+        .GetCustomAttributes<AssemblyMetadataAttribute>()
+        .FirstOrDefault(a => a.Key == "OpenCamRuntimeIdentifier")?.Value)})";
+
+    public static string FormatBuildDescription(string? runtimeIdentifier) => runtimeIdentifier switch
+    {
+        "win-x64" => "Windows x64 Build",
+        "osx-arm64" => "macOS arm64 Build",
+        "linux-x64" => "Linux x64 Beta Build",
+        _ => "Development Build"
+    };
+
     private static string ResolveVersion()
     {
         var informational = typeof(ProductInfo).Assembly

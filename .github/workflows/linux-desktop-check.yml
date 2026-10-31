@@ -8,6 +8,7 @@ on:
       - 'src/ScreenRecorder.Platform.Linux/Native/playback.c'
       - 'tests/native/linux-playback.test.mjs'
       - 'scripts/linux/Install-Dependencies.sh'
+      - 'scripts/linux/runtime-packages.txt'
       - 'scripts/linux/Start-OpenCam.sh'
       - 'tests/scripts/linux-launcher.test.mjs'
   workflow_dispatch:
