@@ -62,6 +62,15 @@ Files: Linux catalog/engine/helper, Linux UI source-selection adapter, portal pr
 - [ ] Test cancellation, denial, retry, session loss, pause/resume and crop/scale boundaries.
 - [ ] Verify actual GNOME portal capture before declaring Ubuntu Wayland support; retain fail-closed behavior until then.
 
+### Task 4 implementation sequence (2026-10-31)
+
+- Native preparation runs the pinned OBS monitor-only portal source without creating a recording file. Observe only responses/session closure on the helper-owned D-Bus connection; require one monitor, v4+ opaque stream id and renewable restore token. Ignore unrelated object paths. No matching by dimensions alone.
+- Keep restoration credentials in Recorder memory only. Preparation result exposes a SHA256 source identity, actual negotiated pixel bounds and bounded thumbnail; credentials are never included in UI IPC, project/configuration, exception messages or logs.
+- Before accepting source readiness, render the private source against transparent RGBA and require actual drawn pixels (pinned PipeWire render returns before drawing when no texture exists); this avoids calling negotiated geometry a received frame. Rendering happens only during preparation/startup, not as a per-frame readback.
+- Restore the same authorized source for each segment; validate returned opaque identity and pixel geometry before output readiness, rotate the single-use credential, and fail/reselect on cancellation, loss or mismatch. Unmodified Windows/macOS request/event handling remains strict and unchanged by default.
+- Preparation uses a bounded asynchronous operation behind the existing capture lease. Poll/cancel commands remain short; do not hold the IPC message gate during user permission interaction. Crop UI uses the authorized thumbnail/source-local pixels, never XWayland global coordinates.
+- Product manifest remains fail-closed until actual GNOME portal integration is verified. Add separate GNOME virtual-desktop evidence; do not relabel Sway/Xvfb as physical acceptance. No upstream OBS source modification or new recording fallback is required for this phase.
+
 ## Task 5: Teaching tools and shortcuts
 
 Files: Linux desktop capability adapters, existing cursor/annotation/shortcut composition points, platform tests.

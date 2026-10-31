@@ -22,6 +22,7 @@
 #include <csignal>
 #include "wayland-displays.hpp"
 #include "audio-meter.hpp"
+#include "portal-responses.hpp"
 
 namespace fs = std::filesystem;
 static std::mutex logMutex;
@@ -222,7 +223,8 @@ int main(int argc, char **argv)
     auto root = fs::path(argv[2]);
     if (!root.is_absolute()) { emit("error", ",\"code\":\"runtime_path\""); return 2; }
     Display *x11 = nullptr; wl_display *wayland = nullptr;
-    GDBusConnection *bus = nullptr; guint sessionSubscription = 0;
+    GDBusConnection *bus = nullptr; guint sessionSubscription = 0, responseSubscription = 0;
+    std::unique_ptr<opencam::PortalResponses> portal;
     bool started = false, ready = false;
     obs_source_t *screen = nullptr, *system = nullptr, *mic = nullptr;
     obs_scene_t *scene = nullptr;
@@ -247,16 +249,35 @@ int main(int argc, char **argv)
         if (backend == "pipewire") {
             GError *error = nullptr;
             bus = g_bus_get_sync(G_BUS_TYPE_SESSION, nullptr, &error);
-            if (error) g_error_free(error);
+            if (error) { g_error_free(error); error = nullptr; }
             if (!bus) throw std::runtime_error("portal_bus_unavailable");
+            auto *properties = g_dbus_connection_call_sync(bus, "org.freedesktop.portal.Desktop",
+                "/org/freedesktop/portal/desktop", "org.freedesktop.DBus.Properties", "Get",
+                g_variant_new("(ss)", "org.freedesktop.portal.ScreenCast", "version"),
+                G_VARIANT_TYPE("(v)"), G_DBUS_CALL_FLAGS_NONE, 5000, nullptr, &error);
+            if (error) { g_error_free(error); error = nullptr; }
+            if (!properties) throw std::runtime_error("portal_unavailable");
+            GVariant *boxed = g_variant_get_child_value(properties, 0);
+            GVariant *version = g_variant_get_variant(boxed);
+            unsigned portalVersion = g_variant_is_of_type(version, G_VARIANT_TYPE_UINT32) ? g_variant_get_uint32(version) : 0;
+            g_variant_unref(version); g_variant_unref(boxed); g_variant_unref(properties);
+            if (portalVersion < 4) throw std::runtime_error("portal_identity_unavailable");
+            portal = std::make_unique<opencam::PortalResponses>(portalVersion, g_dbus_connection_get_unique_name(bus));
+            responseSubscription = g_dbus_connection_signal_subscribe(bus, "org.freedesktop.portal.Desktop",
+                "org.freedesktop.portal.Request", "Response", nullptr, nullptr, G_DBUS_SIGNAL_FLAGS_NONE,
+                [](GDBusConnection *, const gchar *, const gchar *path, const gchar *, const gchar *, GVariant *parameters, gpointer data) {
+                    static_cast<opencam::PortalResponses *>(data)->receive(path, parameters);
+                }, portal.get(), nullptr);
             // GLib shares the session-bus connection within this helper. Portal
             // Session::Closed is unicast to its owner; no other application's
             // session or restore token is inspected or closed here.
             sessionSubscription = g_dbus_connection_signal_subscribe(bus, "org.freedesktop.portal.Desktop",
                 "org.freedesktop.portal.Session", "Closed", nullptr, nullptr, G_DBUS_SIGNAL_FLAGS_NONE,
-                [](GDBusConnection *, const gchar *, const gchar *, const gchar *, const gchar *, GVariant *, gpointer) {
-                    sourceHealth.sessionClosed(); emit("session_closed");
-                }, nullptr, nullptr);
+                [](GDBusConnection *, const gchar *, const gchar *path, const gchar *, const gchar *, GVariant *, gpointer data) {
+                    auto &responses = *static_cast<opencam::PortalResponses *>(data);
+                    responses.closed(path);
+                    if (responses.failure() == "portal_session_closed") sourceHealth.sessionClosed();
+                }, portal.get(), nullptr);
         }
         auto data = (root / "share" / "obs" / "libobs").string() + "/";
         obs_add_data_path(data.c_str());
@@ -336,7 +357,9 @@ int main(int argc, char **argv)
             while (obs_source_get_width(screen) != static_cast<uint32_t>(s.request.monitorWidth) ||
                    obs_source_get_height(screen) != static_cast<uint32_t>(s.request.monitorHeight) ||
                    (backend == "pipewire" && !sourceHealth.streaming()) ||
+                   (portal && !portal->grant().selected()) ||
                    (system && !s.systemSamples) || (mic && !s.micSamples)) {
+                if (portal && !portal->failure().empty()) throw std::runtime_error(portal->failure());
                 if (auto *reason = sourceHealth.terminalFailure()) throw std::runtime_error(reason);
                 if (command()) throw std::runtime_error("capture_cancelled");
                 if (os_gettime_ns() > deadline) throw std::runtime_error("source_timeout");
@@ -412,6 +435,7 @@ int main(int argc, char **argv)
         emit("error", ",\"code\":" + jsonQuote(code) + ",\"stage\":" + jsonQuote(stage));
     }
     sourceHealth.disarm();
+    if (responseSubscription) g_dbus_connection_signal_unsubscribe(bus, responseSubscription);
     if (sessionSubscription) g_dbus_connection_signal_unsubscribe(bus, sessionSubscription);
     if (bus) g_object_unref(bus);
     if (output) { if (obs_output_active(output)) obs_output_force_stop(output); obs_output_release(output); }
