@@ -35,10 +35,12 @@ public sealed class LinuxRecordingEngine : IScreenRecorderEngine, IBoundRecordin
     private void RelayError(object? sender, string error) => EngineErrorOccurred?.Invoke(this, error);
     private void RelayWarning(object? sender, string warning) => EngineWarningOccurred?.Invoke(this, warning);
     private void RelayAudioLost(object? sender, EventArgs args) => AudioDeviceLost?.Invoke(this, args);
+    internal static bool SupportsCursor(RecordingConfiguration config,bool x11)=>!config.EditablePointerEnabled&&
+        (config.CursorEffect is CursorEffectMode.Default or CursorEffectMode.Hidden||x11&&config.CursorEffect==CursorEffectMode.PresentationStick);
     public Task StartRecordingAsync(string path, RecordingConfiguration config, CaptureRegion bounds, CancellationToken cancellationToken = default)
     {
-        if (!OperatingSystem.IsLinux() || config.EditablePointerEnabled || config.CursorEffect is not (CursorEffectMode.Default or CursorEffectMode.Hidden))
-            throw new NotSupportedException("This Linux test build supports the original or hidden cursor; teaching-pointer overlays are not yet validated.");
+        if (!OperatingSystem.IsLinux() || !SupportsCursor(config,LinuxX11InputPolicy.IsX11))
+            throw new NotSupportedException("This desktop supports the original or hidden cursor; the live teaching pointer requires X11.");
         var c = JsonSerializer.Deserialize<RecordingConfiguration>(JsonSerializer.Serialize(config))!;
         if (c.AudioSource != AudioSourceType.None && !c.IsRecoverySilenceMode) {
             var audio = LinuxDesktopCatalog.ReadAudio();

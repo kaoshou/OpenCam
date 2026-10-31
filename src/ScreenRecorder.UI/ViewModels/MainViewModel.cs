@@ -942,13 +942,20 @@ public partial class MainViewModel : ObservableObject
         // 立即探測目標存放磁碟之剩餘空間 (更新介面顯示 -- GB)
         UpdateDiskSpaceRemaining();
 
-        // Windows 與 macOS 共用可自訂的全域錄影快捷鍵。
-        if (!forScreenshot && (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() &&
+        // Native desktop shortcuts; XWayland does not imply global Wayland input.
+        if (!forScreenshot && (OperatingSystem.IsWindows() || (OperatingSystem.IsMacOS() || ScreenRecorder.Platform.Linux.LinuxX11InputPolicy.IsX11) &&
             Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime))
         {
             try
             {
-                _globalHotkeyService = OperatingSystem.IsWindows() ? new WindowsGlobalHotkeyService() : new MacOsGlobalHotkeyService();
+                _globalHotkeyService = OperatingSystem.IsWindows() ? new WindowsGlobalHotkeyService() :
+                    OperatingSystem.IsMacOS() ? new MacOsGlobalHotkeyService() : new ScreenRecorder.Platform.Linux.LinuxX11HotkeyService();
+                if(_globalHotkeyService is ScreenRecorder.Platform.Linux.LinuxX11HotkeyService linuxHotkeys)
+                    linuxHotkeys.Unavailable+=(_,_)=>Avalonia.Threading.Dispatcher.UIThread.Post(()=> {
+                        IsRecordingHotkeyRegistered=false;IsBookmarkHotkeyRegistered=false;IsAnnotationHotkeyRegistered=false;
+                        _hotkeyInitializationError=Strings["HotkeyUnavailable"];ScreenAnnotationNotice=_hotkeyInitializationError;
+                        OnPropertyChanged(nameof(IsBookmarkHotkeyRegistered));OnPropertyChanged(nameof(IsAnnotationHotkeyRegistered));OnPropertyChanged(nameof(ScreenAnnotationsTooltip));
+                    });
                 _globalHotkeyService.HotkeyTriggered += async (s, hotkeyId) =>
                 {
                     await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
@@ -1107,6 +1114,8 @@ public partial class MainViewModel : ObservableObject
         AvailableCursorEffects.Add(new CursorEffectOption(CursorEffectMode.Default, Strings["CursorDefault"]));
         if (OperatingSystem.IsLinux())
         {
+            if(ScreenRecorder.Platform.Linux.LinuxX11InputPolicy.IsX11)
+                AvailableCursorEffects.Add(new CursorEffectOption(CursorEffectMode.PresentationStick,Strings["CursorPresentationStick"]));
             AvailableCursorEffects.Add(new CursorEffectOption(CursorEffectMode.Hidden, Strings["CursorHidden"]));
             SelectedCursorEffect = AvailableCursorEffects.FirstOrDefault(c => c.Mode == preferred) ?? AvailableCursorEffects[0];
             return;

@@ -21,11 +21,12 @@ public sealed class LinuxPortalSources
     public async Task<LinuxPortalSelectionView> PrepareAsync(string root, CancellationToken ct)
     {
         lock (gate) if (active is not null) throw new IOException("Stop recording before selecting another source.");
-        return Store(await LinuxPortalPreparation.PrepareAsync(root, ct).ConfigureAwait(false));
+        return Store(await LinuxPortalPreparation.PrepareAsync(root, ct).ConfigureAwait(false),ct);
     }
-    internal LinuxPortalSelectionView Store(LinuxPortalSelection selection)
+    internal LinuxPortalSelectionView Store(LinuxPortalSelection selection,CancellationToken ct=default)
     {
         lock (gate) {
+            ct.ThrowIfCancellationRequested();
             if (active is not null) throw new IOException("Stop recording before selecting another source.");
             var view = new LinuxPortalSelectionView(selection.SourceId, selection.Width, selection.Height,
                 selection.PreviewWidth, selection.PreviewHeight, Convert.ToBase64String(selection.Rgba));

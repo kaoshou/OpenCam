@@ -344,6 +344,8 @@ public class Program
         }
         else if (OperatingSystem.IsLinux())
         {
+            if(ScreenRecorder.Platform.Linux.LinuxX11InputPolicy.IsX11)
+                services.AddSingleton<ICursorHighlightService, ScreenRecorder.Platform.Linux.LinuxX11PointerOverlay>();
             services.AddSingleton<IDisplayService, ScreenRecorder.Platform.Linux.LinuxDesktopCatalog>();
             services.AddSingleton<IAudioDeviceService, ScreenRecorder.Platform.Linux.LinuxDesktopCatalog>();
             services.AddSingleton<IFFmpegPlatformProvider, ScreenRecorder.Platform.Linux.LinuxFFmpegProvider>();

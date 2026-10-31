@@ -43,14 +43,11 @@ public partial class MainViewModel
         {
             if(!RegisterAnnotationHotkey(null))return Strings["HotkeyUnavailable"];
             var requested = new List<(int, int, uint)>();
-            if (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS())
-            {
-                requested.Add((9001, ResolveVirtualKey(settings.StartStopHotkeyKey), settings.StartStopHotkeyModifiers));
-                requested.Add((9002, ResolveVirtualKey(settings.PauseResumeHotkeyKey), settings.PauseResumeHotkeyModifiers));
-            }
+            requested.Add((9001, ResolveVirtualKey(settings.StartStopHotkeyKey), settings.StartStopHotkeyModifiers));
+            requested.Add((9002, ResolveVirtualKey(settings.PauseResumeHotkeyKey), settings.PauseResumeHotkeyModifiers));
             requested.Add((9003, ResolveVirtualKey(settings.BookmarkHotkeyKey), settings.BookmarkHotkeyModifiers));
             if (!_hotkeyBindings.Apply(requested.ToArray())) { RegisterAnnotationHotkey(_annotationBindingsRequestedForRecording?_registeredSettings:null); return Strings["HotkeyUnavailable"]; }
-            IsRecordingHotkeyRegistered=OperatingSystem.IsWindows()||OperatingSystem.IsMacOS();
+            IsRecordingHotkeyRegistered=true;
             IsBookmarkHotkeyRegistered = true;
             OnPropertyChanged(nameof(IsBookmarkHotkeyRegistered));
             if(!RegisterAnnotationHotkey(settings))
@@ -59,7 +56,7 @@ public partial class MainViewModel
                 if(_registeredSettings is not null)
                 {
                     var prior=new List<(int,int,uint)>();
-                    if(OperatingSystem.IsWindows()||OperatingSystem.IsMacOS()) { prior.Add((9001,ResolveVirtualKey(_registeredSettings.StartStopHotkeyKey),_registeredSettings.StartStopHotkeyModifiers)); prior.Add((9002,ResolveVirtualKey(_registeredSettings.PauseResumeHotkeyKey),_registeredSettings.PauseResumeHotkeyModifiers)); }
+                    prior.Add((9001,ResolveVirtualKey(_registeredSettings.StartStopHotkeyKey),_registeredSettings.StartStopHotkeyModifiers)); prior.Add((9002,ResolveVirtualKey(_registeredSettings.PauseResumeHotkeyKey),_registeredSettings.PauseResumeHotkeyModifiers));
                     prior.Add((9003,ResolveVirtualKey(_registeredSettings.BookmarkHotkeyKey),_registeredSettings.BookmarkHotkeyModifiers));
                     if(!_hotkeyBindings.Apply(prior.ToArray())||!RegisterAnnotationHotkey(_annotationBindingsRequestedForRecording?_registeredSettings:null))return Strings["HotkeyUnavailable"];
                 }

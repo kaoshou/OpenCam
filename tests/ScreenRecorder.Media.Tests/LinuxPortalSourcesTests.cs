@@ -8,6 +8,14 @@ namespace ScreenRecorder.Media.Tests;
 
 public sealed class LinuxPortalSourcesTests
 {
+    [Fact]
+    public void CancelledPreparationCannotReplaceAnExistingRestorationCredential()
+    {
+        var sources=new LinuxPortalSources();var view=sources.Store(Selection("original"));
+        using var cancelled=new CancellationTokenSource();cancelled.Cancel();
+        Assert.Throws<OperationCanceledException>(()=>sources.Store(Selection("cancelled"),cancelled.Token));
+        using var grant=sources.BeginRestore(view.SourceId,2,2);Assert.Equal("original",grant.Token);
+    }
     [Theory]
     [InlineData(true)] [InlineData(false)]
     public async Task ActualEngineRequiresRotatedGrantBeforeReadyAndReleasesItOnDispose(bool provideGrant)

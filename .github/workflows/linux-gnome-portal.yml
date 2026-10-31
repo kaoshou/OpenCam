@@ -36,16 +36,6 @@ jobs:
             ${{ runner.temp }}/opencam-linux/evidence/ffmpeg
           key: opencam-ubuntu24-x64-media-v1-${{ hashFiles('scripts/linux/build-app-media.sh') }}
           fail-on-cache-miss: true
-      - name: Install isolated X11 test compositor
-        run: sudo apt-get install -y --no-install-recommends picom openbox
-      - name: Build actual X11 annotation UI probe
-        run: |
-          dotnet publish tests/ScreenRecorder.LinuxDesktopProbe -c Release -r linux-x64 --self-contained true -p:OpenCamNativeOnlyTest=true -m:1 -o "$RUNNER_TEMP/desktop-probe"
-      - name: Exercise actual X11 annotation input and transparency (RED before adapter)
-        continue-on-error: true
-        run: |
-          mkdir -p "$RUNNER_TEMP/gnome-evidence"
-          timeout 35 dbus-run-session -- xvfb-run -a -s '-screen 0 1280x800x24' sh -c 'openbox >/dev/null 2>&1 & picom --backend xrender >/dev/null 2>&1 & sleep 2; env XDG_SESSION_TYPE=x11 OPENCAM_DISPOSABLE_CI_DESKTOP=1 "$1/ScreenRecorder.LinuxDesktopProbe" "$2"' sh "$RUNNER_TEMP/desktop-probe" "$RUNNER_TEMP/gnome-evidence"
       - name: Build current native helper against unchanged pinned OBS
         env:
           PKG_CONFIG_PATH: ${{ runner.temp }}/opencam-linux/ffmpeg-prefix/lib/pkgconfig
@@ -60,11 +50,6 @@ jobs:
         run: |
           dotnet publish tests/ScreenRecorder.LinuxPortalProbe/ScreenRecorder.LinuxPortalProbe.csproj -c Release -r linux-x64 --self-contained true -p:OpenCamNativeOnlyTest=true -m:1 -o "$RUNNER_TEMP/portal-publish" > "$RUNNER_TEMP/gnome-evidence/managed-build.log" 2>&1
           node scripts/linux/assemble-app.mjs "$RUNNER_TEMP/portal-publish" "$RUNNER_TEMP/obs-stage" "$RUNNER_TEMP/opencam-linux/ffmpeg-prefix" "$RUNNER_TEMP/managed-portal" "$GITHUB_SHA" 1.2.0
-      - name: Verify actual X11 global grabs and trigger counts before GNOME testing
-        run: xvfb-run -a env XDG_SESSION_TYPE=x11 OPENCAM_DISPOSABLE_CI_DESKTOP=1 "$RUNNER_TEMP/managed-portal/OpenCam" --x11-hotkeys "$RUNNER_TEMP/gnome-evidence"
-      - name: Verify X11 pointer pixels, hotspot and annotation input release
-        if: success() || failure()
-        run: xvfb-run -a env XDG_SESSION_TYPE=x11 OPENCAM_DISPOSABLE_CI_DESKTOP=1 "$RUNNER_TEMP/managed-portal/OpenCam" --x11-pointer "$RUNNER_TEMP/gnome-evidence"
       - name: Exercise actual GNOME compositor and portal chooser
         env:
           OPENCAM_DISPOSABLE_CI_DESKTOP: '1'

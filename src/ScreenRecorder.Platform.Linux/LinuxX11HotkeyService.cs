@@ -143,7 +143,11 @@ public sealed class LinuxX11HotkeyService : IGlobalHotkeyService
             foreach(var binding in bindings.ToArray())if(previousLocks!=locks||!keys.TryGetValue(binding.Value.Symbol,out var current)||current!=binding.Value.Key) {
                 Remove(binding.Key);invalidated=true;
             }
-            if(invalidated)Unavailable?.Invoke(this,EventArgs.Empty);return;
+            if(invalidated) {
+                // The UI exposes registration as one transactional binding set.
+                foreach(var bindingId in bindings.Keys.ToArray())Remove(bindingId);
+                Unavailable?.Invoke(this,EventArgs.Empty);
+            }return;
         }
         if(type is not(2 or 3))return;
         var key=Marshal.ReadByte(e,1);var time=(uint)Marshal.ReadInt32(e,4);

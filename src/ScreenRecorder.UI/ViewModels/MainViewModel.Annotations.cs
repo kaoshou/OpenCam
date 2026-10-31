@@ -44,7 +44,7 @@ public partial class MainViewModel
     }
     public uint ScreenAnnotationColor{get;private set;}=0xffe63946;
     public double ScreenAnnotationWidth{get;private set;}=4;
-    public bool CanOpenScreenAnnotations=>!OperatingSystem.IsLinux()&&ScreenAnnotationsEnabled&&IsRecording&&!IsPaused&&!IsPreparing&&!IsRecovering;
+    public bool CanOpenScreenAnnotations=>(!OperatingSystem.IsLinux()||ScreenRecorder.Platform.Linux.LinuxX11InputPolicy.IsX11)&&ScreenAnnotationsEnabled&&IsRecording&&!IsPaused&&!IsPreparing&&!IsRecovering;
     public CaptureRegion ScreenAnnotationRegion=>IsCustomRegion?new(RegionX,RegionY,RegionWidth,RegionHeight):
         GetCurrentMonitors().FirstOrDefault(m=>m.Index==SelectedMonitor?.Index)?.Bounds??CaptureRegion.Empty;
     partial void OnScreenAnnotationsEnabledChanged(bool value)=>OnPropertyChanged(nameof(CanOpenScreenAnnotations));
