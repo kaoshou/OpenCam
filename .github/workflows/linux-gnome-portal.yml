@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 name: Linux GNOME portal research
 on:
+  push:
+    branches: ['codex/linux-app-test-20261030']
+    paths: ['.github/workflows/linux-gnome-portal.yml', 'scripts/linux/test-gnome-portal.sh']
   workflow_dispatch:
 permissions:
   contents: read
