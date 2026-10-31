@@ -21,7 +21,11 @@ internal static class X11Pointer
             var after=inspector.Read(x,y,(ushort)art.Width,(ushort)art.Height);var original=art.Pixels.ToArray();
             for(var i=0;i<original.Length;i+=4) {
                 var expected=original[i+3]>=128?new byte[]{original[i+2],original[i+1],original[i]}:before.AsSpan(i,3).ToArray();
-                if(!after.AsSpan(i,3).SequenceEqual(expected))throw new IOException("pointer_artwork_or_hotspot_mismatch");
+                if(!after.AsSpan(i,3).SequenceEqual(expected)) {
+                    await File.WriteAllBytesAsync(Path.Combine(evidence,"pointer-before.bgra"),before);
+                    await File.WriteAllBytesAsync(Path.Combine(evidence,"pointer-after.bgra"),after);
+                    throw new IOException($"pointer_artwork_or_hotspot_mismatch_pixel_{i/4}_alpha_{original[i+3]}_expected_{Convert.ToHexString(expected)}_actual_{Convert.ToHexString(after.AsSpan(i,3))}");
+                }
             }
             if(inspector.Child()!=child)throw new IOException("pointer_intercepts_input");
             pointer.Stop();if(pointer.IsRunning)throw new IOException("pointer_not_stopped");
