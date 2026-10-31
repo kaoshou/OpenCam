@@ -9,7 +9,7 @@ Audit baseline: `b1f2970`, branch `codex/linux-app-test-20261030`, OpenCam 1.2.0
 - Preserve current Windows/macOS native implementations and release packages. Do not change version 1.2.0 or publish a Release as part of Linux testing.
 - About version suffixes remain fixed English: `(Windows x64 Build)`, `(macOS arm64 Build)`, `(Linux x64 Beta Build)`. Resolve package platform/architecture from build metadata. Keep the surrounding version label localized.
 
-Packaging/version-display changes are now implemented on this development branch. Actual deb installation acceptance and delivery still depend on the new CI run; this document does not declare that acceptance passed.
+Packaging/version-display changes are implemented and passed virtual CI acceptance at `a6be18b`. See [deb Beta verification report](ubuntu-deb-beta-20261031.md); physical desktop acceptance remains separate.
 
 ## Feature inventory
 
@@ -20,13 +20,13 @@ Packaging/version-display changes are now implemented on this development branch
 | Open output folder | Linux `xdg-open` branch fixed; regression tests pass | Actual desktop file-manager launch; integrate fix into new package |
 | Editor streaming playback | Pulse buffering/clock deadlock fixed; production preview probe passes | Physical playback/listening, seeking/sync; integrate fix into new package |
 | Editing/import/export | Shared project path wired; virtual integration exercises capture, pause/resume, preview and MP4 export | Ubuntu desktop workflow for import, split/trim/merge, subtitles, GIF and web-player export; not all proven by MP4 test |
-| Dependencies | Consolidated manifest; deb builder and desktop entry implemented | Real `.deb` clean installation/uninstallation and desktop launch acceptance |
+| Dependencies | Consolidated manifest; actual deb clean installation, native-library audit and removal/reinstall passed | Physical GNOME application-menu operation |
 | Wayland capture | Product path explicitly blocked pending authoritative portal-selected source identity | Implement source permission/selection, cancellation/retry, actual pixel geometry, session loss and pause/resume; physical GNOME acceptance |
 | Virtual teaching pointer / halo / click ripple | Not enabled; Linux exposes only original/hidden cursor | Platform-specific implementation and actual recording verification; no duplicate cursor, correct tip hotspot and scaling |
 | Screen annotation | Explicitly disabled on Linux | Overlay/input routing, capture visibility, eraser/undo/clear, draggable toolbar, mixed-DPI hide/show and pointer interaction |
 | Global recording/annotation shortcuts | Linux integration not implemented | Capability-check desktop/portal support; editable bindings/conflict handling; safe guided fallback where unavailable |
 | Hardware encoding | Linux CPU-only; no hardware probes | Optional later acceleration work; CPU recording must remain usable without a discrete GPU |
-| About and notices | OBS entry added to separate About window; Linux notices/source paths updated; entry-assembly package/Beta suffix implemented | Verify the actual published UI identity and installed package/source coverage |
+| About and notices | OBS entry added to separate About window; Linux inventory and build/Beta suffix implemented and automatically checked | Physical visual acceptance; no legal certification claim |
 | Supported systems | Ubuntu 24.04 x64 development target only | No Ubuntu 20.04, other distributions, arm64 or universal Wayland claim |
 
 ## Priority and gates
