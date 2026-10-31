@@ -66,8 +66,8 @@ export async function assembleLinuxApp({ publishRoot, nativeRoot, mediaRoot, out
     recordingCore: 'OBS/libobs 33.0.0', nativeOnly: true, compatibilityFallback: false,
     status: 'DEVELOPMENT TEST — NOT A RELEASE',
     manualValidation: ['physical audio/video and sync', 'GNOME portal permissions', 'multi-monitor DPI', 'desktop overlays/global shortcuts'],
-    limitations: ['CPU encoding only', 'teaching pointer and screen annotation overlays not yet enabled on Linux',
-      'X11/Xorg recording only; Wayland product capture is blocked until portal source identity can be verified'] }, null, 2));
+    limitations: ['CPU encoding only', 'teaching pointer, screen annotations and global shortcuts require X11; annotations require a compositor',
+      'Wayland recording requires an authorized persistent portal screen identity; no GNOME extension is installed'] }, null, 2));
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const [publishRoot, nativeRoot, mediaRoot, outputRoot, revision, version] = process.argv.slice(2);

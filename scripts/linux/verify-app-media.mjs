@@ -5,6 +5,14 @@ import { promisify } from 'node:util';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 const execute = promisify(execFile);
+export function validatePointerFixture(samples) {
+  let light=0,dark=0;
+  for(let i=0;i+2<samples.length;i+=3) {
+    if(samples[i]>190&&samples[i+1]>190&&samples[i+2]>190)light++;
+    if(samples[i]<90&&samples[i+1]<90&&samples[i+2]<90)dark++;
+  }
+  if(light<150||dark<150)throw new Error('Recorded high-contrast pointer is missing from its known fixture position');
+}
 export function validateFixtureColors(samples) {
   let red = false, blue = false;
   for (let i = 0; i + 2 < samples.length; i += 3) {
@@ -53,6 +61,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
       const hashes = await execute('ffmpeg', ['-xerror', '-v', 'error', '-i', file.path, '-map', '0:v:0', '-f', 'framehash', '-'], options);
       const colors = await execute('ffmpeg', ['-xerror', '-v', 'error', '-i', file.path, '-map', '0:v:0', '-vf', 'fps=2,scale=1:1:flags=area,format=rgb24', '-f', 'rawvideo', '-'], { ...options, encoding: 'buffer' });
       validateFixtureColors(colors.stdout);
+      if(result.teachingPointer&&file.name!=='mkv-1') {
+        const pointer=await execute('ffmpeg',['-xerror','-v','error','-ss','1','-i',file.path,'-frames:v','1','-vf','crop=140:120:184:184,format=rgb24','-f','rawvideo','-'],{...options,encoding:'buffer'});
+        validatePointerFixture(pointer.stdout);
+      }
       measured.push({ file: file.name, ...validateAppMedia(JSON.parse(probe.stdout), hashes.stdout.split('\n').filter(l => l && !l.startsWith('#')).map(l => l.split(',').at(-1).trim()), file.seconds) });
     }
     await writeFile(resultPath + '.media-check.json', JSON.stringify(measured, null, 2), { flag: 'wx' });

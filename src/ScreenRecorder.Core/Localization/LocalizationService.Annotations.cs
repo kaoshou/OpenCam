@@ -16,7 +16,7 @@ public partial class LocalizationService
             ("LinuxPortalCropTitle","選擇錄製範圍","Choose recording region","録画範囲の選択"),
             ("LinuxPortalCropHint","在縮圖上拖曳框選範圍。座標以已授權畫面的實際像素計算。","Drag on the preview to select a region. Coordinates use the authorized screen’s actual pixels.","プレビューをドラッグして範囲を選択します。座標は許可した画面の実ピクセルです。"),
             ("LinuxPortalFullSource","完整畫面","Full screen","画面全体"),
-            ("LinuxTestNotice","Linux 開發測試版：請使用 Ubuntu on Xorg（X11），目前使用 CPU 編碼；Wayland、教鞭、螢幕註記與全域快捷鍵尚未開放。請先短錄並檢查影音。","Linux development test: use Ubuntu on Xorg (X11), CPU encoding. Wayland, teaching pointers, annotations and global shortcuts are not yet enabled. Verify a short recording first.","Linux 開発テスト版：Ubuntu on Xorg（X11）と CPU エンコードを使用します。Wayland、教鞭、画面への書き込み、グローバルショートカットは未対応です。まず短い録画を確認してください。"),
+            ("LinuxTestNotice","Linux Beta：X11 支援教鞭、註記與全域快捷鍵；Wayland 錄影請先選擇螢幕。使用 CPU 編碼，請先短錄確認影音。","Linux Beta: X11 supports teaching pointers, annotations and global shortcuts. Select a screen before Wayland recording. CPU encoding; verify a short recording first.","Linux Beta：X11 は教鞭・画面への書き込み・グローバルショートカットに対応。Wayland 録画では先に画面を選択してください。CPU エンコードのため、まず短い録画を確認してください。"),
             ("AnnotationsTitle","螢幕註記","Screen annotations","画面への書き込み"),
             ("AnnotationsHotkeyTogglePen","開啟／關閉畫筆","Toggle drawing","描画の切り替え"),
             ("AnnotationsHotkeyToolbar","開啟／隱藏工具列","Show / hide toolbar","ツールバーの表示切り替え"),

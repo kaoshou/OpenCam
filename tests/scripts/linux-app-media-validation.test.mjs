@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateAppMedia, validateFixtureColors } from '../../scripts/linux/verify-app-media.mjs';
+import { validateAppMedia, validateFixtureColors, validatePointerFixture } from '../../scripts/linux/verify-app-media.mjs';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -9,6 +9,14 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 function fixture() { return { streams: [{ index: 0, codec_type: 'video' }, { index: 1, codec_type: 'audio' }],
   packets: [0, 1, 2].flatMap(t => [0, 1].map(index => ({ stream_index: index, pts_time: String(t), dts_time: String(t), duration_time: '1' }))) }; }
+test('recorded teaching pointer proof rejects a valid changing background without the pointer',()=> {
+  const pixels=Buffer.alloc(1000*3);for(let i=0;i<pixels.length;i+=3){pixels[i]=224;pixels[i+1]=64;pixels[i+2]=32;}
+  assert.throws(()=>validatePointerFixture(pixels),/pointer/);
+  for(let i=0;i<250*3;i++)pixels[i]=255;
+  assert.throws(()=>validatePointerFixture(pixels),/pointer/);
+  pixels.fill(30,250*3,500*3);
+  assert.doesNotThrow(()=>validatePointerFixture(pixels));
+});
 test('dynamic-content proof requires both fixture colors, not encoder hash noise', () => {
   assert.doesNotThrow(() => validateFixtureColors(Buffer.from([224,64,32,32,64,224])));
   assert.throws(() => validateFixtureColors(Buffer.from([0,0,0,1,1,1,0,1,0])), /colors/);

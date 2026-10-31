@@ -24,8 +24,16 @@ To install missing prerequisites in one operation (APT asks for confirmation):
 This helper is limited to Ubuntu 24.04 x64. It does not change repositories,
 replace the audio server, install .NET, or manually replace GLIBC. Do not run
 OpenCam itself as root. See Install-Dependencies.sh for the single package list.
-Use an X11 session: on Ubuntu's login screen select your account, then the gear
-icon and "Ubuntu on Xorg" before logging in. Do not run OpenCam as root.
+For teaching pointers, annotations and global shortcuts, use an X11 session:
+on Ubuntu's login screen select your account, then the gear icon and
+"Ubuntu on Xorg" before logging in. Do not run OpenCam as root.
+
+Wayland recording (Beta): choose "Select screen" in OpenCam and authorize one
+screen in GNOME's system chooser. The authorized screen thumbnail is used for
+source-local cropping; desktop coordinates from an earlier session are ignored.
+Pause/resume restores the same source and verifies its identity before recording.
+If permission expires, a source changes or the recorder restarts, select again.
+Permission cancellation does not create a new recording or delete existing clips.
 
 This is the first application integration test package, not full Linux parity.
 Recording uses OBS/libobs only and CPU H.264. No FFmpeg video fallback is present.
@@ -33,14 +41,17 @@ FFmpeg/ffprobe are bundled for audio confirmation, editing, import and export.
 Windows/macOS release packages and their native implementations are unchanged.
 
 Current test limitations, also shown in the application:
-- Original/hidden cursor only. Teaching pointer, annotations and global shortcuts
-  are not enabled in this Linux test build; they remain later Linux work.
-- Wayland recording is not enabled in this package: portal output identity is
-  not yet independently verifiable. Diagnostic portal research is separate;
-  matching dimensions alone cannot safely distinguish two monitors.
+- X11 supports the original/hidden cursor and the live teaching pointer, screen
+  annotations and configurable global shortcuts. Annotations require a desktop
+  compositor; failure closes the optional overlay, not the recording.
+- Wayland supports recording with the original/hidden cursor, not the X11
+  teaching pointer, desktop annotations or global shortcuts. Keyboard commands
+  within the focused application remain available. No GNOME extension is installed.
 - GNOME permissions, physical devices, multi-monitor scaling and long-duration
   real audio/video synchronization still require manual validation.
 - A virtual X11/PulseAudio test is not proof of physical microphone quality.
+- Virtual GNOME portal tests verify selection, source identity, restored segments
+  and crop decoding; they do not replace physical screen/audio validation.
 
 Please first record 20–30 seconds with moving content and speech/system sound.
 Check the original MKV, editor playback and exported MP4 before longer work.

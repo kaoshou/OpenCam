@@ -23,10 +23,12 @@ try {
     var root = Path.GetFullPath(args[0]); Directory.CreateDirectory(root);
     var storage = new StorageService(); var displays = new LinuxDesktopCatalog();
     var provider = new LinuxFFmpegProvider(); var encoders = new FFmpegEncoderDetector(provider);
+    var teachingPointer=Environment.GetEnvironmentVariable("OPENCAM_LINUX_TEST_POINTER")=="1";
+    using var pointer=new LinuxX11PointerOverlay();
     var display = displays.GetMonitors().FirstOrDefault() ?? throw new IOException("No real Linux capture source.");
     await using var recorder = new RecordingOrchestrator(new RecordingStateMachine(), storage, new JsonRecordingSessionStore(),
         new DiskSpaceMonitor(storage), new StreamCopyRemuxer(), new MediaFileProbe(), displays, provider,
-        encoderSelectionService: encoders, engineFactory: new RecordingEngineFactory(provider, encoders, displayService: displays));
+        encoderSelectionService: encoders, engineFactory: new RecordingEngineFactory(provider, encoders, displayService: displays),cursorHighlightService:teachingPointer?pointer:null);
     var ffmpeg = ScreenRecorder.Media.FFmpeg.FFmpegDiscovery.FindFFmpegExecutable() ?? throw new IOException("No bundled FFmpeg.");
     await using var project = new ProjectRecordingCoordinator(recorder, new JsonProjectStore(), new ProjectSourceProbe(),
         new ProjectFfmpegExporter(new LinuxProjectMediaProcess(ffmpeg)), mediaProcess: () => new LinuxProjectMediaProcess(ffmpeg));
@@ -37,6 +39,7 @@ try {
         CursorEffect = CursorEffectMode.Default, Fps = 30, EncoderType = HardwareEncoderType.SoftwareCpu,
         SystemAudioVolumePercent = 80, MicrophoneVolumePercent = 70, OutputDirectory = root };
     config.Fps = Environment.GetEnvironmentVariable("OPENCAM_LINUX_TEST_FPS") == "20" ? 20 : 30;
+    if(teachingPointer){config.CursorEffect=CursorEffectMode.PresentationStick;config.PresentationPointer=new(TeachingPointerStyle.HighContrast,TeachingPointerSize.Standard);}
     var seconds = int.TryParse(Environment.GetEnvironmentVariable("OPENCAM_LINUX_TEST_SECONDS"), out var requested) && requested is >= 5 and <= 300 ? requested : 5;
     await using (var trial = new FileStream(Path.Combine(root, "audio-trial.mkv"), FileMode.CreateNew, FileAccess.Write))
     await using (var preflight = new PreflightAudioCaptureFactory(provider).Create()) {
@@ -60,6 +63,7 @@ try {
     }
     // First real segment at 30 FPS, pause, resume, stop: source files must survive.
     Check(await project.StartAsync(config, Guid.NewGuid()));
+    if(teachingPointer&&!pointer.IsRunning)throw new IOException("The live teaching pointer did not become ready.");
     bool systemLive = false, systemSilent = false, micLive = false, micSilent = false;
     for (var tick = 0; tick < seconds * 10; ++tick) {
         if (recorder.CurrentState != RecordingState.Recording) throw new IOException("Recording stopped unexpectedly: " + recorder.CurrentState);
@@ -117,7 +121,7 @@ try {
     for (var attempt = 0; attempt < 600 && project.ExportStatus?.State == RecordingExportState.Running; attempt++) await Task.Delay(100);
     if (project.ExportStatus?.State != RecordingExportState.Succeeded) throw new IOException("Export failed: " + project.ExportStatus?.Error);
     var result = new { status = "PASS", scope = "virtual-source production-services integration, not physical sync",
-        fps = config.Fps, firstSegmentSeconds = seconds, audioPreflightAndPlayback = "PASS", streamingEditorPreview = "PASS", systemLive, systemSilent, micLive, micSilent,
+        fps = config.Fps, firstSegmentSeconds = seconds, teachingPointer, audioPreflightAndPlayback = "PASS", streamingEditorPreview = "PASS", systemLive, systemSilent, micLive, micSilent,
         project = project.ProjectDirectory, sources = project.Current.Sources.Length,
         sourceFiles = project.Current.Sources.Select(s => Path.Combine(project.ProjectDirectory!, s.RelativePath)).ToArray(),
         mp4 = project.ExportStatus.FinalPath };
