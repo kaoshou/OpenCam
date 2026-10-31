@@ -39,6 +39,16 @@ public sealed class LinuxX11PointerOverlay:ICursorHighlightService,IPresentation
             var formats=X.Formats(display.Setup);var format=false;
             while(formats.Rem>0){if(Marshal.ReadByte(formats.Data)==24&&Marshal.ReadByte(formats.Data,1)==32)format=true;X.NextFormat(ref formats);}
             if(!format)throw new IOException("Unsupported X11 pointer pixel format.");
+            var visualId=(uint)Marshal.ReadInt32(display.Screen,32);var visualValid=false;var depths=X.Depths(display.Screen);
+            while(depths.Rem>0) {
+                var visuals=X.Visuals(depths.Data);
+                while(visuals.Rem>0) {
+                    if((uint)Marshal.ReadInt32(visuals.Data)==visualId)
+                        visualValid=LinuxPointerRaster.SupportsVisual(Marshal.ReadByte(visuals.Data,4),(uint)Marshal.ReadInt32(visuals.Data,8),(uint)Marshal.ReadInt32(visuals.Data,12),(uint)Marshal.ReadInt32(visuals.Data,16));
+                    X.NextVisual(ref visuals);
+                }X.NextDepth(ref depths);
+            }
+            if(!visualValid)throw new IOException("Unsupported X11 pointer color masks.");
             var raster=LinuxPointerRaster.Create(art);var pixmap=display.Id();var gc=display.Id();var window=display.Id();
             display.Check(X.Pixmap(c,24,pixmap,display.Root,(ushort)art.Width,(ushort)art.Height));
             display.Check(X.Gc(c,gc,pixmap,0,[]));

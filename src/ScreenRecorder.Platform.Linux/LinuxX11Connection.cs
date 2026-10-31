@@ -70,6 +70,10 @@ internal sealed class LinuxX11Connection:IDisposable
         [DllImport(C,EntryPoint="xcb_query_pointer_reply")]internal static extern IntPtr PointerReply(IntPtr c,Cookie cookie,out IntPtr error);
         [DllImport(C,EntryPoint="xcb_setup_pixmap_formats_iterator")]internal static extern Iterator Formats(IntPtr setup);
         [DllImport(C,EntryPoint="xcb_format_next")]internal static extern void NextFormat(ref Iterator iterator);
+        [DllImport(C,EntryPoint="xcb_screen_allowed_depths_iterator")]internal static extern Iterator Depths(IntPtr screen);
+        [DllImport(C,EntryPoint="xcb_depth_next")]internal static extern void NextDepth(ref Iterator iterator);
+        [DllImport(C,EntryPoint="xcb_depth_visuals_iterator")]internal static extern Iterator Visuals(IntPtr depth);
+        [DllImport(C,EntryPoint="xcb_visualtype_next")]internal static extern void NextVisual(ref Iterator iterator);
         [DllImport("libc",EntryPoint="free")]internal static extern void Free(IntPtr p);
     }
 }

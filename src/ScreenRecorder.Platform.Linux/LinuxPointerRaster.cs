@@ -7,6 +7,7 @@ namespace ScreenRecorder.Platform.Linux;
 // full-screen backing buffer is required for the small teaching pointer.
 internal sealed record LinuxPointerRaster(byte[] Bgrx,byte[] Rectangles,int HotspotX,int HotspotY)
 {
+    internal static bool SupportsVisual(byte kind,uint red,uint green,uint blue)=>kind==4&&red==0xff0000&&green==0xff00&&blue==0xff;
     public static LinuxPointerRaster Create(TeachingPointerBitmap art)
     {
         if(art.Width is <1 or >256||art.Height is <1 or >256||art.Pixels.Length!=art.Width*art.Height*4)

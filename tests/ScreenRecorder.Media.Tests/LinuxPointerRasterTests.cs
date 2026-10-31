@@ -4,6 +4,13 @@ using ScreenRecorder.Core.Models;
 namespace ScreenRecorder.Media.Tests;
 public sealed class LinuxPointerRasterTests
 {
+    [Theory]
+    [InlineData(4,0xff0000u,0xff00u,0xffu,true)]
+    [InlineData(3,0xff0000u,0xff00u,0xffu,false)]
+    [InlineData(4,0xffu,0xff00u,0xff0000u,false)]
+    [InlineData(4,0xf800u,0x7e0u,0x1fu,false)]
+    public void UnsupportedNativeVisualNeverUsesTheBgrxRaster(byte kind,uint red,uint green,uint blue,bool supported)=>
+        Assert.Equal(supported,LinuxPointerRaster.SupportsVisual(kind,red,green,blue));
     [Fact]
     public void ShapedRasterKeepsVisibleArtworkColorsAndExcludesTransparentPixels()
     {

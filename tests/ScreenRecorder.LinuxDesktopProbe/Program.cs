@@ -43,7 +43,7 @@ internal sealed class DesktopProbe:Application
                         throw new IOException($"native_click_through_failed_clicks_{clicked}_marks_{host.Document.Marks.Length}_origin_{window.PointToScreen(default).X}_{window.PointToScreen(default).Y}");
                     }
                     for(var i=0;i<6;i++){host.ToggleToolbar();host.ToggleToolbar();}
-                    host.SelectTool(AnnotationTool.Rectangle);await Input("mousemove","330","410","mousedown","1","mousemove","400","450","mouseup","1");await Task.Delay(100);
+                    host.SelectTool(AnnotationTool.Rectangle);await Task.Delay(250);await Input("mousemove","330","410","mousedown","1","mousemove","400","450","mouseup","1");await Task.Delay(100);
                     if(host.Document.Marks.Length!=2)throw new IOException("native_rectangle_failed");
                     host.FinishDrawing();if(!host.Document.Marks.IsEmpty)throw new IOException("finish_did_not_clear");
                     await Input("mousemove",tx,ty,"click","1");await Task.Delay(100);if(clicked!=2)throw new IOException("finish_did_not_release_input");
@@ -69,11 +69,13 @@ internal sealed class DesktopProbe:Application
         using var native=new ScreenRecorder.Platform.Linux.LinuxX11HotkeyService();
         using var conflict=new ScreenRecorder.Platform.Linux.LinuxX11HotkeyService();
         typeof(ScreenRecorder.UI.ViewModels.MainViewModel).GetField("_globalHotkeyService",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.SetValue(vm,native);
-        bool success;
+        bool success,teachingPointer,annotations;
         try {
             var error=vm.TryApplyHotkeys(new ScreenRecorder.Core.Models.UserSettings());
             success=error is null&&vm.IsRecordingHotkeyRegistered&&!conflict.RegisterHotkey(9001,0x7B,2)&&!conflict.RegisterHotkey(9002,0x7B,0);
+            teachingPointer=vm.AvailableCursorEffects.Any(c=>c.Mode==ScreenRecorder.Core.Enums.CursorEffectMode.PresentationStick);
+            vm.IsRecording=true;annotations=vm.CanOpenScreenAnnotations;vm.IsRecording=false;
         }finally{vm.Cleanup();}
-        await File.WriteAllTextAsync(Path.Combine(Evidence,"settings-hotkeys-result.json"),JsonSerializer.Serialize(new{status=success?"PASS":"FAIL",scope="actual MainViewModel settings registration and checked native collision on Ctrl+F12/F12"}));return success;
+        await File.WriteAllTextAsync(Path.Combine(Evidence,"settings-hotkeys-result.json"),JsonSerializer.Serialize(new{status=success&&teachingPointer&&annotations?"PASS":"FAIL",bindings=success,teachingPointer,annotations,scope="actual MainViewModel X11 capabilities and settings registration with checked native collision on Ctrl+F12/F12"}));return success&&teachingPointer&&annotations;
     }
 }
