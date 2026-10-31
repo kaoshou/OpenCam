@@ -42,7 +42,8 @@ internal sealed class DesktopProbe:Application
                     await File.WriteAllTextAsync(Path.Combine(Evidence,"annotation-result.json"),JsonSerializer.Serialize(new{status="PASS",scope="actual Avalonia X11/compositor drawing, click-through, toolbar hide/show and finish/clear; no physical multimonitor claim",handle=window.TryGetPlatformHandle()?.HandleDescriptor}));
                     host.Dispose();desktop.Shutdown(0);
                 }catch(Exception e) {
-                    host?.Dispose();await File.WriteAllTextAsync(Path.Combine(Evidence,"annotation-result.json"),JsonSerializer.Serialize(new{status="FAIL",errorType=e.GetType().Name,message=e is IOException?e.Message:"annotation_fixture_failed",handle=window.TryGetPlatformHandle()?.HandleDescriptor}));desktop.Shutdown(1);
+                    var transparency=desktop.Windows.Select(w=>new{window=w.Title,level=w.ActualTransparencyLevel.ToString()}).ToArray();
+                    host?.Dispose();await File.WriteAllTextAsync(Path.Combine(Evidence,"annotation-result.json"),JsonSerializer.Serialize(new{status="FAIL",errorType=e.GetType().Name,message=e is IOException?e.Message:e.Message=="Native annotation input policy unavailable"?"native_annotation_input_unavailable":"annotation_fixture_failed",handle=window.TryGetPlatformHandle()?.HandleDescriptor,transparency}));desktop.Shutdown(1);
                 }
             };
         }
