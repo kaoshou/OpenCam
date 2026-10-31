@@ -3,11 +3,21 @@ name: Linux portal policy tests
 on:
   push:
     branches: ['codex/linux-app-test-20261030']
-    paths: ['native/obs-linux-probe/portal-*.hpp', 'native/obs-linux-probe/source-preview.hpp', 'tests/native/linux-portal-*.cpp', 'tests/native/linux-source-preview-tests.cpp', '.github/workflows/linux-portal-policy.yml']
+    paths: ['native/obs-linux-probe/portal-*.hpp', 'native/obs-linux-probe/source-preview.hpp', 'tests/native/linux-portal-*.cpp', 'tests/native/linux-source-preview-tests.cpp', 'src/ScreenRecorder.Platform.Linux/LinuxPortal*.cs', 'tests/ScreenRecorder.Media.Tests/LinuxPortalPreparationTests.cs', '.github/workflows/linux-portal-policy.yml']
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
+  managed-portal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Run managed Linux source protocol and owned-process regression tests
+        run: dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj --filter FullyQualifiedName~LinuxPortalPreparationTests -m:1
   portal-policy:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
