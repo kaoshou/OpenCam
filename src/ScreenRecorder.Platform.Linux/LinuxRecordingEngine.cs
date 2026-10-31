@@ -14,7 +14,10 @@ public sealed class LinuxRecordingEngine : IScreenRecorderEngine, IBoundRecordin
         : this(new ObsScreenRecorderEngine(runtime.HelperPath, runtime.Root, (config, bounds, capture) => ObsRecordingEngineRouter.ResolveMonitor(
             config, bounds, capture, displays.GetMonitors(), m => (displays as IRecordingDisplayIdentityService)?.GetRecordingDisplayIdentity(m)),
             HardwareEncoderType.SoftwareCpu, pinned, TimeSpan.FromSeconds(70), allowCompatibilityFallback: false,
-            setup: ObsRuntime.DefaultBackend("linux-x64") == "pipewire" ? new LinuxPortalCaptureSetup(LinuxPortalSources.Shared) : null)) { }
+            setup: ObsRuntime.DefaultBackend("linux-x64") == "pipewire" ? new LinuxPortalCaptureSetup(LinuxPortalSources.Shared) : null)) {
+        if(!runtime.Backends.Contains(ObsRuntime.DefaultBackend("linux-x64")))
+            throw new IOException("This Linux runtime has not enabled the current desktop capture backend.");
+    }
     internal LinuxRecordingEngine(IScreenRecorderEngine engine) {
         inner = engine;
         inner.EngineErrorOccurred += RelayError; inner.EngineWarningOccurred += RelayWarning; inner.AudioDeviceLost += RelayAudioLost;

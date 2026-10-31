@@ -88,4 +88,16 @@ public partial class MainViewModel
         AvailableMonitors.Clear();SelectedMonitor=null;
         OnPropertyChanged(nameof(LinuxPortalSelection));OnPropertyChanged(nameof(CanStartRecording));
     }
+    internal void ApplyLinuxPortalCrop(CaptureRegion region)
+    {
+        if(LinuxPortalSelection is not {} view||region.X<0||region.Y<0||region.Width<2||region.Height<2||
+            region.Width%2!=0||region.Height%2!=0||(long)region.X+region.Width>view.Width||(long)region.Y+region.Height>view.Height)
+            throw new ArgumentException("The crop must remain inside the authorized source.");
+        _updatingCapturePreferences=true;
+        try {
+            RegionX=region.X;RegionY=region.Y;RegionWidth=region.Width;RegionHeight=region.Height;
+            IsCustomRegion=true;IsMonitorSelected=false;
+        }finally{_updatingCapturePreferences=false;}
+        PersistUserSettings();
+    }
 }

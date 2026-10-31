@@ -24,6 +24,19 @@ public sealed class LinuxSourceSelectionUiTests
         }finally{vm.Cleanup();}
     }
     [Avalonia.Headless.XUnit.AvaloniaFact]
+    public void SmallEdgeCropIsNotExpandedOutsideAuthorizedSource()
+    {
+        var vm=new MainViewModel(forScreenshot:true);
+        typeof(MainViewModel).GetField("_displayService",BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(vm,new LinuxDesktopCatalog());
+        try {
+            vm.ApplyLinuxPortalSelection(Source());
+            vm.ApplyLinuxPortalCrop(new(1910,1070,10,10));
+            Assert.True(vm.IsCustomRegion);
+            Assert.Equal((1910,1070,10,10),(vm.RegionX,vm.RegionY,vm.RegionWidth,vm.RegionHeight));
+            Assert.Throws<ArgumentException>(()=>vm.ApplyLinuxPortalCrop(new(1910,1070,100,100)));
+        }finally{vm.Cleanup();}
+    }
+    [Avalonia.Headless.XUnit.AvaloniaFact]
     public void CropWindowClampsInitialSelectionToAuthorizedSource()
     {
         var window=new LinuxPortalCropWindow(Source(),new(3058,90,1050,800));

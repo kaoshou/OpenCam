@@ -413,7 +413,7 @@ public partial class MainWindow : Window
                 var crop=new LinuxPortalCropWindow(source,new(vm.RegionX,vm.RegionY,vm.RegionWidth,vm.RegionHeight));
                 if(await crop.ShowDialog<bool>(this)) {
                     var r=crop.SelectedRegion;
-                    vm.UpdateCustomRegion(r.X,r.Y,r.Width,r.Height);
+                    vm.ApplyLinuxPortalCrop(r);
                 }
                 return;
             }

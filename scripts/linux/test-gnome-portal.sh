@@ -54,3 +54,14 @@ done
 printf '\n' >&9
 wait "$capture" || true
 node scripts/linux/gnome-portal-recording-fixture.mjs "$runtime" "$private/events" "$private/preview" "$evidence" "$RUNNER_TEMP/opencam-linux/ffmpeg-prefix/bin"
+"$OPENCAM_MANAGED_PORTAL_APP" "$evidence" > "$evidence/managed-driver.log" 2>&1 &
+managed=$!;owned+=("$managed")
+for ((i=0;i<100;i++));do
+  kill -0 "$managed" 2>/dev/null||break
+  if ((i==30));then timeout 10 python3 scripts/linux/gnome-chooser-fixture.py > "$evidence/managed-chooser-controls.txt" 2>&1||true;fi
+  sleep .2
+done
+wait "$managed"
+for file in "$evidence"/managed-*.mkv;do
+  "$RUNNER_TEMP/opencam-linux/ffmpeg-prefix/bin/ffmpeg" -v error -i "$file" -f null -
+done

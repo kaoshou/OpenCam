@@ -22,10 +22,13 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
       - name: Install isolated GNOME test desktop
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends gnome-shell gnome-session-bin xdg-desktop-portal-gnome xdg-desktop-portal-gtk pipewire wireplumber dbus-x11 xvfb xauth xdotool scrot mesa-utils libx264-164 libxcb-xinput0 libwayland-egl1 pulseaudio-utils at-spi2-core python3-pyatspi build-essential cmake extra-cmake-modules ninja-build pkg-config zlib1g-dev libsimde-dev uthash-dev libjansson-dev uuid-dev libx11-xcb-dev libxcb-xinput-dev libxkbcommon-dev libwayland-dev libdrm-dev libegl1-mesa-dev libpulse-dev libx264-dev libpipewire-0.3-dev libglib2.0-dev libxcb-composite0-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-xfixes0-dev libxcb-xinerama0-dev
+          sudo apt-get install -y --no-install-recommends gnome-shell gnome-session-bin xdg-desktop-portal-gnome xdg-desktop-portal-gtk pipewire wireplumber dbus-x11 xvfb xauth xdotool scrot mesa-utils libx264-164 libxcb-xinput0 libwayland-egl1 pulseaudio-utils at-spi2-core python3-pyatspi build-essential cmake extra-cmake-modules ninja-build pkg-config zlib1g-dev libsimde-dev uthash-dev libjansson-dev uuid-dev libx11-xcb-dev libxcb-xinput-dev libxkbcommon-dev libwayland-dev libdrm-dev libegl1-mesa-dev libpulse-dev libx264-dev libpipewire-0.3-dev libglib2.0-dev libxcb-composite0-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-xfixes0-dev libxcb-xinerama0-dev patchelf
       - uses: actions/cache/restore@v4
         with:
           path: |
@@ -43,10 +46,15 @@ jobs:
           cmake -S native/obs-linux-probe -B "$RUNNER_TEMP/helper-build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$RUNNER_TEMP/obs-stage" -DOBS_SOURCE="$GITHUB_WORKSPACE/.linux-inputs/obs" -DOBS_RUNTIME="$RUNNER_TEMP/obs-stage" > "$RUNNER_TEMP/gnome-evidence/helper-configure.log" 2>&1
           cmake --build "$RUNNER_TEMP/helper-build" --parallel 2 > "$RUNNER_TEMP/gnome-evidence/helper-build.log" 2>&1
           cmake --install "$RUNNER_TEMP/helper-build" > "$RUNNER_TEMP/gnome-evidence/helper-install.log" 2>&1
+      - name: Build actual managed IPC/private-client/engine acceptance probe
+        run: |
+          dotnet publish tests/ScreenRecorder.LinuxPortalProbe/ScreenRecorder.LinuxPortalProbe.csproj -c Release -r linux-x64 --self-contained true -p:OpenCamNativeOnlyTest=true -m:1 -o "$RUNNER_TEMP/portal-publish" > "$RUNNER_TEMP/gnome-evidence/managed-build.log" 2>&1
+          node scripts/linux/assemble-app.mjs "$RUNNER_TEMP/portal-publish" "$RUNNER_TEMP/obs-stage" "$RUNNER_TEMP/opencam-linux/ffmpeg-prefix" "$RUNNER_TEMP/managed-portal" "$GITHUB_SHA" 1.2.0
       - name: Exercise actual GNOME compositor and portal chooser
         env:
           OPENCAM_DISPOSABLE_CI_DESKTOP: '1'
           LD_LIBRARY_PATH: ${{ runner.temp }}/obs-stage/lib:${{ runner.temp }}/opencam-linux/ffmpeg-prefix/lib
+          OPENCAM_MANAGED_PORTAL_APP: ${{ runner.temp }}/managed-portal/OpenCam
         run: |
           timeout 150 dbus-run-session -- xvfb-run -a -s '-screen 0 1280x800x24' bash scripts/linux/test-gnome-portal.sh "$RUNNER_TEMP/obs-stage" "$RUNNER_TEMP/gnome-evidence"
       - uses: actions/upload-artifact@v4

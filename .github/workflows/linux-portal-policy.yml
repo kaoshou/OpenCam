@@ -16,6 +16,8 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      - name: Install the real media tool required by the existing UI composition root
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       - name: Run managed Linux source protocol and owned-process regression tests
         run: dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj --filter 'FullyQualifiedName~LinuxPortal|FullyQualifiedName~LinuxSource|FullyQualifiedName~ObsScreenRecorderEngineTests' -m:1
   portal-policy:
