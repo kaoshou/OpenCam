@@ -30,6 +30,14 @@ for ((i=0; i<150; i++)); do
 done
 [[ -n "${WAYLAND_DISPLAY:-}" ]] || exit 1
 dbus-update-activation-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_RUNTIME_DIR XDG_CONFIG_HOME DISPLAY
+# The Wayland socket is created before GNOME exports its compositor services.
+# Starting the portal earlier makes it permanently expose settings-only mode.
+compositor_ready=0
+for ((i=0;i<150;i++));do
+  if timeout 2 gdbus introspect --session --dest org.gnome.Mutter.ScreenCast --object-path /org/gnome/Mutter/ScreenCast > "$evidence/mutter-api.txt" 2>/dev/null && grep -Fq CreateSession "$evidence/mutter-api.txt";then compositor_ready=1;break;fi
+  sleep .1
+done
+[[ "$compositor_ready" == 1 ]]||exit 1
 export GTK_A11Y=atspi
 GDK_BACKEND=wayland /usr/libexec/xdg-desktop-portal-gnome > "$evidence/portal-gnome.log" 2>&1 & owned+=("$!")
 /usr/libexec/xdg-desktop-portal -r > "$evidence/portal.log" 2>&1 & owned+=("$!")
