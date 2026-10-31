@@ -854,7 +854,9 @@ public partial class MainViewModel : ObservableObject
         IFFmpegPlatformProvider ffmpegPlatformProvider = OperatingSystem.IsWindows() ? new ScreenRecorder.Platform.Windows.WindowsFFmpegProvider()
             : OperatingSystem.IsLinux() ? new ScreenRecorder.Platform.Linux.LinuxFFmpegProvider() : new ScreenRecorder.Platform.macOS.MacOsFFmpegProvider();
 
-        _encoderDetector = new FFmpegEncoderDetector(ffmpegPlatformProvider);
+        _encoderDetector = OperatingSystem.IsLinux()
+            ? new ScreenRecorder.Platform.Linux.LinuxEncoderSelectionService()
+            : new FFmpegEncoderDetector(ffmpegPlatformProvider);
         _displayService = OperatingSystem.IsWindows() ? new ScreenRecorder.Platform.Windows.Display.WindowsDisplayService()
             : OperatingSystem.IsLinux() ? new ScreenRecorder.Platform.Linux.LinuxDesktopCatalog() : new ScreenRecorder.Platform.macOS.MacOsDisplayService();
         _audioDeviceService = OperatingSystem.IsWindows() ? new ScreenRecorder.Platform.Windows.Audio.WindowsAudioDeviceService()
@@ -931,7 +933,8 @@ public partial class MainViewModel : ObservableObject
 
         // 非同步掃描未完成之錄影
         AvailableEncoders.Clear();
-        AvailableEncoders.Add(new EncoderOption(HardwareEncoderType.Auto, Strings["EncoderAuto"]));
+        if (!OperatingSystem.IsLinux())
+            AvailableEncoders.Add(new EncoderOption(HardwareEncoderType.Auto, Strings["EncoderAuto"]));
         AvailableEncoders.Add(new EncoderOption(HardwareEncoderType.SoftwareCpu, Strings["EncoderCpu"]));
         SelectedEncoder = AvailableEncoders[0];
 
@@ -1152,7 +1155,8 @@ public partial class MainViewModel : ObservableObject
 
         if (updated.Count == 0)
         {
-            updated.Add(new EncoderOption(HardwareEncoderType.Auto, Strings["EncoderAuto"]));
+            if (!OperatingSystem.IsLinux())
+                updated.Add(new EncoderOption(HardwareEncoderType.Auto, Strings["EncoderAuto"]));
             updated.Add(new EncoderOption(HardwareEncoderType.SoftwareCpu, Strings["EncoderCpu"]));
         }
 
@@ -1190,7 +1194,8 @@ public partial class MainViewModel : ObservableObject
         catch
         {
             AvailableEncoders.Clear();
-            AvailableEncoders.Add(new EncoderOption(HardwareEncoderType.Auto, Strings["EncoderAuto"]));
+            if (!OperatingSystem.IsLinux())
+                AvailableEncoders.Add(new EncoderOption(HardwareEncoderType.Auto, Strings["EncoderAuto"]));
             AvailableEncoders.Add(new EncoderOption(HardwareEncoderType.SoftwareCpu, Strings["EncoderCpu"]));
             SelectedEncoder = AvailableEncoders.First();
         }

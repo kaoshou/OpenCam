@@ -1,5 +1,49 @@
 # Ubuntu desktop follow-up — 2026-10-31
 
+## Current status — 2026-11-01 follow-up
+
+The sections below describe historical batches, not the current feature boundary.
+The development package at `f4bd2c6` passed Ubuntu virtual X11/PulseAudio recording,
+300-second 30 FPS plus pause/resume, 5/10/20 FPS, streaming editor preview, MP4
+decoding/timestamps and clean `.deb` installation/removal/reinstallation. Actual
+virtual GNOME selection/restoration/cropping and X11 pointer/annotations/shortcuts
+also passed. Evidence: Actions 41225694765, 41225694732 and 41225694728.
+
+| Feature | Ubuntu X11 | Ubuntu Wayland | Remaining validation / implementation |
+| --- | --- | --- | --- |
+| Monitor / custom-region recording | Implemented; virtual source tested | Authorized source-local crop implemented; virtual GNOME tested | Physical multimonitor/mixed-DPI/hotplug |
+| System / microphone audio, gains and preflight | Implemented; virtual Pulse sources tested | Same audio path | Physical endpoints and subjective sync |
+| Pause/resume, MKV retention, MP4 | Virtual production-service acceptance passed | Same-source authorization verified across helper processes | Long physical endurance, suspend and forced-kill acceptance |
+| Streaming editor preview | Audio and muted playback tested | Same Linux media backend | Physical audible quality |
+| Video import, subtitle, GIF and web export | Implemented through shared services | Same Linux media backend | New Linux bound-descriptor integration test added; Ubuntu execution pending |
+| Teaching pointer and annotations | Implemented and recorded into actual virtual-source media | Not implemented in approved scope | X11 mixed-DPI/compositor hardware testing; Wayland requires separate desktop integration |
+| Configurable global shortcuts | Real XCB/XKB registration and recovery tested | Not implemented; focused controls remain | Desktop shortcut conflicts and physical keyboards |
+| Hardware recording encoding | Not enabled; CPU only | Not enabled; CPU only | Native capability/probing work; not a small safe UI change |
+| Install / app-menu launch / dependencies | Clean `.deb` install and reinstall passed | Same package; compatible portal backend required | Other distributions/older Ubuntu not certified |
+| Folder opening | `xdg-open` implemented and argument-tested | Same | Actual desktop file-manager acceptance remains manual |
+
+This follow-up fixes two small confirmed inconsistencies first: encoder selection
+must expose only the Linux runtime's CPU encoder without probing unrelated FFmpeg
+hardware encoders, and the Debian description must describe X11 teaching tools
+plus authorized Wayland recording. Windows/macOS native implementations remain
+untouched; their existing build/package/managed regressions will be run without
+publishing a Release. New evidence and failures must be recorded separately from
+physical acceptance, never inferred from successful packaging.
+
+### Manual acceptance still required
+
+Use a disposable project and a 20–30-second moving screen with both speech and
+system sound; check original MKV, editor playback and MP4. Repeat under X11 and
+Wayland, selecting the second display and a crop where available. Expected:
+correct source/crop, audible selected inputs and no visible accumulating delay.
+Failure: wrong/black source, missing selected audio, stalled preview or drift.
+Collect the exact build/desktop session, settings, timestamps, app log and media
+probe report; retain original MKVs. Then test shortcut conflicts, mixed scaling,
+device unplug/reconnect and suspend in separate disposable sessions. These tests
+are not marked PASS by virtual CI.
+
+## Historical first follow-up batch
+
 Scope: first fixes on `codex/linux-app-test-20261030`, version 1.2.0. No Release, merge, version/tag change or new downloadable application package in this batch. The previously delivered 2e9b213 package does not contain these fixes.
 
 ## Confirmed defects and changes

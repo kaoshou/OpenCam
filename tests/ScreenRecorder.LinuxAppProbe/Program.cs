@@ -22,7 +22,7 @@ Serilog.Log.Logger = new Serilog.LoggerConfiguration().MinimumLevel.Debug().Writ
 try {
     var root = Path.GetFullPath(args[0]); Directory.CreateDirectory(root);
     var storage = new StorageService(); var displays = new LinuxDesktopCatalog();
-    var provider = new LinuxFFmpegProvider(); var encoders = new FFmpegEncoderDetector(provider);
+    var provider = new LinuxFFmpegProvider(); var encoders = new LinuxEncoderSelectionService();
     var teachingPointer=Environment.GetEnvironmentVariable("OPENCAM_LINUX_TEST_POINTER")=="1";
     using var pointer=new LinuxX11PointerOverlay();
     var display = displays.GetMonitors().FirstOrDefault() ?? throw new IOException("No real Linux capture source.");

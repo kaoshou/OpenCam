@@ -95,6 +95,8 @@ internal sealed class DesktopProbe:Application
                 if(triggered!=1)throw new IOException("regrabbed_hotkey_did_not_trigger");
             }finally{native.Unavailable-=unavailable;await Command("setxkbmap","-layout","us","-variant","");}
             teachingPointer=vm.AvailableCursorEffects.Any(c=>c.Mode==ScreenRecorder.Core.Enums.CursorEffectMode.PresentationStick);
+            if(vm.AvailableEncoders.Count!=1||vm.SelectedEncoder?.Type!=ScreenRecorder.Core.Enums.HardwareEncoderType.SoftwareCpu)
+                throw new IOException("unsupported_linux_encoder_offered");
             if(vm.FpsOptions.Any(fps=>fps is <1 or >30))throw new IOException("unsupported_linux_fps_offered");
             vm.SelectedFps=40;if(vm.SelectedFps!=20)throw new IOException("saved_linux_fps_not_normalized");
             vm.IsRecording=true;annotations=vm.CanOpenScreenAnnotations;vm.IsRecording=false;
