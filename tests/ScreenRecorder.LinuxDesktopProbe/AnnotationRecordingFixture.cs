@@ -19,7 +19,7 @@ internal sealed class AnnotationRecordingFixture:IAsyncDisposable
         if(Environment.GetEnvironmentVariable("OPENCAM_TEST_RECORD_ANNOTATIONS")!="1")return null;
         var fixture=new AnnotationRecordingFixture();
         try {
-            var runtime=ObsRuntime.TryLoad(AppContext.BaseDirectory,"linux-x64")??throw new IOException("annotation_recording_runtime_missing");
+            var runtime=ObsRuntime.TryLoad(LinuxDesktopCatalog.RuntimeRoot,"linux-x64")??throw new IOException("annotation_recording_runtime_missing");
             var displays=new LinuxDesktopCatalog();var monitor=displays.GetMonitors().FirstOrDefault()??throw new IOException("annotation_recording_screen_missing");
             fixture.bounds=monitor.Bounds;
             fixture.path=Path.Combine(evidence,"annotations.mkv");
