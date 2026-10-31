@@ -75,12 +75,35 @@ try {
         await Task.Delay(100);
     }
     if (frame?.Rgba is null) throw new IOException("Editor frame was not decoded.");
+    // Exercise the same streaming decoder/coordinator as the editor Play button.
+    // A still frame plus a tiny PCM write followed by EOF is not playback acceptance.
+    var decoder = new ProjectPreviewDecoder(() => new LinuxProjectMediaProcess(ffmpeg),
+        () => new LinuxProjectAudioOutput(Path.Combine(AppContext.BaseDirectory, "OpenCam.PulsePlayback")));
+    await using (var preview = new ProjectPreviewCoordinator(project, decoder.PlayConfiguredAsync)) {
+        foreach (var muted in new[] { false, true }) {
+            var playback = await preview.PlayAsync(project.Current.ProjectId, project.Current.Revision, 0,
+                ProjectPreviewQuality.P360, muted);
+            var deadline = DateTime.UtcNow.AddSeconds(12);
+            bool advanced = false;
+            while (DateTime.UtcNow < deadline) {
+                var snapshot = preview.Query(playback.Generation); // renew actual UI lease
+                if (snapshot.State.Error is not null) throw new IOException("Streaming editor preview failed: " + snapshot.State.Error);
+                if (snapshot.State.TimelineTicks >= TimeSpan.TicksPerSecond && snapshot.Frame is { HasValidPixels: true }) {
+                    advanced = true; break;
+                }
+                if (!snapshot.State.Playing) break;
+                await Task.Delay(50);
+            }
+            await preview.StopAsync();
+            if (!advanced) throw new IOException($"Streaming editor preview did not advance (muted={muted}).");
+        }
+    }
     var output = Path.Combine(root, "exports"); Directory.CreateDirectory(output);
     Check(await project.ExportAsync(output, project.Current.Revision, Guid.NewGuid()));
     for (var attempt = 0; attempt < 600 && project.ExportStatus?.State == RecordingExportState.Running; attempt++) await Task.Delay(100);
     if (project.ExportStatus?.State != RecordingExportState.Succeeded) throw new IOException("Export failed: " + project.ExportStatus?.Error);
     var result = new { status = "PASS", scope = "virtual-source production-services integration, not physical sync",
-        fps = config.Fps, firstSegmentSeconds = seconds, audioPreflightAndPlayback = "PASS", systemLive, systemSilent, micLive, micSilent,
+        fps = config.Fps, firstSegmentSeconds = seconds, audioPreflightAndPlayback = "PASS", streamingEditorPreview = "PASS", systemLive, systemSilent, micLive, micSilent,
         project = project.ProjectDirectory, sources = project.Current.Sources.Length,
         sourceFiles = project.Current.Sources.Select(s => Path.Combine(project.ProjectDirectory!, s.RelativePath)).ToArray(),
         mp4 = project.ExportStatus.FinalPath };

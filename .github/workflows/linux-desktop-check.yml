@@ -10,6 +10,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 jobs:
   pulse-playback:
     runs-on: ubuntu-24.04
@@ -35,3 +36,60 @@ jobs:
           trap 'pulseaudio --kill 2>/dev/null || true' EXIT
           pactl set-default-sink opencam_test
           node --test tests/native/linux-playback.test.mjs
+  editor-preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Install runtime-only desktop dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends pulseaudio pulseaudio-utils xvfb xauth dbus-x11 x11-xserver-utils libpulse0 libx264-164 libpipewire-0.3-0 libdrm2 libwayland-client0 libegl1 libgl1 libfontconfig1 libx11-6 libx11-xcb1 libxcb-xinput0 libxkbcommon0 libjansson4 libxext6 libxrandr2 libxi6 libxcursor1 libxrender1 libice6 libsm6 libxcb-shm0 libxcb-randr0 libxcb-xfixes0 libxcb-xinerama0 libxcb-composite0
+      - name: Download the exact user-tested native runtime, not a different capture core
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 40948688441 --repo "$GITHUB_REPOSITORY" --name OpenCam-v1.2.0-Ubuntu24.04-x64-Test-2e9b213ca720d90b06df472f52bc1f429600bfc4 --dir "$RUNNER_TEMP/test-input"
+          cd "$RUNNER_TEMP/test-input"
+          printf '%s\n' 'b6579475028eb7e9a7e1780c7048cee426b887ba6f886d3fb77e768c6bd5d376  OpenCam_v1.2.0_Ubuntu24.04_x64_Test_2e9b213.tar.gz' | sha256sum --check
+          mkdir "$RUNNER_TEMP/app"
+          tar -xzf OpenCam_v1.2.0_Ubuntu24.04_x64_Test_2e9b213.tar.gz -C "$RUNNER_TEMP/app"
+      - name: Compile actual service integration and retain packaged native modules
+        run: |
+          dotnet publish tests/ScreenRecorder.LinuxAppProbe/ScreenRecorder.LinuxAppProbe.csproj -c Release -r linux-x64 --self-contained false -p:OpenCamNativeOnlyTest=true -m:1 -o "$RUNNER_TEMP/probe"
+          cp -a "$RUNNER_TEMP/app/." "$RUNNER_TEMP/probe/"
+          # Copying the baseline package must not replace the new managed service test.
+          dotnet publish tests/ScreenRecorder.LinuxAppProbe/ScreenRecorder.LinuxAppProbe.csproj -c Release -r linux-x64 --self-contained false -p:OpenCamNativeOnlyTest=true -m:1 -o "$RUNNER_TEMP/probe"
+      - name: Real streaming editor preview, muted replay and restart
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          XDG_SESSION_TYPE: x11
+          OPENCAM_LINUX_PROBE_DIAGNOSTICS: '1'
+          OPENCAM_LINUX_TEST_SECONDS: '5'
+        run: |
+          mkdir "$RUNNER_TEMP/preview-evidence"
+          export PATH="$RUNNER_TEMP/probe:$PATH"
+          dbus-run-session -- xvfb-run -a -s '-noreset -screen 0 640x360x24' bash -c '
+            set -euo pipefail
+            export PULSE_RUNTIME_PATH="$RUNNER_TEMP/preview-pulse"
+            mkdir -m 700 "$PULSE_RUNTIME_PATH"
+            pulseaudio -n --daemonize=yes --exit-idle-time=-1 --load=module-native-protocol-unix --load="module-null-sink sink_name=opencam_test"
+            pactl set-default-sink opencam_test
+            pactl load-module module-remap-source master=opencam_test.monitor source_name=opencam_mic
+            trap "pulseaudio --kill 2>/dev/null || true" EXIT
+            (while true; do xsetroot -solid "#e04020"; sleep .2; xsetroot -solid "#2040e0"; sleep .2; done) &
+            pattern_pid=$!
+            trap "kill $pattern_pid 2>/dev/null || true; pulseaudio --kill 2>/dev/null || true" EXIT
+            dotnet "$RUNNER_TEMP/probe/ScreenRecorder.LinuxAppProbe.dll" "$RUNNER_TEMP/preview-evidence/project" > "$RUNNER_TEMP/preview-evidence/preview.log" 2>&1
+          '
+      - name: Preserve first playback failure and actual media evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Linux-editor-preview-diagnostics-${{ github.sha }}
+          path: ${{ runner.temp }}/preview-evidence/
+          if-no-files-found: warn
+          retention-days: 7
