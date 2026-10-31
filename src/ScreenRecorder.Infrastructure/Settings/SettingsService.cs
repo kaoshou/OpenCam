@@ -18,7 +18,7 @@ public class SettingsService : ISettingsService
         }
         else
         {
-            var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var appData = Storage.UserDataPaths.LocalApplicationData;
             var folder = Path.Combine(appData, "ScreenRecorder");
             if (!Directory.Exists(folder))
             {

@@ -25,7 +25,10 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
-      - name: Repackage fixed dependency declarations against exact previously built application
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Rebuild current UI against verified unchanged native runtime and test clean installation
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -36,7 +39,17 @@ jobs:
           mkdir "$RUNNER_TEMP/app" "$RUNNER_TEMP/debs"
           tar -xzf OpenCam_v1.2.0_Ubuntu24.04_x64_Test_f93d8b3.tar.gz -C "$RUNNER_TEMP/app"
           cd "$GITHUB_WORKSPACE"
-          node scripts/linux/build-deb.mjs "$RUNNER_TEMP/app" "$RUNNER_TEMP/debs/diagnostic.deb" 1.2.0 f93d8b3f381e29146d9cc7e8b0eb0e6009001951
+          dotnet publish src/ScreenRecorder.UI/ScreenRecorder.UI.csproj -c Release -r linux-x64 --self-contained true -p:OpenCamNativeOnlyTest=true -p:PublishSingleFile=false -m:1 -o "$RUNNER_TEMP/app"
+          node --input-type=module -e '
+            import {readFile,writeFile} from "node:fs/promises";
+            const root=process.argv[1], revision=process.env.GITHUB_SHA;
+            const info=JSON.parse(await readFile(root+"/LINUX-TEST-INFO.json","utf8"));
+            info.commit=revision;
+            info.status="DIAGNOSTIC ONLY — NOT USER DELIVERY";
+            await writeFile(root+"/LINUX-TEST-INFO.json",JSON.stringify(info,null,2));
+            await writeFile(root+"/SOURCE.txt","Diagnostic managed application revision: "+revision+"\nNative runtime retained unchanged from verified f93d8b3 application artifact; pinned OBS/FFmpeg inventories remain authoritative. Not a user delivery.\n");
+          ' "$RUNNER_TEMP/app"
+          node scripts/linux/build-deb.mjs "$RUNNER_TEMP/app" "$RUNNER_TEMP/debs/diagnostic.deb" 1.2.0 "$GITHUB_SHA"
           docker run --rm -v "$RUNNER_TEMP/debs:/delivery:ro" -v "$GITHUB_WORKSPACE/scripts/linux:/checks:ro" ubuntu:24.04 bash /checks/verify-deb-install.sh
   clean-prerequisites:
     runs-on: ubuntu-24.04

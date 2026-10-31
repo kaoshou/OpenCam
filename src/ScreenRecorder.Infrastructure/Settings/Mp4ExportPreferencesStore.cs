@@ -11,7 +11,7 @@ public sealed class Mp4ExportPreferencesStore
     private readonly string _path;
 
     public Mp4ExportPreferencesStore(string? customPath = null) => _path = customPath ?? Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ScreenRecorder", "mp4-export.json");
+        Storage.UserDataPaths.LocalApplicationData, "ScreenRecorder", "mp4-export.json");
 
     public async Task<Mp4ExportOptions> LoadAsync(CancellationToken cancellationToken = default)
     {

@@ -153,6 +153,7 @@ jobs:
       - name: Build self-contained Linux application and native media helpers
         run: |
           dotnet run --project tests/ScreenRecorder.BuildInfoProbe -m:1 > "$RUNNER_TEMP/opencam-linux/evidence/package-identity.log" 2>&1
+          XDG_DATA_HOME="$RUNNER_TEMP/opencam-linux/new-user-data" dotnet run --project tests/ScreenRecorder.BuildInfoProbe --no-build -- --settings-probe > "$RUNNER_TEMP/opencam-linux/evidence/new-user-paths.log" 2>&1
           dotnet publish src/ScreenRecorder.UI/ScreenRecorder.UI.csproj -c Release -r linux-x64 --self-contained true -p:OpenCamNativeOnlyTest=true -p:PublishSingleFile=false -m:1 -o "$RUNNER_TEMP/opencam-linux/publish" > "$RUNNER_TEMP/opencam-linux/evidence/app-publish.log" 2>&1
           cc -shared -fPIC -O2 -Wall -Wextra -Werror src/ScreenRecorder.Platform.Linux/Native/spawn.c -o "$RUNNER_TEMP/opencam-linux/publish/libOpenCamLinuxSpawn.so"
           cc -O2 -Wall -Wextra -Werror src/ScreenRecorder.Platform.Linux/Native/playback.c -o "$RUNNER_TEMP/opencam-linux/publish/OpenCam.PulsePlayback" $(pkg-config --cflags --libs libpulse-simple)
