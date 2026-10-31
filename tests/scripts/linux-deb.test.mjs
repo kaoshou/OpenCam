@@ -40,7 +40,7 @@ test('deb tree installs a Beta desktop launcher and declares desktop/native depe
   const control=await readFile(join(f.stageRoot,'DEBIAN/control'),'utf8');
   assert.match(control,/^Package: opencam-beta$/m); assert.match(control,/^Version: 1\.2\.0~beta\.[a-f0-9]+$/m);
   assert.match(control,/^Architecture: amd64$/m); assert.match(control,/libc6 \(>= 2\.39\)/);
-  for(const pkg of ['pulseaudio-utils','xdg-utils','libxcb-xinput0','libx264-164','libicu74','libpipewire-0.3-0t64'])
+  for(const pkg of ['pulseaudio-utils','xdg-utils','libxcb-xinput0','libx264-164','libicu74','libpipewire-0.3-0t64','libwayland-egl1'])
     assert.ok(control.includes(pkg),pkg);
   const desktop=await readFile(join(f.stageRoot,'usr/share/applications/opencam-beta.desktop'),'utf8');
   assert.match(desktop,/^Exec=\/usr\/bin\/opencam-beta$/m); assert.match(desktop,/^Terminal=false$/m);

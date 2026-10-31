@@ -12,13 +12,17 @@ test "$(dpkg-query -W -f='${Status}' opencam-beta)" = 'install ok installed'
 command -v pactl
 command -v xdg-open
 # Audit the installed tree BEFORE adding any desktop test/build dependencies.
+audit_failed=0
 while IFS= read -r -d '' binary; do
   magic=$(od -An -tx1 -N4 "$binary" | tr -d ' \n')
   [[ "$magic" == 7f454c46 ]] || continue
   ldd_status=0
   dependencies=$(ldd "$binary" 2>&1) || ldd_status=$?
-  bash /checks/check-installed-elf.sh "${binary#/opt/opencam-beta/}" "$ldd_status" <<< "$dependencies"
+  if ! bash /checks/check-installed-elf.sh "${binary#/opt/opencam-beta/}" "$ldd_status" <<< "$dependencies"; then
+    audit_failed=1
+  fi
 done < <(find /opt/opencam-beta -type f -print0)
+[[ "$audit_failed" == 0 ]] || exit 1
 # Desktop test harness is separate from the application dependency contract.
 apt-get install -y --no-install-recommends xvfb xauth dbus-x11 desktop-file-utils
 desktop-file-validate /usr/share/applications/opencam-beta.desktop
