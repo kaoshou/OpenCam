@@ -53,8 +53,8 @@ try {
         await playback.StartAsync(default);
         for (var i = 0; i < 5; i++) await playback.WriteAsync(new byte[8192], default);
         var deadline = DateTime.UtcNow.AddSeconds(5);
-        while (playback.PositionSamples <= 0 && playback.IsRunning && DateTime.UtcNow < deadline) await Task.Delay(20);
-        if (playback.PositionSamples <= 0) throw new IOException("Managed bounded audio output did not advance before EOF.");
+        while (playback.PositionSamples < 1024 && playback.IsRunning && DateTime.UtcNow < deadline) await Task.Delay(20);
+        if (playback.PositionSamples < 1024) throw new IOException("Managed bounded audio output did not advance sufficiently before EOF.");
         Console.WriteLine($"Managed bounded audio clock advanced before EOF: {playback.PositionSamples}");
         await playback.StopAsync(default);
     }

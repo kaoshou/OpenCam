@@ -8,7 +8,14 @@
 #include <poll.h>
 int main(void) {
     pa_sample_spec format = {PA_SAMPLE_FLOAT32LE, 48000, 2}; int error = 0;
-    pa_simple *stream = pa_simple_new(NULL, "OpenCam", PA_STREAM_PLAYBACK, NULL, "Project preview", &format, NULL, NULL, &error);
+    // Match the preview producer's 4800-frame (~100ms) queue budget. The
+    // server's default prebuffer can be about two seconds and never fills
+    // when a bounded producer waits for playback before submitting more.
+    pa_buffer_attr buffering = {
+        .maxlength = 9600 * 8, .tlength = 4800 * 8,
+        .prebuf = 1024 * 8, .minreq = 1024 * 8, .fragsize = (uint32_t)-1
+    };
+    pa_simple *stream = pa_simple_new(NULL, "OpenCam", PA_STREAM_PLAYBACK, NULL, "Project preview", &format, NULL, &buffering, &error);
     if (!stream) { fputs("Audio output initialization failed.\n", stderr); return 1; }
     uint8_t buffer[8192]; uint64_t written = 0, last = 0; ssize_t n;
     // Assemble complete stereo frames even if pipe reads split an 8-byte sample.
