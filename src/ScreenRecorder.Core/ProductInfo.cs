@@ -9,7 +9,9 @@ public static class ProductInfo
 
     public static string DisplayVersion => $"v{Version}";
 
-    public static string PackageDisplayVersion => $"{DisplayVersion} ({FormatBuildDescription(typeof(ProductInfo).Assembly
+    // A referenced RID-agnostic library loses RuntimeIdentifier in SDK builds.
+    // The package entry assembly, not this library or the host OS, owns its RID.
+    public static string PackageDisplayVersion => $"{DisplayVersion} ({FormatBuildDescription((Assembly.GetEntryAssembly() ?? typeof(ProductInfo).Assembly)
         .GetCustomAttributes<AssemblyMetadataAttribute>()
         .FirstOrDefault(a => a.Key == "OpenCamRuntimeIdentifier")?.Value)})";
 

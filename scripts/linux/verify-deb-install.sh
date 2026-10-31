@@ -15,17 +15,9 @@ command -v xdg-open
 while IFS= read -r -d '' binary; do
   magic=$(od -An -tx1 -N4 "$binary" | tr -d ' \n')
   [[ "$magic" == 7f454c46 ]] || continue
-  dependencies=$(ldd "$binary" 2>&1) || true
-  missing=$(printf '%s\n' "$dependencies" | grep 'not found' || true)
-  if [[ -n "$missing" ]]; then
-    if [[ "$binary" == /opt/opencam-beta/libcoreclrtraceptprovider.so &&
-          "$(printf '%s\n' "$missing" | wc -l)" == 1 && "$missing" == *'liblttng-ust.so.0 => not found'* ]]; then
-      echo 'Optional LTTng tracing unavailable; no ABI workaround applied.'
-    else
-      printf 'Missing installed runtime dependencies: %s\n%s\n' "$binary" "$missing" >&2
-      exit 1
-    fi
-  fi
+  ldd_status=0
+  dependencies=$(ldd "$binary" 2>&1) || ldd_status=$?
+  bash /checks/check-installed-elf.sh "${binary#/opt/opencam-beta/}" "$ldd_status" <<< "$dependencies"
 done < <(find /opt/opencam-beta -type f -print0)
 # Desktop test harness is separate from the application dependency contract.
 apt-get install -y --no-install-recommends xvfb xauth dbus-x11 desktop-file-utils
@@ -48,4 +40,4 @@ test ! -e /usr/share/applications/opencam-beta.desktop
 test "$(cat /home/opencamtest/Recordings/sentinel.mkv)" = 'preserve user recording'
 apt-get install -y --no-install-recommends "${archives[0]}"
 test "$(cat /home/opencamtest/Recordings/sentinel.mkv)" = 'preserve user recording'
-echo 'PASS clean deb install, native dependency audit, user launcher, removal/reinstall preservation'
+echo 'PASS clean deb install, native dependency audit, user process launch, removal/reinstall preservation'

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {mkdtemp, mkdir, writeFile, readFile, rm, symlink, access} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
+import {createHash} from 'node:crypto';
 
 const revision = '1234567890123456789012345678901234567890';
 async function fixture(t) {
@@ -13,10 +14,21 @@ async function fixture(t) {
   for (const name of ['OpenCam','ffmpeg','ffprobe','OpenCam.PulsePlayback','Start-OpenCam.sh',
     'obs-runtime/bin/OpenCam.ObsCapture','LICENSE','NOTICE.md','THIRD-PARTY-NOTICES.md','SOURCE.txt',
     'linux-notices/DOTNET-LICENSE.txt','linux-notices/DOTNET-THIRD-PARTY-NOTICES.txt',
-    'linux-notices/OBS-COPYING.txt','linux-notices/OBS-AUTHORS.txt','app-icon.png']) {
+    'linux-notices/OBS-COPYING.txt','linux-notices/OBS-AUTHORS.txt','app-icon.png',
+    'linux-notices/COPYING.GPLv2','linux-notices/COPYING.GPLv3','linux-notices/COPYING.LGPLv2.1',
+    'linux-notices/obs-embedded/json11-LICENSE.txt','linux-notices/obs-embedded/libcaption-LICENSE.txt',
+    'linux-notices/obs-embedded/BLAKE2-LICENSE.txt','linux-notices/obs-embedded/Khronos-platform-header.txt',
+    'linux-notices/obs-embedded/EGL-platform-header.txt','linux-notices/obs-embedded/SIMDe-copyright.txt',
+    'linux-notices/obs-embedded/uthash-copyright.txt']) {
     const path = join(appRoot, name); await mkdir(join(path, '..'), {recursive:true});
     await writeFile(path, 'fixture', {mode:name.includes('.') ? 0o644 : 0o755});
   }
+  const {readdir,copyFile}=await import('node:fs/promises');
+  const licenseRoot=new URL('../../third-party/licenses/',import.meta.url);
+  await mkdir(join(appRoot,'linux-notices/project-licenses'),{recursive:true});
+  for(const name of await readdir(licenseRoot)) await copyFile(new URL(name,licenseRoot),join(appRoot,'linux-notices/project-licenses',name));
+  await writeFile(join(appRoot,'obs-runtime/runtime.json'),JSON.stringify({platform:'linux-x64',enabled:true,
+    files:{'bin/OpenCam.ObsCapture':createHash('sha256').update('fixture').digest('hex')}}));
   await writeFile(join(appRoot,'LINUX-TEST-INFO.json'), JSON.stringify({version:'1.2.0',commit:revision,
     platform:'Ubuntu 24.04 x64',nativeOnly:true,compatibilityFallback:false}));
   return {appRoot,stageRoot:join(root,'stage'), version:'1.2.0', revision};
@@ -38,7 +50,9 @@ test('deb tree installs a Beta desktop launcher and declares desktop/native depe
   assert.match(launcher,/\/opt\/opencam-beta\/Start-OpenCam\.sh/); assert.doesNotMatch(launcher,/apt |sudo|rm /);
   await assert.rejects(access(join(f.stageRoot,'DEBIAN/postrm')));
 });
-for (const missing of ['OpenCam','obs-runtime/bin/OpenCam.ObsCapture','LICENSE','SOURCE.txt','app-icon.png'])
+for (const missing of ['OpenCam','obs-runtime/bin/OpenCam.ObsCapture','LICENSE','SOURCE.txt','app-icon.png',
+  'linux-notices/COPYING.GPLv3','linux-notices/project-licenses/Avalonia-LICENSE.md',
+  'linux-notices/obs-embedded/SIMDe-copyright.txt','obs-runtime/runtime.json'])
   test(`deb refuses missing ${missing} before creating install tree`,async t => {
     const f=await fixture(t); await rm(join(f.appRoot,missing));
     await assert.rejects(() => builder().then(fn => fn(f)),/missing|incomplete/i);

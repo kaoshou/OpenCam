@@ -9,7 +9,12 @@ const execute=promisify(execFile);
 const required=['OpenCam','ffmpeg','ffprobe','OpenCam.PulsePlayback','Start-OpenCam.sh',
   'obs-runtime/bin/OpenCam.ObsCapture','LICENSE','NOTICE.md','THIRD-PARTY-NOTICES.md','SOURCE.txt',
   'linux-notices/DOTNET-LICENSE.txt','linux-notices/DOTNET-THIRD-PARTY-NOTICES.txt',
-  'linux-notices/OBS-COPYING.txt','linux-notices/OBS-AUTHORS.txt','app-icon.png'];
+  'linux-notices/OBS-COPYING.txt','linux-notices/OBS-AUTHORS.txt','app-icon.png',
+  'linux-notices/COPYING.GPLv2','linux-notices/COPYING.GPLv3','linux-notices/COPYING.LGPLv2.1',
+  'linux-notices/obs-embedded/json11-LICENSE.txt','linux-notices/obs-embedded/libcaption-LICENSE.txt',
+  'linux-notices/obs-embedded/BLAKE2-LICENSE.txt','linux-notices/obs-embedded/Khronos-platform-header.txt',
+  'linux-notices/obs-embedded/EGL-platform-header.txt','linux-notices/obs-embedded/SIMDe-copyright.txt',
+  'linux-notices/obs-embedded/uthash-copyright.txt','obs-runtime/runtime.json'];
 
 export async function stageDeb({appRoot,stageRoot,version,revision}) {
   if(![appRoot,stageRoot].every(isAbsolute)||!/^\d+\.\d+\.\d+$/.test(version)||!/^[a-f0-9]{40}$/.test(revision))
@@ -30,7 +35,9 @@ export async function stageDeb({appRoot,stageRoot,version,revision}) {
     }
   }
   await visit(appRoot);
-  for(const name of required) if(!files.some(f=>f.name===name)) throw Error('Incomplete package: missing '+name);
+  const licenseNames=await readdir(new URL('../../third-party/licenses/',import.meta.url));
+  for(const name of [...required,...licenseNames.map(n=>'linux-notices/project-licenses/'+n)])
+    if(!files.some(f=>f.name===name)) throw Error('Incomplete package: missing '+name);
   const info=JSON.parse(await readFile(join(appRoot,'LINUX-TEST-INFO.json'),'utf8'));
   if(info.version!==version||info.commit!==revision||info.platform!=='Ubuntu 24.04 x64'||
     info.nativeOnly!==true||info.compatibilityFallback!==false) throw Error('Package source identity/revision mismatch');
