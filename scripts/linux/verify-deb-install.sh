@@ -34,7 +34,7 @@ runuser -u opencamtest -- env HOME=/home/opencamtest XDG_SESSION_TYPE=x11 LIBGL_
   dbus-run-session -- xvfb-run -a -s '-screen 0 1280x1000x24' bash -c '
     /usr/bin/opencam-beta > /tmp/opencam-menu.log 2>&1 &
     app_pid=$!
-    trap "kill $app_pid 2>/dev/null || true" EXIT
+    trap "kill $app_pid 2>/dev/null || true; cat /tmp/opencam-menu.log" EXIT
     sleep 8
     kill -0 "$app_pid"
   '
