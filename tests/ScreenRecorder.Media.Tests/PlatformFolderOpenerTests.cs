@@ -29,6 +29,39 @@ public class PlatformFolderOpenerTests : IDisposable
     }
 
     [Fact]
+    public void LinuxDirectory_OpensConfiguredFolderWithOneLiteralArgument()
+    {
+        var info = PlatformFolderOpener.BuildStartInfo(false, false, _file, _directory, isLinux: true);
+        Assert.NotNull(info);
+        Assert.Equal("xdg-open", info.FileName);
+        Assert.Equal(new[] { _directory }, info.ArgumentList);
+        Assert.False(info.UseShellExecute);
+    }
+
+    [Fact]
+    public void LinuxReveal_OpensContainingFolderNotMediaPlayer()
+    {
+        var info = PlatformFolderOpener.BuildStartInfo(false, false, _file, _directory,
+            revealLastOutput: true, isLinux: true);
+        Assert.NotNull(info);
+        Assert.Equal("xdg-open", info.FileName);
+        Assert.Equal(new[] { _directory }, info.ArgumentList);
+    }
+
+    [Fact]
+    public void UnsupportedPlatform_DoesNotBecomeLinux()
+    {
+        Assert.Null(PlatformFolderOpener.BuildStartInfo(false, false, _file, _directory));
+    }
+
+    [Fact]
+    public void LinuxMissingDirectory_DoesNotLaunch()
+    {
+        Assert.Null(PlatformFolderOpener.BuildStartInfo(false, false, null,
+            Path.Combine(_directory, "missing"), isLinux: true));
+    }
+
+    [Fact]
     public void MacFile_UsesFinderRevealWithOnePathArgument()
     {
         var info = PlatformFolderOpener.BuildStartInfo(

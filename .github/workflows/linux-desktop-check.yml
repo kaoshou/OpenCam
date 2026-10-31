@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Linux desktop integration diagnostics
+on:
+  push:
+    branches: ['codex/linux-app-test-20261030']
+    paths:
+      - '.github/workflows/linux-desktop-check.yml'
+      - 'src/ScreenRecorder.Platform.Linux/Native/playback.c'
+      - 'tests/native/linux-playback.test.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pulse-playback:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Install isolated test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential pkg-config libpulse-dev pulseaudio pulseaudio-utils
+      - name: Build actual project audio helper
+        run: cc -O2 -Wall -Wextra -Werror src/ScreenRecorder.Platform.Linux/Native/playback.c -o "$RUNNER_TEMP/OpenCam.PulsePlayback" $(pkg-config --cflags --libs libpulse-simple)
+      - name: Exercise bounded producer without EOF
+        env:
+          OPENCAM_LINUX_PLAYBACK_HELPER: ${{ runner.temp }}/OpenCam.PulsePlayback
+        run: |
+          export XDG_RUNTIME_DIR="$RUNNER_TEMP/opencam-desktop-runtime"
+          mkdir -m 700 "$XDG_RUNTIME_DIR"
+          pulseaudio -n --daemonize=yes --exit-idle-time=-1 --load=module-native-protocol-unix --load='module-null-sink sink_name=opencam_test'
+          trap 'pulseaudio --kill 2>/dev/null || true' EXIT
+          pactl set-default-sink opencam_test
+          node --test tests/native/linux-playback.test.mjs

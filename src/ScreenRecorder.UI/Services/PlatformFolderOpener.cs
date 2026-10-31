@@ -10,7 +10,8 @@ internal static class PlatformFolderOpener
         bool isMacOS,
         string? lastOutputFilePath,
         string outputDirectory,
-        bool revealLastOutput = false)
+        bool revealLastOutput = false,
+        bool isLinux = false)
     {
         var hasFile = revealLastOutput &&
             !string.IsNullOrWhiteSpace(lastOutputFilePath) &&
@@ -41,6 +42,17 @@ internal static class PlatformFolderOpener
             return info;
         }
 
+        if (isLinux)
+        {
+            // xdg-open opens media files in their player, not their containing folder.
+            // Absolute paths also prevent a leading dash from becoming an option.
+            info.FileName = "xdg-open";
+            info.ArgumentList.Add(hasFile
+                ? Path.GetDirectoryName(Path.GetFullPath(target))!
+                : Path.GetFullPath(target));
+            return info;
+        }
+
         return null;
     }
 
@@ -55,7 +67,7 @@ internal static class PlatformFolderOpener
                 OperatingSystem.IsWindows(),
                 OperatingSystem.IsMacOS(),
                 lastOutputFilePath,
-                outputDirectory, revealLastOutput);
+                outputDirectory, revealLastOutput, isLinux: OperatingSystem.IsLinux());
             if (startInfo is null)
             {
                 return (false, "找不到有效的輸出路徑或不支援目前平台");
