@@ -53,11 +53,13 @@ public sealed class ObsScreenRecorderEngine : IScreenRecorderEngine, IBoundRecor
     private double _lastPerformanceSeconds;
     private string _requestedCaptureMode = "";
     private bool _performanceBoundOutput;
+    private readonly IObsCaptureSetup? _setup;
 
     public ObsScreenRecorderEngine(string helperPath, string runtimeRoot,
         Func<RecordingConfiguration, CaptureRegion, CaptureSelection?, MonitorInfo?> resolveMonitor,
         HardwareEncoderType pinnedEncoder = HardwareEncoderType.SoftwareCpu, CaptureSelection? pinnedCapture = null,
-        TimeSpan? startupTimeout = null, TimeSpan? stopTimeout = null, bool allowCompatibilityFallback = true)
+        TimeSpan? startupTimeout = null, TimeSpan? stopTimeout = null, bool allowCompatibilityFallback = true,
+        IObsCaptureSetup? setup = null)
     {
         _helperPath = Path.GetFullPath(helperPath);
         _runtimeRoot = Path.GetFullPath(runtimeRoot);
@@ -68,6 +70,7 @@ public sealed class ObsScreenRecorderEngine : IScreenRecorderEngine, IBoundRecor
         _startupTimeout = startupTimeout ?? TimeSpan.FromSeconds(15);
         _stopTimeout = stopTimeout ?? TimeSpan.FromSeconds(8);
         _allowCompatibilityFallback = allowCompatibilityFallback;
+        _setup = setup;
         if (_startupTimeout <= TimeSpan.Zero || _stopTimeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(startupTimeout));
     }
 
@@ -109,7 +112,8 @@ public sealed class ObsScreenRecorderEngine : IScreenRecorderEngine, IBoundRecor
                 ?? throw new ArgumentException("The selected native display cannot be mapped exactly.");
             _request = ObsCaptureRequest.Create(config, actualBounds, monitor, _encoder, UseSyntheticCaptureSource);
             _requestedCaptureMode = config.WindowsCaptureMode.ToString();
-            var requestBytes = _request.Serialize();
+            var requestBytes = _setup?.SerializeRequest(_request) ?? _request.Serialize();
+            if (requestBytes.Length > 65535) throw new IOException("Recording setup exceeded its protocol limit.");
             if (_pinnedCapture is { } pinned && (pinned.RecordingCore != "libobs-v1" || pinned.DeviceName != monitor.DeviceName ||
                 pinned.Bounds != actualBounds || pinned.OutputBounds != monitor.Bounds))
                 throw new IOException("The resumed segment no longer matches its pinned recording source.");
@@ -289,6 +293,10 @@ public sealed class ObsScreenRecorderEngine : IScreenRecorderEngine, IBoundRecor
         var value = json.RootElement;
         switch (value.GetProperty("event").GetString())
         {
+            case "portal_grant":
+                if (_setup is null || _ready.Task.IsCompleted || _stoppedEvent) throw new JsonException();
+                _setup.AcceptGrant(value);
+                break;
             case "ready":
                 if (_ready.Task.IsCompleted || _stoppedEvent || value.GetProperty("protocol").GetInt32() != _request!.Protocol ||
                     value.GetProperty("encoder").GetString() != _request!.Encoder ||
@@ -302,6 +310,7 @@ public sealed class ObsScreenRecorderEngine : IScreenRecorderEngine, IBoundRecor
                     "x11" => CaptureBackend.X11, "pipewire" => CaptureBackend.PipeWire,
                     _ => CaptureBackend.PlatformDefault };
                 if (_pinnedCapture is not null && _pinnedCapture.Backend != captureBackend) throw new JsonException();
+                _setup?.ValidateReady();
                 ActiveCapture = new(captureBackend, CaptureFallbackReason.None, monitor.DeviceName, null, null,
                     new(_request.X, _request.Y, _request.Width, _request.Height))
                     { OutputBounds = monitor.Bounds, RecordingCore = "libobs-v1" };
@@ -508,7 +517,7 @@ public sealed class ObsScreenRecorderEngine : IScreenRecorderEngine, IBoundRecor
         if (_disposed) return;
         try { await StopRecordingAsync().ConfigureAwait(false); }
         catch (IOException error) { Log.Warning("Recording helper cleanup retained failed recording: {ErrorType}", error.GetType().Name); }
-        finally { _disposed = true; }
+        finally { _disposed = true; _setup?.Dispose(); }
     }
 
     private static TaskCompletionSource<bool> NewSignal() => new(TaskCreationOptions.RunContinuationsAsynchronously);

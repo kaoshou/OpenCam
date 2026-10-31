@@ -6,6 +6,16 @@ public partial class LocalizationService
     static LocalizationService()
     {
         foreach(var row in new (string Key,string Zh,string En,string Ja)[]{
+            ("LinuxPortalChoose","選擇錄製畫面…","Choose recording screen…","録画画面を選択…"),
+            ("LinuxPortalHint","Wayland 請先透過系統視窗選擇並授權螢幕；自訂範圍會在已授權畫面內裁切。","On Wayland, authorize a screen in the system dialog first. Custom regions crop within that authorized screen.","Wayland ではシステムの画面選択で許可してください。範囲指定は許可した画面の内側で行います。"),
+            ("LinuxPortalSelecting","請在系統視窗選擇螢幕並允許共享；可隨時取消。","Choose a screen and allow sharing in the system dialog. You can cancel at any time.","システム画面で共有する画面を選んで許可してください。いつでもキャンセルできます。"),
+            ("LinuxPortalSelected","錄製畫面已授權。","Recording screen authorized.","録画画面が許可されました。"),
+            ("LinuxPortalCancelled","已取消畫面選擇，尚未開始錄影。","Screen selection cancelled. Recording has not started.","画面選択をキャンセルしました。録画は開始していません。"),
+            ("LinuxPortalFailed","無法取得錄製畫面，請重新選擇並確認系統授權。","The recording screen is unavailable. Select it again and check the system permission.","録画画面を取得できません。再選択してシステムの許可を確認してください。"),
+            ("LinuxPortalSource","已授權螢幕","Authorized screen","許可された画面"),
+            ("LinuxPortalCropTitle","選擇錄製範圍","Choose recording region","録画範囲の選択"),
+            ("LinuxPortalCropHint","在縮圖上拖曳框選範圍。座標以已授權畫面的實際像素計算。","Drag on the preview to select a region. Coordinates use the authorized screen’s actual pixels.","プレビューをドラッグして範囲を選択します。座標は許可した画面の実ピクセルです。"),
+            ("LinuxPortalFullSource","完整畫面","Full screen","画面全体"),
             ("LinuxTestNotice","Linux 開發測試版：請使用 Ubuntu on Xorg（X11），目前使用 CPU 編碼；Wayland、教鞭、螢幕註記與全域快捷鍵尚未開放。請先短錄並檢查影音。","Linux development test: use Ubuntu on Xorg (X11), CPU encoding. Wayland, teaching pointers, annotations and global shortcuts are not yet enabled. Verify a short recording first.","Linux 開発テスト版：Ubuntu on Xorg（X11）と CPU エンコードを使用します。Wayland、教鞭、画面への書き込み、グローバルショートカットは未対応です。まず短い録画を確認してください。"),
             ("AnnotationsTitle","螢幕註記","Screen annotations","画面への書き込み"),
             ("AnnotationsHotkeyTogglePen","開啟／關閉畫筆","Toggle drawing","描画の切り替え"),

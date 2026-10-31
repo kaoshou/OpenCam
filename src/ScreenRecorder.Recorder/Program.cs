@@ -49,6 +49,11 @@ public class Program
 
             var orchestrator = serviceProvider.GetRequiredService<RecordingOrchestrator>();
             var displayService = serviceProvider.GetRequiredService<IDisplayService>();
+            await using var linuxSourceSelection = OperatingSystem.IsLinux()
+                ? new LinuxSourceSelectionService(serviceProvider.GetRequiredService<RecordingCaptureLease>(),
+                    () => orchestrator.CurrentState is RecordingState.Idle or RecordingState.Completed or RecordingState.Failed,
+                    ct => ScreenRecorder.Platform.Linux.LinuxPortalSources.Shared.PrepareAsync(
+                        ScreenRecorder.Platform.Linux.LinuxDesktopCatalog.RuntimeRoot,ct)) : null;
             var mediaExecutable = ScreenRecorder.Media.FFmpeg.FFmpegDiscovery.FindFFmpegExecutable();
             var mediaBackend = ProjectMediaBackend.Create(OperatingSystem.IsWindows()
                 ? System.Runtime.InteropServices.OSPlatform.Windows : OperatingSystem.IsMacOS()
@@ -114,6 +119,10 @@ public class Program
 
                 try
                 {
+                    if (LinuxSourceSelectionService.IsCommand(message.MessageType)) {
+                        if (linuxSourceSelection is null) return new IpcResponse { Success=false,ErrorMessage="This desktop does not use Linux source selection." };
+                        return await linuxSourceSelection.DispatchAsync(message);
+                    }
                     if (PreflightIpcDispatcher.IsCommand(message.MessageType))
                         return await preflightDispatcher.DispatchAsync(message);
                     if (ProjectIpcDispatcher.IsProjectCommand(message.MessageType))

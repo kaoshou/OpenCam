@@ -21,6 +21,14 @@ public sealed record LinuxAudioCatalog(IReadOnlyList<AudioDeviceOption> Micropho
 
 public sealed class LinuxDesktopCatalog : IDisplayService, IRecordingDisplayIdentityService, IAudioDeviceService
 {
+    private MonitorInfo? authorizedView;
+    public void UseAuthorizedSourceView(LinuxPortalSelectionView? view)
+    {
+        if (view is null) { authorizedView=null; return; }
+        if (!Regex.IsMatch(view.SourceId,@"\Aportal:[a-f0-9]{64}\z") || view.Width is <2 or >16384 || view.Height is <2 or >16384)
+            throw new IOException("Invalid authorized source view.");
+        authorizedView=new(0,view.SourceId,new(0,0,view.Width,view.Height),false,1);
+    }
     public static string RuntimeRoot => Path.Combine(AppContext.BaseDirectory, "obs-runtime");
     public static string Run(string executable, params string[] args)
     {
@@ -55,6 +63,8 @@ public sealed class LinuxDesktopCatalog : IDisplayService, IRecordingDisplayIden
     }
     public IReadOnlyList<MonitorInfo> GetMonitors()
     {
+        if (OperatingSystem.IsLinux() && ObsRuntime.DefaultBackend("linux-x64") == "pipewire")
+            return (LinuxPortalSources.Shared.Monitor ?? authorizedView) is { } selected ? [selected] : [];
         return OperatingSystem.IsLinux() ? EnumerateRuntime(RuntimeRoot, ObsRuntime.DefaultBackend("linux-x64")) : [];
     }
     internal static IReadOnlyList<MonitorInfo> EnumerateRuntime(string root, string backend)

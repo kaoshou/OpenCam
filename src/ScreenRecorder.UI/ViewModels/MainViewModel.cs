@@ -254,7 +254,7 @@ public partial class MainViewModel : ObservableObject
             OnPropertyChanged(name);
     }
 
-    public bool CanStartRecording => !IsProjectWorkspaceOpen && (_content?.CanStartNew ?? true) && CanStartRecordingForState(
+    public bool CanStartRecording => !IsSelectingLinuxSource && (!UsesLinuxPortal || LinuxPortalSelection is not null) && !IsProjectWorkspaceOpen && (_content?.CanStartNew ?? true) && CanStartRecordingForState(
         IsRecording,
         IsPaused,
         IsPreparing,
@@ -266,7 +266,7 @@ public partial class MainViewModel : ObservableObject
         IsPaused,
         IsPreparing,
         IsRecovering);
-    public bool CanEditRecordingSettings => CanEditRecordingSettingsForState(
+    public bool CanEditRecordingSettings => !IsSelectingLinuxSource && CanEditRecordingSettingsForState(
         IsRecording,
         IsPaused,
         IsPreparing,
@@ -2208,6 +2208,7 @@ public partial class MainViewModel : ObservableObject
         }
 
         // Create a unique pipe name for this session to avoid zombie conflicts
+        InvalidateLinuxPortalSource();
         _currentPipeName = SessionPipeNameFactory.Create(OperatingSystem.IsWindows());
         var ipcKey = AuthenticatedIpc.CreateKey();
 
@@ -2255,6 +2256,7 @@ public partial class MainViewModel : ObservableObject
 
     public void Cleanup()
     {
+        linuxSourceCancellation?.Cancel();
         _telemetryTimer.Stop();
         _telemetryTimer.Tick -= OnTelemetryTimerTick;
         StopAudioMeterPolling();

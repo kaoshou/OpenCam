@@ -185,6 +185,14 @@
                     <Border IsVisible="{Binding IsLinuxTestBuild}" Background="#FFFBEB" BorderBrush="#FDE68A" BorderThickness="1" CornerRadius="8" Padding="10">
                         <TextBlock Text="{Binding Strings[LinuxTestNotice]}" TextWrapping="Wrap" FontSize="12" Foreground="#92400E" />
                     </Border>
+                    <StackPanel IsVisible="{Binding UsesLinuxPortal}" Spacing="8">
+                        <TextBlock Text="{Binding Strings[LinuxPortalHint]}" TextWrapping="Wrap" FontSize="12" Foreground="#475569" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="{Binding Strings[LinuxPortalChoose]}" Command="{Binding SelectLinuxSourceCommand}" IsEnabled="{Binding CanEditRecordingSettings}"
+                                    ToolTip.Tip="{Binding Strings[LinuxPortalHint]}" Background="#0284C7" Foreground="White" CornerRadius="7" />
+                            <Button Content="{Binding Strings[Cancel]}" Command="{Binding CancelLinuxSourceSelectionCommand}" IsVisible="{Binding IsSelectingLinuxSource}" />
+                        </StackPanel>
+                    </StackPanel>
                     <!-- 錄影目標即時提示徽章 (冰藍漸層微光標籤) -->
                     <Border BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="8" Padding="12,7">
                         <Border.Background>
@@ -212,6 +220,7 @@
                             <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableMonitors}" SelectedItem="{Binding SelectedMonitor}" 
                                       IsEnabled="{Binding CanSelectMonitor}" Margin="8,0,0,0" HorizontalAlignment="Stretch" FontSize="11.5" />
                             <Button Grid.Column="2" Click="OnIdentifyDisplaysClicked"
+                                    IsVisible="{Binding !UsesLinuxPortal}"
                                     IsEnabled="{Binding CanSelectMonitor}"
                                     Width="30" Height="28" Margin="6,0,0,0" Padding="0"
                                     VerticalAlignment="Center" CornerRadius="6"

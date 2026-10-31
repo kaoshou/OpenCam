@@ -3,7 +3,7 @@ name: Linux portal policy tests
 on:
   push:
     branches: ['codex/linux-app-test-20261030']
-    paths: ['native/obs-linux-probe/portal-*.hpp', 'native/obs-linux-probe/source-preview.hpp', 'tests/native/linux-portal-*.cpp', 'tests/native/linux-source-preview-tests.cpp', 'src/ScreenRecorder.Platform.Linux/LinuxPortal*.cs', 'tests/ScreenRecorder.Media.Tests/LinuxPortalPreparationTests.cs', '.github/workflows/linux-portal-policy.yml']
+    paths: ['native/obs-linux-probe/portal-*.hpp', 'native/obs-linux-probe/source-preview.hpp', 'tests/native/linux-portal-*.cpp', 'tests/native/linux-source-preview-tests.cpp', 'src/ScreenRecorder.Platform.Linux/LinuxPortal*.cs', 'src/ScreenRecorder.Platform.Linux/LinuxSourceSelectionSnapshot.cs', 'src/ScreenRecorder.Recorder/Services/LinuxSourceSelectionService.cs', 'src/ScreenRecorder.UI/**/LinuxPortal*.cs', 'src/ScreenRecorder.UI/ViewModels/MainViewModel.LinuxSource.cs', 'tests/ScreenRecorder.Media.Tests/LinuxPortal*.cs', 'tests/ScreenRecorder.Media.Tests/LinuxSource*.cs', '.github/workflows/linux-portal-policy.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -17,7 +17,7 @@ jobs:
         with:
           dotnet-version: '8.0.x'
       - name: Run managed Linux source protocol and owned-process regression tests
-        run: dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj --filter FullyQualifiedName~LinuxPortalPreparationTests -m:1
+        run: dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj --filter 'FullyQualifiedName~LinuxPortal|FullyQualifiedName~LinuxSource|FullyQualifiedName~ObsScreenRecorderEngineTests' -m:1
   portal-policy:
     runs-on: ubuntu-24.04
     timeout-minutes: 5

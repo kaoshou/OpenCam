@@ -407,6 +407,16 @@ public partial class MainWindow : Window
     {
         if (DataContext is MainViewModel vm && vm.CanEditRecordingSettings)
         {
+            if(vm.UsesLinuxPortal) {
+                if(vm.LinuxPortalSelection is null)await vm.SelectLinuxSourceAsync();
+                if(vm.LinuxPortalSelection is not {} source)return;
+                var crop=new LinuxPortalCropWindow(source,new(vm.RegionX,vm.RegionY,vm.RegionWidth,vm.RegionHeight));
+                if(await crop.ShowDialog<bool>(this)) {
+                    var r=crop.SelectedRegion;
+                    vm.UpdateCustomRegion(r.X,r.Y,r.Width,r.Height);
+                }
+                return;
+            }
             // 防呆保證：明確鎖定為自訂區域
             vm.IsCustomRegion = true;
             vm.IsMonitorSelected = false;

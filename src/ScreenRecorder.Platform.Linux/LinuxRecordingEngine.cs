@@ -13,7 +13,8 @@ public sealed class LinuxRecordingEngine : IScreenRecorderEngine, IBoundRecordin
     public LinuxRecordingEngine(ObsRuntime runtime, IDisplayService displays, CaptureSelection? pinned)
         : this(new ObsScreenRecorderEngine(runtime.HelperPath, runtime.Root, (config, bounds, capture) => ObsRecordingEngineRouter.ResolveMonitor(
             config, bounds, capture, displays.GetMonitors(), m => (displays as IRecordingDisplayIdentityService)?.GetRecordingDisplayIdentity(m)),
-            HardwareEncoderType.SoftwareCpu, pinned, TimeSpan.FromSeconds(70), allowCompatibilityFallback: false)) { }
+            HardwareEncoderType.SoftwareCpu, pinned, TimeSpan.FromSeconds(70), allowCompatibilityFallback: false,
+            setup: ObsRuntime.DefaultBackend("linux-x64") == "pipewire" ? new LinuxPortalCaptureSetup(LinuxPortalSources.Shared) : null)) { }
     internal LinuxRecordingEngine(IScreenRecorderEngine engine) {
         inner = engine;
         inner.EngineErrorOccurred += RelayError; inner.EngineWarningOccurred += RelayWarning; inner.AudioDeviceLost += RelayAudioLost;
