@@ -3,7 +3,7 @@ name: Linux GNOME portal research
 on:
   push:
     branches: ['codex/linux-app-test-20261030']
-    paths: ['.github/workflows/linux-gnome-portal.yml', 'scripts/linux/test-gnome-portal.sh', 'scripts/linux/gnome-chooser-fixture.py', 'scripts/linux/gnome-portal-recording-fixture.mjs']
+    paths: ['.github/workflows/linux-gnome-portal.yml', 'scripts/linux/test-gnome-portal.sh', 'scripts/linux/gnome-chooser-fixture.py', 'scripts/linux/gnome-portal-recording-fixture.mjs', 'native/obs-linux-probe/**', 'src/ScreenRecorder.Platform.Linux/**', 'src/ScreenRecorder.Media/Capture/**', 'src/ScreenRecorder.Core/Models/RecordingConfiguration.cs', 'src/ScreenRecorder.Recorder/Services/LinuxSourceSelectionService.cs', 'tests/ScreenRecorder.LinuxPortalProbe/**']
   workflow_dispatch:
 permissions:
   contents: read

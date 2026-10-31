@@ -38,7 +38,7 @@ try {
         AudioSource = AudioSourceType.SystemAndMicrophone, MicrophoneDeviceId = "opencam_mic", SystemAudioDeviceId = "opencam_test.monitor",
         CursorEffect = CursorEffectMode.Default, Fps = 30, EncoderType = HardwareEncoderType.SoftwareCpu,
         SystemAudioVolumePercent = 80, MicrophoneVolumePercent = 70, OutputDirectory = root };
-    config.Fps = Environment.GetEnvironmentVariable("OPENCAM_LINUX_TEST_FPS") == "20" ? 20 : 30;
+    config.Fps = int.TryParse(Environment.GetEnvironmentVariable("OPENCAM_LINUX_TEST_FPS"),out var fps)&&LinuxRecordingLimits.FpsOptions.Contains(fps)?fps:30;
     if(teachingPointer){config.CursorEffect=CursorEffectMode.PresentationStick;config.PresentationPointer=new(TeachingPointerStyle.HighContrast,TeachingPointerSize.Standard);}
     var seconds = int.TryParse(Environment.GetEnvironmentVariable("OPENCAM_LINUX_TEST_SECONDS"), out var requested) && requested is >= 5 and <= 300 ? requested : 5;
     await using (var trial = new FileStream(Path.Combine(root, "audio-trial.mkv"), FileMode.CreateNew, FileAccess.Write))

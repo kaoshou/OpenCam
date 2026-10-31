@@ -42,7 +42,7 @@ internal static class X11Pointer
                 if(!LinuxX11InputPolicy.TrySetInteractive((nint)target,false)||inspector.Child()==target)throw new IOException("input_not_released");
                 if(!LinuxX11InputPolicy.TrySetInteractive((nint)target,true)||inspector.Child()!=target)throw new IOException("drawing_input_not_restored");
             }
-            if(LinuxX11InputPolicy.TrySetInteractive((nint)uint.MaxValue,false))throw new IOException("invalid_window_accepted");
+            if(LinuxX11InputPolicy.TrySetInteractive(unchecked((nint)uint.MaxValue),false))throw new IOException("invalid_window_accepted");
             await File.WriteAllTextAsync(Path.Combine(evidence,"pointer-result.json"),JsonSerializer.Serialize(new{status="PASS",scope="actual X11 pixels, original artwork, hotspot, input transparency and teardown/restart; not physical multimonitor or video acceptance"}));return 0;
         }catch(Exception e){await File.WriteAllTextAsync(Path.Combine(evidence,"pointer-result.json"),JsonSerializer.Serialize(new{status="FAIL",errorType=e.GetType().Name,code=e is IOException?e.Message:"fixture_failed"}));return 1;}
     }

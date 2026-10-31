@@ -170,7 +170,8 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private int _selectedFps = 20;
 
-    public ObservableCollection<int> FpsOptions { get; } = new() { 5, 10, 20, 30, 40 };
+    public ObservableCollection<int> FpsOptions { get; } = new(OperatingSystem.IsLinux()
+        ? ScreenRecorder.Platform.Linux.LinuxRecordingLimits.FpsOptions : new[]{5,10,20,30,40});
 
     public record EncoderOption(HardwareEncoderType Type, string DisplayName);
     private EncoderSelection? _actualEncoder;
@@ -607,7 +608,12 @@ public partial class MainViewModel : ObservableObject
         PersistUserSettings();
     }
 
-    partial void OnSelectedFpsChanged(int value) => PersistUserSettings();
+    partial void OnSelectedFpsChanged(int value)
+    {
+        if(OperatingSystem.IsLinux()&&ScreenRecorder.Platform.Linux.LinuxRecordingLimits.NormalizeFps(value) is var supported&&supported!=value)
+        {SelectedFps=supported;return;}
+        PersistUserSettings();
+    }
     partial void OnSelectedEncoderChanged(EncoderOption? value) => PersistUserSettings();
     partial void OnSelectedCursorEffectChanged(CursorEffectOption? value)
     {
@@ -651,6 +657,7 @@ public partial class MainViewModel : ObservableObject
         OutputDirectory = OutputDirectory,
         CaptureSource = IsCustomRegion ? CaptureSourceType.CustomRegion : CaptureSourceType.Monitor,
         MonitorIndex = SelectedMonitor?.Index ?? 0,
+        ExpectedPortalSourceId = LinuxPortalSelection?.SourceId,
         Region = new CaptureRegion(RegionX, RegionY, RegionWidth, RegionHeight),
         MicrophoneDeviceId = RecordMicrophone ? SelectedMicrophone?.Id : null,
         SystemAudioVolumePercent = _systemAudioVolumePercent,
@@ -951,11 +958,7 @@ public partial class MainViewModel : ObservableObject
                 _globalHotkeyService = OperatingSystem.IsWindows() ? new WindowsGlobalHotkeyService() :
                     OperatingSystem.IsMacOS() ? new MacOsGlobalHotkeyService() : new ScreenRecorder.Platform.Linux.LinuxX11HotkeyService();
                 if(_globalHotkeyService is ScreenRecorder.Platform.Linux.LinuxX11HotkeyService linuxHotkeys)
-                    linuxHotkeys.Unavailable+=(_,_)=>Avalonia.Threading.Dispatcher.UIThread.Post(()=> {
-                        IsRecordingHotkeyRegistered=false;IsBookmarkHotkeyRegistered=false;IsAnnotationHotkeyRegistered=false;
-                        _hotkeyInitializationError=Strings["HotkeyUnavailable"];ScreenAnnotationNotice=_hotkeyInitializationError;
-                        OnPropertyChanged(nameof(IsBookmarkHotkeyRegistered));OnPropertyChanged(nameof(IsAnnotationHotkeyRegistered));OnPropertyChanged(nameof(ScreenAnnotationsTooltip));
-                    });
+                    linuxHotkeys.Unavailable+=(_,_)=>Avalonia.Threading.Dispatcher.UIThread.Post(InvalidateHotkeyRegistrations);
                 _globalHotkeyService.HotkeyTriggered += async (s, hotkeyId) =>
                 {
                     await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
@@ -1447,6 +1450,7 @@ public partial class MainViewModel : ObservableObject
                 OutputDirectory = OutputDirectory,
                 CaptureSource = captureSource,
                 MonitorIndex = SelectedMonitor?.Index ?? 0,
+                ExpectedPortalSourceId = LinuxPortalSelection?.SourceId,
                 Region = new CaptureRegion(RegionX, RegionY, RegionWidth, RegionHeight),
                 MicrophoneDeviceId = RecordMicrophone ? SelectedMicrophone?.Id : null,
                 SystemAudioVolumePercent = _systemAudioVolumePercent,

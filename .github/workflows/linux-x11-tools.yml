@@ -22,6 +22,7 @@ jobs:
       - name: Install isolated ordinary-user X11 test desktop
         run: |
           sudo apt-get update
+          sudo apt-get install -y --no-install-recommends x11-xkb-utils
           sudo apt-get install -y --no-install-recommends xvfb xauth xdotool picom openbox dbus-x11 ffmpeg libxcb-xfixes0 libxcb-randr0 libxcb-composite0 libxcb-xinput0 libxkbcommon-x11-0 libice6 libsm6 libfontconfig1 libgl1 libegl1
       - name: Publish native-input and actual Avalonia probes
         run: |

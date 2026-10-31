@@ -8,6 +8,21 @@ namespace ScreenRecorder.Media.Tests;
 
 public sealed class BookmarkHotkeyTests
 {
+    [Fact]
+    public void LostNativeRegistrationsAreRecreatedWhenIdenticalSettingsAreApplied()
+    {
+        var vm=new MainViewModel(forScreenshot:true);var native=new FakeHotkeys();
+        typeof(MainViewModel).GetField("_globalHotkeyService",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.SetValue(vm,native);
+        try {
+            var settings=new UserSettings{StartStopHotkeyKey="F12",PauseResumeHotkeyKey="F12"};
+            Assert.Null(vm.TryApplyHotkeys(settings));Assert.True(vm.IsRecordingHotkeyRegistered);
+            native.Active.Clear();vm.InvalidateHotkeyRegistrations();
+            Assert.False(vm.IsRecordingHotkeyRegistered);Assert.False(vm.IsBookmarkHotkeyRegistered);
+            Assert.Null(vm.TryApplyHotkeys(settings));
+            Assert.Equal((0x7b,2u),native.Active[9001]);Assert.Equal((0x7b,0u),native.Active[9002]);
+            Assert.True(vm.IsRecordingHotkeyRegistered);
+        }finally{vm.Cleanup();}
+    }
     [Theory]
     [InlineData(0x4D, 46)]
     [InlineData(0x78, 101)]

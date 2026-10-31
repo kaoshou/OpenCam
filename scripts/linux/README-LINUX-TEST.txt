@@ -34,6 +34,9 @@ source-local cropping; desktop coordinates from an earlier session are ignored.
 Pause/resume restores the same source and verifies its identity before recording.
 If permission expires, a source changes or the recorder restarts, select again.
 Permission cancellation does not create a new recording or delete existing clips.
+The supported Ubuntu GNOME desktop must provide a working ScreenCast portal v4+
+and its compatible session backend (normally supplied by Ubuntu's desktop).
+Minimal/custom desktops without that service are not validated by this Beta.
 
 This is the first application integration test package, not full Linux parity.
 Recording uses OBS/libobs only and CPU H.264. No FFmpeg video fallback is present.

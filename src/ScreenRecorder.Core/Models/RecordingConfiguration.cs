@@ -28,6 +28,11 @@ public class RecordingConfiguration
 
     public int MonitorIndex { get; set; } = 0;
 
+    // Public opaque screen identity, never a portal restoration credential.
+    // Null is omitted so existing Windows/macOS configuration wire data is unchanged.
+    [JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingNull)]
+    public string? ExpectedPortalSourceId { get; set; }
+
     public CaptureRegion Region { get; set; } = CaptureRegion.Empty;
 
     public int Fps { get; set; } = 20;

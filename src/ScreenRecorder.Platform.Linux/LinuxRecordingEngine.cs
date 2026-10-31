@@ -11,8 +11,8 @@ public sealed class LinuxRecordingEngine : IScreenRecorderEngine, IBoundRecordin
 {
     private readonly IScreenRecorderEngine inner;
     public LinuxRecordingEngine(ObsRuntime runtime, IDisplayService displays, CaptureSelection? pinned)
-        : this(new ObsScreenRecorderEngine(runtime.HelperPath, runtime.Root, (config, bounds, capture) => ObsRecordingEngineRouter.ResolveMonitor(
-            config, bounds, capture, displays.GetMonitors(), m => (displays as IRecordingDisplayIdentityService)?.GetRecordingDisplayIdentity(m)),
+        : this(new ObsScreenRecorderEngine(runtime.HelperPath, runtime.Root, (config, bounds, capture) => RequirePortalIdentity(config,ObsRecordingEngineRouter.ResolveMonitor(
+            config, bounds, capture, displays.GetMonitors(), m => (displays as IRecordingDisplayIdentityService)?.GetRecordingDisplayIdentity(m)),ObsRuntime.DefaultBackend("linux-x64")=="pipewire"),
             HardwareEncoderType.SoftwareCpu, pinned, TimeSpan.FromSeconds(70), allowCompatibilityFallback: false,
             setup: ObsRuntime.DefaultBackend("linux-x64") == "pipewire" ? new LinuxPortalCaptureSetup(LinuxPortalSources.Shared) : null)) {
         if(!runtime.Backends.Contains(ObsRuntime.DefaultBackend("linux-x64")))
@@ -35,6 +35,12 @@ public sealed class LinuxRecordingEngine : IScreenRecorderEngine, IBoundRecordin
     private void RelayError(object? sender, string error) => EngineErrorOccurred?.Invoke(this, error);
     private void RelayWarning(object? sender, string warning) => EngineWarningOccurred?.Invoke(this, warning);
     private void RelayAudioLost(object? sender, EventArgs args) => AudioDeviceLost?.Invoke(this, args);
+    internal static MonitorInfo? RequirePortalIdentity(RecordingConfiguration config,MonitorInfo? monitor,bool wayland)
+    {
+        if(wayland&&(monitor is null||string.IsNullOrEmpty(config.ExpectedPortalSourceId)||config.ExpectedPortalSourceId!=monitor.DeviceName))
+            throw new ArgumentException("Select and confirm the Wayland source again before recording.");
+        return monitor;
+    }
     internal static bool SupportsCursor(RecordingConfiguration config,bool x11)=>!config.EditablePointerEnabled&&
         (config.CursorEffect is CursorEffectMode.Default or CursorEffectMode.Hidden||x11&&config.CursorEffect==CursorEffectMode.PresentationStick);
     public Task StartRecordingAsync(string path, RecordingConfiguration config, CaptureRegion bounds, CancellationToken cancellationToken = default)

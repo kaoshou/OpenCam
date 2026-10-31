@@ -13,6 +13,15 @@ public partial class MainViewModel
     private UserSettings? _registeredSettings;
     public bool IsBookmarkHotkeyRegistered { get; private set; }
     public bool IsRecordingHotkeyRegistered { get; private set; }
+    internal void InvalidateHotkeyRegistrations()
+    {
+        // Native mapping loss invalidates the entire transactional cache, not
+        // just the badges. Equal settings must issue fresh grabs next time.
+        _hotkeyBindings=null;_annotationHotkeys.Clear();_annotationBindingsRequestedForRecording=false;
+        IsRecordingHotkeyRegistered=false;IsBookmarkHotkeyRegistered=false;IsAnnotationHotkeyRegistered=false;
+        _hotkeyInitializationError=Strings["HotkeyUnavailable"];ScreenAnnotationNotice=_hotkeyInitializationError;
+        OnPropertyChanged(nameof(IsBookmarkHotkeyRegistered));OnPropertyChanged(nameof(IsAnnotationHotkeyRegistered));OnPropertyChanged(nameof(ScreenAnnotationsTooltip));
+    }
     private bool _addingBookmark;
     private long _lastBookmarkKey;
     public bool CanAddBookmark => !_openingContent && _content?.Workspace.State.Mode == ProjectMode.Recording && !_addingBookmark;

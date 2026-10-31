@@ -37,12 +37,20 @@ try {
     var runtime=ObsRuntime.TryLoad(LinuxDesktopCatalog.RuntimeRoot,"linux-x64")??throw new IOException("runtime_failed");
     var displays=new LinuxDesktopCatalog();
     if(displays.GetMonitors().Single().DeviceName!=view.SourceId)throw new IOException("source_identity_failed");
+    using(var rejectedOutput=new MemoryStream())
+    await using(var rejectedEngine=new LinuxRecordingEngine(runtime,displays,null)) {
+        rejectedEngine.OutputStream=rejectedOutput;var rejected=false;
+        var stale="portal:"+new string(view.SourceId=="portal:"+new string('a',64)?'b':'a',64);
+        try{await rejectedEngine.StartRecordingAsync("unused",new(){Fps=20,AudioSource=AudioSourceType.None,ExpectedPortalSourceId=stale},new(0,0,view.Width&~1,view.Height&~1));}
+        catch(ArgumentException){rejected=true;}
+        if(!rejected||rejectedOutput.Length!=0||rejectedEngine.IsRunning)throw new IOException("unacknowledged_source_was_recorded");
+    }
     CaptureSelection? pinned=null;
     for(var index=0;index<3;index++) {
         var crop=index==2;
         var bounds=crop?new CaptureRegion(40,30,(view.Width/2)&~1,(view.Height/2)&~1):new(0,0,view.Width&~1,view.Height&~1);
         var config=new RecordingConfiguration {Fps=20,AudioSource=AudioSourceType.None,CaptureSource=crop?CaptureSourceType.CustomRegion:CaptureSourceType.Monitor,
-            MonitorIndex=0,Region=bounds,EncoderType=HardwareEncoderType.SoftwareCpu,CursorEffect=CursorEffectMode.Default};
+            MonitorIndex=0,Region=bounds,EncoderType=HardwareEncoderType.SoftwareCpu,CursorEffect=CursorEffectMode.Default,ExpectedPortalSourceId=view.SourceId};
         await using var output=new FileStream(Path.Combine(evidence,$"managed-{index}.mkv"),FileMode.CreateNew,FileAccess.Write,FileShare.Read,81920,FileOptions.Asynchronous);
         await using(var engine=new LinuxRecordingEngine(runtime,displays,crop?null:pinned)) {
             engine.OutputStream=output;

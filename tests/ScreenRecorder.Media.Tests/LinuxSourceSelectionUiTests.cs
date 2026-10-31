@@ -8,6 +8,19 @@ using ScreenRecorder.Core.Models;
 namespace ScreenRecorder.Media.Tests;
 public sealed class LinuxSourceSelectionUiTests
 {
+    [Avalonia.Headless.XUnit.AvaloniaFact]
+    public void ReselectionInvalidatesOldViewAndRecordingConfigurationPinsAcknowledgedIdentity()
+    {
+        var vm=new MainViewModel(forScreenshot:true);
+        typeof(MainViewModel).GetField("_displayService",BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(vm,new LinuxDesktopCatalog());
+        try {
+            vm.ApplyLinuxPortalSelection(Source());
+            Assert.Equal("portal:"+new string('a',64),vm.BuildProjectConfiguration().ExpectedPortalSourceId);
+            vm.ClearLinuxPortalSelection(); // Server may now commit B; a lost/cancelled reply must not retain A as ready.
+            Assert.Null(vm.LinuxPortalSelection);Assert.Empty(vm.AvailableMonitors);Assert.Null(vm.SelectedMonitor);
+            Assert.Null(vm.BuildProjectConfiguration().ExpectedPortalSourceId);
+        }finally{vm.Cleanup();}
+    }
     private static LinuxPortalSelectionView Source(){var rgba=new byte[480*270*4];rgba[3]=255;return new("portal:"+new string('a',64),1920,1080,480,270,Convert.ToBase64String(rgba));}
     [Avalonia.Headless.XUnit.AvaloniaFact]
     public void AuthorizedSelectionResetsStaleDesktopCoordinatesWithoutRefreshingWindow()

@@ -32,6 +32,9 @@ public partial class MainViewModel
         var operation=Guid.NewGuid();Guid? server=null;
         var finished=false;
         try {
+            // Replacing Recorder's grant is not atomic with an IPC reply. Never
+            // leave the old source presented as ready after cancellation/reply loss.
+            ClearLinuxPortalSelection();
             StatusMessage=Strings["LinuxPortalSelecting"];
             await EnsureRecorderProcessAsync();
             var response=await _ipcClient.SendCommandAsync("BeginLinuxSourceSelection",new LinuxSourceSelectionRequest(operation),cancellationToken:cancellation.Token);
@@ -84,6 +87,10 @@ public partial class MainViewModel
     private void InvalidateLinuxPortalSource()
     {
         if(!UsesLinuxPortal)return;
+        ClearLinuxPortalSelection();
+    }
+    internal void ClearLinuxPortalSelection()
+    {
         LinuxPortalSelection=null;
         if(_displayService is LinuxDesktopCatalog catalog)catalog.UseAuthorizedSourceView(null);
         AvailableMonitors.Clear();SelectedMonitor=null;

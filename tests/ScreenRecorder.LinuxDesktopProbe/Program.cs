@@ -62,9 +62,10 @@ internal sealed class DesktopProbe:Application
         }
         base.OnFrameworkInitializationCompleted();
     }
-    private static async Task Input(params string[] args)
+    private static Task Input(params string[] args)=>Command("xdotool",args);
+    private static async Task Command(string executable,params string[] args)
     {
-        var start=new ProcessStartInfo("xdotool"){UseShellExecute=false};foreach(var arg in args)start.ArgumentList.Add(arg);
+        var start=new ProcessStartInfo(executable){UseShellExecute=false};foreach(var arg in args)start.ArgumentList.Add(arg);
         using var process=Process.Start(start)??throw new IOException("fixture_input_failed");await process.WaitForExitAsync();if(process.ExitCode!=0)throw new IOException("fixture_input_failed");
     }
     private static async Task<bool> CheckConfiguredBindings()
@@ -75,9 +76,27 @@ internal sealed class DesktopProbe:Application
         typeof(ScreenRecorder.UI.ViewModels.MainViewModel).GetField("_globalHotkeyService",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.SetValue(vm,native);
         bool success,teachingPointer,annotations;
         try {
-            var error=vm.TryApplyHotkeys(new ScreenRecorder.Core.Models.UserSettings{StartStopHotkeyKey="F12",StartStopHotkeyModifiers=2,PauseResumeHotkeyKey="F12",PauseResumeHotkeyModifiers=0});
+            var settings=new ScreenRecorder.Core.Models.UserSettings{StartStopHotkeyKey="F12",StartStopHotkeyModifiers=2,PauseResumeHotkeyKey="F12",PauseResumeHotkeyModifiers=0,BookmarkHotkeyKey="R"};
+            var error=vm.TryApplyHotkeys(settings);
             success=error is null&&vm.IsRecordingHotkeyRegistered&&!conflict.RegisterHotkey(9001,0x7B,2)&&!conflict.RegisterHotkey(9002,0x7B,0);
+            var lost=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            EventHandler unavailable=(_,_)=>Avalonia.Threading.Dispatcher.UIThread.Post(()=>{vm.InvalidateHotkeyRegistrations();lost.TrySetResult();});
+            native.Unavailable+=unavailable;
+            try {
+                // This executable only runs with the disposable-desktop guard;
+                // no production code changes the user's XKB layout.
+                await Command("setxkbmap","-layout","us","-variant","dvorak");
+                await lost.Task.WaitAsync(TimeSpan.FromSeconds(3));
+                if(vm.IsRecordingHotkeyRegistered)throw new IOException("lost_registration_claimed_active");
+                if(vm.TryApplyHotkeys(settings) is not null||!vm.IsRecordingHotkeyRegistered||conflict.RegisterHotkey(9001,0x7B,2)||conflict.RegisterHotkey(9002,0x7B,0))
+                    throw new IOException("identical_settings_not_regrabbed");
+                var triggered=0;native.HotkeyTriggered+=(_,id)=>{if(id==9001)Interlocked.Increment(ref triggered);};
+                await Input("key","ctrl+F12");await Task.Delay(100);
+                if(triggered!=1)throw new IOException("regrabbed_hotkey_did_not_trigger");
+            }finally{native.Unavailable-=unavailable;await Command("setxkbmap","-layout","us","-variant","");}
             teachingPointer=vm.AvailableCursorEffects.Any(c=>c.Mode==ScreenRecorder.Core.Enums.CursorEffectMode.PresentationStick);
+            if(vm.FpsOptions.Any(fps=>fps is <1 or >30))throw new IOException("unsupported_linux_fps_offered");
+            vm.SelectedFps=40;if(vm.SelectedFps!=20)throw new IOException("saved_linux_fps_not_normalized");
             vm.IsRecording=true;annotations=vm.CanOpenScreenAnnotations;vm.IsRecording=false;
         }finally{vm.Cleanup();}
         await File.WriteAllTextAsync(Path.Combine(Evidence,"settings-hotkeys-result.json"),JsonSerializer.Serialize(new{status=success&&teachingPointer&&annotations?"PASS":"FAIL",bindings=success,teachingPointer,annotations,scope="actual MainViewModel X11 capabilities and settings registration with checked native collision on Ctrl+F12/F12"}));return success&&teachingPointer&&annotations;
