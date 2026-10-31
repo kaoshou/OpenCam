@@ -5,6 +5,7 @@ import {tmpdir} from 'node:os';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {pathToFileURL} from 'node:url';
+import {createHash} from 'node:crypto';
 const execute=promisify(execFile);
 const required=['OpenCam','ffmpeg','ffprobe','OpenCam.PulsePlayback','Start-OpenCam.sh',
   'obs-runtime/bin/OpenCam.ObsCapture','LICENSE','NOTICE.md','THIRD-PARTY-NOTICES.md','SOURCE.txt',
@@ -38,6 +39,16 @@ export async function stageDeb({appRoot,stageRoot,version,revision}) {
   const licenseNames=await readdir(new URL('../../third-party/licenses/',import.meta.url));
   for(const name of [...required,...licenseNames.map(n=>'linux-notices/project-licenses/'+n)])
     if(!files.some(f=>f.name===name)) throw Error('Incomplete package: missing '+name);
+  const runtime=JSON.parse(await readFile(join(appRoot,'obs-runtime/runtime.json'),'utf8'));
+  if(runtime.enabled!==true||runtime.platform!=='linux-x64'||!runtime.files?.['bin/OpenCam.ObsCapture'])
+    throw Error('Incomplete native runtime inventory');
+  for(const [name,hash] of Object.entries(runtime.files)) {
+    if(name.startsWith('/')||name.includes('\\')||name.split('/').some(s=>!s||s==='.'||s==='..')||
+      !/^[a-f0-9]{64}$/.test(hash)||!files.some(f=>f.name==='obs-runtime/'+name))
+      throw Error('Invalid or missing native runtime inventory file');
+    if(createHash('sha256').update(await readFile(join(appRoot,'obs-runtime',name))).digest('hex')!==hash)
+      throw Error('Native runtime hash mismatch: '+name);
+  }
   const info=JSON.parse(await readFile(join(appRoot,'LINUX-TEST-INFO.json'),'utf8'));
   if(info.version!==version||info.commit!==revision||info.platform!=='Ubuntu 24.04 x64'||
     info.nativeOnly!==true||info.compatibilityFallback!==false) throw Error('Package source identity/revision mismatch');

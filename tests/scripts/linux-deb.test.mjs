@@ -70,3 +70,8 @@ test('deb rejects mismatched source identity and preserves existing destination'
   await assert.rejects(() => builder().then(fn => fn(f)),/exist/i);
   assert.equal(await readFile(join(f.stageRoot,'keep'),'utf8'),'user');
 });
+test('deb refuses changed native bytes even when a runtime inventory is present',async t=>{
+  const f=await fixture(t); await writeFile(join(f.appRoot,'obs-runtime/bin/OpenCam.ObsCapture'),'changed');
+  await assert.rejects(()=>builder().then(fn=>fn(f)),/runtime|hash/i);
+  await assert.rejects(access(f.stageRoot));
+});
