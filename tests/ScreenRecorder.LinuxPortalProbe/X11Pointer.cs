@@ -9,8 +9,10 @@ internal static class X11Pointer
         if(!OperatingSystem.IsLinux()||Environment.GetEnvironmentVariable("OPENCAM_DISPOSABLE_CI_DESKTOP")!="1")return 2;
         Directory.CreateDirectory(evidence);
         try {
-            using(var move=System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("xdotool"){ArgumentList={"mousemove","120","140"},UseShellExecute=false})!)await move.WaitForExitAsync();
+            // Hold a client connection before XTEST exits; otherwise Xvfb resets
+            // its pointer to the centre when its final client disconnects.
             using var inspector=new X11Inspector();
+            using(var move=System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("xdotool"){ArgumentList={"mousemove","120","140"},UseShellExecute=false})!)await move.WaitForExitAsync();
             var art=TeachingPointerArtwork.Get(new(TeachingPointerStyle.HighContrast,TeachingPointerSize.Large));
             var x=(short)(120-(int)Math.Round(art.HotspotX));var y=(short)(140-(int)Math.Round(art.HotspotY));
             var before=inspector.Read(x,y,(ushort)art.Width,(ushort)art.Height);var child=inspector.Child();

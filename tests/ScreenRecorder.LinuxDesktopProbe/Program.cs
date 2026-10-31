@@ -33,7 +33,7 @@ internal sealed class DesktopProbe:Application
                     await Input("mousemove","250","350","mousedown","1","mousemove","300","380","mouseup","1");await Task.Delay(200);
                     if(host.Document.Marks.Length!=1||clicked!=0)throw new IOException("native_drawing_input_failed");
                     host.TogglePen();await Input("mousemove","250","350","click","1");await Task.Delay(100);
-                    if(clicked!=1||host.Document.Marks.Length!=1)throw new IOException("native_click_through_failed");
+                    if(clicked!=1||host.Document.Marks.Length!=1)throw new IOException($"native_click_through_failed_clicks_{clicked}_marks_{host.Document.Marks.Length}_origin_{window.PointToScreen(default).X}_{window.PointToScreen(default).Y}");
                     for(var i=0;i<6;i++){host.ToggleToolbar();host.ToggleToolbar();}
                     host.SelectTool(AnnotationTool.Rectangle);await Input("mousemove","330","410","mousedown","1","mousemove","400","450","mouseup","1");await Task.Delay(100);
                     if(host.Document.Marks.Length!=2)throw new IOException("native_rectangle_failed");
