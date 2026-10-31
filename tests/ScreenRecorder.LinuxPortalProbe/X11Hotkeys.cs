@@ -10,7 +10,8 @@ internal static class X11Hotkeys
         Directory.CreateDirectory(evidence);
         try {
             using var first=new LinuxX11HotkeyService();using var second=new LinuxX11HotkeyService();
-            int f12=0,ctrl=0;
+            int f12=0,ctrl=0,unavailable=0;
+            first.Unavailable+=(_,_)=>Interlocked.Increment(ref unavailable);
             first.HotkeyTriggered+=(_,id)=>{if(id==9001)Interlocked.Increment(ref f12);if(id==9002)Interlocked.Increment(ref ctrl);};
             if(!first.RegisterHotkey(9001,0x7B,0)||second.RegisterHotkey(9001,0x7B,0))throw new IOException("grab_collision");
             async Task Key(params string[] args) {
@@ -19,7 +20,7 @@ internal static class X11Hotkeys
                 await process.WaitForExitAsync();if(process.ExitCode!=0)throw new IOException("fixture_input_failed");
             }
             await Key("keydown","F12");await Task.Delay(1400);await Key("keyup","F12");await Task.Delay(100);
-            if(f12!=1)throw new IOException("autorepeat_or_missing_trigger");
+            if(f12!=1)throw new IOException($"autorepeat_or_missing_trigger_count_{f12}_unavailable_{unavailable}");
             if(!first.RegisterHotkey(9002,0x7B,2))throw new IOException("modifier_grab");
             await Key("key","ctrl+F12");await Task.Delay(100);
             if(ctrl!=1||f12!=1)throw new IOException("modifier_trigger");
