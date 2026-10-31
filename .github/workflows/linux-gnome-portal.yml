@@ -50,6 +50,8 @@ jobs:
         run: |
           dotnet publish tests/ScreenRecorder.LinuxPortalProbe/ScreenRecorder.LinuxPortalProbe.csproj -c Release -r linux-x64 --self-contained true -p:OpenCamNativeOnlyTest=true -m:1 -o "$RUNNER_TEMP/portal-publish" > "$RUNNER_TEMP/gnome-evidence/managed-build.log" 2>&1
           node scripts/linux/assemble-app.mjs "$RUNNER_TEMP/portal-publish" "$RUNNER_TEMP/obs-stage" "$RUNNER_TEMP/opencam-linux/ffmpeg-prefix" "$RUNNER_TEMP/managed-portal" "$GITHUB_SHA" 1.2.0
+      - name: Verify actual X11 global grabs before GNOME testing
+        run: xvfb-run -a env XDG_SESSION_TYPE=x11 OPENCAM_DISPOSABLE_CI_DESKTOP=1 "$RUNNER_TEMP/managed-portal/OpenCam" --x11-hotkeys "$RUNNER_TEMP/gnome-evidence"
       - name: Exercise actual GNOME compositor and portal chooser
         env:
           OPENCAM_DISPOSABLE_CI_DESKTOP: '1'

@@ -7,6 +7,7 @@ using ScreenRecorder.Core.Enums;
 using ScreenRecorder.Core.Models;
 using ScreenRecorder.Media.Capture;
 
+if(args.Length==2&&args[0]=="--x11-hotkeys")return await X11Hotkeys.RunAsync(args[1]);
 if(!OperatingSystem.IsLinux()||args.Length!=1||Environment.GetEnvironmentVariable("OPENCAM_DISPOSABLE_CI_DESKTOP")!="1")return 2;
 var evidence=Path.GetFullPath(args[0]);Directory.CreateDirectory(evidence);
 var outcomes=new List<object>();
