@@ -25,8 +25,9 @@ internal sealed class LinuxX11Connection:IDisposable
     internal uint Id()=>X.Id(Handle);
     internal void Check(X.Cookie cookie)
     {
-        var error=X.Check(Handle,cookie);if(error!=IntPtr.Zero)X.Free(error);
-        if(error!=IntPtr.Zero||X.Error(Handle)!=0)throw new IOException("X11 optional overlay request failed.");
+        var error=X.Check(Handle,cookie);
+        var code=error==IntPtr.Zero?0:Marshal.ReadByte(error,1);if(error!=IntPtr.Zero)X.Free(error);
+        if(error!=IntPtr.Zero||X.Error(Handle)!=0)throw new IOException($"X11 optional overlay request failed (code={code}).");
     }
     internal void Shape(uint window,byte kind,byte[] rectangles)
     {

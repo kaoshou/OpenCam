@@ -14,6 +14,8 @@ internal static class AnnotationNativeWindow
             SetWindowPos(win.Handle,new nint(-1),0,0,0,0,0x1|0x2|0x10);
         if(OperatingSystem.IsMacOS()&&window.TryGetPlatformHandle() is {HandleDescriptor:"NSWindow"} h)
             SendLong(h.Handle,Selector("setLevel:"),26);
+        if(ScreenRecorder.Platform.Linux.LinuxX11InputPolicy.IsX11&&window.TryGetPlatformHandle() is {HandleDescriptor:"XID"} x11)
+            ScreenRecorder.Platform.Linux.LinuxX11InputPolicy.TryRaise(x11.Handle);
     }
     public static void RaiseExistingPointer()
     {
@@ -43,6 +45,13 @@ internal static class AnnotationNativeWindow
             SendLong(h,Selector("setCollectionBehavior:"),(1<<0)|(1<<8)); // All Spaces + full-screen auxiliary.
             SendLong(h,Selector("setLevel:"),25); // Above ordinary application windows, below the existing teaching pointer.
             return GetBool(h,Selector("ignoresMouseEvents"))==!interactive;
+        }
+        if(ScreenRecorder.Platform.Linux.LinuxX11InputPolicy.IsX11&&handle.HandleDescriptor=="XID")
+        {
+            // A compositor is mandatory for the full-screen annotation surface.
+            // Never leave an opaque or input-blocking fallback over the desktop.
+            if(window.ActualTransparencyLevel!=WindowTransparencyLevel.Transparent)return false;
+            return ScreenRecorder.Platform.Linux.LinuxX11InputPolicy.TrySetInteractive(h,interactive);
         }
         return false;
     }

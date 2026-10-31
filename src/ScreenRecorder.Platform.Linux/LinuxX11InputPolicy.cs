@@ -10,4 +10,10 @@ public static class LinuxX11InputPolicy
         try{using var display=new LinuxX11Connection();display.Input((uint)window,interactive);return true;}
         catch(Exception error){Serilog.Log.Warning("Optional X11 annotation input policy unavailable: ErrorType={ErrorType}",error.GetType().Name);return false;}
     }
+    public static bool TryRaise(nint window)
+    {
+        if(!IsX11||window<=0||(ulong)window>uint.MaxValue)return false;
+        try{using var display=new LinuxX11Connection();display.Check(LinuxX11Connection.X.Configure(display.Handle,(uint)window,64,[0]));return true;}
+        catch(Exception error){Serilog.Log.Warning("Optional X11 toolbar raise failed: ErrorType={ErrorType}",error.GetType().Name);return false;}
+    }
 }
