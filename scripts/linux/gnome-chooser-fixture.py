@@ -9,7 +9,7 @@ if os.environ.get("OPENCAM_DISPOSABLE_CI_DESKTOP") != "1":
     sys.exit(2)
 
 def walk(node, depth=0):
-    if depth > 12:
+    if depth > 30:
         return []
     found = [node]
     for child in node:
@@ -26,15 +26,15 @@ for attempt in range(8):
         for control in controls:
             print(control.getRoleName(), repr(control.name), flush=True)
         for control in controls:
-            name = (control.name or "").lower()
-            if control.getRoleName() in ("check box", "radio button") and ("monitor" in name or "screen" in name):
+            name = (control.name or "").lower().replace("_", "")
+            if control.getRoleName() in ("check box", "radio button") and ("monitor" in name or "screen" in name or "remember" in name):
                 try:
                     if not control.getState().contains(pyatspi.STATE_CHECKED):
                         control.queryAction().doAction(0)
                 except (NotImplementedError, AttributeError):
                     pass
         for control in controls:
-            if (control.name or "").lower() in ("share", "allow") and control.getRoleName() in ("push button", "button"):
+            if (control.name or "").lower().replace("_", "") in ("share", "allow") and control.getRoleName() in ("push button", "button"):
                 if control.getState().contains(pyatspi.STATE_SENSITIVE):
                     control.queryAction().doAction(0)
                     sys.exit(0)
