@@ -27,7 +27,7 @@ internal sealed class DesktopProbe:Application
                 AnnotationOverlayHost? host=null;
                 try {
                     await Task.Delay(500);
-                    var screen=window.Screens.Primary??throw new IOException("fixture_screen_unavailable");
+                    var screen=window.Screens.ScreenFromWindow(window)??window.Screens.All.FirstOrDefault()??throw new IOException("fixture_screen_unavailable");
                     host=new(window,new(screen.Bounds.X,screen.Bounds.Y,screen.Bounds.Width,screen.Bounds.Height),0xffe63946,4,(_,_)=>{},()=>true);
                     host.Show();host.SelectTool(AnnotationTool.Pen);await Task.Delay(250);
                     await Input("mousemove","250","350","mousedown","1","mousemove","300","380","mouseup","1");await Task.Delay(200);

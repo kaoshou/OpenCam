@@ -30,7 +30,7 @@ jobs:
       - name: Actual pointer pixels and reversible input shape
         if: success() || failure()
         run: timeout 20 xvfb-run -a env XDG_SESSION_TYPE=x11 OPENCAM_DISPOSABLE_CI_DESKTOP=1 "$RUNNER_TEMP/input-probe/OpenCam" --x11-pointer "$RUNNER_TEMP/x11-evidence"
-      - name: Actual Avalonia drawing and click-through
+      - name: Actual Avalonia drawing and click-through with screen-local fixture
         if: success() || failure()
         run: |
           timeout 35 dbus-run-session -- xvfb-run -a -s '-screen 0 1280x800x24' sh -c 'openbox >/dev/null 2>&1 & picom --backend xrender >/dev/null 2>&1 & sleep 2; env XDG_SESSION_TYPE=x11 OPENCAM_DISPOSABLE_CI_DESKTOP=1 "$1/ScreenRecorder.LinuxDesktopProbe" "$2"' sh "$RUNNER_TEMP/desktop-probe" "$RUNNER_TEMP/x11-evidence"
