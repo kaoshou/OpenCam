@@ -23,18 +23,20 @@
 #include "wayland-displays.hpp"
 #include "audio-meter.hpp"
 #include "portal-responses.hpp"
+#include "source-snapshot.hpp"
 
 namespace fs = std::filesystem;
 static std::mutex logMutex;
 static std::string backend;
 static bool product = false;
+static bool preparation = false;
 static opencam::LinuxSourceHealth sourceHealth;
 static void emit(const char *name, const std::string &fields = "")
 {
     if (product && std::strcmp(name, "ready") && std::strcmp(name, "progress") &&
         std::strcmp(name, "stopped") && std::strcmp(name, "error")) return;
     std::lock_guard<std::mutex> guard(logMutex);
-    std::cerr << (product ? "OCOBS " : "OCLINUX ") << "{\"event\":\"" << name << "\",\"backend\":\"" << backend << "\"" << fields << "}\n";
+    std::cerr << (preparation ? "OCPORTAL " : product ? "OCOBS " : "OCLINUX ") << "{\"event\":\"" << name << "\",\"backend\":\"" << backend << "\"" << fields << "}\n";
 }
 static std::string jsonQuote(const std::string &text)
 {
@@ -201,15 +203,17 @@ static void audioSample(void *role, obs_source_t *, const audio_data *audio, boo
 int main(int argc, char **argv)
 {
     std::signal(SIGPIPE, SIG_IGN);
+    preparation = argc == 4 && std::string(argv[1]) == "--runtime" && std::string(argv[3]) == "--prepare-wayland";
     product = argc == 3;
     if (product && std::string(argv[1]) != "--runtime") return 2;
-    if (!product && (argc != 7 || std::string(argv[1]) != "--runtime" || std::string(argv[3]) != "--mode" ||
+    if (!product && !preparation && (argc != 7 || std::string(argv[1]) != "--runtime" || std::string(argv[3]) != "--mode" ||
         std::string(argv[5]) != "--backend")) return 2;
     bool waylandSession = (std::getenv("XDG_SESSION_TYPE") && std::string(std::getenv("XDG_SESSION_TYPE")) == "wayland") || std::getenv("WAYLAND_DISPLAY");
-    backend = product ? (waylandSession ? "pipewire" : "x11") : argv[6];
+    backend = preparation ? "pipewire" : product ? (waylandSession ? "pipewire" : "x11") : argv[6];
     if (backend != "x11" && backend != "pipewire") return 2;
-    const std::string mode = product ? "capture" : argv[4];
-    if (mode != "capture" && mode != "enumerate") return 2;
+    const std::string mode = preparation ? "prepare" : product ? "capture" : argv[4];
+    if (mode != "capture" && mode != "enumerate" && mode != "prepare") return 2;
+    if (mode == "prepare" && !preparation) return 2;
     State s; state = &s;
     try { if (mode == "capture") s.request = parse(requestLine()); }
     catch (...) { emit("error", ",\"code\":\"invalid_request\""); return 2; }
@@ -313,6 +317,43 @@ int main(int argc, char **argv)
                     emit("audio_device", ",\"source\":" + jsonQuote(type) + ",\"id\":" + jsonQuote(obs_property_list_item_string(list, i)));
                 if (props) obs_properties_destroy(props);
             }
+            result = 0;
+        } else if (preparation) {
+            stage = "portal_selection";
+            // Never create an encoder, output or recording file during source selection.
+            auto *settings = obs_data_create();
+            obs_data_set_bool(settings, "ShowCursor", true);
+            screen = obs_source_create_private("pipewire-desktop-capture-source", "selection", settings);
+            obs_data_release(settings);
+            if (!screen) throw std::runtime_error("capture_source");
+            obs_set_output_source(0, screen);
+            const auto deadline = os_gettime_ns() + 120000000000ULL;
+            std::uint64_t nextSnapshot = 0;
+            opencam::SourceSnapshot snapshot;
+            while (snapshot.rgba.empty()) {
+                if (!portal->failure().empty()) throw std::runtime_error(portal->failure());
+                if (auto *reason = sourceHealth.terminalFailure()) throw std::runtime_error(reason);
+                if (command()) throw std::runtime_error("portal_cancelled");
+                if (os_gettime_ns() > deadline) throw std::runtime_error("portal_selection_timeout");
+                if (portal->grant().selected() && sourceHealth.streaming() && os_gettime_ns() >= nextSnapshot) {
+                    snapshot = opencam::snapshotSource(screen);
+                    nextSnapshot = os_gettime_ns() + 100000000ULL;
+                }
+                pump();
+            }
+            // The private preparation channel is consumed by Recorder, never UI
+            // logging/project persistence. stdout is exactly one bounded RGBA image.
+            auto *hash = g_compute_checksum_for_string(G_CHECKSUM_SHA256, portal->grant().identity().c_str(), -1);
+            if (!hash) throw std::runtime_error("portal_identity_unavailable");
+            const std::string identity = std::string("portal:") + hash;
+            g_free(hash);
+            emit("selected", ",\"sourceId\":" + jsonQuote(identity) +
+                ",\"restoreToken\":" + jsonQuote(portal->grant().restoreToken()) +
+                ",\"width\":" + std::to_string(snapshot.sourceWidth) + ",\"height\":" + std::to_string(snapshot.sourceHeight) +
+                ",\"previewWidth\":" + std::to_string(snapshot.width) + ",\"previewHeight\":" + std::to_string(snapshot.height));
+            std::cout.write(reinterpret_cast<const char *>(snapshot.rgba.data()), static_cast<std::streamsize>(snapshot.rgba.size()));
+            std::cout.flush();
+            if (!std::cout) throw std::runtime_error("portal_preview_output");
             result = 0;
         } else {
             stage = "capture_source";

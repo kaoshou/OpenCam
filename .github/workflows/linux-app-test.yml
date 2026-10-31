@@ -67,6 +67,8 @@ jobs:
           "$RUNNER_TEMP/opencam-linux/grant-tests"
           c++ -std=c++17 -Wall -Wextra -Werror tests/native/linux-portal-response-tests.cpp $(pkg-config --cflags --libs gio-2.0) -o "$RUNNER_TEMP/opencam-linux/response-tests"
           G_DEBUG=fatal-warnings "$RUNNER_TEMP/opencam-linux/response-tests"
+          c++ -std=c++17 -Wall -Wextra -Werror tests/native/linux-source-preview-tests.cpp -o "$RUNNER_TEMP/opencam-linux/preview-tests"
+          "$RUNNER_TEMP/opencam-linux/preview-tests"
           bash -n scripts/linux/build-obs-probe.sh
           bash -n scripts/linux/build-ffmpeg-dependency.sh
       - name: Restore exact private FFmpeg build profile

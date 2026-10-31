@@ -5,6 +5,16 @@ import { spawnSync } from 'node:child_process';
 import { parseProbeEvent } from '../../scripts/linux/probe-protocol.mjs';
 const helper = process.env.OPENCAM_LINUX_HELPER, runtime = process.env.OPENCAM_LINUX_RUNTIME;
 const enabled = Boolean(helper && runtime);
+test('portal preparation without a Wayland display fails without producing media or credentials', { skip: !enabled }, () => {
+  const result = spawnSync(helper, ['--runtime', runtime, '--prepare-wayland'], {
+    env: { ...process.env, XDG_SESSION_TYPE: 'wayland', WAYLAND_DISPLAY: 'opencam_nonexistent_wayland_display' },
+    input: '', timeout: 15000,
+  });
+  assert.equal(result.status, 2);
+  assert.equal(result.stdout.length, 0);
+  assert.match(result.stderr.toString(), /OCPORTAL .*desktop_missing/);
+  assert.doesNotMatch(result.stderr.toString(), /restoreToken|selected|OCOBS /);
+});
 const base = { protocol: 1, synthetic: false, width: 640, height: 360, fps: 20,
   x: 0, y: 0, monitorWidth: 640, monitorHeight: 360, cropX: 0, cropY: 0,
   monitor: 'xshm:0', audio: 'none', systemDevice: '', microphone: '', cursor: true, encoder: 'cpu', quality: 23 };
