@@ -51,15 +51,6 @@ for ((i=0; i<100; i++)); do
   fi
   sleep .2
 done
-node --input-type=module - "$private/events" "$private/preview" "$evidence/result.json" <<'JS'
-import fs from 'node:fs';
-const [events,preview,result]=process.argv.slice(2);
-const parsed=fs.readFileSync(events,'utf8').split('\n').filter(l=>l.startsWith('OCPORTAL ')).map(l=>JSON.parse(l.slice(9)));
-const selected=parsed.find(e=>e.event==='selected');
-const failure=parsed.find(e=>e.event==='error'||e.event==='environment_unavailable');
-// Explicit allowlist: restore token/raw portal replies must not enter artifacts.
-fs.writeFileSync(result,JSON.stringify({status:selected?'SELECTED':'NOT_SELECTED',code:failure?.code,width:selected?.width,height:selected?.height,previewBytes:fs.statSync(preview).size},null,2));
-JS
 printf '\n' >&9
 wait "$capture" || true
-grep -Fq '"status": "SELECTED"' "$evidence/result.json"
+node scripts/linux/gnome-portal-recording-fixture.mjs "$runtime" "$private/events" "$private/preview" "$evidence" "$RUNNER_TEMP/opencam-linux/ffmpeg-prefix/bin"

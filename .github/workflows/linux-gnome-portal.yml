@@ -3,7 +3,7 @@ name: Linux GNOME portal research
 on:
   push:
     branches: ['codex/linux-app-test-20261030']
-    paths: ['.github/workflows/linux-gnome-portal.yml', 'scripts/linux/test-gnome-portal.sh', 'scripts/linux/gnome-chooser-fixture.py']
+    paths: ['.github/workflows/linux-gnome-portal.yml', 'scripts/linux/test-gnome-portal.sh', 'scripts/linux/gnome-chooser-fixture.py', 'scripts/linux/gnome-portal-recording-fixture.mjs']
   workflow_dispatch:
 permissions:
   contents: read
