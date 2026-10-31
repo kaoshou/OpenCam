@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: linux-development-package-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   linux-core:
     if: github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, 'diagnostic-only')

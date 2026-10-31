@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
   actions: read
+concurrency:
+  group: linux-gnome-portal-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   gnome-portal:
     runs-on: ubuntu-24.04

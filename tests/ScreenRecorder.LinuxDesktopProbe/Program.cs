@@ -71,7 +71,7 @@ internal sealed class DesktopProbe:Application
         typeof(ScreenRecorder.UI.ViewModels.MainViewModel).GetField("_globalHotkeyService",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.SetValue(vm,native);
         bool success,teachingPointer,annotations;
         try {
-            var error=vm.TryApplyHotkeys(new ScreenRecorder.Core.Models.UserSettings());
+            var error=vm.TryApplyHotkeys(new ScreenRecorder.Core.Models.UserSettings{StartStopHotkeyKey="F12",StartStopHotkeyModifiers=2,PauseResumeHotkeyKey="F12",PauseResumeHotkeyModifiers=0});
             success=error is null&&vm.IsRecordingHotkeyRegistered&&!conflict.RegisterHotkey(9001,0x7B,2)&&!conflict.RegisterHotkey(9002,0x7B,0);
             teachingPointer=vm.AvailableCursorEffects.Any(c=>c.Mode==ScreenRecorder.Core.Enums.CursorEffectMode.PresentationStick);
             vm.IsRecording=true;annotations=vm.CanOpenScreenAnnotations;vm.IsRecording=false;
