@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Linux X11 teaching tools
+on:
+  push:
+    branches: ['codex/linux-app-test-20261030']
+    paths: ['.github/workflows/linux-x11-tools.yml', 'src/ScreenRecorder.Platform.Linux/**', 'src/ScreenRecorder.UI/Annotations/**', 'tests/ScreenRecorder.LinuxDesktopProbe/**', 'tests/ScreenRecorder.LinuxPortalProbe/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  x11-tools:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Install isolated ordinary-user X11 test desktop
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb xauth xdotool picom openbox dbus-x11 libxcb-xfixes0 libxcb-randr0 libxcb-composite0 libxcb-xinput0 libxkbcommon-x11-0 libice6 libsm6 libfontconfig1 libgl1 libegl1
+      - name: Publish native-input and actual Avalonia probes
+        run: |
+          mkdir "$RUNNER_TEMP/x11-evidence"
+          dotnet publish tests/ScreenRecorder.LinuxPortalProbe -c Release -r linux-x64 --self-contained true -p:OpenCamNativeOnlyTest=true -m:1 -o "$RUNNER_TEMP/input-probe" > "$RUNNER_TEMP/x11-evidence/input-build.log" 2>&1
+          dotnet publish tests/ScreenRecorder.LinuxDesktopProbe -c Release -r linux-x64 --self-contained true -p:OpenCamNativeOnlyTest=true -m:1 -o "$RUNNER_TEMP/desktop-probe" > "$RUNNER_TEMP/x11-evidence/desktop-build.log" 2>&1
+      - name: Actual passive grabs and repeat/collision tests
+        run: timeout 20 xvfb-run -a env XDG_SESSION_TYPE=x11 OPENCAM_DISPOSABLE_CI_DESKTOP=1 "$RUNNER_TEMP/input-probe/OpenCam" --x11-hotkeys "$RUNNER_TEMP/x11-evidence"
+      - name: Actual pointer pixels and reversible input shape
+        if: success() || failure()
+        run: timeout 20 xvfb-run -a env XDG_SESSION_TYPE=x11 OPENCAM_DISPOSABLE_CI_DESKTOP=1 "$RUNNER_TEMP/input-probe/OpenCam" --x11-pointer "$RUNNER_TEMP/x11-evidence"
+      - name: Actual Avalonia drawing and click-through
+        if: success() || failure()
+        run: |
+          timeout 35 dbus-run-session -- xvfb-run -a -s '-screen 0 1280x800x24' sh -c 'openbox >/dev/null 2>&1 & picom --backend xrender >/dev/null 2>&1 & sleep 2; env XDG_SESSION_TYPE=x11 OPENCAM_DISPOSABLE_CI_DESKTOP=1 "$1/ScreenRecorder.LinuxDesktopProbe" "$2"' sh "$RUNNER_TEMP/desktop-probe" "$RUNNER_TEMP/x11-evidence"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: X11-teaching-tools-${{ github.sha }}
+          path: ${{ runner.temp }}/x11-evidence
