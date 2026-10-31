@@ -16,7 +16,7 @@ if [[ "${ID:-}" != ubuntu || "${VERSION_ID:-}" != 24.04 ]]; then
   echo 'Do not replace GLIBC or create library ABI symlinks to bypass a version mismatch.' >&2; exit 2
 fi
 packages=(pulseaudio-utils xdg-utils libstdc++6 libgcc-s1 zlib1g libicu74 libssl3t64
-  libgssapi-krb5-2 libpulse0 libx264-164 libpipewire-0.3-0
+  libgssapi-krb5-2 libglib2.0-0t64 libuuid1 libpulse0 libx264-164 libpipewire-0.3-0t64
   libdrm2 libwayland-client0 libegl1 libgl1 libfontconfig1 libx11-6 libx11-xcb1
   libxcb-xinput0 libxkbcommon0 libjansson4 libxext6 libxrandr2 libxi6 libxcursor1
   libxrender1 libice6 libsm6 libxcb-shm0 libxcb-randr0 libxcb-xfixes0
@@ -39,9 +39,10 @@ fi
 echo 'APT will show the proposed changes and ask for confirmation. No repositories or audio services will be replaced.'
 if [[ "$(id -u)" == 0 ]]; then
   apt-get update
-  apt-get install "${missing[@]}"
+  apt-get install --no-install-recommends "${missing[@]}"
 else
   sudo apt-get update
-  sudo apt-get install "${missing[@]}"
+  sudo apt-get install --no-install-recommends "${missing[@]}"
 fi
+bash "${BASH_SOURCE[0]}" --check
 echo 'Installation command completed. Run ./Start-OpenCam.sh as your normal desktop user, not root.'

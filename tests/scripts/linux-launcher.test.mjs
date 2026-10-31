@@ -52,3 +52,15 @@ test('nonzero ldd with missing ABI still produces actionable failure instead of 
     assert.doesNotMatch(r.stdout, /APP_STARTED/);
   } finally { await rm(f.root, {recursive: true, force: true}); }
 });
+test('setup refuses a non-Linux host before invoking any package manager', async () => {
+  const f = await fixture([]);
+  try {
+    await writeFile(join(f.root, 'tools/uname'), '#!/bin/bash\necho Darwin\n', {mode: 0o755});
+    await writeFile(join(f.root, 'tools/apt-get'), '#!/bin/bash\necho UNEXPECTED_APT_MUTATION\n', {mode: 0o755});
+    const r = spawnSync('/bin/bash', [new URL('../../scripts/linux/Install-Dependencies.sh', import.meta.url).pathname, '--install'], {
+      encoding: 'utf8', env: {PATH: join(f.root, 'tools')}, timeout: 5000});
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /no packages were changed/i);
+    assert.doesNotMatch(r.stdout + r.stderr, /UNEXPECTED_APT_MUTATION/);
+  } finally { await rm(f.root, {recursive: true, force: true}); }
+});
