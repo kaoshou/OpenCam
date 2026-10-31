@@ -30,11 +30,13 @@ internal sealed class DesktopProbe:Application
                     await Task.Delay(500);
                     var bindings=await CheckConfiguredBindings();
                     var screen=window.Screens.ScreenFromWindow(window)??window.Screens.All.FirstOrDefault()??throw new IOException("fixture_screen_unavailable");
+                    var target=button.PointToScreen(new(button.Bounds.Width/2,button.Bounds.Height/2));
+                    var tx=target.X.ToString(System.Globalization.CultureInfo.InvariantCulture);var ty=target.Y.ToString(System.Globalization.CultureInfo.InvariantCulture);
                     host=new(window,new(screen.Bounds.X,screen.Bounds.Y,screen.Bounds.Width,screen.Bounds.Height),0xffe63946,4,(_,_)=>{},()=>true);
                     host.Show();host.SelectTool(AnnotationTool.Pen);await Task.Delay(250);
-                    await Input("mousemove","250","350","mousedown","1","mousemove","300","380","mouseup","1");await Task.Delay(200);
+                    await Input("mousemove",tx,ty,"mousedown","1","mousemove",(target.X+50).ToString(),(target.Y+30).ToString(),"mouseup","1");await Task.Delay(200);
                     if(host.Document.Marks.Length!=1||clicked!=0)throw new IOException("native_drawing_input_failed");
-                    host.TogglePen();await Input("mousemove","250","350","click","1");await Task.Delay(100);
+                    host.TogglePen();await Input("mousemove",tx,ty,"click","1");await Task.Delay(100);
                     if(clicked!=1||host.Document.Marks.Length!=1) {
                         using var inspector=new X11Inspector();
                         await File.WriteAllTextAsync(Path.Combine(Evidence,"annotation-windows.json"),JsonSerializer.Serialize(new{child=inspector.Child(),roots=inspector.Windows(),clients=desktop.Windows.Select(w=>new{window=w.Title,id=(long)(w.TryGetPlatformHandle()?.Handle??0)})}));
@@ -44,7 +46,7 @@ internal sealed class DesktopProbe:Application
                     host.SelectTool(AnnotationTool.Rectangle);await Input("mousemove","330","410","mousedown","1","mousemove","400","450","mouseup","1");await Task.Delay(100);
                     if(host.Document.Marks.Length!=2)throw new IOException("native_rectangle_failed");
                     host.FinishDrawing();if(!host.Document.Marks.IsEmpty)throw new IOException("finish_did_not_clear");
-                    await Input("mousemove","250","350","click","1");await Task.Delay(100);if(clicked!=2)throw new IOException("finish_did_not_release_input");
+                    await Input("mousemove",tx,ty,"click","1");await Task.Delay(100);if(clicked!=2)throw new IOException("finish_did_not_release_input");
                     if(!bindings)throw new IOException("configured_lifecycle_hotkeys_missing");
                     await File.WriteAllTextAsync(Path.Combine(Evidence,"annotation-result.json"),JsonSerializer.Serialize(new{status="PASS",scope="actual Avalonia X11/compositor drawing, click-through, toolbar hide/show and finish/clear; no physical multimonitor claim",handle=window.TryGetPlatformHandle()?.HandleDescriptor}));
                     host.Dispose();desktop.Shutdown(0);
