@@ -30,6 +30,19 @@ untouched; their existing build/package/managed regressions will be run without
 publishing a Release. New evidence and failures must be recorded separately from
 physical acceptance, never inferred from successful packaging.
 
+The new actual Linux feature test at `6481cc8` then reproduced a real GIF export
+failure: `Unknown input format: 'png_pipe'`. The package configuration had
+`CONFIG_IMAGE_PNG_PIPE_DEMUXER 0`: configure's component name is
+`image_png_pipe`, while the runtime input name is `png_pipe`. Correct the Linux
+media build profile and rebuild rather than changing shared export commands or
+adding a recording fallback. The new regression must pass against rebuilt tools.
+
+The independent portable Ubuntu job also exposed two legacy-factory tests that
+expected entry into the removed compatibility core. Linux intentionally refuses
+that route before native capture when its runtime/display service is unavailable.
+Keep the Windows/macOS legacy-boundary assertions and assert the Linux rejection
+plus zero compatibility/native-provider calls instead of enabling a fallback.
+
 ### Manual acceptance still required
 
 Use a disposable project and a 20–30-second moving screen with both speech and

@@ -186,7 +186,7 @@ jobs:
         run: |
           export PATH="$RUNNER_TEMP/opencam-linux/ffmpeg-prefix/bin:$PATH"
           export LD_LIBRARY_PATH="$RUNNER_TEMP/opencam-linux/ffmpeg-prefix/lib"
-          dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release --no-build --filter 'FullyQualifiedName~Linux|FullyQualifiedName~ProjectMediaBackendTests' -m:1 > "$RUNNER_TEMP/opencam-linux/evidence/linux-managed-tests.log" 2>&1
+          dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release --no-build --filter 'FullyQualifiedName~Linux|FullyQualifiedName~ProjectMediaBackendTests|FullyQualifiedName~ObsRecordingEngineFactoryTests' -m:1 > "$RUNNER_TEMP/opencam-linux/evidence/linux-managed-tests.log" 2>&1
           unset LD_LIBRARY_PATH LD_PRELOAD
           export PATH="$RUNNER_TEMP/opencam-linux/Relocated Service Test:$PATH"
           dbus-run-session -- xvfb-run -a -s '-noreset -screen 0 1280x1000x24' bash -c '

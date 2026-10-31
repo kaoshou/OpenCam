@@ -27,7 +27,7 @@ printf '%s\n' "$inputs" > "$evidence_directory/source-inputs.json"
     --disable-doc --disable-debug --disable-static --enable-shared --disable-ffplay --disable-autodetect \
     --enable-gpl --enable-libx264 --enable-libpulse --enable-zlib --enable-pthreads --disable-network \
     --disable-everything --enable-ffmpeg --enable-ffprobe --enable-protocol=file,pipe,fd \
-    --enable-demuxer=matroska,mov,avi,ogg,mp3,wav,gif,image2,flac,concat,h264,pcm_f32le,pcm_s16le,rawvideo,png_pipe \
+    --enable-demuxer=matroska,mov,avi,ogg,mp3,wav,gif,image2,image_png_pipe,flac,concat,h264,pcm_f32le,pcm_s16le,rawvideo \
     --enable-muxer=matroska,mp4,gif,null,rawvideo,pcm_f32le,pcm_s16le,wav,framehash,h264,image2pipe \
     --enable-parser=h264,hevc,vp8,vp9,av1,mpeg4video,mpegaudio,opus,aac,png \
     --enable-bsf=h264_mp4toannexb,hevc_mp4toannexb,aac_adtstoasc,extract_extradata,filter_units \

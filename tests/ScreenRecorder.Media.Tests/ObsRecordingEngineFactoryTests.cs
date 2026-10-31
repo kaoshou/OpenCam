@@ -5,6 +5,7 @@ using ScreenRecorder.Core.Models;
 using ScreenRecorder.Media.Capture;
 using ScreenRecorder.Media.Encoders;
 using ScreenRecorder.Recorder.Services;
+using ScreenRecorder.Platform.Linux;
 
 namespace ScreenRecorder.Media.Tests;
 
@@ -18,6 +19,14 @@ public sealed class ObsRecordingEngineFactoryTests
             "42", null, null, bounds) { OutputBounds = bounds };
         var provider = new NativeBoundary();
         var factory = new RecordingEngineFactory(provider, new FFmpegEncoderDetector(provider));
+        if (OperatingSystem.IsLinux())
+        {
+            // Linux is always NativeOnly, even in the ordinary unit-test build.
+            Assert.Throws<IOException>(() => factory.Create(HardwareEncoderType.SoftwareCpu, original with { RecordingCore = "ffmpeg" }));
+            Assert.Null(provider.Observed);
+            Assert.Equal(0, provider.CompatibilityInputs);
+            return;
+        }
         await using var engine = factory.Create(HardwareEncoderType.SoftwareCpu, original with { RecordingCore = "ffmpeg" });
         using var output = new MemoryStream();
         ((IBoundRecordingOutput)engine).OutputStream = output;
@@ -33,6 +42,14 @@ public sealed class ObsRecordingEngineFactoryTests
         var pinned = new CaptureSelection(CaptureBackend.PlatformDefault, CaptureFallbackReason.StartupFailed,
             null, null, null, bounds) { RecordingCore = "ffmpeg" };
         var provider = new NativeBoundary();
+        if (OperatingSystem.IsLinux())
+        {
+            Assert.Throws<IOException>(() => new RecordingEngineFactory(provider, new LinuxEncoderSelectionService())
+                .Create(HardwareEncoderType.SoftwareCpu, pinned));
+            Assert.Null(provider.Observed);
+            Assert.Equal(0, provider.CompatibilityInputs);
+            return;
+        }
         await using var engine = new RecordingEngineFactory(provider, new FFmpegEncoderDetector(provider))
             .Create(HardwareEncoderType.SoftwareCpu, pinned);
         using var output = new MemoryStream();
