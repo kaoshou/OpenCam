@@ -16,6 +16,28 @@ permissions:
   contents: read
   actions: read
 jobs:
+  deb-dependency-diagnostic:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Repackage fixed dependency declarations against exact previously built application
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Diagnostic only, not a new application/source or user delivery.
+          gh run download 41210340596 --repo "$GITHUB_REPOSITORY" --name OpenCam-v1.2.0-Ubuntu24.04-x64-Test-f93d8b3f381e29146d9cc7e8b0eb0e6009001951 --dir "$RUNNER_TEMP/inputs"
+          cd "$RUNNER_TEMP/inputs"
+          sha256sum --check SHA256SUMS.txt
+          mkdir "$RUNNER_TEMP/app" "$RUNNER_TEMP/debs"
+          tar -xzf OpenCam_v1.2.0_Ubuntu24.04_x64_Test_f93d8b3.tar.gz -C "$RUNNER_TEMP/app"
+          cd "$GITHUB_WORKSPACE"
+          node scripts/linux/build-deb.mjs "$RUNNER_TEMP/app" "$RUNNER_TEMP/debs/diagnostic.deb" 1.2.0 f93d8b3f381e29146d9cc7e8b0eb0e6009001951
+          docker run --rm -v "$RUNNER_TEMP/debs:/delivery:ro" -v "$GITHUB_WORKSPACE/scripts/linux:/checks:ro" ubuntu:24.04 bash /checks/verify-deb-install.sh
   clean-prerequisites:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
