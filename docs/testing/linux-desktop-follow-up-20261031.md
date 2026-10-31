@@ -15,12 +15,15 @@ also passed. Evidence: Actions 41225694765, 41225694732 and 41225694728.
 | System / microphone audio, gains and preflight | Implemented; virtual Pulse sources tested | Same audio path | Physical endpoints and subjective sync |
 | Pause/resume, MKV retention, MP4 | Virtual production-service acceptance passed | Same-source authorization verified across helper processes | Long physical endurance, suspend and forced-kill acceptance |
 | Streaming editor preview | Audio and muted playback tested | Same Linux media backend | Physical audible quality |
-| Video import, subtitle, GIF and web export | Implemented through shared services | Same Linux media backend | New Linux bound-descriptor integration test added; Ubuntu execution pending |
+| Video import, subtitle, GIF and web export | Real Linux bound-descriptor MP4/AAC import, one Chinese subtitle, GIF and web export passed | Same Linux media backend | Other imported codecs/containers and multi-subtitle combinations need broader Linux fixtures/manual validation |
 | Teaching pointer and annotations | Implemented and recorded into actual virtual-source media | Not implemented in approved scope | X11 mixed-DPI/compositor hardware testing; Wayland requires separate desktop integration |
+| Halo / click-ripple cursor effects | Not enabled; live teaching pointer is available | Not enabled | Separate overlay rendering/input work; not a declaration-only capability toggle |
 | Configurable global shortcuts | Real XCB/XKB registration and recovery tested | Not implemented; focused controls remain | Desktop shortcut conflicts and physical keyboards |
 | Hardware recording encoding | Not enabled; CPU only | Not enabled; CPU only | Native capability/probing work; not a small safe UI change |
 | Install / app-menu launch / dependencies | Clean `.deb` install and reinstall passed | Same package; compatible portal backend required | Other distributions/older Ubuntu not certified |
 | Folder opening | `xdg-open` implemented and argument-tested | Same | Actual desktop file-manager acceptance remains manual |
+| Proactive display-configuration events | No dedicated Linux `IDisplayChangeMonitor` registered | Same | Needs session-specific integration and hotplug acceptance; do not simulate with guessed dimensions |
+| Live video in recording preflight | Not implemented in NativeOnly builds | Same | Also unavailable in Windows/macOS NativeOnly; requires an OBS preview channel, not revival of FFmpeg recording |
 
 This follow-up fixes two small confirmed inconsistencies first: encoder selection
 must expose only the Linux runtime's CPU encoder without probing unrelated FFmpeg
@@ -29,6 +32,88 @@ plus authorized Wayland recording. Windows/macOS native implementations remain
 untouched; their existing build/package/managed regressions will be run without
 publishing a Release. New evidence and failures must be recorded separately from
 physical acceptance, never inferred from successful packaging.
+
+### Final Linux package evidence — `10e239f`
+
+[Application/package workflow 41228953165](https://github.com/kaoshou/OpenCam/actions/runs/41228953165)
+succeeded for both linux-core and deb-install. Core 384 passed; Linux/media/factory
+contracts 100 passed, including the original failing GIF test; no failures/skips.
+The original-source/project-source hashes survived MP4 import, subtitle attachment,
+GIF and web export, and complete media decoding. No GIF verifier was weakened.
+
+Actual virtual X11/Pulse production services passed silent/live audio transitions,
+audio confirmation, 300-second 30 FPS plus pause/resume, 5/10/20 FPS, muted/unmuted
+streaming preview and MP4 packet/dynamic-content/full-decode validation. Actual
+annotation capture recorded 46 frames with 51 red mark pixels at the expected
+location; teaching pointer recording and export also passed. Clean Ubuntu `.deb`
+install/native dependency audit/user-process launch/remove/reinstall preservation
+passed. These are virtual services, not physical desktop/perceptual sync evidence.
+
+Downloaded `.deb`, application archive and corresponding-source archive all match
+SHA256SUMS. LINUX-TEST-INFO/SOURCE identify exact commit
+`10e239f98d44cbabac3708e08c857ee8fcbb9787`, version 1.2.0, NativeOnly=true and
+compatibilityFallback=false. The installable artifact is
+`OpenCam_10e239f_Ubuntu24.04_amd64_Beta.deb`. No merge, tag, version bump or Release.
+FFmpeg PNG/GIF components are within the existing pinned/source-delivered FFmpeg
+license profile; no new external library/dependency was introduced by these fixes.
+
+Same-final-commit desktop reruns also succeeded:
+[GNOME portal 41230328345](https://github.com/kaoshou/OpenCam/actions/runs/41230328345)
+and [X11 tools 41230330674](https://github.com/kaoshou/OpenCam/actions/runs/41230330674).
+These exercise the real virtual GNOME chooser, source identity/restoration/crop,
+and actual X11 input/pointer/annotation/settings bindings, respectively. They do
+not remove the physical-device/manual boundaries in the inventory.
+
+Artifacts (GitHub sign-in required):
+- [Ubuntu Beta, `10e239f`](https://github.com/kaoshou/OpenCam/actions/runs/41228953165/artifacts/13053298777)
+- [Windows test ZIP, `6481cc8`](https://github.com/kaoshou/OpenCam/actions/runs/41227699078/artifacts/13052817082)
+- [macOS arm64 test ZIP, `6481cc8`](https://github.com/kaoshou/OpenCam/actions/runs/41227699078/artifacts/13052124403)
+
+All downloaded package checksums were independently checked locally. Windows ZIP
+SHA-256: `59616844a7b97c20c17a346873d0d25b6a93398559e6b0576dc94b19cb73a74d`.
+
+### Windows/macOS regression evidence for this follow-up
+
+- Product source `6481cc8`: [core/package workflow](https://github.com/kaoshou/OpenCam/actions/runs/41227699078).
+  `windows-core` and `macos-package` both succeeded; this does **not** mean the
+  overall workflow succeeded. Its original Ubuntu portable job failed the two
+  legacy factory assumptions described below, and that failure is preserved.
+- Windows full solution: Core 381 passed / 3 skipped; Media 1429 passed / 135
+  skipped; no failures. Packaged-runtime/export/import subset: 64 passed.
+  Actual native synthetic OBS media/synchronization/forced-kill tests passed.
+  `acceptance-scope.json` explicitly says physical desktop/audio and long-duration
+  sync were NOT TESTED. Do not relabel them as physical WGC/WASAPI acceptance.
+- macOS CI: settings 19 passed; managed recording/display/export contracts 153
+  passed / 1 skipped; actual packaged media-tool export subset 50 passed.
+  The helper compiled, display identity checks ran, NativeOnly packaging and
+  ad-hoc signature verification passed. No physical recording is implied.
+- Final local Mac solution after test corrections: Core 384 passed; Media 1577
+  passed / 27 skipped; no failures, process exit 0 (6m44s Media). The first run's
+  Core telemetry-gate test failed once after the client received Stop but before
+  server cleanup released the gate; its individual rerun passed. The corrected
+  assertion tolerates only RecorderBusy until cleanup, then requires one real
+  telemetry handler call. Twenty consecutive repetitions passed. No product IPC
+  implementation was changed to hide that failure.
+- Script/player/CI suite: 190 passed / 3 skipped / 0 failed. Website: 47 passed.
+- Local GUI smoke used the newly built `6481cc8` app, not an installed older app:
+  ZIP hash, bundle version 1.2.0, SOURCE revision and `codesign --verify --deep
+  --strict` passed; the running executable's absolute path was checked. Starting
+  recording was blocked by missing macOS screen-recording permission and returned
+  to idle without creating a recording. Physical capture/sound/sync therefore
+  remain BLOCKED pending consent. The startup UI also displayed a shortcut
+  registration warning; actual conflicting keys/cause were not established.
+  Original output directory and system/microphone choices were restored and the
+  test app was closed. No old recordings were opened, changed or uploaded.
+- Changes after `6481cc8` up to `10e239f` only touch Linux media packaging, Linux CI,
+  tests and this report: Windows/macOS product source is identical across that
+  range. Protected native/platform/build/release/VERSION diffs remain empty.
+
+Static review of the first follow-up patch found no blocking selector/DI/UI
+regression. One deferred coverage improvement remains: the new Linux feature
+export test verifies complete decoding and immutable originals, but does not
+independently measure output pixel variation/audio amplitude or subjective
+quality. Real recording fixtures separately check dynamic content/timing; neither
+is a physical listening or long-duration synchronization test.
 
 The new actual Linux feature test at `6481cc8` then reproduced a real GIF export
 failure: `Unknown input format: 'png_pipe'`. The package configuration had
