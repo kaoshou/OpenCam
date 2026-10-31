@@ -82,7 +82,9 @@ jobs:
             trap "pulseaudio --kill 2>/dev/null || true" EXIT
             (while true; do xsetroot -solid "#e04020"; sleep .2; xsetroot -solid "#2040e0"; sleep .2; done) &
             pattern_pid=$!
-            trap "kill $pattern_pid 2>/dev/null || true; pulseaudio --kill 2>/dev/null || true" EXIT
+            (while true; do date -u; ps -eo pid,ppid,state,pcpu,wchan:24,args | grep -E "ffmpeg|PulsePlayback|LinuxAppProbe"; pactl list sink-inputs short; sleep 1; done) > "$RUNNER_TEMP/preview-evidence/processes.log" 2>&1 &
+            observer_pid=$!
+            trap "kill $pattern_pid $observer_pid 2>/dev/null || true; pulseaudio --kill 2>/dev/null || true" EXIT
             dotnet "$RUNNER_TEMP/probe/ScreenRecorder.LinuxAppProbe.dll" "$RUNNER_TEMP/preview-evidence/project" > "$RUNNER_TEMP/preview-evidence/preview.log" 2>&1
           '
       - name: Preserve first playback failure and actual media evidence

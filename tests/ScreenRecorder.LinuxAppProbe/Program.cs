@@ -49,6 +49,15 @@ try {
         await playback.StartAsync(default); await playback.WriteAsync(new byte[8192], default); await playback.CompleteAsync(default);
         if (playback.PositionSamples != 1024) throw new IOException("Playback clock did not acknowledge actual drained samples.");
     }
+    await using (var playback = new LinuxProjectAudioOutput(Path.Combine(AppContext.BaseDirectory, "OpenCam.PulsePlayback"))) {
+        await playback.StartAsync(default);
+        for (var i = 0; i < 5; i++) await playback.WriteAsync(new byte[8192], default);
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (playback.PositionSamples <= 0 && playback.IsRunning && DateTime.UtcNow < deadline) await Task.Delay(20);
+        if (playback.PositionSamples <= 0) throw new IOException("Managed bounded audio output did not advance before EOF.");
+        Console.WriteLine($"Managed bounded audio clock advanced before EOF: {playback.PositionSamples}");
+        await playback.StopAsync(default);
+    }
     // First real segment at 30 FPS, pause, resume, stop: source files must survive.
     Check(await project.StartAsync(config, Guid.NewGuid()));
     bool systemLive = false, systemSilent = false, micLive = false, micSilent = false;
@@ -85,8 +94,13 @@ try {
                 ProjectPreviewQuality.P360, muted);
             var deadline = DateTime.UtcNow.AddSeconds(12);
             bool advanced = false;
+            var reportAt = DateTime.UtcNow;
             while (DateTime.UtcNow < deadline) {
                 var snapshot = preview.Query(playback.Generation); // renew actual UI lease
+                if (DateTime.UtcNow >= reportAt) {
+                    Console.WriteLine($"Preview poll: muted={muted}, playing={snapshot.State.Playing}, ticks={snapshot.State.TimelineTicks}, frame={snapshot.Frame?.TimelineTicks}, error={snapshot.State.Error}");
+                    reportAt = DateTime.UtcNow.AddSeconds(1);
+                }
                 if (snapshot.State.Error is not null) throw new IOException("Streaming editor preview failed: " + snapshot.State.Error);
                 if (snapshot.State.TimelineTicks >= TimeSpan.TicksPerSecond && snapshot.Frame is { HasValidPixels: true }) {
                     advanced = true; break;
