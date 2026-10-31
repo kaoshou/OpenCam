@@ -14,7 +14,7 @@ public sealed class LinuxX11HotkeyService : IGlobalHotkeyService
         internal volatile bool Cancelled;
         internal readonly TaskCompletionSource<bool> Done=new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
-    private sealed record Binding(byte Key,ushort Modifiers,ushort[] Masks);
+    private sealed record Binding(byte Key,uint Symbol,ushort Modifiers,ushort[] Masks);
     private readonly ConcurrentQueue<Work> queue=new();
     private readonly object submit=new();
     private readonly AutoResetEvent wake=new(false);
@@ -57,25 +57,7 @@ public sealed class LinuxX11HotkeyService : IGlobalHotkeyService
             for(var i=0;i<screen&&iterator.Rem>0;i++)X.NextScreen(ref iterator);
             if(iterator.Rem<=0)throw new IOException();
             root=(uint)Marshal.ReadInt32(iterator.Data);
-            var min=Marshal.ReadByte(setup,34);var max=Marshal.ReadByte(setup,35);
-            var map=X.KeyboardReply(connection,X.Keyboard(connection,min,(byte)(max-min+1)),out var error);
-            if(error!=IntPtr.Zero){X.Free(error);throw new IOException();}
-            if(map==IntPtr.Zero)throw new IOException();
-            try {
-                var per=Marshal.ReadByte(map,1);var symbols=X.Keysyms(map);
-                for(var code=(int)min;code<=max;code++)for(var n=0;n<per;n++) {
-                    var symbol=(uint)Marshal.ReadInt32(symbols,((code-min)*per+n)*4);
-                    if(symbol!=0)keys.TryAdd(symbol,(byte)code);
-                }
-            }finally{X.Free(map);}
-            var modifiers=X.ModifierReply(connection,X.Modifier(connection),out error);
-            if(error!=IntPtr.Zero){X.Free(error);throw new IOException();}
-            if(modifiers==IntPtr.Zero)throw new IOException();
-            try {
-                var per=Marshal.ReadByte(modifiers,1);var codes=X.ModifierKeys(modifiers);
-                if(keys.TryGetValue(0xFF7F,out var num))for(var m=0;m<8;m++)for(var n=0;n<per;n++)
-                    if(Marshal.ReadByte(codes,m*per+n)==num)locks|=(ushort)(1<<m);
-            }finally{X.Free(modifiers);}
+            ReadMappings();
             ready.TrySetResult(true);
             while(!stopped) {
                 while(queue.TryDequeue(out var work)) {
@@ -97,9 +79,32 @@ public sealed class LinuxX11HotkeyService : IGlobalHotkeyService
             try{Unavailable?.Invoke(this,EventArgs.Empty);}catch(Exception callback){Serilog.Log.Warning("Shortcut notice failed: {ErrorType}",callback.GetType().Name);}
         }finally {
             stopped=true;ready.TrySetResult(false);
-            if(connection!=IntPtr.Zero){X.Disconnect(connection);connection=IntPtr.Zero;} // Server releases all this client's grabs.
+            if(connection!=IntPtr.Zero){X.Disconnect(connection);connection=IntPtr.Zero;}
             while(queue.TryDequeue(out var work))work.Done.TrySetResult(false);
         }
+    }
+    private void ReadMappings()
+    {
+            keys.Clear();locks=2;
+            var setup=X.Setup(connection);var min=Marshal.ReadByte(setup,34);var max=Marshal.ReadByte(setup,35);
+            var map=X.KeyboardReply(connection,X.Keyboard(connection,min,(byte)(max-min+1)),out var error);
+            if(error!=IntPtr.Zero){X.Free(error);throw new IOException();}
+            if(map==IntPtr.Zero)throw new IOException();
+            try {
+                var per=Marshal.ReadByte(map,1);var symbols=X.Keysyms(map);
+                for(var code=(int)min;code<=max;code++)for(var n=0;n<per;n++) {
+                    var symbol=(uint)Marshal.ReadInt32(symbols,((code-min)*per+n)*4);
+                    if(symbol!=0)keys.TryAdd(symbol,(byte)code);
+                }
+            }finally{X.Free(map);}
+            var modifiers=X.ModifierReply(connection,X.Modifier(connection),out error);
+            if(error!=IntPtr.Zero){X.Free(error);throw new IOException();}
+            if(modifiers==IntPtr.Zero)throw new IOException();
+            try {
+                var per=Marshal.ReadByte(modifiers,1);var codes=X.ModifierKeys(modifiers);
+                if(keys.TryGetValue(0xFF7F,out var num))for(var m=0;m<8;m++)for(var n=0;n<per;n++)
+                    if(Marshal.ReadByte(codes,m*per+n)==num)locks|=(ushort)(1<<m);
+            }finally{X.Free(modifiers);}
     }
     private bool Check(X.Cookie cookie)
     {
@@ -119,7 +124,7 @@ public sealed class LinuxX11HotkeyService : IGlobalHotkeyService
             foreach(var rollback in masks)Check(X.Ungrab(connection,key,root,rollback));
             return false;
         }
-        bindings.Add(work.Id,new(key,modifiers,masks));return true;
+        bindings.Add(work.Id,new(key,LinuxHotkeyMap.Keysym(work.Key),modifiers,masks));return true;
     }
     private bool Remove(int id)
     {
@@ -131,8 +136,14 @@ public sealed class LinuxX11HotkeyService : IGlobalHotkeyService
     {
         var type=Marshal.ReadByte(e)&127;
         if(type==34) {
-            foreach(var bindingId in bindings.Keys.ToArray())Remove(bindingId);
-            Unavailable?.Invoke(this,EventArgs.Empty);return;
+            // Opening an XKB client can deliver MappingNotify even though none
+            // of our configured mappings changed. Do not discard healthy grabs.
+            if(Marshal.ReadByte(e,1)==2)return; // Pointer mapping, not keyboard.
+            var previousLocks=locks;ReadMappings();var invalidated=false;
+            foreach(var binding in bindings.ToArray())if(previousLocks!=locks||!keys.TryGetValue(binding.Value.Symbol,out var current)||current!=binding.Value.Key) {
+                Remove(binding.Key);invalidated=true;
+            }
+            if(invalidated)Unavailable?.Invoke(this,EventArgs.Empty);return;
         }
         if(type is not(2 or 3))return;
         var key=Marshal.ReadByte(e,1);var time=(uint)Marshal.ReadInt32(e,4);
