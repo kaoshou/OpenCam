@@ -43,7 +43,7 @@ jobs:
           sudo apt-get -o Acquire::Retries=3 update
           sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends build-essential cmake extra-cmake-modules ninja-build nasm pkg-config zlib1g-dev libsimde-dev uthash-dev libjansson-dev uuid-dev libx11-xcb-dev libxcb-xinput-dev libxkbcommon-dev libwayland-dev libdrm-dev libegl1-mesa-dev libpulse-dev libx264-dev libpipewire-0.3-dev libglib2.0-dev libxcb-composite0-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-xfixes0-dev libxcb-xinerama0-dev xvfb xauth dbus-x11 pulseaudio pulseaudio-utils ffmpeg gdb patchelf scrot x11-utils x11-xserver-utils fonts-noto-cjk sway pipewire wireplumber xdg-desktop-portal xdg-desktop-portal-wlr
           command -v xsetroot
-          sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends xdotool
+          sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends xdotool picom openbox
       - name: Restore verified FFmpeg version metadata for upstream CMake
         run: |
           git -C .linux-inputs/ffmpeg fetch --depth 1 origin tag n8.1.3
@@ -174,6 +174,8 @@ jobs:
           chmod +x "$RUNNER_TEMP/opencam-linux/OpenCam Linux Test/Start-OpenCam.sh" "$RUNNER_TEMP/opencam-linux/OpenCam Linux Test/Collect-Diagnostics.sh"
           mv "$RUNNER_TEMP/opencam-linux/acceptance" "$RUNNER_TEMP/opencam-linux/Relocated Service Test"
           cp -a "$RUNNER_TEMP/opencam-linux/OpenCam Linux Test/." "$RUNNER_TEMP/opencam-linux/Relocated Service Test/"
+          dotnet publish tests/ScreenRecorder.LinuxDesktopProbe -c Release -r linux-x64 --self-contained false -p:OpenCamNativeOnlyTest=true -m:1 -o "$RUNNER_TEMP/opencam-linux/Desktop Acceptance" > "$RUNNER_TEMP/opencam-linux/evidence/annotation-probe-build.log" 2>&1
+          cp -a "$RUNNER_TEMP/opencam-linux/OpenCam Linux Test/." "$RUNNER_TEMP/opencam-linux/Desktop Acceptance/"
           dotnet build tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release -m:1 > "$RUNNER_TEMP/opencam-linux/evidence/managed-tests-build.log" 2>&1
           cp "$RUNNER_TEMP/opencam-linux/publish/libOpenCamLinuxSpawn.so" tests/ScreenRecorder.Media.Tests/bin/Release/net8.0/
       - name: Actual Linux project recording editing export and relocated UI
@@ -219,6 +221,13 @@ jobs:
             xdotool mousemove 200 200
             OPENCAM_LINUX_TEST_POINTER=1 OPENCAM_LINUX_TEST_SECONDS=5 OPENCAM_LINUX_TEST_FPS=30 dotnet "$RUNNER_TEMP/opencam-linux/Relocated Service Test/ScreenRecorder.LinuxAppProbe.dll" "$RUNNER_TEMP/opencam-linux/evidence/app-project-pointer" > "$RUNNER_TEMP/opencam-linux/evidence/app-project-pointer.log" 2>&1
             node scripts/linux/verify-app-media.mjs "$RUNNER_TEMP/opencam-linux/evidence/app-project-pointer/result.json" > "$RUNNER_TEMP/opencam-linux/evidence/app-pointer-media-validation.log" 2>&1
+            openbox > "$RUNNER_TEMP/opencam-linux/evidence/annotation-wm.log" 2>&1 &
+            wm_pid=$!
+            picom --backend xrender > "$RUNNER_TEMP/opencam-linux/evidence/annotation-compositor.log" 2>&1 &
+            compositor_pid=$!
+            sleep 2
+            OPENCAM_DISPOSABLE_CI_DESKTOP=1 OPENCAM_TEST_RECORD_ANNOTATIONS=1 timeout 60 dotnet "$RUNNER_TEMP/opencam-linux/Desktop Acceptance/ScreenRecorder.LinuxDesktopProbe.dll" "$RUNNER_TEMP/opencam-linux/evidence/annotation-capture" > "$RUNNER_TEMP/opencam-linux/evidence/annotation-capture.log" 2>&1
+            kill "$wm_pid" "$compositor_pid"
             OPENCAM_LINUX_TEST_SECONDS=300 OPENCAM_LINUX_TEST_FPS=30 dotnet "$RUNNER_TEMP/opencam-linux/Relocated Service Test/ScreenRecorder.LinuxAppProbe.dll" "$RUNNER_TEMP/opencam-linux/evidence/app-project" > "$RUNNER_TEMP/opencam-linux/evidence/app-project.log" 2>&1
             OPENCAM_LINUX_TEST_SECONDS=10 OPENCAM_LINUX_TEST_FPS=20 dotnet "$RUNNER_TEMP/opencam-linux/Relocated Service Test/ScreenRecorder.LinuxAppProbe.dll" "$RUNNER_TEMP/opencam-linux/evidence/app-project-20fps" > "$RUNNER_TEMP/opencam-linux/evidence/app-project-20fps.log" 2>&1
           '

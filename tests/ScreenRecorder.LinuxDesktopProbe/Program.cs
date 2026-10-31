@@ -33,9 +33,12 @@ internal sealed class DesktopProbe:Application
                     var target=button.PointToScreen(new(button.Bounds.Width/2,button.Bounds.Height/2));
                     var tx=target.X.ToString(System.Globalization.CultureInfo.InvariantCulture);var ty=target.Y.ToString(System.Globalization.CultureInfo.InvariantCulture);
                     host=new(window,new(screen.Bounds.X,screen.Bounds.Y,screen.Bounds.Width,screen.Bounds.Height),0xffe63946,4,(_,_)=>{},()=>true);
-                    host.Show();host.SelectTool(AnnotationTool.Pen);await Task.Delay(250);
+                    host.Show();host.SelectTool(AnnotationTool.Pen);
+                    await using var recording=await AnnotationRecordingFixture.StartAsync(Evidence);
+                    await Task.Delay(250);
                     await Input("mousemove",tx,ty,"mousedown","1","mousemove",(target.X+50).ToString(),(target.Y+30).ToString(),"mouseup","1");await Task.Delay(200);
                     if(host.Document.Marks.Length!=1||clicked!=0)throw new IOException("native_drawing_input_failed");
+                    if(recording is not null)await Task.Delay(1200);
                     host.TogglePen();await Input("mousemove",tx,ty,"click","1");await Task.Delay(100);
                     if(clicked!=1||host.Document.Marks.Length!=1) {
                         using var inspector=new X11Inspector();
@@ -47,6 +50,7 @@ internal sealed class DesktopProbe:Application
                     if(host.Document.Marks.Length!=2)throw new IOException("native_rectangle_failed");
                     host.FinishDrawing();if(!host.Document.Marks.IsEmpty)throw new IOException("finish_did_not_clear");
                     await Input("mousemove",tx,ty,"click","1");await Task.Delay(100);if(clicked!=2)throw new IOException("finish_did_not_release_input");
+                    if(recording is not null)await recording.SealAndVerifyAsync(Evidence,target.X+25,target.Y+15);
                     if(!bindings)throw new IOException("configured_lifecycle_hotkeys_missing");
                     await File.WriteAllTextAsync(Path.Combine(Evidence,"annotation-result.json"),JsonSerializer.Serialize(new{status="PASS",scope="actual Avalonia X11/compositor drawing, click-through, toolbar hide/show and finish/clear; no physical multimonitor claim",handle=window.TryGetPlatformHandle()?.HandleDescriptor}));
                     host.Dispose();desktop.Shutdown(0);
