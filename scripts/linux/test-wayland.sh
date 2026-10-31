@@ -35,7 +35,7 @@ dbus-update-activation-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSI
 /usr/libexec/xdg-desktop-portal-wlr -c "$PWD/tests/fixtures/linux-wayland/wlr.conf" > "$evidence/portal-wlr.log" 2>&1 & owned_pids+=("$!")
 /usr/libexec/xdg-desktop-portal -r > "$evidence/portal.log" 2>&1 & owned_pids+=("$!")
 for ((i=0; i<100; i++)); do
-  if timeout 2 gdbus introspect --session --dest org.freedesktop.portal.Desktop --object-path /org/freedesktop/portal/desktop > "$evidence/portal-api.txt" 2>/dev/null && rg -q org.freedesktop.portal.ScreenCast "$evidence/portal-api.txt"; then break; fi
+  if timeout 2 gdbus introspect --session --dest org.freedesktop.portal.Desktop --object-path /org/freedesktop/portal/desktop > "$evidence/portal-api.txt" 2>/dev/null && grep -Fq org.freedesktop.portal.ScreenCast "$evidence/portal-api.txt"; then break; fi
   sleep .1
 done
 (while true; do swaymsg output HEADLESS-1 bg '#e04020' solid_color >/dev/null; sleep .2; swaymsg output HEADLESS-1 bg '#2040e0' solid_color >/dev/null; sleep .2; done) & owned_pids+=("$!")
