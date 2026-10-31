@@ -36,6 +36,11 @@ failure: `Unknown input format: 'png_pipe'`. The package configuration had
 `image_png_pipe`, while the runtime input name is `png_pipe`. Correct the Linux
 media build profile and rebuild rather than changing shared export commands or
 adding a recording fallback. The new regression must pass against rebuilt tools.
+The next run (`549dcd0`) passed palette decoding but failed full GIF frame
+verification. Its build inventory had `CONFIG_GIF_PARSER 0`; pinned FFmpeg
+`libavformat/gifdec.c:226` requests `AVSTREAM_PARSE_FULL_RAW`. Enable the GIF parser
+too and rerun the unchanged production export verifier; never relax frame-count
+or complete-decode checks to make the test pass.
 
 The independent portable Ubuntu job also exposed two legacy-factory tests that
 expected entry into the removed compatibility core. Linux intentionally refuses

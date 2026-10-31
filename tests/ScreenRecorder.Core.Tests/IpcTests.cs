@@ -33,7 +33,18 @@ public class IpcTests
             Assert.Equal(0, telemetryCalls);
         }
         finally { release.TrySetResult(); await stop; }
-        Assert.True((await poll.SendCommandAsync("GetTelemetry", new { }, 1000)).Success);
+        // A response can reach the client before the server's finally block
+        // releases the lifecycle gate. A disposable poll may still be Busy;
+        // it must recover without ever entering the blocked handler.
+        IpcResponse? recovered = null;
+        for (var attempt = 0; attempt < 100; attempt++)
+        {
+            recovered = await poll.SendCommandAsync("GetTelemetry", new { }, 1000);
+            if (recovered.Success) break;
+            Assert.Equal("RecorderBusy", recovered.ErrorMessage);
+            await Task.Delay(10);
+        }
+        Assert.True(recovered?.Success, recovered?.ErrorMessage);
         Assert.Equal(1, telemetryCalls);
     }
 

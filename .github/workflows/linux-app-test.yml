@@ -186,6 +186,7 @@ jobs:
         run: |
           export PATH="$RUNNER_TEMP/opencam-linux/ffmpeg-prefix/bin:$PATH"
           export LD_LIBRARY_PATH="$RUNNER_TEMP/opencam-linux/ffmpeg-prefix/lib"
+          dotnet test tests/ScreenRecorder.Core.Tests/ScreenRecorder.Core.Tests.csproj -c Release -m:1 /nodeReuse:false > "$RUNNER_TEMP/opencam-linux/evidence/core-managed-tests.log" 2>&1
           dotnet test tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release --no-build --filter 'FullyQualifiedName~Linux|FullyQualifiedName~ProjectMediaBackendTests|FullyQualifiedName~ObsRecordingEngineFactoryTests' -m:1 > "$RUNNER_TEMP/opencam-linux/evidence/linux-managed-tests.log" 2>&1
           unset LD_LIBRARY_PATH LD_PRELOAD
           export PATH="$RUNNER_TEMP/opencam-linux/Relocated Service Test:$PATH"
