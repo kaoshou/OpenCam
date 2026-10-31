@@ -18,6 +18,7 @@ internal static class X11Pointer
             if(!await pointer.StartPresentationAsync(new(TeachingPointerStyle.HighContrast,TeachingPointerSize.Large))||!pointer.IsRunning)
                 throw new IOException("pointer_not_ready");
             await Task.Delay(500);
+            await File.WriteAllTextAsync(Path.Combine(evidence,"pointer-windows.json"),JsonSerializer.Serialize(inspector.Windows()));
             if(!pointer.IsRunning)throw new IOException("pointer_lost_after_ready");
             var after=inspector.Read(x,y,(ushort)art.Width,(ushort)art.Height);var original=art.Pixels.ToArray();
             for(var i=0;i<original.Length;i+=4) {

@@ -27,6 +27,19 @@ internal sealed class X11Inspector:IDisposable
         if(error!=IntPtr.Zero){Free(error);throw new IOException("fixture_window_failed");}
         error=Check(Connection,Map(Connection,window));if(error!=IntPtr.Zero){Free(error);throw new IOException("fixture_map_failed");}return window;
     }
+    internal object[] Windows()
+    {
+        var tree=TreeReply(Connection,Tree(Connection,Root),out var error);if(error!=IntPtr.Zero)Free(error);
+        if(tree==IntPtr.Zero||error!=IntPtr.Zero)throw new IOException("fixture_tree_failed");
+        try {
+            var result=new List<object>();var data=Children(tree);
+            for(var i=0;i<ChildrenLength(tree);i++) {
+                var id=(uint)Marshal.ReadInt32(data,i*4);var geometry=GeometryReply(Connection,Geometry(Connection,id),out error);
+                if(error!=IntPtr.Zero)Free(error);if(geometry==IntPtr.Zero)continue;
+                try{result.Add(new{id,x=Marshal.ReadInt16(geometry,12),y=Marshal.ReadInt16(geometry,14),width=Marshal.ReadInt16(geometry,16),height=Marshal.ReadInt16(geometry,18)});}finally{Free(geometry);}
+            }return result.ToArray();
+        }finally{Free(tree);}
+    }
     public void Dispose()=>Disconnect(Connection);
     [StructLayout(LayoutKind.Sequential)]struct Cookie{internal uint Sequence;}
     [StructLayout(LayoutKind.Sequential)]struct Iterator{internal IntPtr Data;internal int Rem,Index;}
@@ -44,5 +57,11 @@ internal sealed class X11Inspector:IDisposable
     [DllImport(L,EntryPoint="xcb_request_check")]static extern IntPtr Check(IntPtr c,Cookie cookie);
     [DllImport(L,EntryPoint="xcb_create_window_checked")]static extern Cookie Create(IntPtr c,byte depth,uint window,uint parent,short x,short y,ushort width,ushort height,ushort border,ushort kind,uint visual,uint mask,uint[] values);
     [DllImport(L,EntryPoint="xcb_map_window_checked")]static extern Cookie Map(IntPtr c,uint window);
+    [DllImport(L,EntryPoint="xcb_query_tree")]static extern Cookie Tree(IntPtr c,uint window);
+    [DllImport(L,EntryPoint="xcb_query_tree_reply")]static extern IntPtr TreeReply(IntPtr c,Cookie cookie,out IntPtr error);
+    [DllImport(L,EntryPoint="xcb_query_tree_children")]static extern IntPtr Children(IntPtr reply);
+    [DllImport(L,EntryPoint="xcb_query_tree_children_length")]static extern int ChildrenLength(IntPtr reply);
+    [DllImport(L,EntryPoint="xcb_get_geometry")]static extern Cookie Geometry(IntPtr c,uint window);
+    [DllImport(L,EntryPoint="xcb_get_geometry_reply")]static extern IntPtr GeometryReply(IntPtr c,Cookie cookie,out IntPtr error);
     [DllImport("libc",EntryPoint="free")]static extern void Free(IntPtr p);
 }
