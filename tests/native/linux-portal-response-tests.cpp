@@ -11,7 +11,7 @@ static GVariant *response(const char *text) {
 }
 static void failsStart(const char *text, const char *code) {
     opencam::PortalResponses tracker(4, ":1.42");
-    auto *session = response("(uint32 0, {'session_handle': <objectpath '/org/freedesktop/portal/desktop/session/1_42/obs1'>})");
+    auto *session = response("(uint32 0, {'session_handle': <'/org/freedesktop/portal/desktop/session/1_42/obs1'>})");
     tracker.receive("/org/freedesktop/portal/desktop/request/1_42/obs1", session);
     g_variant_unref(session);
     auto *start = response(text);
@@ -22,7 +22,7 @@ static void failsStart(const char *text, const char *code) {
 }
 int main() {
     opencam::PortalResponses tracker(4, ":1.42");
-    auto *value = response("(uint32 0, {'session_handle': <objectpath '/org/freedesktop/portal/desktop/session/1_42/obs1'>})");
+    auto *value = response("(uint32 0, {'session_handle': <'/org/freedesktop/portal/desktop/session/1_42/obs1'>})");
     tracker.receive("/org/freedesktop/portal/desktop/request/1_99/obs1", value);
     assert(tracker.session().empty());
     tracker.receive("/org/freedesktop/portal/desktop/request/1_42/obs1", value);
