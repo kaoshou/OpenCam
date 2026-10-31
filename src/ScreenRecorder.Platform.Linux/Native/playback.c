@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <errno.h>
+#include <poll.h>
 int main(void) {
     pa_sample_spec format = {PA_SAMPLE_FLOAT32LE, 48000, 2}; int error = 0;
     pa_simple *stream = pa_simple_new(NULL, "OpenCam", PA_STREAM_PLAYBACK, NULL, "Project preview", &format, NULL, NULL, &error);
@@ -12,13 +13,24 @@ int main(void) {
     uint8_t buffer[8192]; uint64_t written = 0, last = 0; ssize_t n;
     // Assemble complete stereo frames even if pipe reads split an 8-byte sample.
     size_t pending = 0;
-    while ((n = read(0, buffer + pending, sizeof(buffer) - pending)) != 0) {
-        if (n < 0) { if (errno == EINTR) continue; goto fail; }
-        size_t total = pending + n, bytes = total - total % 8;
-        if (bytes && pa_simple_write(stream, buffer, bytes, &error) < 0) goto fail;
-        written += bytes / 8;
-        pending = total - bytes;
-        for (size_t i = 0; i < pending; i++) buffer[i] = buffer[bytes + i];
+    for (;;) {
+        // The producer deliberately limits queued PCM. Report the device clock
+        // even while stdin is idle, otherwise both sides can wait for each other:
+        // producer waits for played samples; helper waits for another PCM block.
+        struct pollfd input = {STDIN_FILENO, POLLIN, 0};
+        int ready = poll(&input, 1, 20);
+        if (ready < 0) { if (errno == EINTR) continue; goto fail; }
+        if (ready && (input.revents & (POLLERR | POLLNVAL))) goto fail;
+        if (ready && (input.revents & (POLLIN | POLLHUP))) {
+            n = read(0, buffer + pending, sizeof(buffer) - pending);
+            if (!n) break;
+            if (n < 0) { if (errno == EINTR) continue; goto fail; }
+            size_t total = pending + n, bytes = total - total % 8;
+            if (bytes && pa_simple_write(stream, buffer, bytes, &error) < 0) goto fail;
+            written += bytes / 8;
+            pending = total - bytes;
+            for (size_t i = 0; i < pending; i++) buffer[i] = buffer[bytes + i];
+        }
         pa_usec_t latency = pa_simple_get_latency(stream, &error); if (latency == (pa_usec_t)-1) goto fail;
         uint64_t queued = latency * 48000 / 1000000;
         uint64_t played = written > queued ? written - queued : 0;

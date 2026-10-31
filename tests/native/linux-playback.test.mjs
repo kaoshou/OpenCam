@@ -24,8 +24,8 @@ test('Pulse playback advances its device clock with only the bounded preview que
       // Do NOT close stdin: EOF/drain previously hid the default-prebuffer deadlock.
       for (let i = 0; i < 5; i++) child.stdin.write(Buffer.alloc(8192));
       const deadline = Date.now() + 4000;
-      while (clock <= 0 && !closed && Date.now() < deadline) await delay(20);
-      assert.ok(clock > 0, `No played-sample progress with 5120 queued frames before EOF; clock=${clock}; ${diagnostic}`);
+      while (clock < 1024 && !closed && Date.now() < deadline) await delay(20);
+      assert.ok(clock >= 1024, `Device clock cannot release the bounded producer with 5120 queued frames before EOF; clock=${clock}; ${diagnostic}`);
       child.stdin.end();
       assert.deepEqual(await exit, {code: 0, signal: null});
       assert.equal(clock, 5120, 'Final drain must acknowledge every submitted stereo frame.');

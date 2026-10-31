@@ -25,7 +25,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends build-essential pkg-config libpulse-dev pulseaudio pulseaudio-utils
       - name: Build actual project audio helper
-        run: cc -O2 -Wall -Wextra -Werror src/ScreenRecorder.Platform.Linux/Native/playback.c -o "$RUNNER_TEMP/OpenCam.PulsePlayback" $(pkg-config --cflags --libs libpulse-simple)
+        run: |
+          cc -O2 -Wall -Wextra -Werror src/ScreenRecorder.Platform.Linux/Native/playback.c -o "$RUNNER_TEMP/OpenCam.PulsePlayback" $(pkg-config --cflags --libs libpulse-simple)
       - name: Exercise bounded producer without EOF
         env:
           OPENCAM_LINUX_PLAYBACK_HELPER: ${{ runner.temp }}/OpenCam.PulsePlayback
@@ -59,10 +60,14 @@ jobs:
           tar -xzf OpenCam_v1.2.0_Ubuntu24.04_x64_Test_2e9b213.tar.gz -C "$RUNNER_TEMP/app"
       - name: Compile actual service integration and retain packaged native modules
         run: |
-          dotnet publish tests/ScreenRecorder.LinuxAppProbe/ScreenRecorder.LinuxAppProbe.csproj -c Release -r linux-x64 --self-contained false -p:OpenCamNativeOnlyTest=true -m:1 -o "$RUNNER_TEMP/probe"
+          mkdir "$RUNNER_TEMP/probe"
           cp -a "$RUNNER_TEMP/app/." "$RUNNER_TEMP/probe/"
           # Copying the baseline package must not replace the new managed service test.
           dotnet publish tests/ScreenRecorder.LinuxAppProbe/ScreenRecorder.LinuxAppProbe.csproj -c Release -r linux-x64 --self-contained false -p:OpenCamNativeOnlyTest=true -m:1 -o "$RUNNER_TEMP/probe"
+      - name: Build the corrected playback helper only (capture core remains unchanged)
+        run: |
+          sudo apt-get install -y --no-install-recommends build-essential pkg-config libpulse-dev
+          cc -O2 -Wall -Wextra -Werror src/ScreenRecorder.Platform.Linux/Native/playback.c -o "$RUNNER_TEMP/probe/OpenCam.PulsePlayback" $(pkg-config --cflags --libs libpulse-simple)
       - name: Real streaming editor preview, muted replay and restart
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'

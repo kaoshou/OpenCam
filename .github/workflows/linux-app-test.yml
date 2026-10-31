@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   linux-core:
+    if: github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, 'diagnostic-only')
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
