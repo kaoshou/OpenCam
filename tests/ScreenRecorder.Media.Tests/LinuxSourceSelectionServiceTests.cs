@@ -7,6 +7,18 @@ namespace ScreenRecorder.Media.Tests;
 public sealed class LinuxSourceSelectionServiceTests
 {
     [Fact]
+    public async Task LostBeginReplyCanCancelOnlyItsOperationWithoutKnowingServerIdentity()
+    {
+        var lease=new RecordingCaptureLease();
+        await using var service=new LinuxSourceSelectionService(lease,()=>true,async ct=>{await Task.Delay(Timeout.Infinite,ct);throw new InvalidOperationException();});
+        var id=Guid.NewGuid();await service.BeginAsync(id); // Simulate reply lost before the caller learns the server id.
+        await Assert.ThrowsAsync<InvalidOperationException>(()=>service.DispatchAsync(new(){MessageType="CancelLinuxSourceSelection",PayloadJson=System.Text.Json.JsonSerializer.Serialize(new LinuxSourceSelectionRequest(Guid.NewGuid()))}));
+        var response=await service.DispatchAsync(new(){MessageType="CancelLinuxSourceSelection",PayloadJson=System.Text.Json.JsonSerializer.Serialize(new LinuxSourceSelectionRequest(id))});
+        Assert.True(response.Success);
+        for(var i=0;i<100&&lease.IsOwned;i++)await Task.Delay(10);
+        Assert.False(lease.IsOwned);
+    }
+    [Fact]
     public async Task PermissionWaitDoesNotBlockPollingAndHoldsActualCaptureLease()
     {
         var lease = new RecordingCaptureLease();

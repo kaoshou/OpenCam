@@ -58,12 +58,12 @@ public sealed class LinuxSourceSelectionService(RecordingCaptureLease lease, Fun
         } finally { await ownership.DisposeAsync().ConfigureAwait(false); }
         lock (gate) snapshot = result;
     }
-    public LinuxSourceSelectionSnapshot Read(Guid id, Guid server)
+    public LinuxSourceSelectionSnapshot Read(Guid id, Guid? server)
     {
-        lock (gate) return snapshot is { } value && value.OperationId==id && instance==server
+        lock (gate) return id!=Guid.Empty&&snapshot is { } value && value.OperationId==id && (server is null||instance==server)
             ? value : throw new InvalidOperationException("Source selection identity changed.");
     }
-    public void Cancel(Guid id, Guid server)
+    public void Cancel(Guid id, Guid? server)
     {
         lock (gate) {
             _ = Read(id,server);
@@ -79,7 +79,9 @@ public sealed class LinuxSourceSelectionService(RecordingCaptureLease lease, Fun
         LinuxSourceSelectionSnapshot value;
         if (message.MessageType=="BeginLinuxSourceSelection") value=await BeginAsync(request.OperationId).ConfigureAwait(false);
         else {
-            var server=request.ServerInstanceId ?? throw new InvalidOperationException("Source selection server identity is required.");
+            // The authenticated caller may lose Begin's reply; its unpredictable
+            // operation id still scopes recovery. A known server id remains pinned.
+            var server=request.ServerInstanceId;
             if (message.MessageType=="CancelLinuxSourceSelection") Cancel(request.OperationId,server);
             value=Read(request.OperationId,server);
         }

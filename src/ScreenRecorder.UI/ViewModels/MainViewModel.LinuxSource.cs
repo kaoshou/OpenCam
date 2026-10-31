@@ -51,9 +51,10 @@ public partial class MainViewModel
             Serilog.Log.Warning("Linux selection UI failed: ErrorType={ErrorType}",error.GetType().Name);
             StatusMessage=Strings["LinuxPortalFailed"];
         } finally {
-            if(!finished&&server is {} instance)
-                await _ipcClient.SendCommandAsync("CancelLinuxSourceSelection",new LinuxSourceSelectionRequest(operation,instance),timeoutMs:3000);
-            linuxSourceCancellation=null;IsSelectingLinuxSource=false;
+            try {
+                if(!finished)await _ipcClient.SendCommandAsync("CancelLinuxSourceSelection",new LinuxSourceSelectionRequest(operation,server),timeoutMs:3000);
+            }catch(Exception error){Serilog.Log.Warning("Linux selection cancellation failed: ErrorType={ErrorType}",error.GetType().Name);}
+            finally{linuxSourceCancellation=null;IsSelectingLinuxSource=false;}
         }
     }
     private static LinuxSourceSelectionSnapshot ReadSelection(ScreenRecorder.Infrastructure.IPC.IpcResponse response,Guid operation,Guid? server)

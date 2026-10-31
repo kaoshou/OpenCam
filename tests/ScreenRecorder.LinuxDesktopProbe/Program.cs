@@ -15,6 +15,7 @@ return AppBuilder.Configure<DesktopProbe>().UsePlatformDetect().StartWithClassic
 internal sealed class DesktopProbe:Application
 {
     internal static string Evidence="";
+    public override void Initialize()=>Styles.Add(new Avalonia.Themes.Fluent.FluentTheme());
     public override void OnFrameworkInitializationCompleted()
     {
         if(ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) {
