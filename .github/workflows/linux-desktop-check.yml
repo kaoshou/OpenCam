@@ -7,11 +7,37 @@ on:
       - '.github/workflows/linux-desktop-check.yml'
       - 'src/ScreenRecorder.Platform.Linux/Native/playback.c'
       - 'tests/native/linux-playback.test.mjs'
+      - 'scripts/linux/Install-Dependencies.sh'
+      - 'scripts/linux/Start-OpenCam.sh'
+      - 'tests/scripts/linux-launcher.test.mjs'
   workflow_dispatch:
 permissions:
   contents: read
   actions: read
 jobs:
+  clean-prerequisites:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    container: ubuntu:24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check is read-only and lists missing packages on a fresh Ubuntu image
+        run: |
+          dpkg-query -W > /tmp/packages-before.txt
+          status=0
+          bash scripts/linux/Install-Dependencies.sh --check > /tmp/prerequisites-before.txt 2>&1 || status=$?
+          cat /tmp/prerequisites-before.txt
+          test "$status" = 2
+          grep -q libxcb-xinput0 /tmp/prerequisites-before.txt
+          grep -q libx264-164 /tmp/prerequisites-before.txt
+          dpkg-query -W > /tmp/packages-after.txt
+          diff /tmp/packages-before.txt /tmp/packages-after.txt
+      - name: One confirmed installation supplies every declared desktop package
+        run: |
+          printf 'Y\n' | bash scripts/linux/Install-Dependencies.sh --install
+          bash scripts/linux/Install-Dependencies.sh --check
+          command -v pactl
+          command -v xdg-open
   pulse-playback:
     runs-on: ubuntu-24.04
     timeout-minutes: 8

@@ -157,7 +157,7 @@ jobs:
           cc -O2 -Wall -Wextra -Werror src/ScreenRecorder.Platform.Linux/Native/playback.c -o "$RUNNER_TEMP/opencam-linux/publish/OpenCam.PulsePlayback" $(pkg-config --cflags --libs libpulse-simple)
           dotnet publish tests/ScreenRecorder.LinuxAppProbe/ScreenRecorder.LinuxAppProbe.csproj -c Release -r linux-x64 --self-contained false -p:OpenCamNativeOnlyTest=true -m:1 -o "$RUNNER_TEMP/opencam-linux/acceptance" > "$RUNNER_TEMP/opencam-linux/evidence/app-probe-build.log" 2>&1
           node scripts/linux/assemble-app.mjs "$RUNNER_TEMP/opencam-linux/publish" "$RUNNER_TEMP/opencam-linux/obs-stage" "$RUNNER_TEMP/opencam-linux/ffmpeg-prefix" "$RUNNER_TEMP/opencam-linux/OpenCam Linux Test" "$GITHUB_SHA" "$(cat VERSION)" > "$RUNNER_TEMP/opencam-linux/evidence/assembly.log" 2>&1
-          cp scripts/linux/Start-OpenCam.sh scripts/linux/Collect-Diagnostics.sh scripts/linux/README-LINUX-TEST.txt "$RUNNER_TEMP/opencam-linux/OpenCam Linux Test/"
+          cp scripts/linux/Start-OpenCam.sh scripts/linux/Install-Dependencies.sh scripts/linux/Collect-Diagnostics.sh scripts/linux/README-LINUX-TEST.txt "$RUNNER_TEMP/opencam-linux/OpenCam Linux Test/"
           chmod +x "$RUNNER_TEMP/opencam-linux/OpenCam Linux Test/Start-OpenCam.sh" "$RUNNER_TEMP/opencam-linux/OpenCam Linux Test/Collect-Diagnostics.sh"
           mv "$RUNNER_TEMP/opencam-linux/acceptance" "$RUNNER_TEMP/opencam-linux/Relocated Service Test"
           cp -a "$RUNNER_TEMP/opencam-linux/OpenCam Linux Test/." "$RUNNER_TEMP/opencam-linux/Relocated Service Test/"

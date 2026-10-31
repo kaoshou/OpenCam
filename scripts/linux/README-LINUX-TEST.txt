@@ -6,7 +6,12 @@ Extract the entire archive to a local writable directory, then run:
 No .NET installation is required. Keep obs-runtime and all bundled files together.
 
 OS desktop prerequisites (the launcher checks, never installs automatically):
-  sudo apt install pulseaudio-utils libpulse0 libx264-164 libpipewire-0.3-0 libdrm2 libwayland-client0 libegl1 libgl1 libfontconfig1 libx11-6 libxext6 libxrandr2 libxi6 libxcursor1 libxrender1 libice6 libsm6 libxcb-shm0 libxcb-randr0 libxcb-xfixes0 libxcb-xinerama0 libxcb-composite0
+  bash ./Install-Dependencies.sh --check
+To install missing prerequisites in one operation (APT asks for confirmation):
+  bash ./Install-Dependencies.sh --install
+This helper is limited to Ubuntu 24.04 x64. It does not change repositories,
+replace the audio server, install .NET, or manually replace GLIBC. Do not run
+OpenCam itself as root. See Install-Dependencies.sh for the single package list.
 Use an X11 session: on Ubuntu's login screen select your account, then the gear
 icon and "Ubuntu on Xorg" before logging in. Do not run OpenCam as root.
 
