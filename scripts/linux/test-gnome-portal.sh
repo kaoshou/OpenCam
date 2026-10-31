@@ -30,7 +30,8 @@ for ((i=0; i<150; i++)); do
 done
 [[ -n "${WAYLAND_DISPLAY:-}" ]] || exit 1
 dbus-update-activation-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_RUNTIME_DIR XDG_CONFIG_HOME DISPLAY
-GDK_BACKEND=x11 /usr/libexec/xdg-desktop-portal-gnome > "$evidence/portal-gnome.log" 2>&1 & owned+=("$!")
+export GTK_A11Y=atspi
+GDK_BACKEND=wayland /usr/libexec/xdg-desktop-portal-gnome > "$evidence/portal-gnome.log" 2>&1 & owned+=("$!")
 /usr/libexec/xdg-desktop-portal -r > "$evidence/portal.log" 2>&1 & owned+=("$!")
 for ((i=0; i<100; i++)); do
   if gdbus introspect --session --dest org.freedesktop.portal.Desktop --object-path /org/freedesktop/portal/desktop > "$evidence/portal-api.txt" 2>/dev/null && grep -Fq org.freedesktop.portal.ScreenCast "$evidence/portal-api.txt"; then break; fi
@@ -39,18 +40,14 @@ done
 mkfifo "$private/input"
 # Keep stdin owned/open until the test completes. No fake portal responses.
 exec 9<> "$private/input"
-LD_LIBRARY_PATH="$runtime/lib" "$runtime/bin/OpenCam.ObsCapture" --runtime "$runtime" --prepare-wayland <&9 > "$private/preview" 2> "$private/events" &
+"$runtime/bin/OpenCam.ObsCapture" --runtime "$runtime" --prepare-wayland <&9 > "$private/preview" 2> "$private/events" &
 capture=$!; owned+=("$capture")
 for ((i=0; i<100; i++)); do
   if ! kill -0 "$capture" 2>/dev/null || grep -Fq '"event":"selected"' "$private/events"; then break; fi
   if ((i == 30)); then
-    xwininfo -root -tree > "$evidence/chooser-windows.txt"
-    scrot "$evidence/chooser.png"
-    # Interact only with this disposable test's GTK chooser on its private Xvfb.
-    window=$(xdotool search --onlyvisible --name 'Screen Sharing|Share.*Screen|Screen.*Share' | head -n 1 || true)
-    if [[ -n "$window" ]]; then
-      xdotool windowfocus "$window" key Tab space Tab Return
-    fi
+    # AT-SPI activates actual chooser controls on the owned Wayland desktop;
+    # no synthetic D-Bus permission replies or production input workaround.
+    timeout 10 python3 scripts/linux/gnome-chooser-fixture.py > "$evidence/chooser-controls.txt" 2>&1 || true
   fi
   sleep .2
 done

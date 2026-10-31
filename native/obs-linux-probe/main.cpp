@@ -34,7 +34,7 @@ static opencam::LinuxSourceHealth sourceHealth;
 static void emit(const char *name, const std::string &fields = "")
 {
     if (product && std::strcmp(name, "ready") && std::strcmp(name, "progress") &&
-        std::strcmp(name, "stopped") && std::strcmp(name, "error")) return;
+        std::strcmp(name, "stopped") && std::strcmp(name, "error") && std::strcmp(name, "portal_grant")) return;
     std::lock_guard<std::mutex> guard(logMutex);
     std::cerr << (preparation ? "OCPORTAL " : product ? "OCOBS " : "OCLINUX ") << "{\"event\":\"" << name << "\",\"backend\":\"" << backend << "\"" << fields << "}\n";
 }
@@ -48,6 +48,14 @@ static std::string jsonQuote(const std::string &text)
         else out += c;
     }
     return out + '"';
+}
+static std::string portalIdentity(const opencam::PortalGrant &grant)
+{
+    auto *hash = g_compute_checksum_for_string(G_CHECKSUM_SHA256, grant.identity().c_str(), -1);
+    if (!hash) throw std::runtime_error("portal_identity_unavailable");
+    const std::string identity = std::string("portal:") + hash;
+    g_free(hash);
+    return identity;
 }
 static void logger(int level, const char *format, va_list args, void *)
 {
@@ -92,7 +100,7 @@ struct Request {
     int width = 640, height = 360, fps = 20, quality = 23;
     int protocol = 1, monitorWidth = 640, monitorHeight = 360, cropX = 0, cropY = 0, systemVolume = 100, micVolume = 100;
     bool cursor = true;
-    std::string monitor, audio = "none", system, microphone;
+    std::string monitor, audio = "none", system, microphone, portalToken, portalSourceId;
 };
 static Request parse(const std::string &text)
 {
@@ -108,6 +116,7 @@ static Request parse(const std::string &text)
         r.width = integer("width"); r.height = integer("height"); r.fps = integer("fps"); r.quality = integer("quality");
         r.monitor = obs_data_get_string(data, "monitor"); r.audio = obs_data_get_string(data, "audio");
         r.system = obs_data_get_string(data, "systemDevice"); r.microphone = obs_data_get_string(data, "microphone");
+        r.portalToken = obs_data_get_string(data, "portalRestoreToken"); r.portalSourceId = obs_data_get_string(data, "portalSourceId");
         r.protocol = integer("protocol"); r.monitorWidth = integer("monitorWidth"); r.monitorHeight = integer("monitorHeight");
         r.cropX = integer("cropX"); r.cropY = integer("cropY"); r.cursor = obs_data_get_bool(data, "cursor");
         if (r.protocol == 2) { r.systemVolume = integer("systemAudioVolumePercent"); r.micVolume = integer("microphoneVolumePercent"); }
@@ -220,7 +229,8 @@ int main(int argc, char **argv)
     // OBS's portal source does not expose a verifiable selected output identity.
     // Dimensions alone cannot distinguish two monitors. Keep diagnostic portal
     // research separate; never echo an unverified requested identity as ready.
-    if (product && backend == "pipewire") { emit("error", ",\"code\":\"portal_source_unverified\""); return 2; }
+    if (product && backend == "pipewire" && (!opencam::validPortalRestoreRequest(s.request.portalSourceId, s.request.portalToken) ||
+        s.request.portalSourceId != s.request.monitor)) { emit("error", ",\"code\":\"portal_source_unverified\""); return 2; }
     if (backend == "x11" && ((std::getenv("XDG_SESSION_TYPE") && std::string(std::getenv("XDG_SESSION_TYPE")) == "wayland") || std::getenv("WAYLAND_DISPLAY"))) {
         emit("error", ",\"code\":\"wayland_requires_portal\""); return 2;
     }
@@ -343,10 +353,7 @@ int main(int argc, char **argv)
             }
             // The private preparation channel is consumed by Recorder, never UI
             // logging/project persistence. stdout is exactly one bounded RGBA image.
-            auto *hash = g_compute_checksum_for_string(G_CHECKSUM_SHA256, portal->grant().identity().c_str(), -1);
-            if (!hash) throw std::runtime_error("portal_identity_unavailable");
-            const std::string identity = std::string("portal:") + hash;
-            g_free(hash);
+            const auto identity = portalIdentity(portal->grant());
             emit("selected", ",\"sourceId\":" + jsonQuote(identity) +
                 ",\"restoreToken\":" + jsonQuote(portal->grant().restoreToken()) +
                 ",\"width\":" + std::to_string(snapshot.sourceWidth) + ",\"height\":" + std::to_string(snapshot.sourceHeight) +
@@ -365,6 +372,7 @@ int main(int argc, char **argv)
                 screen = obs_source_create_private("xshm_input_v2", "screen", settings);
             } else {
                 obs_data_set_bool(settings, "ShowCursor", s.request.cursor);
+                if (product) obs_data_set_string(settings, "RestoreToken", s.request.portalToken.c_str());
                 emit("permission_wait");
                 screen = obs_source_create_private("pipewire-desktop-capture-source", "screen", settings);
             }
@@ -395,17 +403,32 @@ int main(int argc, char **argv)
             mic = attach(s.request.audio == "microphone" || s.request.audio == "both", true);
             stage = "source_wait";
             auto deadline = os_gettime_ns() + (backend == "pipewire" ? 60000000000ULL : 10000000000ULL);
+            opencam::SourceSnapshot verifiedFrame;
+            std::uint64_t nextSnapshot = 0;
             while (obs_source_get_width(screen) != static_cast<uint32_t>(s.request.monitorWidth) ||
                    obs_source_get_height(screen) != static_cast<uint32_t>(s.request.monitorHeight) ||
                    (backend == "pipewire" && !sourceHealth.streaming()) ||
                    (portal && !portal->grant().selected()) ||
+                   (portal && verifiedFrame.rgba.empty()) ||
                    (system && !s.systemSamples) || (mic && !s.micSamples)) {
                 if (portal && !portal->failure().empty()) throw std::runtime_error(portal->failure());
+                if (portal && portal->grant().selected()) {
+                    if (product && portalIdentity(portal->grant()) != s.request.portalSourceId) throw std::runtime_error("portal_source_changed");
+                    if (sourceHealth.streaming() && os_gettime_ns() >= nextSnapshot &&
+                        obs_source_get_width(screen) == static_cast<unsigned>(s.request.monitorWidth) &&
+                        obs_source_get_height(screen) == static_cast<unsigned>(s.request.monitorHeight)) {
+                        verifiedFrame = opencam::snapshotSource(screen);
+                        nextSnapshot = os_gettime_ns() + 100000000ULL;
+                    }
+                }
                 if (auto *reason = sourceHealth.terminalFailure()) throw std::runtime_error(reason);
                 if (command()) throw std::runtime_error("capture_cancelled");
                 if (os_gettime_ns() > deadline) throw std::runtime_error("source_timeout");
                 pump();
             }
+            if (product && portal) emit("portal_grant", ",\"sourceId\":" + jsonQuote(s.request.portalSourceId) +
+                ",\"restoreToken\":" + jsonQuote(portal->grant().restoreToken()) +
+                ",\"width\":" + std::to_string(verifiedFrame.sourceWidth) + ",\"height\":" + std::to_string(verifiedFrame.sourceHeight));
             emit("source_ready", ",\"width\":" + std::to_string(s.request.width) + ",\"height\":" + std::to_string(s.request.height));
             if (system) emit("audio_health", ",\"source\":\"system\",\"state\":\"healthy\"");
             if (mic) emit("audio_health", ",\"source\":\"microphone\",\"state\":\"healthy\"");

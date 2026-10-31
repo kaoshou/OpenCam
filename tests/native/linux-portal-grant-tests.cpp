@@ -8,6 +8,11 @@ static void rejects(const char *code, std::function<void()> fn) {
     try { fn(); assert(false); } catch (const std::runtime_error &e) { assert(std::string(e.what()) == code); }
 }
 int main() {
+    assert(opencam::validPortalRestoreRequest("portal:" + std::string(64, 'a'), "private-token"));
+    assert(!opencam::validPortalRestoreRequest("portal:" + std::string(63, 'a'), "private-token"));
+    assert(!opencam::validPortalRestoreRequest("portal:" + std::string(64, 'z'), "private-token"));
+    assert(!opencam::validPortalRestoreRequest("portal:" + std::string(64, 'a'), "private\ntoken"));
+    assert(!opencam::validPortalRestoreRequest("portal:" + std::string(64, 'a'), ""));
     PortalGrant grant;
     assert(!grant.selected());
     rejects("portal_identity_unavailable", [&] { grant.accept(3, 1, "opaque-A", 42, 1, "token-A"); });

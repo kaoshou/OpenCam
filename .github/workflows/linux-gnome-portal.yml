@@ -14,28 +14,41 @@ jobs:
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: obsproject/obs-studio
+          ref: 72e86655715d9a25d69ce446aa4dd44ba58e10d2
+          path: .linux-inputs/obs
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
       - name: Install isolated GNOME test desktop
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends gnome-shell gnome-session-bin xdg-desktop-portal-gnome xdg-desktop-portal-gtk pipewire wireplumber dbus-x11 xvfb xauth xdotool scrot mesa-utils libx264-164 libxcb-xinput0 libwayland-egl1 pulseaudio-utils
-      - name: Load immutable verified native preparation implementation
+          sudo apt-get install -y --no-install-recommends gnome-shell gnome-session-bin xdg-desktop-portal-gnome xdg-desktop-portal-gtk pipewire wireplumber dbus-x11 xvfb xauth xdotool scrot mesa-utils libx264-164 libxcb-xinput0 libwayland-egl1 pulseaudio-utils at-spi2-core python3-pyatspi build-essential cmake extra-cmake-modules ninja-build pkg-config zlib1g-dev libsimde-dev uthash-dev libjansson-dev uuid-dev libx11-xcb-dev libxcb-xinput-dev libxkbcommon-dev libwayland-dev libdrm-dev libegl1-mesa-dev libpulse-dev libx264-dev libpipewire-0.3-dev libglib2.0-dev libxcb-composite0-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-xfixes0-dev libxcb-xinerama0-dev
+      - uses: actions/cache/restore@v4
+        with:
+          path: |
+            ${{ runner.temp }}/opencam-linux/ffmpeg-prefix
+            ${{ runner.temp }}/opencam-linux/evidence/ffmpeg
+          key: opencam-ubuntu24-x64-media-v1-${{ hashFiles('scripts/linux/build-app-media.sh') }}
+          fail-on-cache-miss: true
+      - name: Build current native helper against unchanged pinned OBS
         env:
-          GH_TOKEN: ${{ github.token }}
+          PKG_CONFIG_PATH: ${{ runner.temp }}/opencam-linux/ffmpeg-prefix/lib/pkgconfig
+          LD_LIBRARY_PATH: ${{ runner.temp }}/opencam-linux/ffmpeg-prefix/lib
         run: |
-          gh run download 41215300661 --repo "$GITHUB_REPOSITORY" --name OpenCam-v1.2.0-Ubuntu24.04-x64-Test-f05020f62bd410d741e56be8ddc5340998664c21 --dir "$RUNNER_TEMP/inputs"
-          cd "$RUNNER_TEMP/inputs"
-          sha256sum --check SHA256SUMS.txt
-          mkdir "$RUNNER_TEMP/app"
-          tar -xzf OpenCam_v1.2.0_Ubuntu24.04_x64_Test_f05020f.tar.gz -C "$RUNNER_TEMP/app"
+          mkdir "$RUNNER_TEMP/gnome-evidence"
+          bash scripts/linux/build-obs-probe.sh "$GITHUB_WORKSPACE/.linux-inputs/obs" "$RUNNER_TEMP/obs-build" "$RUNNER_TEMP/obs-stage" "$RUNNER_TEMP/gnome-evidence/obs" > "$RUNNER_TEMP/gnome-evidence/obs-build.log" 2>&1
+          cmake -S native/obs-linux-probe -B "$RUNNER_TEMP/helper-build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$RUNNER_TEMP/obs-stage" -DOBS_SOURCE="$GITHUB_WORKSPACE/.linux-inputs/obs" -DOBS_RUNTIME="$RUNNER_TEMP/obs-stage" > "$RUNNER_TEMP/gnome-evidence/helper-configure.log" 2>&1
+          cmake --build "$RUNNER_TEMP/helper-build" --parallel 2 > "$RUNNER_TEMP/gnome-evidence/helper-build.log" 2>&1
+          cmake --install "$RUNNER_TEMP/helper-build" > "$RUNNER_TEMP/gnome-evidence/helper-install.log" 2>&1
       - name: Exercise actual GNOME compositor and portal chooser
         env:
           OPENCAM_DISPOSABLE_CI_DESKTOP: '1'
+          LD_LIBRARY_PATH: ${{ runner.temp }}/obs-stage/lib:${{ runner.temp }}/opencam-linux/ffmpeg-prefix/lib
         run: |
-          mkdir "$RUNNER_TEMP/gnome-evidence"
-          timeout 150 dbus-run-session -- xvfb-run -a -s '-screen 0 1280x800x24' bash scripts/linux/test-gnome-portal.sh "$RUNNER_TEMP/app/obs-runtime" "$RUNNER_TEMP/gnome-evidence"
+          timeout 150 dbus-run-session -- xvfb-run -a -s '-screen 0 1280x800x24' bash scripts/linux/test-gnome-portal.sh "$RUNNER_TEMP/obs-stage" "$RUNNER_TEMP/gnome-evidence"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

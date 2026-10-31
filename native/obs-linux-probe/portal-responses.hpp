@@ -49,7 +49,9 @@ public:
             if (response != 0) throw std::runtime_error(response == 1 ? "portal_cancelled" : "portal_denied");
             Variant session(g_variant_lookup_value(results.get(), "session_handle", nullptr));
             if (session) {
-                if (!session_.empty() || !g_variant_is_of_type(session.get(), G_VARIANT_TYPE_OBJECT_PATH) ||
+                // ScreenCast preserves the historical string wire type even
+                // though the value names an object path (XDG portal contract).
+                if (!session_.empty() || !g_variant_is_of_type(session.get(), G_VARIANT_TYPE_STRING) ||
                     !owned(g_variant_get_string(session.get(), nullptr), sessionPrefix_))
                     throw std::runtime_error("portal_identity_unavailable");
                 session_ = g_variant_get_string(session.get(), nullptr);

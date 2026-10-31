@@ -6,6 +6,13 @@
 #include <string>
 
 namespace opencam {
+inline bool validPortalRestoreRequest(const std::string &id, const std::string &token) {
+    if (id.size() != 71 || id.compare(0, 7, "portal:") || token.empty() || token.size() > 4096) return false;
+    for (std::size_t i = 7; i < id.size(); ++i)
+        if (!((id[i] >= '0' && id[i] <= '9') || (id[i] >= 'a' && id[i] <= 'f'))) return false;
+    for (unsigned char c : token) if (c < 32 || c == 127) return false;
+    return true;
+}
 // A single successful portal Start response. Credentials stay inside the
 // capture process; neither this type nor its errors serialize their contents.
 class PortalGrant {
