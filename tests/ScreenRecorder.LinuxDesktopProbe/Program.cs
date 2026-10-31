@@ -28,6 +28,7 @@ internal sealed class DesktopProbe:Application
                 AnnotationOverlayHost? host=null;
                 try {
                     await Task.Delay(500);
+                    var bindings=await CheckConfiguredBindings();
                     var screen=window.Screens.ScreenFromWindow(window)??window.Screens.All.FirstOrDefault()??throw new IOException("fixture_screen_unavailable");
                     host=new(window,new(screen.Bounds.X,screen.Bounds.Y,screen.Bounds.Width,screen.Bounds.Height),0xffe63946,4,(_,_)=>{},()=>true);
                     host.Show();host.SelectTool(AnnotationTool.Pen);await Task.Delay(250);
@@ -44,6 +45,7 @@ internal sealed class DesktopProbe:Application
                     if(host.Document.Marks.Length!=2)throw new IOException("native_rectangle_failed");
                     host.FinishDrawing();if(!host.Document.Marks.IsEmpty)throw new IOException("finish_did_not_clear");
                     await Input("mousemove","250","350","click","1");await Task.Delay(100);if(clicked!=2)throw new IOException("finish_did_not_release_input");
+                    if(!bindings)throw new IOException("configured_lifecycle_hotkeys_missing");
                     await File.WriteAllTextAsync(Path.Combine(Evidence,"annotation-result.json"),JsonSerializer.Serialize(new{status="PASS",scope="actual Avalonia X11/compositor drawing, click-through, toolbar hide/show and finish/clear; no physical multimonitor claim",handle=window.TryGetPlatformHandle()?.HandleDescriptor}));
                     host.Dispose();desktop.Shutdown(0);
                 }catch(Exception e) {
@@ -58,5 +60,18 @@ internal sealed class DesktopProbe:Application
     {
         var start=new ProcessStartInfo("xdotool"){UseShellExecute=false};foreach(var arg in args)start.ArgumentList.Add(arg);
         using var process=Process.Start(start)??throw new IOException("fixture_input_failed");await process.WaitForExitAsync();if(process.ExitCode!=0)throw new IOException("fixture_input_failed");
+    }
+    private static async Task<bool> CheckConfiguredBindings()
+    {
+        var vm=new ScreenRecorder.UI.ViewModels.MainViewModel(forScreenshot:true);
+        using var native=new ScreenRecorder.Platform.Linux.LinuxX11HotkeyService();
+        using var conflict=new ScreenRecorder.Platform.Linux.LinuxX11HotkeyService();
+        typeof(ScreenRecorder.UI.ViewModels.MainViewModel).GetField("_globalHotkeyService",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.SetValue(vm,native);
+        bool success;
+        try {
+            var error=vm.TryApplyHotkeys(new ScreenRecorder.Core.Models.UserSettings());
+            success=error is null&&vm.IsRecordingHotkeyRegistered&&!conflict.RegisterHotkey(9001,0x7B,2)&&!conflict.RegisterHotkey(9002,0x7B,0);
+        }finally{vm.Cleanup();}
+        await File.WriteAllTextAsync(Path.Combine(Evidence,"settings-hotkeys-result.json"),JsonSerializer.Serialize(new{status=success?"PASS":"FAIL",scope="actual MainViewModel settings registration and checked native collision on Ctrl+F12/F12"}));return success;
     }
 }
