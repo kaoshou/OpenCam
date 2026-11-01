@@ -16,6 +16,18 @@ def walk(node, depth=0):
             result.extend(walk(child, depth + 1))
     return result
 
+def screen_choice(control):
+    if control.getRoleName() != "toggle button":
+        return False
+    parent = control.parent
+    for depth in range(12):
+        if not parent:
+            return False
+        if (parent.name or "").lower().replace("_", "") == "entire screen":
+            return True
+        parent = parent.parent
+    return False
+
 for attempt in range(12):
     for app in pyatspi.Registry.getDesktop(0):
         if not app or "portal" not in (app.name or "").lower():
@@ -27,7 +39,10 @@ for attempt in range(12):
         chosen = False
         for control in controls:
             name = (control.name or "").lower()
-            if control.getRoleName() in ("check box", "radio button") and ("monitor" in name or "screen" in name):
+            if control.getRoleName() == "check box" and "remember" in name:
+                if not control.getState().contains(pyatspi.STATE_CHECKED):
+                    control.queryAction().doAction(0)
+            if screen_choice(control):
                 selected = control.getState().contains(pyatspi.STATE_CHECKED)
                 desired = not chosen
                 if selected != desired:
