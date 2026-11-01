@@ -27,11 +27,18 @@ async function prepare(){
     const exit=new Promise(resolve=>child.once('close',resolve));
     const timeout=setTimeout(()=>child.kill('SIGKILL'),40000);
     await delay(2500);
-    spawnSync('python3',['scripts/linux/gnome-teaching-chooser.py'],{timeout:12000,encoding:'utf8'});
+    const chooser=spawnSync('python3',['scripts/linux/gnome-teaching-chooser.py'],{timeout:12000,encoding:'utf8'});
+    fs.writeFileSync(path.join(evidence,'chooser-controls.txt'),(chooser.stdout??'')+(chooser.stderr??''));
     for(let i=0;i<100&&!events.includes('"event":"selected"');i++)await delay(100);
     child.stdin.end('\n');await exit;clearTimeout(timeout);
     const selection=events.split('\n').filter(line=>line.startsWith('OCPORTAL ')).map(line=>JSON.parse(line.slice(9))).find(e=>e.event==='selected');
-    if(!selection)throw new Error('selection_failed');
+    if(!selection){
+        report.prepareEvents=events.split('\n').filter(line=>line.startsWith('OCPORTAL ')).map(line=>{
+            try{const e=JSON.parse(line.slice(9));return {event:/^[a-z_]{1,64}$/.test(e.event)?e.event:'unknown',
+                code:/^[a-z_]{1,64}$/.test(e.code)?e.code:undefined};}catch{return {event:'malformed'};}
+        });
+        throw new Error('selection_failed');
+    }
     return {selection,pixels:Buffer.concat(pixels)};
 }
 async function record(selection,phase,disable=false){

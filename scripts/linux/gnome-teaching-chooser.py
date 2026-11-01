@@ -21,6 +21,9 @@ for attempt in range(12):
         if not app or "portal" not in (app.name or "").lower():
             continue
         controls = walk(app)
+        if attempt == 0:
+            for control in controls:
+                print(control.getRoleName(), repr(control.name), flush=True)
         chosen = False
         for control in controls:
             name = (control.name or "").lower()

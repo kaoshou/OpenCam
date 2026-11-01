@@ -36,18 +36,22 @@ for ((i=0;i<200;i++));do
   sleep .1
 done
 [[ -n "${WAYLAND_DISPLAY:-}" ]]
-dbus-update-activation-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_RUNTIME_DIR XDG_CONFIG_HOME XDG_DATA_HOME DISPLAY
+export GTK_A11Y=atspi GDK_BACKEND=wayland
+dbus-update-activation-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_RUNTIME_DIR XDG_CONFIG_HOME XDG_DATA_HOME DISPLAY GTK_A11Y GDK_BACKEND GSETTINGS_BACKEND
 for ((i=0;i<150;i++));do
-  if timeout 2 gdbus introspect --session --dest org.gnome.Mutter.ScreenCast --object-path /org/gnome/Mutter/ScreenCast > /dev/null 2>&1;then break;fi
+  if timeout 2 gdbus introspect --session --dest org.gnome.Mutter.ScreenCast --object-path /org/gnome/Mutter/ScreenCast 2>/dev/null | grep -q CreateSession;then break;fi
   sleep .1
 done
 for ((i=0;i<150;i++));do
-  if timeout 2 gdbus introspect --session --dest org.gnome.Shell --object-path /io/github/kaoshou/OpenCam/TeachingFixture > /dev/null 2>&1;then break;fi
+  if timeout 2 gdbus introspect --session --dest org.gnome.Shell --object-path /io/github/kaoshou/OpenCam/TeachingFixture 2>/dev/null | grep -q TeachingFixture;then break;fi
   sleep .1
 done
-export GTK_A11Y=atspi
 GDK_BACKEND=wayland python3 scripts/linux/gnome-teaching-surface.py > "$evidence/surface.log" 2>&1 & owned+=("$!")
 GDK_BACKEND=wayland /usr/libexec/xdg-desktop-portal-gnome > "$evidence/portal-gnome.log" 2>&1 & owned+=("$!")
+for ((i=0;i<150;i++));do
+  if gdbus introspect --session --dest org.freedesktop.impl.portal.desktop.gnome --object-path /org/freedesktop/portal/desktop 2>/dev/null | grep -q org.freedesktop.impl.portal.ScreenCast;then break;fi
+  sleep .1
+done
 /usr/libexec/xdg-desktop-portal -r > "$evidence/portal.log" 2>&1 & owned+=("$!")
 for ((i=0;i<150;i++));do
   if gdbus introspect --session --dest org.freedesktop.portal.Desktop --object-path /org/freedesktop/portal/desktop 2>/dev/null | grep -q org.freedesktop.portal.ScreenCast;then break;fi
