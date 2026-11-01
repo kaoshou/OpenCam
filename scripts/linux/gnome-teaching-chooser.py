@@ -28,23 +28,26 @@ for attempt in range(12):
         controls = walk(app)
         if attempt == 0:
             for control in controls:
-                print(control.getRoleName(), repr(control.name), flush=True)
+                print(control.getRoleName(), repr(control.name),
+                      "states", control.getState().getStates(), flush=True)
         chosen = False
         for control in controls:
             name = (control.name or "").lower()
             if control.getRoleName() == "check box" and "remember" in name:
                 if not control.getState().contains(pyatspi.STATE_CHECKED):
-                    control.queryAction().doAction(0)
+                    print("remember action", control.queryAction().doAction(0), flush=True)
             if screen_choice(control):
                 selected = control.getState().contains(pyatspi.STATE_CHECKED)
                 desired = not chosen
                 if selected != desired:
-                    control.queryAction().doAction(0)
+                    action = control.queryAction()
+                    print("monitor actions", [action.getName(i) for i in range(action.nActions)],
+                          "result", action.doAction(0), flush=True)
                 chosen = True
         for control in controls:
             if (control.name or "").lower().replace("_", "") in ("share", "allow") and control.getRoleName() in ("push button", "button"):
                 if chosen and control.getState().contains(pyatspi.STATE_SENSITIVE):
-                    control.queryAction().doAction(0)
+                    print("share action", control.queryAction().doAction(0), flush=True)
                     sys.exit(0)
     time.sleep(.5)
 sys.exit(1)

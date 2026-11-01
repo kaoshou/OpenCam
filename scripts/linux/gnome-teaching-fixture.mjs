@@ -28,6 +28,7 @@ async function prepare(){
     const timeout=setTimeout(()=>child.kill('SIGKILL'),40000);
     await delay(2500);
     const chooser=spawnSync('python3',['scripts/linux/gnome-teaching-chooser.py'],{timeout:12000,encoding:'utf8'});
+    report.chooserExitStatus=chooser.status;
     fs.writeFileSync(path.join(evidence,'chooser-controls.txt'),(chooser.stdout??'')+(chooser.stderr??''));
     for(let i=0;i<100&&!events.includes('"event":"selected"');i++)await delay(100);
     child.stdin.end('\n');await exit;clearTimeout(timeout);
