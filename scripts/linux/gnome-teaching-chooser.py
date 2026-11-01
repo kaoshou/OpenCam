@@ -17,16 +17,9 @@ def walk(node, depth=0):
     return result
 
 def screen_choice(control):
-    if control.getRoleName() != "toggle button":
-        return False
-    parent = control.parent
-    for depth in range(12):
-        if not parent:
-            return False
-        if (parent.name or "").lower().replace("_", "") == "entire screen":
-            return True
-        parent = parent.parent
-    return False
+    # This fixture requests monitor-only capture. GNOME exposes its monitor
+    # choices as toggles; the Entire Screen label is not their AT-SPI ancestor.
+    return control.getRoleName() == "toggle button"
 
 for attempt in range(12):
     for app in pyatspi.Registry.getDesktop(0):
