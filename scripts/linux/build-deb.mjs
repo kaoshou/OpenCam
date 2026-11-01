@@ -7,6 +7,12 @@ import {promisify} from 'node:util';
 import {pathToFileURL} from 'node:url';
 import {createHash} from 'node:crypto';
 const execute=promisify(execFile);
+export function parseDependencies(text) {
+  const lines=text.endsWith('\n')?text.slice(0,-1).split('\n'):text.split('\n');
+  if(!lines.length||lines.some(line=>!/^[a-z0-9][a-z0-9+.-]+(?: \| [a-z0-9][a-z0-9+.-]+)*$/.test(line)))
+    throw Error('Invalid runtime dependency manifest');
+  return lines;
+}
 const required=['OpenCam','ffmpeg','ffprobe','OpenCam.PulsePlayback','Start-OpenCam.sh',
   'obs-runtime/bin/OpenCam.ObsCapture','LICENSE','NOTICE.md','THIRD-PARTY-NOTICES.md','SOURCE.txt',
   'linux-notices/DOTNET-LICENSE.txt','linux-notices/DOTNET-THIRD-PARTY-NOTICES.txt',
@@ -52,8 +58,7 @@ export async function stageDeb({appRoot,stageRoot,version,revision}) {
   const info=JSON.parse(await readFile(join(appRoot,'LINUX-TEST-INFO.json'),'utf8'));
   if(info.version!==version||info.commit!==revision||info.platform!=='Ubuntu 24.04 x64'||
     info.nativeOnly!==true||info.compatibilityFallback!==false) throw Error('Package source identity/revision mismatch');
-  const packages=(await readFile(new URL('./runtime-packages.txt',import.meta.url),'utf8')).trim().split('\n');
-  if(!packages.length||packages.some(p=>!/[a-z0-9]/.test(p)||!/^[a-z0-9][a-z0-9+.-]+$/.test(p))) throw Error('Invalid runtime dependency manifest');
+  const packages=parseDependencies(await readFile(new URL('./runtime-packages.txt',import.meta.url),'utf8'));
   await mkdir(stageRoot);
   async function put(name,data,mode=0o644) { const path=join(stageRoot,name); await mkdir(dirname(path),{recursive:true}); await writeFile(path,data,{mode}); }
   for(const f of files) {

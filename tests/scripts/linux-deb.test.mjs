@@ -35,6 +35,23 @@ async function fixture(t) {
 }
 async function builder() { return (await import('../../scripts/linux/build-deb.mjs')).stageDeb; }
 
+test('dependency expressions allow only package names and explicit alternatives', async () => {
+  const {parseDependencies}=await import('../../scripts/linux/build-deb.mjs');
+  assert.deepEqual(parseDependencies('libicu74 | libicu76\nxdg-utils\n'), ['libicu74 | libicu76','xdg-utils']);
+  for(const invalid of ['', 'libicu74 || libicu76', '-y', 'libicu74;echo', 'libicu74,libicu76',
+    'libicu74 |', 'libicu74\n\nlibicu76', 'libicu74 $(id)', 'libicu74\r\n'])
+    assert.throws(()=>parseDependencies(invalid), /dependency manifest/i, invalid);
+});
+
+test('the same deb accepts Ubuntu 24 ICU 74 or Ubuntu 25 ICU 76 without requiring both', async t => {
+  const f=await fixture(t); await (await builder())(f);
+  const control=await readFile(join(f.stageRoot,'DEBIAN/control'),'utf8');
+  const dependencies=control.match(/^Depends: (.+)$/m)[1].split(', ');
+  assert.ok(dependencies.includes('libicu74 | libicu76'));
+  assert.ok(!dependencies.includes('libicu74'));
+  assert.ok(!dependencies.includes('libicu76'));
+});
+
 test('deb tree installs a Beta desktop launcher and declares desktop/native dependencies',async t => {
   const f=await fixture(t); await (await builder())(f);
   const control=await readFile(join(f.stageRoot,'DEBIAN/control'),'utf8');

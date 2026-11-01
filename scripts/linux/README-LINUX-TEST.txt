@@ -1,7 +1,7 @@
 OpenCam 1.2.0 — Ubuntu 24.04 x64 development test
 NOT A RELEASE. Check LINUX-TEST-INFO.json for the exact commit.
 
-Recommended Ubuntu 24.04 amd64 installation (network required for dependencies):
+Ubuntu 24.04 / 25.04 amd64 installation (network required for dependencies):
   sudo apt install ./OpenCam_*_Ubuntu24.04_amd64_Beta.deb
 Use the actual downloaded filename, or select this package in your desktop's
 package installer if supported. After installation, open "OpenCam Beta" in the
@@ -10,7 +10,12 @@ The application runs as your ordinary desktop user, never through sudo.
 Uninstall with: sudo apt remove opencam-beta
 Uninstalling does not remove your recordings, projects or personal settings.
 Application files and notices: /opt/opencam-beta/
-The Beta targets Ubuntu 24.04 x64; this does not imply Ubuntu 20.04 support.
+The package filename and LINUX-TEST-INFO.json identify the Ubuntu 24.04 build
+baseline. The same deb declares ICU 74 OR 76 so Ubuntu 25.04 can use its own
+ICU package; do not manually install old ICU or replace GLIBC. See the matching
+GitHub Actions run for each distribution's actual installation test result.
+This does not imply Ubuntu 20.04 or other distributions are supported.
+X11 versus Wayland affects desktop capture, not APT dependency resolution.
 
 Alternative extracted test archive: extract the entire archive to a local
 writable directory, then run:
@@ -21,7 +26,7 @@ OS desktop prerequisites (the launcher checks, never installs automatically):
   bash ./Install-Dependencies.sh --check
 To install missing prerequisites in one operation (APT asks for confirmation):
   bash ./Install-Dependencies.sh --install
-This helper is limited to Ubuntu 24.04 x64. It does not change repositories,
+This helper is limited to Ubuntu 24.04 / 25.04 x64. It does not change repositories,
 replace the audio server, install .NET, or manually replace GLIBC. Do not run
 OpenCam itself as root. See Install-Dependencies.sh for the single package list.
 For teaching pointers, annotations and global shortcuts, use an X11 session:

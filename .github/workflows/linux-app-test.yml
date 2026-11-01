@@ -291,6 +291,10 @@ jobs:
   deb-install:
     needs: linux-core
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu: ['24.04', '25.04']
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -302,4 +306,4 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/deb-delivery"
           sha256sum --check SHA256SUMS.txt
-          docker run --rm -v "$RUNNER_TEMP/deb-delivery:/delivery:ro" -v "$GITHUB_WORKSPACE/scripts/linux:/checks:ro" ubuntu:24.04 bash /checks/verify-deb-install.sh
+          docker run --rm -v "$RUNNER_TEMP/deb-delivery:/delivery:ro" -v "$GITHUB_WORKSPACE/scripts/linux:/checks:ro" "ubuntu:${{ matrix.ubuntu }}" bash /checks/verify-deb-install.sh

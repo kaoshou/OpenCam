@@ -3,7 +3,7 @@
 set -euo pipefail
 unset LD_PRELOAD LD_AUDIT LD_LIBRARY_PATH OBS_PLUGINS_PATH OBS_PLUGINS_DATA_PATH
 if [[ "$(uname -s)" != Linux || "$(uname -m)" != x86_64 ]]; then
-  echo 'This test package requires Ubuntu 24.04 x64.' >&2; exit 2
+  echo 'This test package requires Ubuntu x64 (24.04 build baseline).' >&2; exit 2
 fi
 app_directory=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 if [[ -z "${DISPLAY:-}" && -z "${WAYLAND_DISPLAY:-}" ]]; then
@@ -27,7 +27,7 @@ for executable in "$app_directory/OpenCam" "$app_directory/ffmpeg" "$app_directo
     if [[ "$dependencies" != *'not found'* ]]; then
       echo "Unable to inspect this executable (ldd exit=$dependency_error). Check that the full Ubuntu x64 package was extracted." >&2
     fi
-    echo 'Install declared Ubuntu 24.04 prerequisites: bash ./Install-Dependencies.sh --install' >&2
+    echo 'Install declared Ubuntu prerequisites: bash ./Install-Dependencies.sh --install' >&2
     echo 'No packages were installed automatically. Do not manually replace GLIBC.' >&2; exit 2
   fi
 done
