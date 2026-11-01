@@ -22,3 +22,16 @@ When updating downloads:
 There is no browser-side API call or automatic OS detection. All three platforms
 remain visible, including when visiting from a phone or a different computer.
 GitHub serves the files, so browser download preferences still apply.
+
+## Linux Beta
+
+The separate Linux Beta section explains Ubuntu 24.04 / 25.04 x64, X11 versus
+Wayland capability limits and CPU encoding. It does not imply full desktop parity.
+Set `linuxBetaVersion` in `downloads.json` to the published `version` only after
+verifying `OpenCam_v<version>_Linux_x64_Beta.deb`,
+`OpenCam_v<version>_Linux_x64_Beta.tar.gz`,
+`OpenCam_v<version>_Linux_Beta_CorrespondingSource.tar.gz` and
+`OpenCam_v<version>_Linux_Beta_SHA256SUMS.txt` exist with verified hashes in that
+public Release. An absent flag intentionally hides direct Linux attachment links.
+Linux application-menu naming is OpenCam; Beta remains in build information and
+all Linux download filenames. Linux source/license delivery is not optional.

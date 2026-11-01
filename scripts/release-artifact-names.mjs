@@ -12,6 +12,10 @@ try {
     `WINDOWS_SETUP=OpenCam_v${version}_Windows_x64_Setup.exe`,
     `WINDOWS_PORTABLE=OpenCam_v${version}_Windows_x64_Portable.zip`,
     `MACOS_DMG=OpenCam_v${version}_macOS_arm64.dmg`,
+    `LINUX_DEB=OpenCam_v${version}_Linux_x64_Beta.deb`,
+    `LINUX_ARCHIVE=OpenCam_v${version}_Linux_x64_Beta.tar.gz`,
+    `LINUX_SOURCES=OpenCam_v${version}_Linux_Beta_CorrespondingSource.tar.gz`,
+    `LINUX_CHECKSUMS=OpenCam_v${version}_Linux_Beta_SHA256SUMS.txt`,
   ].join('\n'));
 } catch (error) {
   console.error(error.message);

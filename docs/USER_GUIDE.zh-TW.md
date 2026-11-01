@@ -1,6 +1,6 @@
 # OpenCam 完整使用說明（繁體中文）
 
-> 本說明適用於 OpenCam v1.2.0，包含錄影、加入影片、剪輯與輸出。
+> 本說明適用於 OpenCam v1.2.1，包含錄影、加入影片、剪輯與輸出；Linux 為 Beta。
 
 ## 螢幕註記
 
@@ -150,19 +150,27 @@ Windows 錄影所需的 Microsoft Visual C++ 執行階段隨套件提供；安�
 
 - Windows 10 或 Windows 11，x64。
 - 安裝版與免安裝版都已包含執行所需元件。
-- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v1.2.0_Windows_x64_Setup.exe` 或 `OpenCam_v1.2.0_Windows_x64_Portable.zip`。檔名會標示版本、Windows 及 x64 架構。
+- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v1.2.1_Windows_x64_Setup.exe` 或 `OpenCam_v1.2.1_Windows_x64_Portable.zip`。檔名會標示版本、Windows 及 x64 架構。
 - 系統音訊使用 Windows 音訊回送擷取；麥克風可在 OpenCam 中選擇。
 
 ### macOS
 
 - macOS 13 Ventura 或以上。
 - 官方版本目前支援 Apple Silicon（arm64）；尚未提供 Intel Mac（x64）版本。
-- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v1.2.0_macOS_arm64.dmg`；檔名中的 arm64 表示 Apple Silicon。
+- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v1.2.1_macOS_arm64.dmg`；檔名中的 arm64 表示 Apple Silicon。
 - 第一次啟動後，請到「系統設定 → 隱私權與安全性」允許 OpenCam 使用：
   - 螢幕與系統音訊錄製
   - 麥克風（需要錄製麥克風時）
 - 權限變更後若沒有立即生效，請完全結束 OpenCam，再重新開啟。
 - macOS 的麥克風來源是系統目前的預設輸入裝置。若要換麥克風，請先到 macOS「聲音」設定切換預設輸入裝置，再開始錄影；也可在暫停期間切換後再繼續錄影。
+
+### Linux Beta
+
+- Ubuntu 24.04／25.04 x64。下載 `OpenCam_v1.2.1_Linux_x64_Beta.deb`，在檔案所在目錄執行 `sudo apt install ./OpenCam_v1.2.1_Linux_x64_Beta.deb`。
+- APT 會處理相依套件；安裝後從應用程式選單開啟「OpenCam」，不需手動執行腳本。請勿以 root 執行程式。既有測試版可直接升級，套件 ID 為 `opencam-beta`。
+- X11 支援螢幕／區域錄影、虛擬教鞭、螢幕註記及全域快捷鍵。Wayland 請按選屏並在系統視窗授權一個螢幕，再於縮圖選取所需範圍；舊桌面座標不會直接沿用。授權失效或來源改變時需重新選屏。
+- Wayland 目前不提供教鞭、桌面註記與全域快捷鍵。Linux 使用 CPU 編碼；其他發行版、不同硬體與縮放尚未完整驗證，請先短錄確認畫面、聲音與匯出。
+- 免安裝封存檔為 `OpenCam_v1.2.1_Linux_x64_Beta.tar.gz`，完整解壓後依內附說明操作。移除安裝版可用 `sudo apt remove opencam-beta`，不刪除個人專案與錄影。
 
 ## 2. 快速開始
 

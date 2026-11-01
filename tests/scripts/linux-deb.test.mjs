@@ -64,7 +64,7 @@ test('deb tree installs a Beta desktop launcher and declares desktop/native depe
     assert.ok(control.includes(pkg),pkg);
   const desktop=await readFile(join(f.stageRoot,'usr/share/applications/opencam-beta.desktop'),'utf8');
   assert.match(desktop,/^Exec=\/usr\/bin\/opencam-beta$/m); assert.match(desktop,/^Terminal=false$/m);
-  assert.match(desktop,/Beta/); assert.doesNotMatch(desktop,/\.sh/);
+  assert.match(desktop,/^Name=OpenCam$/m); assert.doesNotMatch(desktop,/^Name=.*Beta/m); assert.doesNotMatch(desktop,/\.sh/);
   assert.equal(await readFile(join(f.stageRoot,'opt/opencam-beta/OpenCam'),'utf8'),'fixture');
   const launcher=await readFile(join(f.stageRoot,'usr/bin/opencam-beta'),'utf8');
   assert.match(launcher,/\/opt\/opencam-beta\/Start-OpenCam\.sh/); assert.doesNotMatch(launcher,/apt |sudo|rm /);

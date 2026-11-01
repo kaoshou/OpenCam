@@ -32,8 +32,8 @@ export async function writeLinuxRuntimeManifest(root) {
     capabilities: { backends: ['x11', 'pipewire'], audio: ['none', 'system', 'microphone', 'both', 'silence'], encoders: ['cpu'] }, files }, null, 2));
 }
 export async function assembleLinuxApp({ publishRoot, nativeRoot, mediaRoot, outputRoot, revision, version, patchElf = false }) {
-  if (![publishRoot, nativeRoot, mediaRoot, outputRoot].every(isAbsolute) || !/^[a-f0-9]{40}$/.test(revision) || version !== '1.2.0')
-    throw new Error('Require absolute build roots, exact commit and unchanged version');
+  if (![publishRoot, nativeRoot, mediaRoot, outputRoot].every(isAbsolute) || !/^[a-f0-9]{40}$/.test(revision) || !/^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$/.test(version))
+    throw new Error('Require absolute build roots, exact commit and numeric version');
   const app = await inventory(publishRoot), native = await inventory(nativeRoot), media = await inventory(mediaRoot);
   if (!native.some(f => f.name === 'bin/OpenCam.ObsCapture')) throw new Error('Missing product helper');
   for (const name of ['ffmpeg', 'ffprobe']) if (!media.some(f => f.name === 'bin/' + name)) throw new Error('Missing media tool');
@@ -64,7 +64,7 @@ export async function assembleLinuxApp({ publishRoot, nativeRoot, mediaRoot, out
   await writeLinuxRuntimeManifest(runtime);
   await writeFile(join(outputRoot, 'LINUX-TEST-INFO.json'), JSON.stringify({ version, commit: revision, platform: 'Ubuntu 24.04 x64',
     recordingCore: 'OBS/libobs 33.0.0', nativeOnly: true, compatibilityFallback: false,
-    status: 'DEVELOPMENT TEST — NOT A RELEASE',
+    status: 'BETA — Linux functionality has platform-specific limitations',
     manualValidation: ['physical audio/video and sync', 'GNOME portal permissions', 'multi-monitor DPI', 'desktop overlays/global shortcuts'],
     limitations: ['CPU encoding only', 'teaching pointer, screen annotations and global shortcuts require X11; annotations require a compositor',
       'Wayland recording requires an authorized persistent portal screen identity; no GNOME extension is installed'] }, null, 2));

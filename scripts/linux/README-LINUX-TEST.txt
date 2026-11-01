@@ -1,16 +1,16 @@
-OpenCam 1.2.0 — Ubuntu 24.04 x64 development test
-NOT A RELEASE. Check LINUX-TEST-INFO.json for the exact commit.
+OpenCam — Linux x64 Beta
+Check SOURCE.txt and LINUX-TEST-INFO.json for the version and exact commit.
 
 Ubuntu 24.04 / 25.04 amd64 installation (network required for dependencies):
-  sudo apt install ./OpenCam_*_Ubuntu24.04_amd64_Beta.deb
+  sudo apt install ./OpenCam_v*_Linux_x64_Beta.deb
 Use the actual downloaded filename, or select this package in your desktop's
-package installer if supported. After installation, open "OpenCam Beta" in the
+package installer if supported. After installation, open "OpenCam" in the
 application menu. No manual shell-script launch or .NET installation is needed.
 The application runs as your ordinary desktop user, never through sudo.
 Uninstall with: sudo apt remove opencam-beta
 Uninstalling does not remove your recordings, projects or personal settings.
 Application files and notices: /opt/opencam-beta/
-The package filename and LINUX-TEST-INFO.json identify the Ubuntu 24.04 build
+LINUX-TEST-INFO.json identifies the Ubuntu 24.04 build
 baseline. The same deb declares ICU 74 OR 76 so Ubuntu 25.04 can use its own
 ICU package; do not manually install old ICU or replace GLIBC. See the matching
 GitHub Actions run for each distribution's actual installation test result.
@@ -43,10 +43,10 @@ The supported Ubuntu GNOME desktop must provide a working ScreenCast portal v4+
 and its compatible session backend (normally supplied by Ubuntu's desktop).
 Minimal/custom desktops without that service are not validated by this Beta.
 
-This is the first application integration test package, not full Linux parity.
+Linux remains Beta, not full desktop feature parity.
 Recording uses OBS/libobs only and CPU H.264. No FFmpeg video fallback is present.
 FFmpeg/ffprobe are bundled for audio confirmation, editing, import and export.
-Windows/macOS release packages and their native implementations are unchanged.
+Windows/macOS native recording implementations are unchanged.
 
 Current test limitations, also shown in the application:
 - X11 supports the original/hidden cursor and the live teaching pointer, screen

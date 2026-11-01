@@ -148,9 +148,14 @@ jobs:
     with:
       release_package: true
 
+  build-linux:
+    needs: [verify-portable, verify-windows, verify-macos]
+    uses: ./.github/workflows/linux-app-test.yml
+
   publish-release:
     needs:
       - build-obs
+      - build-linux
     if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
     runs-on: ubuntu-latest
     permissions:
@@ -190,6 +195,21 @@ jobs:
       with:
         name: OpenCam-v${{ env.OPENCAM_VERSION }}-macOS-arm64
         path: release-assets/macos
+
+    - name: Download verified Linux Beta and corresponding sources
+      uses: actions/download-artifact@v4
+      with:
+        name: OpenCam-Linux-Beta-${{ github.sha }}
+        path: release-assets/linux
+
+    - name: Verify all Linux Beta assets
+      run: |
+        cd release-assets/linux
+        test -s "$LINUX_DEB"
+        test -s "$LINUX_ARCHIVE"
+        test -s "$LINUX_SOURCES"
+        test -s "$LINUX_CHECKSUMS"
+        sha256sum --check "$LINUX_CHECKSUMS"
 
     - uses: actions/download-artifact@v4
       with:
@@ -237,5 +257,6 @@ jobs:
         upload_asset "release-assets/windows/installer/Output/$WINDOWS_SETUP"
         upload_asset "release-assets/windows/$WINDOWS_PORTABLE"
         upload_asset "release-assets/macos/$MACOS_DMG"
+        for linux_asset in release-assets/linux/*; do upload_asset "$linux_asset"; done
         for source in release-assets/sources/*; do upload_asset "$source"; done
         gh release edit "$RELEASE_TAG" --draft=false --latest

@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-name: Linux application development test package
+name: Build and validate OpenCam Linux Beta
 
 on:
   push:
     branches: ['codex/linux-app-test-20261030']
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -54,7 +55,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/opencam-linux/evidence"
           git rev-parse HEAD > "$RUNNER_TEMP/opencam-linux/evidence/revision.txt"
-          git diff e0c369e6495532cc0393c349dc428ffb8a00327e -- src/ScreenRecorder.Platform.Windows src/ScreenRecorder.Platform.macOS native/obs-capture scripts/build-obs-capture.sh scripts/build-obs-capture.ps1 scripts/assemble-obs-runtime.mjs .github/workflows/build-and-release.yml .github/workflows/package-release.yml VERSION > "$RUNNER_TEMP/opencam-linux/evidence/production-diff.txt"
+          git diff e0c369e6495532cc0393c349dc428ffb8a00327e -- src/ScreenRecorder.Platform.Windows src/ScreenRecorder.Platform.macOS native/obs-capture scripts/build-obs-capture.sh scripts/build-obs-capture.ps1 scripts/assemble-obs-runtime.mjs > "$RUNNER_TEMP/opencam-linux/evidence/production-diff.txt"
           test ! -s "$RUNNER_TEMP/opencam-linux/evidence/production-diff.txt"
           node --test tests/scripts/linux-obs-inputs.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/input-tests.log" 2>&1
           node --test tests/scripts/linux-probe-protocol.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/protocol-tests.log" 2>&1
@@ -62,7 +63,7 @@ jobs:
           node --test tests/scripts/linux-isolation.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/isolation-tests.log" 2>&1
           node --test tests/scripts/linux-app-assembly.test.mjs tests/scripts/linux-app-media-validation.test.mjs tests/scripts/linux-deb.test.mjs tests/scripts/linux-installed-elf.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/package-unit-tests.log" 2>&1
           node --test tests/scripts/linux-elf-policy.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/elf-policy-tests.log" 2>&1
-          git diff 7bc17eb -- native/obs-capture scripts/build-obs-capture.sh scripts/build-obs-capture.ps1 scripts/assemble-obs-runtime.mjs .github/workflows/build-and-release.yml .github/workflows/package-release.yml VERSION > "$RUNNER_TEMP/opencam-linux/evidence/production-audit.diff"
+          git diff 7bc17eb -- native/obs-capture scripts/build-obs-capture.sh scripts/build-obs-capture.ps1 scripts/assemble-obs-runtime.mjs > "$RUNNER_TEMP/opencam-linux/evidence/production-audit.diff"
           test ! -s "$RUNNER_TEMP/opencam-linux/evidence/production-audit.diff"
           c++ -std=c++17 tests/native/linux-source-health-tests.cpp -o "$RUNNER_TEMP/opencam-linux/health-tests"
           "$RUNNER_TEMP/opencam-linux/health-tests"
@@ -270,21 +271,21 @@ jobs:
           cp "$RUNNER_TEMP/opencam-linux/evidence/ffmpeg/config.mak" "$package_directory/build-evidence/ffmpeg-config.mak"
           cp "$RUNNER_TEMP/opencam-linux/evidence/elf-dependencies.txt" "$RUNNER_TEMP/opencam-linux/evidence/ubuntu-package-versions.txt" "$package_directory/build-evidence/"
           bash scripts/linux/package-verified-app.sh "$package_directory" "$RUNNER_TEMP/opencam-linux/artifacts" "$GITHUB_WORKSPACE/.linux-inputs/obs" "$GITHUB_WORKSPACE/.linux-inputs/ffmpeg" "$GITHUB_SHA"
-      - name: Upload Linux development test package and corresponding sources (not Release)
+      - name: Upload validated Linux Beta packages and corresponding sources
         uses: actions/upload-artifact@v4
         with:
-          name: OpenCam-v1.2.0-Ubuntu24.04-x64-Test-${{ github.sha }}
+          name: OpenCam-Linux-Beta-${{ github.sha }}
           path: |
             ${{ runner.temp }}/opencam-linux/artifacts/*.tar.gz
             ${{ runner.temp }}/opencam-linux/artifacts/*.deb
-            ${{ runner.temp }}/opencam-linux/artifacts/SHA256SUMS.txt
+            ${{ runner.temp }}/opencam-linux/artifacts/*_SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 14
       - name: Preserve measured build and test logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: OpenCam-v1.2.0-Linux-App-Test-Logs-${{ github.sha }}
+          name: OpenCam-Linux-Beta-Logs-${{ github.sha }}
           path: ${{ runner.temp }}/opencam-linux/evidence/
           if-no-files-found: error
           retention-days: 14
@@ -300,10 +301,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: OpenCam-v1.2.0-Ubuntu24.04-x64-Test-${{ github.sha }}
+          name: OpenCam-Linux-Beta-${{ github.sha }}
           path: ${{ runner.temp }}/deb-delivery
       - name: Install real deb on a clean Ubuntu image and verify all native assets
         run: |
           cd "$RUNNER_TEMP/deb-delivery"
-          sha256sum --check SHA256SUMS.txt
+          sha256sum --check *_SHA256SUMS.txt
           docker run --rm -v "$RUNNER_TEMP/deb-delivery:/delivery:ro" -v "$GITHUB_WORKSPACE/scripts/linux:/checks:ro" "ubuntu:${{ matrix.ubuntu }}" bash /checks/verify-deb-install.sh

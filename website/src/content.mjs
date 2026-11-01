@@ -16,13 +16,16 @@ if (typeof downloads.version !== 'string' || !/^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-
   throw new Error('Download version must identify a numeric published release');
 }
 export const downloadVersion = downloads.version;
+export const linuxBetaDownloadVersion = downloads.linuxBetaVersion ?? null;
+if(linuxBetaDownloadVersion !== null && linuxBetaDownloadVersion !== downloadVersion)
+  throw new Error('Linux Beta downloads must identify the verified published release');
 const downloadDisplayVersion = `v${downloadVersion}`;
 export const mainScreenshotVersion = JSON.parse(readFileSync(new URL('../../docs/images/metadata.json', import.meta.url), 'utf8')).version;
 const mainScreenshotDisplayVersion = `v${mainScreenshotVersion}`;
 
 export const content = {
   'zh-TW': {
-    eyebrow: 'Windows 與 macOS 的簡單錄影與剪輯工具',
+    eyebrow: 'Windows、macOS 錄影與剪輯工具 · 另提供 Linux Beta',
     heroTitle: '<span class="hero-line">把重要的畫面，</span><em class="hero-line">好好錄下來。</em>',
     heroText: '錄影、剪輯、續錄，一次完成。整理片段、附加多語字幕，再輸出 MP4、GIF 或具章節與逐字稿搜尋的網頁播放器。原始 MKV 素材保留在專案中。',
     windowsPortableLabel: '下載 Windows 免安裝版', windowsInstallerLabel: '下載 Windows 安裝版', macOSLabel: '下載 macOS 版', guideLabel: '閱讀使用說明',
@@ -73,7 +76,7 @@ export const content = {
     previewNote: `圖片為 ${mainScreenshotDisplayVersion} 的介面示意，最新功能請參考使用說明。Windows 與 macOS 的裝置選項依平台顯示。`
   },
   'en-US': {
-    eyebrow: 'Simple recording and editing for Windows and macOS',
+    eyebrow: 'Recording and editing for Windows and macOS · Linux Beta available',
     heroTitle: '<span class="hero-line">Capture what matters.</span><em class="hero-line">Keep it safe.</em>',
     heroText: 'Record, edit and continue in one place. Organize clips, attach multilingual subtitles and export MP4, GIF or a web player with chapters and transcript search. Keep original MKV media in your project.',
     windowsPortableLabel: 'Download Windows portable', windowsInstallerLabel: 'Download Windows installer', macOSLabel: 'Download macOS', guideLabel: 'Read the user guide',
@@ -125,6 +128,12 @@ export const content = {
   }
 };
 
+function renderLinuxBeta(language) {
+  const zh=language==='zh-TW';
+  const base=linuxBetaDownloadVersion ? `https://github.com/kaoshou/OpenCam/releases/download/v${linuxBetaDownloadVersion}/OpenCam_v${linuxBetaDownloadVersion}_Linux_x64_Beta` : null;
+  return `<section class="section" id="linux-beta"><div class="container"><div class="section-intro"><p class="section-kicker">Linux Beta</p><h2>${zh?'Ubuntu 也能使用 OpenCam':'OpenCam for Ubuntu'}</h2><p>${zh?'Ubuntu 24.04／25.04 x64 測試版，支援 X11 與 Wayland 錄影，使用 OBS／libobs 與 CPU 編碼。Linux 仍為 Beta，功能與桌面環境支援尚未與 Windows／macOS 完全一致。':'Beta for Ubuntu 24.04 / 25.04 x64, with X11 and Wayland recording using OBS/libobs and CPU encoding. Linux is still Beta; desktop integration is not yet at full Windows/macOS parity.'}</p><p>${zh?'X11 提供教鞭、螢幕註記與快捷鍵；Wayland 透過系統授權選屏錄影，目前不含教鞭、桌面註記及全域快捷鍵。安裝後從應用程式選單開啟「OpenCam」，不需手動啟動腳本。':'X11 includes teaching pointers, annotations and shortcuts. Wayland records an explicitly authorized screen; teaching pointers, desktop annotations and global shortcuts are not included yet. After installation, open OpenCam from the application menu without launching a script.'}</p></div>${base?`<div class="hero-actions"><a class="button button-primary" href="${base}.deb">${zh?'下載 Linux Beta 安裝版':'Download Linux Beta installer'}</a><a class="button button-secondary" href="${base}.tar.gz">${zh?'下載 Linux Beta 免安裝版':'Download Linux Beta archive'}</a></div><p><code>sudo apt install ./OpenCam_v${linuxBetaDownloadVersion}_Linux_x64_Beta.deb</code></p>`:''}<p>${zh?'首次使用請先短錄並確認畫面、聲音與匯出結果；不同硬體、縮放及 GNOME 版本仍需實機確認。':'Before longer work, make a short recording and check video, sound and export. Hardware, scaling and GNOME versions still need real-device validation.'}</p></div></section>`;
+}
+
 export function renderHome(language) {
   const c = content[language];
   if (!c) throw new TypeError('Unsupported site language');
@@ -141,6 +150,7 @@ export function renderHome(language) {
   const annotationToolbar = assetPath(`preview_annotation_toolbar_${suffix}.png`);
 return `<section class="hero"><div class="container hero-grid"><div class="hero-copy"><p class="eyebrow"><span class="eyebrow-dot"></span>${escapeHtml(c.eyebrow)}</p><h1>${c.heroTitle}</h1><p class="hero-text">${escapeHtml(c.heroText)}</p><div class="hero-actions"><a class="button button-primary" href="${downloadBase}_Windows_x64_Portable.zip">${escapeHtml(c.windowsPortableLabel)}</a><a class="button button-secondary" href="${downloadBase}_Windows_x64_Setup.exe">${escapeHtml(c.windowsInstallerLabel)}</a><a class="button button-secondary" href="${downloadBase}_macOS_arm64.dmg">${escapeHtml(c.macOSLabel)}</a></div><div class="download-notes"><p>${escapeHtml(c.windowsDownloadNote)}</p><p>${escapeHtml(c.macOSDownloadNote)}</p><p class="download-links"><a href="${latest}">${escapeHtml(c.releaseLinksLabel)}</a><a href="${guide}">${escapeHtml(c.guideLabel)}</a></p></div><p class="hero-meta">${escapeHtml(c.openSource)}</p><p class="release-license-note">${escapeHtml(c.licenseReleaseNote)}</p></div><div class="hero-visual"><div class="window-halo"></div><a class="screenshot-link" href="${mainImage}" data-lightbox aria-label="${escapeHtml(c.fullSizeLabel)}"><img src="${mainImage}" alt="${escapeHtml(c.mainAlt)}" width="1000" height="1000"></a><span class="visual-caption">${escapeHtml(c.mainCaption)} · ${escapeHtml(c.fullSizeLabel)}</span></div></div></section>
 ${renderOnboarding(language)}
+${renderLinuxBeta(language)}
 <section class="section"><div class="container"><div class="section-intro"><p class="section-kicker">OpenCam / v${escapeHtml(productVersion)}</p><h2>${language === 'zh-TW' ? '錄影時，直接標示重點。' : 'Mark up your screen while recording.'}</h2><p>${language === 'zh-TW' ? '使用畫筆、線條與圖形標示教材，可調整顏色和粗細。註記直接錄入影片，工具列也可能出現在錄影中。' : 'Use a pen, lines and shapes to highlight teaching material, with adjustable colors and line widths. Annotations are recorded into the video, and the toolbar may also be captured.'}</p></div><figure class="screenshot-card"><img src="${annotationImage}" alt="${language === 'zh-TW' ? '螢幕註記示意：方框、圓圈與箭頭' : 'Screen annotation illustration with rectangle, ellipse and arrow'}" loading="lazy"><figcaption>${language === 'zh-TW' ? '以程式繪圖元件製作的註記示意' : 'Annotation illustration rendered with the application drawing component'}</figcaption></figure><figure class="screenshot-card"><img src="${annotationToolbar}" alt="${language === 'zh-TW' ? '螢幕註記工具列' : 'Screen annotation toolbar'}" loading="lazy"><figcaption>${language === 'zh-TW' ? '可拖曳及隱藏的螢幕註記工具列' : 'Movable screen annotation toolbar'}</figcaption></figure></div></section>
 <section class="section screenshot-section" id="preview"><div class="container"><div class="section-intro"><p class="section-kicker">01 / OpenCam</p><h2>${escapeHtml(c.screenshotTitle)}</h2><p>${escapeHtml(c.screenshotText)}</p></div><div class="screenshot-grid"><figure class="screenshot-card"><a class="screenshot-link" href="${mainImage}" data-lightbox aria-label="${escapeHtml(c.fullSizeLabel)}"><img src="${mainImage}" alt="${escapeHtml(c.mainAlt)}" loading="lazy" width="1000" height="1000"></a><figcaption>${escapeHtml(c.mainCaption)} · <a href="${mainImage}" data-lightbox>${escapeHtml(c.fullSizeLabel)}</a></figcaption></figure><figure class="screenshot-card settings-card"><a class="screenshot-link" href="${settingsImage}" data-lightbox aria-label="${escapeHtml(c.fullSizeLabel)}"><img src="${settingsImage}" alt="${escapeHtml(c.settingsAlt)}" loading="lazy" width="650" height="820"></a><figcaption>${escapeHtml(c.settingsCaption)} · <a href="${settingsImage}" data-lightbox>${escapeHtml(c.fullSizeLabel)}</a></figcaption></figure></div><p class="preview-note">${escapeHtml(c.previewNote)}</p></div></section>
 <section class="section editor-section" id="editing"><div class="container"><div class="section-intro"><p class="section-kicker">Editing / v${escapeHtml(mainScreenshotVersion)}</p><h2>${escapeHtml(c.editorTitle)}</h2><p>${escapeHtml(c.editorText)}</p></div><figure class="screenshot-card editor-card"><a class="screenshot-link" href="${editorImage}" data-lightbox aria-label="${escapeHtml(c.fullSizeLabel)}"><img src="${editorImage}" alt="${escapeHtml(c.editorAlt)}" loading="lazy" width="1440" height="900"></a><figcaption>${escapeHtml(c.editorCaption)} · <a href="${editorImage}" data-lightbox>${escapeHtml(c.fullSizeLabel)}</a></figcaption></figure><ul class="editor-highlights">${c.editorPoints.map(point => `<li>${escapeHtml(point)}</li>`).join('')}</ul></div></section>

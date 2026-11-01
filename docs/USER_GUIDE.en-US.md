@@ -1,6 +1,6 @@
 # OpenCam Complete User Guide (English)
 
-> This guide covers OpenCam v1.2.0: recording, video import, editing and export.
+> This guide covers OpenCam v1.2.1: recording, video import, editing and export. Linux is Beta.
 
 ## Screen annotations
 
@@ -138,19 +138,27 @@ Compatible H.264 is remuxed where possible; other supported sources convert to H
 
 - Windows 10 or Windows 11, x64.
 - Installer and portable packages include .NET and media tools. The required Microsoft Visual C++ recording runtime is included app-locally on Windows. Install normally or fully extract the portable ZIP; no separate codec/runtime installation is needed. If package files are missing, re-download the complete package rather than replacing individual DLLs.
-- Download `OpenCam_v1.2.0_Windows_x64_Setup.exe` or `OpenCam_v1.2.0_Windows_x64_Portable.zip` from [Releases](https://github.com/kaoshou/OpenCam/releases). Filenames identify the version, Windows platform, and x64 architecture.
+- Download `OpenCam_v1.2.1_Windows_x64_Setup.exe` or `OpenCam_v1.2.1_Windows_x64_Portable.zip` from [Releases](https://github.com/kaoshou/OpenCam/releases). Filenames identify the version, Windows platform, and x64 architecture.
 - System audio uses Windows loopback capture. A microphone can be selected in OpenCam.
 
 ### macOS
 
 - macOS 13 Ventura or later.
 - The official build currently supports Apple Silicon (arm64). An Intel Mac (x64) build is not currently provided.
-- Download `OpenCam_v1.2.0_macOS_arm64.dmg` from [Releases](https://github.com/kaoshou/OpenCam/releases); arm64 identifies Apple Silicon.
+- Download `OpenCam_v1.2.1_macOS_arm64.dmg` from [Releases](https://github.com/kaoshou/OpenCam/releases); arm64 identifies Apple Silicon.
 - After first launch, open **System Settings → Privacy & Security** and allow OpenCam to use:
   - Screen & System Audio Recording
   - Microphone, when microphone recording is needed
 - If a permission change does not take effect immediately, quit OpenCam completely and reopen it.
 - On macOS, OpenCam uses the current system-default input device. To use a different microphone, select it in macOS Sound settings before recording. You can also change the default device while paused and then resume.
+
+### Linux Beta
+
+- Ubuntu 24.04 / 25.04 x64. Download `OpenCam_v1.2.1_Linux_x64_Beta.deb` and run `sudo apt install ./OpenCam_v1.2.1_Linux_x64_Beta.deb` from its directory.
+- APT resolves dependencies. Open **OpenCam** from the application menu; no manual script launch is needed. Never run the app as root. Existing Beta installations can upgrade using the same `opencam-beta` package ID.
+- X11 supports screen/region recording, teaching pointers, annotations and global shortcuts. On Wayland, select and explicitly authorize a screen in the system chooser; use its thumbnail for a source-local crop. Reauthorize if the source or grant changes.
+- Wayland teaching pointers, desktop annotations and global shortcuts are not included yet. Linux uses CPU encoding. Other distributions, hardware and scaling combinations are not fully validated; check a short recording and export first.
+- The extracted archive is `OpenCam_v1.2.1_Linux_x64_Beta.tar.gz`; retain all files and follow the bundled instructions. `sudo apt remove opencam-beta` uninstalls the package without deleting personal recordings or projects.
 
 ## 2. Quick Start
 

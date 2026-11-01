@@ -5,7 +5,15 @@
 
 [English](#english) ｜ [官方網站](https://kaoshou.github.io/OpenCam/) ｜ [下載最新版](https://github.com/kaoshou/OpenCam/releases/latest) ｜ [完整使用說明](docs/USER_GUIDE.zh-TW.md)
 
-OpenCam 是 Windows 與 macOS 桌面螢幕錄影工具，讓你錄影、剪輯，再繼續錄影。錄影片段與剪輯保存在可重開的專案中，需要時可輸出 MP4、GIF 或附帶章節與字幕的網頁播放器。
+OpenCam 是 Windows、macOS 與 Linux（Beta）桌面螢幕錄影工具，讓你錄影、剪輯，再繼續錄影。錄影片段與剪輯保存在可重開的專案中，需要時可輸出 MP4、GIF 或附帶章節與字幕的網頁播放器。
+
+## v1.2.1 更新重點
+
+- **新增 Linux Beta**：提供 Ubuntu 24.04／25.04 x64 安裝包，支援 X11 與系統授權的 Wayland 選屏錄影、專案剪輯與匯出。
+- **安裝更簡單**：系統套件管理員處理相依套件，安裝後直接從應用程式清單開啟「OpenCam」。修正 Ubuntu 25.04 的 ICU 相依性問題。
+- **錄前確認修正**：音訊初始化失敗後保留正確的操作版本資訊，讓介面能接受失敗結果並提供重試。
+
+[v1.2.1 更新說明及 Linux Beta 限制](docs/releases/v1.2.1.md)
 
 ## v1.2.0 更新重點
 
@@ -39,12 +47,16 @@ OpenCam 是 Windows 與 macOS 桌面螢幕錄影工具，讓你錄影、剪輯�
 | --- | --- | --- |
 | Windows | Windows 10／11，x64 | Setup 安裝版、Portable 免安裝版 |
 | macOS | macOS 13 以上，Apple Silicon／arm64 | DMG；不適用 Intel Mac |
+| Linux **Beta** | Ubuntu 24.04／25.04，x64 | `.deb` 安裝版、`.tar.gz` 免安裝版；功能限制見下方 |
 
 到 [最新 Release](https://github.com/kaoshou/OpenCam/releases/latest) 下載。套件包含 .NET Runtime 與媒體工具。Windows 錄影所需的 Microsoft Visual C++ 執行階段隨套件附上，不需另外安裝或尋找 DLL。
 
-- **Windows 安裝版**：執行 `OpenCam_v1.2.0_Windows_x64_Setup.exe`。
-- **Windows 免安裝版**：完整解壓 `OpenCam_v1.2.0_Windows_x64_Portable.zip`，保留同資料夾的所有檔案，再執行 `OpenCam.exe`。
-- **macOS**：打開 `OpenCam_v1.2.0_macOS_arm64.dmg`，將 OpenCam 拖入「應用程式」。首次使用時，在「系統設定 → 隱私權與安全性」允許螢幕／系統音訊錄製及麥克風權限；變更權限後可重新啟動程式。
+- **Windows 安裝版**：執行 `OpenCam_v1.2.1_Windows_x64_Setup.exe`。
+- **Windows 免安裝版**：完整解壓 `OpenCam_v1.2.1_Windows_x64_Portable.zip`，保留同資料夾的所有檔案，再執行 `OpenCam.exe`。
+- **macOS**：打開 `OpenCam_v1.2.1_macOS_arm64.dmg`，將 OpenCam 拖入「應用程式」。首次使用時，在「系統設定 → 隱私權與安全性」允許螢幕／系統音訊錄製及麥克風權限；變更權限後可重新啟動程式。
+- **Linux Beta**：下載 `OpenCam_v1.2.1_Linux_x64_Beta.deb`，在檔案所在目錄執行 `sudo apt install ./OpenCam_v1.2.1_Linux_x64_Beta.deb`，完成後從應用程式選單開啟「OpenCam」。相依套件由 APT 處理，需要網路；不要以 root 執行 OpenCam。套件 ID 仍為 `opencam-beta`，方便既有測試版升級。
+
+Linux Beta 使用 OBS／libobs 與 CPU 編碼。X11 提供教鞭、螢幕註記及全域快捷鍵；Wayland 透過系統授權選屏錄影，目前不提供教鞭、桌面註記及全域快捷鍵。不同硬體、縮放、音訊與 GNOME 版本仍需實機驗證，請先短錄並回放確認。
 - 此版未提供 Windows 發行者簽章或 Apple Developer ID 公證，首次開啟可能出現安全性提示。請先確認來自本專案官方 Releases；macOS 可參閱 [Apple 的安全開啟說明](https://support.apple.com/zh-tw/102445)。不要停用系統防護；若提示檔案損毀或惡意內容，請停止開啟並回報。
 
 ## 開始使用
@@ -103,7 +115,15 @@ OpenCam 自有原始碼採 [GNU Affero General Public License v3.0 或後續版�
 
 [Official website](https://kaoshou.github.io/OpenCam/) | [Download latest](https://github.com/kaoshou/OpenCam/releases/latest) | [User guide](docs/USER_GUIDE.en-US.md)
 
-OpenCam is a desktop screen recorder for Windows and macOS. Record, edit, and continue recording in a project you can save and reopen, then export MP4, GIF, or a Web player with chapters and captions.
+OpenCam is a desktop screen recorder for Windows, macOS and Linux (Beta). Record, edit, and continue recording in a project you can save and reopen, then export MP4, GIF, or a Web player with chapters and captions.
+
+### What's new in v1.2.1
+
+- **Linux Beta:** Ubuntu 24.04 / 25.04 x64 packages, with X11 and authorized Wayland recording, project editing and export.
+- **Simpler installation:** APT resolves dependencies; launch **OpenCam** from the application menu. Ubuntu 25.04 can use its own ICU package.
+- **Audio-preflight recovery:** retain the operation revision on initialization failure so the UI accepts the failure and allows retry.
+
+[v1.2.1 release notes and Linux Beta limitations](docs/releases/v1.2.1.md)
 
 ### What's new in v1.2.0
 
@@ -136,12 +156,16 @@ OpenCam is a desktop screen recorder for Windows and macOS. Record, edit, and co
 | --- | --- | --- |
 | Windows | Windows 10/11, x64 | Setup installer or Portable ZIP |
 | macOS | macOS 13+, Apple Silicon/arm64 | DMG; not for Intel Macs |
+| Linux **Beta** | Ubuntu 24.04 / 25.04, x64 | `.deb` installer or `.tar.gz` archive; limitations below |
 
 Download from the [latest Release](https://github.com/kaoshou/OpenCam/releases/latest). Packages include .NET Runtime and media tools. The required Windows Microsoft Visual C++ recording runtime is bundled app-locally; no separate runtime installation or DLL download is needed.
 
-- **Windows installer**: Run `OpenCam_v1.2.0_Windows_x64_Setup.exe`.
-- **Windows portable**: Fully extract `OpenCam_v1.2.0_Windows_x64_Portable.zip`, keep all companion files together, then run `OpenCam.exe`.
-- **macOS**: Open `OpenCam_v1.2.0_macOS_arm64.dmg` and drag OpenCam into Applications. Allow screen/system-audio recording and microphone access in System Settings → Privacy & Security. Restart OpenCam after changing permissions if needed.
+- **Windows installer**: Run `OpenCam_v1.2.1_Windows_x64_Setup.exe`.
+- **Windows portable**: Fully extract `OpenCam_v1.2.1_Windows_x64_Portable.zip`, keep all companion files together, then run `OpenCam.exe`.
+- **macOS**: Open `OpenCam_v1.2.1_macOS_arm64.dmg` and drag OpenCam into Applications. Allow screen/system-audio recording and microphone access in System Settings → Privacy & Security. Restart OpenCam after changing permissions if needed.
+- **Linux Beta**: install `OpenCam_v1.2.1_Linux_x64_Beta.deb` with `sudo apt install ./OpenCam_v1.2.1_Linux_x64_Beta.deb`, then open **OpenCam** from the application menu. APT resolves dependencies and requires network access. Never run OpenCam as root. The package ID remains `opencam-beta` for upgrades.
+
+Linux Beta uses OBS/libobs and CPU encoding. X11 offers teaching pointers, annotations and global shortcuts. Wayland records a screen selected through system consent; teaching pointers, desktop annotations and global shortcuts are not included yet. Hardware, audio, scaling and GNOME versions still need real-device validation. Make a short recording and replay before longer work.
 - This version does not provide Windows publisher signing or Apple Developer ID notarization, so first launch may show a security warning. Confirm the download came from this project's official Releases; see [Apple's safe-opening guidance](https://support.apple.com/en-us/102445) on macOS. Do not disable system protection. Stop and report warnings about damaged files or malware.
 
 ### Getting started

@@ -29,6 +29,7 @@ done < <(find /opt/opencam-beta -type f -print0)
 # Desktop test harness is separate from the application dependency contract.
 apt-get install -y --no-install-recommends xvfb xauth dbus-x11 desktop-file-utils x11-utils xdotool fonts-noto-cjk
 desktop-file-validate /usr/share/applications/opencam-beta.desktop
+grep -x 'Name=OpenCam' /usr/share/applications/opencam-beta.desktop
 useradd -m -s /bin/bash opencamtest
 install -d -o opencamtest -g opencamtest /home/opencamtest/Recordings
 printf 'preserve user recording\n' > /home/opencamtest/Recordings/sentinel.mkv

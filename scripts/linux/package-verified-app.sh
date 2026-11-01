@@ -8,6 +8,10 @@ artifact_directory=$2
 obs_source=$3
 ffmpeg_source=$4
 tested_revision=$5
+artifact_names=$(node scripts/release-artifact-names.mjs)
+while IFS='=' read -r key value; do
+  case "$key" in OPENCAM_VERSION|LINUX_DEB|LINUX_ARCHIVE|LINUX_SOURCES|LINUX_CHECKSUMS) printf -v "$key" '%s' "$value" ;; esac
+done <<< "$artifact_names"
 [[ "$tested_revision" =~ ^[a-f0-9]{40}$ && "$(git rev-parse HEAD)" == "$tested_revision" ]] || exit 2
 [[ -d "$package_directory" && ! -e "$artifact_directory" ]] || exit 2
 test "$(git -C "$obs_source" rev-parse HEAD)" = 72e86655715d9a25d69ce446aa4dd44ba58e10d2
@@ -34,7 +38,7 @@ runtime_notices=$(find "${NUGET_PACKAGES:-$HOME/.nuget/packages}/microsoft.netco
 test -n "$runtime_license" && test -n "$runtime_notices"
 cp "$runtime_license" "$package_directory/linux-notices/DOTNET-LICENSE.txt"
 cp "$runtime_notices" "$package_directory/linux-notices/DOTNET-THIRD-PARTY-NOTICES.txt"
-printf 'OpenCam 1.2.0 Ubuntu development test\nCommit: %s\nOBS: 72e86655715d9a25d69ce446aa4dd44ba58e10d2\nFFmpeg: 1041abdc962f4cc4f394aa8de9dc5236c0c3b9e7\nSource archives and build scripts accompany this package. OS libraries (including x264, PulseAudio, PipeWire, Mesa) are supplied by Ubuntu, not redistributed here.\n' "$tested_revision" > "$package_directory/SOURCE.txt"
+printf 'OpenCam %s Linux Beta\nCommit: %s\nOBS: 72e86655715d9a25d69ce446aa4dd44ba58e10d2\nFFmpeg: 1041abdc962f4cc4f394aa8de9dc5236c0c3b9e7\nSource archives and build scripts accompany this package. OS libraries (including x264, PulseAudio, PipeWire, Mesa) are supplied by Ubuntu, not redistributed here.\n' "$OPENCAM_VERSION" "$tested_revision" > "$package_directory/SOURCE.txt"
 source_directory="$artifact_directory/corresponding-source"
 mkdir "$source_directory"
 mkdir "$source_directory/ubuntu-build-headers"
@@ -46,7 +50,7 @@ git archive --format=tar.gz -o "$source_directory/OpenCam-$tested_revision.tar.g
 git -C "$obs_source" archive --format=tar.gz -o "$source_directory/OBS-72e8665.tar.gz" HEAD
 git -C "$ffmpeg_source" archive --format=tar.gz -o "$source_directory/FFmpeg-1041abd.tar.gz" HEAD
 cp "$package_directory/SOURCE.txt" "$source_directory/"
-node scripts/linux/build-deb.mjs "$package_directory" "$artifact_directory/OpenCam_${tested_revision:0:7}_Ubuntu24.04_amd64_Beta.deb" "$(tr -d '\n' < VERSION)" "$tested_revision"
-tar -czf "$artifact_directory/OpenCam_v1.2.0_Ubuntu24.04_x64_Test_${tested_revision:0:7}.tar.gz" -C "$package_directory" .
-tar -czf "$artifact_directory/OpenCam_v1.2.0_Linux_CorrespondingSource_${tested_revision:0:7}.tar.gz" -C "$source_directory" .
-(cd "$artifact_directory" && sha256sum ./*.tar.gz ./*.deb > SHA256SUMS.txt)
+node scripts/linux/build-deb.mjs "$package_directory" "$artifact_directory/$LINUX_DEB" "$OPENCAM_VERSION" "$tested_revision"
+tar -czf "$artifact_directory/$LINUX_ARCHIVE" -C "$package_directory" .
+tar -czf "$artifact_directory/$LINUX_SOURCES" -C "$source_directory" .
+(cd "$artifact_directory" && sha256sum ./*.tar.gz ./*.deb > "$LINUX_CHECKSUMS")

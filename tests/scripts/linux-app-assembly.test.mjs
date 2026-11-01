@@ -26,6 +26,13 @@ test('missing helper rejects packaging before creating the destination', async t
   const f = await fixture(t); await rm(join(f.nativeRoot, 'bin/OpenCam.ObsCapture'));
   await assert.rejects(() => assembleLinuxApp(f), /helper/i);
 });
+test('a patch-version release retains its exact version and Linux Beta identity', async t => {
+  const f=await fixture(t); f.version='1.2.1'; await assembleLinuxApp(f);
+  const info=JSON.parse(await readFile(join(f.outputRoot,'LINUX-TEST-INFO.json'),'utf8'));
+  assert.equal(info.version,'1.2.1');
+  assert.match(info.status,/BETA/i);
+  assert.doesNotMatch(info.status,/NOT A RELEASE/);
+});
 test('native symlink escaping the audited prefix is rejected', async t => {
   const f = await fixture(t); await symlink('/etc/passwd', join(f.nativeRoot, 'lib/escape.so'));
   await assert.rejects(() => assembleLinuxApp(f), /escape|outside/i);
