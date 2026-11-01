@@ -57,6 +57,40 @@ sampled-only scope for those six cases, not the remaining physical/manual gates.
 These failures do not establish a product recording defect or a Wayland
 feasibility failure. Original failed artifacts are retained, not relabeled PASS.
 
+## Session and explicit consent components
+
+Commit `d80c37d181a4b4aa12a876fbcf2f8f0ecac876c3`,
+[run 41268391847](https://github.com/kaoshou/OpenCam/actions/runs/41268391847),
+passed actual unique-bus-owner death and monotonic lease expiry while OBS kept
+recording. The killed client's native cursor returned (11,008 magenta pixels);
+the unrenewed 3-second lease returned it as well (8,960 pixels). In both cases
+the teaching session became inactive and recording bytes kept growing. All
+eight 20-FPS recordings were completely decoded and all 89 frames checked.
+
+Commit `30d9f0ce22b1eae37780cef2e46ebbc19aa156d0`,
+[run 41268947393](https://github.com/kaoshou/OpenCam/actions/runs/41268947393),
+also exercised real bus-daemon process/UID lookup, `/proc/<pid>/exe` lookup,
+credential recheck and actual GNOME consent buttons. Deny and Allow returned
+the correct results, with zero remaining modal input grabs and a visible normal
+cursor. The same recording suite passed. Earlier run `41268701511` had an Allow
+test-client timeout; its cause is not established as a product defect, and its
+failed evidence remains retained.
+
+Follow-up `9cc6ea09e8d65a7105c57278d12471a2965bb62f`,
+[run 41269219212](https://github.com/kaoshou/OpenCam/actions/runs/41269219212),
+waited for actual pointer motion before synthetic button presses and passed two
+successive Deny/Allow cycles plus all eight real recordings again. This is
+evidence for those tested transitions, not a claim that every desktop timing
+condition has been proven.
+
+Twenty pure component tests cover source/crop/protocol bounds, unknown actions,
+wrong owner/nonce, explicit denial, credential changes, late consent/activation,
+128-command queue limit, lease deadline, native cleanup exceptions and bounded
+prompting. Tests were first observed failing before their implementations.
+Actual owner-loss fixture tests and consent UI tests are separate: the final
+app/extension transport must still bind these together and validate the source
+mapping before enabling any product feature.
+
 ## Isolation and remaining acceptance
 
 No changes to `src/`, `native/`, Windows/macOS native builders, release workflow
