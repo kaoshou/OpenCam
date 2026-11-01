@@ -37,7 +37,8 @@ for attempt in range(12):
                 if not control.getState().contains(pyatspi.STATE_CHECKED):
                     print("remember action", control.queryAction().doAction(0), flush=True)
             if screen_choice(control):
-                selected = control.getState().contains(pyatspi.STATE_CHECKED)
+                state = control.getState()
+                selected = state.contains(pyatspi.STATE_PRESSED) or state.contains(pyatspi.STATE_CHECKED)
                 desired = not chosen
                 if selected != desired:
                     action = control.queryAction()
