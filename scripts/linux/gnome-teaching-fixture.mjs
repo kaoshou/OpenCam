@@ -104,6 +104,12 @@ const art=runMedia(['-v','error','-i','src/ScreenRecorder.Core/Assets/TeachingPo
 try{
     const inert=control('Status');
     if(inert.phase!=='inert'||!inert.visible||inert.monitors.length!==2)throw new Error('inert_or_monitor_check');
+    if(process.env.OPENCAM_TEACHING_BRIDGE_TEST){
+        const native=spawnSync(process.env.OPENCAM_TEACHING_BRIDGE_TEST,['connected'],{encoding:'utf8',timeout:15000});
+        fs.writeFileSync(path.join(evidence,'native-connected.log'),(native.stdout??'')+(native.stderr??''));
+        if(native.status!==0)throw new Error('native_bridge_failed');
+        report.checks.nativeBridge={connected:true,privateConnection:true,directedSignal:true,boundsAndCancellation:true};
+    }
     for(const [iteration,phase] of ['consent-deny','consent-allow','consent-deny','consent-allow'].entries()){
         control('Phase',phase);
         const result=spawnSync('python3',['scripts/linux/gnome-teaching-lease-client.py','{}',phase],{encoding:'utf8',timeout:18000});
@@ -157,7 +163,7 @@ try{
 }catch(error){
     const safe=['extension_unavailable','fixture_protocol','pointer_operation_failed','media_decode','selection_failed','capture_timeout',
         'diagnostic_limit','native_capture_failed','capture_failed','inert_or_monitor_check','preview_invalid','marker_not_captured',
-        'monitor_mapping_ambiguous','cursor_not_restored','native_cursor_not_verified','pointer_replacement_failed','stroke_not_captured','disable_recovery_failed','outside_recovery_failed','lease_client_failed','lease_recovery_failed','consent_failed'];
+        'monitor_mapping_ambiguous','cursor_not_restored','native_cursor_not_verified','pointer_replacement_failed','stroke_not_captured','disable_recovery_failed','outside_recovery_failed','lease_client_failed','lease_recovery_failed','consent_failed','native_bridge_failed'];
     report.code=safe.includes(error.message)?error.message:'fixture_failed';
 }
 fs.writeFileSync(path.join(evidence,'teaching-result.json'),JSON.stringify(report,null,2));

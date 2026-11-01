@@ -18,6 +18,12 @@ const xml=`<node><interface name="io.github.kaoshou.OpenCam.TeachingFixture">
 <method name="Request"><arg type="s" direction="in"/><arg type="b" direction="out"/></method>
 <method name="Consent"><arg type="b" direction="out"/></method>
 </interface></node>`;
+const nativePath='/io/github/kaoshou/OpenCam/Teaching',nativeInterface='io.github.kaoshou.OpenCam.Teaching';
+const nativeXml=`<node><interface name="${nativeInterface}">
+<method name="Capabilities"><arg type="s" direction="out"/></method>
+<method name="Status"><arg type="s" direction="out"/></method>
+<signal name="Event"><arg type="s"/></signal>
+</interface></node>`;
 export default class TeachingFixture extends Extension {
     enable() {
         if(GLib.getenv('OPENCAM_DISPOSABLE_CI_DESKTOP')!=='1')throw new Error('disposable_desktop_required');
@@ -41,6 +47,21 @@ export default class TeachingFixture extends Extension {
         this._device=Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);
         this._object=Gio.DBusExportedObject.wrapJSObject(xml,this);
         this._object.export(Gio.DBus.session,'/io/github/kaoshou/OpenCam/TeachingFixture');
+        // Test-only transport endpoint in the actual GNOME Shell process. This
+        // does not enable a product feature or grant native callers control.
+        this._instance=GLib.uuid_string_random();
+        const capabilities=()=>JSON.stringify({protocol:1,instance:this._instance,status:'ok',
+            data:{supported:true,gnomeVersion:'46.0',desktop:'wayland',authorized:false}});
+        this._nativeObject=Gio.DBusExportedObject.wrapJSObject(nativeXml,{
+            Capabilities:capabilities,
+            StatusAsync:(_params,invocation)=>{
+                invocation.return_value(new GLib.Variant('(s)',[capabilities()]));
+                Gio.DBus.session.emit_signal(invocation.get_sender(),nativePath,nativeInterface,'Event',
+                    new GLib.Variant('(s)',[JSON.stringify({event:'probe'})]));
+            },
+        });
+        this._nativeObject.export(Gio.DBus.session,nativePath);
+        this._nativeName=Gio.bus_own_name_on_connection(Gio.DBus.session,nativeInterface,Gio.BusNameOwnerFlags.NONE,null,null);
         this._timer=GLib.timeout_add(GLib.PRIORITY_DEFAULT,16,()=>{
             try{
                 this._session.tick();
@@ -139,6 +160,8 @@ export default class TeachingFixture extends Extension {
     disable() {
         if(this._timer){GLib.source_remove(this._timer);this._timer=0;}
         this._object?.unexport();this._object=null;
+        this._nativeObject?.unexport();this._nativeObject=null;
+        if(this._nativeName){Gio.bus_unown_name(this._nativeName);this._nativeName=0;}
         if(this._ownerSignal){Gio.DBus.session.signal_unsubscribe(this._ownerSignal);this._ownerSignal=0;}
         this._session?.dispose();this._session=null;
         this._authorization?.dispose();this._authorization=null;

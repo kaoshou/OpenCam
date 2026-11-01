@@ -38,11 +38,17 @@ jobs:
       - name: Install disposable GNOME desktop dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends gnome-shell gnome-session-bin xwayland xdg-desktop-portal-gnome xdg-desktop-portal-gtk pipewire wireplumber dbus-x11 xvfb xauth libx264-164 libxcb-xinput0 libwayland-egl1 pulseaudio-utils at-spi2-core python3-pyatspi python3-gi python3-cairo python3-gi-cairo gir1.2-gtk-4.0
+          sudo apt-get install -y --no-install-recommends gnome-shell gnome-session-bin xwayland xdg-desktop-portal-gnome xdg-desktop-portal-gtk pipewire wireplumber dbus-x11 xvfb xauth libx264-164 libxcb-xinput0 libwayland-egl1 pulseaudio-utils at-spi2-core python3-pyatspi python3-gi python3-cairo python3-gi-cairo gir1.2-gtk-4.0 build-essential pkg-config libglib2.0-dev
+      - name: Compile and test private native GIO connection lifecycle
+        run: |
+          cc -std=gnu11 -O2 -Wall -Wextra -Werror tests/native/linux-teaching-bridge-tests.c src/ScreenRecorder.Platform.Linux/Native/teaching-bridge.c -o "$RUNNER_TEMP/teaching-bridge-tests" $(pkg-config --cflags --libs gio-2.0) -pthread > "$RUNNER_TEMP/teaching-evidence/native-build.log" 2>&1
+          cc -std=gnu11 -O2 -shared -fPIC -Wall -Wextra -Werror src/ScreenRecorder.Platform.Linux/Native/teaching-bridge.c -o "$RUNNER_TEMP/libOpenCamLinuxTeaching.so" $(pkg-config --cflags --libs gio-2.0) -pthread >> "$RUNNER_TEMP/teaching-evidence/native-build.log" 2>&1
+          dbus-run-session -- "$RUNNER_TEMP/teaching-bridge-tests" > "$RUNNER_TEMP/teaching-evidence/native-lifecycle.log" 2>&1
       - name: Record real compositor actors and verify cursor restoration
         env:
           OPENCAM_DISPOSABLE_CI_DESKTOP: '1'
           LD_LIBRARY_PATH: ${{ runner.temp }}/app/obs-runtime/lib
+          OPENCAM_TEACHING_BRIDGE_TEST: ${{ runner.temp }}/teaching-bridge-tests
         run: |
           timeout 180 dbus-run-session -- xvfb-run -a -s '-screen 0 1280x800x24' bash scripts/linux/test-gnome-teaching.sh "$RUNNER_TEMP/app" "$RUNNER_TEMP/teaching-evidence"
       - uses: actions/upload-artifact@v4
