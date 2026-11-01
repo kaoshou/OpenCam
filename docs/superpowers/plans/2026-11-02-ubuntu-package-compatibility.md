@@ -19,13 +19,13 @@
 
 ## Task 1: Dependency contract
 
-- [ ] Add a regression test asserting the generated deb accepts either ICU 74 or 76, and tests for strict dependency grammar.
-- [ ] Run RED, then implement the alternative manifest and archive-helper handling using APT's dependency solver.
-- [ ] Run Linux packaging/launcher tests GREEN, retaining all identity, inventory and license checks.
+- [x] Add a regression test asserting the generated deb accepts either ICU 74 or 76, and tests for strict dependency grammar.
+- [x] Run RED, then implement the alternative manifest and archive-helper handling using APT's dependency solver.
+- [x] Run Linux packaging/launcher tests GREEN, retaining all identity, inventory and license checks.
 
 ## Task 2: Real package acceptance and delivery
 
-- [ ] Expand clean-install CI to Ubuntu 24.04 and 25.04 using the same artifact, with OS/package version evidence, ELF audit, archive --check, actual visible window, removal/reinstall data preservation.
-- [ ] Update package instructions to distinguish build baseline, tested installation platforms, X11 teaching tools and Wayland recording limitations.
-- [ ] Run relevant regression tests, review scoped diff, commit/push only this repair to the authorized development branch; build CI artifacts, no Release.
-- [ ] Inspect CI results before providing a package. Report physical Wayland/AV acceptance as unverified unless actually performed.
+- [x] Expand clean-install CI to Ubuntu 24.04 and 25.04 using the same artifact, with OS/package version evidence, ELF audit, archive --check, actual visible window, removal/reinstall data preservation.
+- [x] Update package instructions to distinguish build baseline, tested installation platforms, X11 teaching tools and Wayland recording limitations.
+- [x] Run relevant regression tests, review scoped diff, commit/push only this repair to the authorized development branch; build CI artifacts, no Release.
+- [x] Inspect CI results before providing a package. Report physical Wayland/AV acceptance as unverified unless actually performed.
