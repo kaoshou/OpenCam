@@ -9,7 +9,7 @@ OpenCam 是 Windows、macOS 與 Linux（Beta）桌面螢幕錄影工具，讓你
 
 ## v1.2.1 更新重點
 
-- **新增 Linux Beta**：提供 Ubuntu 24.04／25.04 x64 安裝包，支援 X11 與系統授權的 Wayland 選屏錄影、專案剪輯與匯出。
+- **新增 Linux Beta**：提供 Ubuntu 24.04／25.04 x64 安裝包，支援 X11 錄影、Wayland 選擇螢幕授權，以及專案剪輯與匯出。
 - **安裝更簡單**：系統套件管理員處理相依套件，安裝後直接從應用程式清單開啟「OpenCam」。修正 Ubuntu 25.04 的 ICU 相依性問題。
 - **錄前確認修正**：音訊初始化失敗後保留正確的操作版本資訊，讓介面能接受失敗結果並提供重試。
 
@@ -56,7 +56,7 @@ OpenCam 是 Windows、macOS 與 Linux（Beta）桌面螢幕錄影工具，讓你
 - **macOS**：打開 `OpenCam_v1.2.1_macOS_arm64.dmg`，將 OpenCam 拖入「應用程式」。首次使用時，在「系統設定 → 隱私權與安全性」允許螢幕／系統音訊錄製及麥克風權限；變更權限後可重新啟動程式。
 - **Linux Beta**：下載 `OpenCam_v1.2.1_Linux_x64_Beta.deb`，在檔案所在目錄執行 `sudo apt install ./OpenCam_v1.2.1_Linux_x64_Beta.deb`，完成後從應用程式選單開啟「OpenCam」。相依套件由 APT 處理，需要網路；不要以 root 執行 OpenCam。套件 ID 仍為 `opencam-beta`，方便既有測試版升級。
 
-Linux Beta 使用 OBS／libobs 與 CPU 編碼。X11 提供教鞭、螢幕註記及全域快捷鍵；Wayland 透過系統授權選屏錄影，目前不提供教鞭、桌面註記及全域快捷鍵。不同硬體、縮放、音訊與 GNOME 版本仍需實機驗證，請先短錄並回放確認。
+Linux Beta 使用 OBS／libobs 與 CPU 編碼。X11 提供教鞭、螢幕註記及全域快捷鍵；Wayland 需先在系統視窗選擇螢幕並授權錄影，目前不提供教鞭、桌面註記及全域快捷鍵。不同硬體、縮放、音訊與 GNOME 版本仍需實機驗證，請先短錄並回放確認。
 - 此版未提供 Windows 發行者簽章或 Apple Developer ID 公證，首次開啟可能出現安全性提示。請先確認來自本專案官方 Releases；macOS 可參閱 [Apple 的安全開啟說明](https://support.apple.com/zh-tw/102445)。不要停用系統防護；若提示檔案損毀或惡意內容，請停止開啟並回報。
 
 ## 開始使用

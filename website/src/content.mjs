@@ -32,7 +32,7 @@ export const content = {
     windowsDownloadNote: 'Windows 適用於 x64；免安裝版請完整解壓後執行。',
     macOSDownloadNote: 'macOS 適用於 Apple Silicon（M 系列）。',
     ubuntuLabel: '下載 Ubuntu 版（Beta）', ubuntuArchiveLabel: 'Ubuntu 免安裝版（Beta）',
-    ubuntuDownloadNote: 'Ubuntu 24.04／25.04 x64（Beta）：使用 CPU 編碼，教鞭、註記與全域快捷鍵限 X11。Wayland 需系統選屏授權，仍待 GNOME 實機驗證；請先短錄確認。',
+    ubuntuDownloadNote: 'Ubuntu 24.04／25.04 x64（Beta）：使用 CPU 編碼，教鞭、註記與全域快捷鍵限 X11。Wayland 需系統選擇螢幕授權，仍待 GNOME 實機驗證；請先短錄確認。',
     releaseLinksLabel: '版本說明與其他下載：GitHub Releases',
     openSource: '開放原始碼 · 免費使用',
     licenseReleaseNote: `目前版本 ${downloadDisplayVersion} · Windows 與 macOS · AGPL-3.0-or-later`,
