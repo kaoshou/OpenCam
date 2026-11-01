@@ -3,11 +3,46 @@ using ScreenRecorder.Core.Models;
 using ScreenRecorder.Core.Preflight;
 using ScreenRecorder.Infrastructure.IPC;
 using ScreenRecorder.Recorder.Services;
+using ScreenRecorder.UI.Preflight;
 
 namespace ScreenRecorder.Media.Tests;
 
 public class PreflightIpcTests
 {
+    [Fact]
+    public async Task InitializationFailureAfterCleanupRemainsVisibleToTheWaitingWindow()
+    {
+        var live = new Live();
+        var capture = new RecordingCaptureLease();
+        await using var coordinator = new PreflightCoordinator(capture, () => live);
+        await using var dispatcher = new PreflightIpcDispatcher(coordinator);
+        var id = Guid.NewGuid();
+        var begun = JsonSerializer.Deserialize<PreflightReply>((await dispatcher.DispatchAsync(
+            Message("BeginPreflight", new(id, Configuration: new())))).DataJson!)!;
+        var window = new RecordingPreflightViewModel(id);
+        Assert.True(window.Apply(begun));
+        Assert.True(begun.Status.ConfigurationRevision > 0);
+        var request = new PreflightRequest(id, begun.Status.ConfigurationRevision, begun.ServerInstanceId);
+        live.Ready.SetException(new IOException("Selected audio input could not initialize."));
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        PreflightReply failed;
+        do
+        {
+            await Task.Delay(10, deadline.Token);
+            failed = JsonSerializer.Deserialize<PreflightReply>((await dispatcher.DispatchAsync(
+                Message("GetPreflightStatus", request))).DataJson!)!;
+        } while (failed.Status.Phase != PreflightPhase.Failed);
+
+        Assert.Null(coordinator.CurrentOperation);
+        Assert.False(capture.IsOwned);
+        Assert.True(window.Apply(failed));
+        Assert.Equal(PreflightPhase.Failed, window.Status.Phase);
+        Assert.NotNull(window.Status.ErrorCode);
+        Assert.False(window.Status.AudioReady);
+        Assert.True(window.CanStart); // advisory check, never an assertion that audio works
+        Assert.True((await dispatcher.DispatchAsync(Message("EndPreflight", request))).Success);
+    }
+
     [Fact]
     public async Task ResumeConfirmationRequiresUnchangedSettingsAndResolvedDevices()
     {

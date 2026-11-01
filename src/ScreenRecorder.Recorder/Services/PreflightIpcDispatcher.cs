@@ -23,6 +23,7 @@ public sealed class PreflightIpcDispatcher : IAsyncDisposable
     private string? _beginFingerprint, _failure;
     private PreflightPhase _queuedPhase = PreflightPhase.Preparing;
     private long _generation, _sequence;
+    private long _configurationRevision;
     private IpcResponse Reply(PreflightStatus status, bool confirmed = false) => new() { Success = true,
         DataJson = JsonSerializer.Serialize(new PreflightReply(_instance, status, confirmed, Interlocked.Increment(ref _sequence))) };
     public static bool IsCommand(string type) => type is "BeginPreflight" or "GetPreflightStatus" or "RecordPreflightTrial"
@@ -40,11 +41,17 @@ public sealed class PreflightIpcDispatcher : IAsyncDisposable
     private PreflightStatus Status()
     {
         var status = coordinator.ReadCurrentStatus();
+        // Successful cleanup releases the live session and returns Empty (revision
+        // zero). Keep this operation's identity so its terminal failure is not
+        // rejected by a window that already observed Preparing at a newer revision.
+        if (status.OperationId == _operation)
+            _configurationRevision = Math.Max(_configurationRevision, status.ConfigurationRevision);
         var phase = !_work.IsCompleted ? _queuedPhase : status.Phase;
         if (!_work.IsCompleted && _queuedPhase == PreflightPhase.TrialStarting &&
             status.Phase is PreflightPhase.TrialStarting or PreflightPhase.TrialRecording or PreflightPhase.TrialFinalizing)
             phase = status.Phase;
         return status with { OperationId = _operation ?? Guid.Empty,
+            ConfigurationRevision = _configurationRevision,
             Phase = _failure is not null ? PreflightPhase.Failed : phase,
             ErrorCode = _failure ?? status.ErrorCode };
     }
@@ -74,6 +81,7 @@ public sealed class PreflightIpcDispatcher : IAsyncDisposable
                 {
                     if (!_work.IsCompleted || coordinator.CurrentOperation is not null) throw new InvalidOperationException("Preflight is busy.");
                     _operation = request.OperationId; _beginFingerprint = fingerprint; _failure = null; _confirmed = null;
+                    _configurationRevision = 0;
                     _checkingConfiguration = request.Configuration;
                     _queuedPhase = PreflightPhase.Preparing;
                     _work = ObserveAsync(() => coordinator.BeginAsync(request.OperationId, request.Configuration, _lifetime.Token), defer: false);
