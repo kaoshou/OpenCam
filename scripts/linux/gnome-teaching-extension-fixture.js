@@ -87,7 +87,11 @@ export default class TeachingFixture extends Extension {
         if(button){
             const [x,y]=button.get_transformed_position(),[width,height]=button.get_transformed_size();
             this._consentButton={x,y,width,height};
-            this._device.notify_absolute_motion(GLib.get_monotonic_time(),x+width/2,y+height/2);
+            const targetX=x+width/2,targetY=y+height/2,[pointerX,pointerY]=global.get_pointer();
+            if(!this._consentMoved||Math.abs(pointerX-targetX)>1||Math.abs(pointerY-targetY)>1){
+                this._device.notify_absolute_motion(GLib.get_monotonic_time(),targetX,targetY);
+                this._consentMoved=true;return;
+            }
             this._device.notify_button(GLib.get_monotonic_time(),1,Clutter.ButtonState.PRESSED);this._consentPressed=true;
         }
     }
@@ -110,7 +114,7 @@ export default class TeachingFixture extends Extension {
         this._pointer?.destroy();this._pointer=null;
         for(const actor of this._actors)actor.destroy();this._actors=[];this._markers=[];
         this._phase=phase;
-        this._consentPressed=false;this._consentReleased=false;this._consentButton=null;
+        this._consentPressed=false;this._consentReleased=false;this._consentMoved=false;this._consentButton=null;
         if(['pointer','stroke','outside'].includes(phase)){
             this._pointer=createPointer({style:'WarmIvory',size:'Standard',artworkDirectory:`${this.path}/artwork`,bounds:Main.layoutManager.monitors[0]});
             if(phase==='stroke'){
