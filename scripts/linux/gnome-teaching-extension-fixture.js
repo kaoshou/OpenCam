@@ -61,7 +61,8 @@ export default class TeachingFixture extends Extension {
     Status() {
         return JSON.stringify({phase:this._phase,error:this._error,visible:Meta.CursorTracker.get_for_display(global.display).get_pointer_visible(),
             monitors:Main.layoutManager.monitors.map(m=>({x:m.x,y:m.y,width:m.width,height:m.height})),
-            markers:this._markers??[],ticks:this._ticks,leaseActive:this._session.active,modalCount:Main.modalCount});
+            markers:this._markers??[],ticks:this._ticks,leaseActive:this._session.active,modalCount:Main.modalCount,
+            consentPressed:this._consentPressed??false,consentReleased:this._consentReleased??false,consentButton:this._consentButton??null});
     }
     async ConsentAsync(_params,invocation){
         const allowed=await this._authorization.request(invocation.get_sender());
@@ -85,6 +86,7 @@ export default class TeachingFixture extends Extension {
         const button=find(Main.layoutManager.modalDialogGroup);
         if(button){
             const [x,y]=button.get_transformed_position(),[width,height]=button.get_transformed_size();
+            this._consentButton={x,y,width,height};
             this._device.notify_absolute_motion(GLib.get_monotonic_time(),x+width/2,y+height/2);
             this._device.notify_button(GLib.get_monotonic_time(),1,Clutter.ButtonState.PRESSED);this._consentPressed=true;
         }
@@ -108,7 +110,7 @@ export default class TeachingFixture extends Extension {
         this._pointer?.destroy();this._pointer=null;
         for(const actor of this._actors)actor.destroy();this._actors=[];this._markers=[];
         this._phase=phase;
-        this._consentPressed=false;this._consentReleased=false;
+        this._consentPressed=false;this._consentReleased=false;this._consentButton=null;
         if(['pointer','stroke','outside'].includes(phase)){
             this._pointer=createPointer({style:'WarmIvory',size:'Standard',artworkDirectory:`${this.path}/artwork`,bounds:Main.layoutManager.monitors[0]});
             if(phase==='stroke'){

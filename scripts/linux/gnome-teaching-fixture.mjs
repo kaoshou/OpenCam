@@ -109,7 +109,8 @@ try{
         const result=spawnSync('python3',['scripts/linux/gnome-teaching-lease-client.py','{}',phase],{encoding:'utf8',timeout:18000});
         const expected=phase==='consent-allow'?'allowed':'denied';
         const status=control('Status');
-        report.checks[phase]={result:result.stdout?.trim(),modalCount:status.modalCount,cursorVisible:status.visible};
+        report.checks[phase]={result:result.stdout?.trim(),exitStatus:result.status,modalCount:status.modalCount,cursorVisible:status.visible,
+            pressed:status.consentPressed,released:status.consentReleased,button:status.consentButton};
         if(result.status!==0||result.stdout.trim()!==expected||status.modalCount!==0||!status.visible)throw new Error('consent_failed');
         await delay(1100);
     }
