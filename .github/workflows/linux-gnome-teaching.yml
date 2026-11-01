@@ -21,7 +21,7 @@ jobs:
         with:
           node-version: '22'
       - name: Check package, geometry and real-frame verifier contracts
-        run: node --test scripts/linux/gnome-teaching.test.mjs
+        run: node --test scripts/linux/gnome-teaching*.test.mjs
       - uses: actions/download-artifact@v4
         with:
           name: OpenCam-v1.2.0-Ubuntu24.04-x64-Test-10e239f98d44cbabac3708e08c857ee8fcbb9787

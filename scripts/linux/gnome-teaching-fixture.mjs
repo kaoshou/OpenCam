@@ -44,6 +44,15 @@ async function prepare(){
 }
 async function record(selection,phase,disable=false){
     control('Phase',phase);await delay(400);
+    let client;
+    if(phase.startsWith('lease-')){
+        const source={id:selection.sourceId,generation:1,monitorWidth:selection.width,monitorHeight:selection.height,x:0,y:0,width:selection.width,height:selection.height};
+        client=spawn('python3',['scripts/linux/gnome-teaching-lease-client.py',JSON.stringify(source),phase==='lease-owner'?'renew':'expire'],{stdio:['ignore','pipe','ignore']});
+        let ready=false;client.stdout.on('data',data=>{if(data.toString().includes('ready'))ready=true;});
+        client.on('error',()=>{});
+        for(let i=0;i<50&&!ready&&client.exitCode===null;i++)await delay(100);
+        if(!ready){client.kill();throw new Error('lease_client_failed');}
+    }
     const file=path.join(evidence,`${phase}${disable?'-disable':''}.mkv`),out=fs.createWriteStream(file,{flags:'wx'});
     const child=spawn(path.join(runtime,'bin/OpenCam.ObsCapture'),['--runtime',runtime],{stdio:['pipe','pipe','pipe']});
     child.stdout.pipe(out);
@@ -63,6 +72,8 @@ async function record(selection,phase,disable=false){
             if(event.event==='ready'){
                 ready=true;
                 timer=setTimeout(()=>{
+                    if(phase==='lease-owner'){beforeDisable=bytes;client.kill('SIGKILL');}
+                    if(phase==='lease-expire')beforeDisable=bytes;
                     if(disable){
                         beforeDisable=bytes;
                         disabled=spawnSync('gnome-extensions',['disable','teaching-tools@kaoshou.github.io'],{timeout:5000}).status===0;
@@ -78,11 +89,13 @@ async function record(selection,phase,disable=false){
         audio:'none',microphone:'',systemDevice:'',cursor:true,encoder:'cpu',quality:23,
         portalSourceId:selection.sourceId,portalRestoreToken:selection.restoreToken})+'\n');
     const status=await exit;clearTimeout(timeout);clearTimeout(timer);
+    client?.kill();
     if(!out.closed)await new Promise(resolve=>out.once('close',resolve));
     if(error||status!==0||!ready||!stopped||!grant||grant.sourceId!==selection.sourceId)throw new Error(error||'capture_failed');
     runMedia(['-v','error','-i',file,'-f','null','-']);
     const frames=runMedia(['-v','error','-i',file,'-pix_fmt','rgb24','-f','rawvideo','-']);
     report.checks[`${phase}${disable?'-disable':''}`]={bytes,disabled,grewAfterDisable:disable?disabled&&bytes>beforeDisable:false,
+        ...(phase.startsWith('lease-')?{grewAfterCleanup:bytes>beforeDisable,leaseActive:control('Status').leaseActive}:{}),
         ...inspectPointerFrames(frames,{width:selection.width,height:selection.height,art,artWidth:140,artHeight:120,
             hotspotX:16,hotspotY:16,positions:[[180,150],[240,150],[300,150]]})};
     return grant;
@@ -116,6 +129,8 @@ try{
     if(!control('Status').visible||report.checks.outside.positions.length)throw new Error('outside_recovery_failed');
     selection=await record(selection,'cleanup');
     if(!control('Status').visible)throw new Error('cursor_not_restored');
+    selection=await record(selection,'lease-owner');
+    selection=await record(selection,'lease-expire');
     await record(selection,'pointer',true);
     for(const phase of ['baseline','cleanup'])if(report.checks[phase].magentaPixels<100)throw new Error('native_cursor_not_verified');
     for(const phase of ['pointer','stroke']){
@@ -124,11 +139,15 @@ try{
     }
     if(report.checks.stroke.redPixels<100)throw new Error('stroke_not_captured');
     if(!report.checks['pointer-disable'].grewAfterDisable||report.checks['pointer-disable'].magentaPixels<100)throw new Error('disable_recovery_failed');
+    for(const phase of ['lease-owner','lease-expire']){
+        const value=report.checks[phase];
+        if(value.leaseActive||!value.grewAfterCleanup||value.magentaPixels<100||value.positions.length<2)throw new Error('lease_recovery_failed');
+    }
     report.status='PASS';
 }catch(error){
     const safe=['extension_unavailable','fixture_protocol','pointer_operation_failed','media_decode','selection_failed','capture_timeout',
         'diagnostic_limit','native_capture_failed','capture_failed','inert_or_monitor_check','preview_invalid','marker_not_captured',
-        'monitor_mapping_ambiguous','cursor_not_restored','native_cursor_not_verified','pointer_replacement_failed','stroke_not_captured','disable_recovery_failed','outside_recovery_failed'];
+        'monitor_mapping_ambiguous','cursor_not_restored','native_cursor_not_verified','pointer_replacement_failed','stroke_not_captured','disable_recovery_failed','outside_recovery_failed','lease_client_failed','lease_recovery_failed'];
     report.code=safe.includes(error.message)?error.message:'fixture_failed';
 }
 fs.writeFileSync(path.join(evidence,'teaching-result.json'),JSON.stringify(report,null,2));

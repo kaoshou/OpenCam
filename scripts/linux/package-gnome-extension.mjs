@@ -7,7 +7,7 @@ const repository=resolve(import.meta.dirname,'../..');
 export async function packageGnomeExtension(output,commit) {
     if(!isAbsolute(output)||!/^[a-f0-9]{40}$/.test(commit))throw new Error('absolute_output_and_commit_required');
     const files=new Map();
-    for(const name of ['metadata.json','extension.js','geometry.js','pointer.js'])
+    for(const name of ['metadata.json','extension.js','geometry.js','pointer.js','protocol.js','session.js'])
         files.set(name,await readFile(join(repository,'linux/gnome-extension',name)));
     for(const style of ['WarmIvory','TealSilver','RoundShort','HighContrast'])
         files.set(`artwork/${style}.png`,await readFile(join(repository,'src/ScreenRecorder.Core/Assets/TeachingPointers',style+'.png')));
