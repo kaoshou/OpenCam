@@ -26,7 +26,7 @@ export class TeachingSession {
         const screen={...source},pointer={...options};
         try{
             if(await this.#authorize(owner,screen)!==true||this.#disposed||this.#pending!==pending)return false;
-            const resource=await this.#activate(screen,pointer);
+            const resource=await this.#activate(screen,pointer,owner);
             if(!resource||typeof resource.dispose!=='function'||typeof resource.command!=='function'){
                 if(resource&&typeof resource.dispose==='function')this.#release(resource);
                 this.#fault('renderer_failed');return false;

@@ -21,6 +21,7 @@ const xml=`<node><interface name="io.github.kaoshou.OpenCam.TeachingFixture">
 const nativePath='/io/github/kaoshou/OpenCam/Teaching',nativeInterface='io.github.kaoshou.OpenCam.Teaching';
 const nativeXml=`<node><interface name="${nativeInterface}">
 <method name="Capabilities"><arg type="s" direction="out"/></method>
+<method name="Connect"><arg type="s" direction="out"/></method>
 <method name="Status"><arg type="s" direction="out"/></method>
 <signal name="Event"><arg type="s"/></signal>
 </interface></node>`;
@@ -54,6 +55,11 @@ export default class TeachingFixture extends Extension {
             data:{supported:true,gnomeVersion:'46.0',desktop:'wayland',authorized:false}});
         this._nativeObject=Gio.DBusExportedObject.wrapJSObject(nativeXml,{
             Capabilities:capabilities,
+            ConnectAsync:async(_params,invocation)=>{
+                const allowed=await this._authorization.request(invocation.get_sender());
+                invocation.return_value(new GLib.Variant('(s)',[JSON.stringify({protocol:1,instance:this._instance,
+                    status:allowed?'ok':'denied',data:{authorized:allowed}})]));
+            },
             StatusAsync:(_params,invocation)=>{
                 invocation.return_value(new GLib.Variant('(s)',[capabilities()]));
                 Gio.DBus.session.emit_signal(invocation.get_sender(),nativePath,nativeInterface,'Event',

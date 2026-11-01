@@ -114,7 +114,9 @@ try{
         const managed=spawnSync(process.env.OPENCAM_TEACHING_MANAGED_TEST,['connected'],{encoding:'utf8',timeout:15000});
         fs.writeFileSync(path.join(evidence,'managed-connected.log'),(managed.stdout??'')+(managed.stderr??''));
         if(managed.status!==0)throw new Error('managed_bridge_failed');
-        report.checks.managedBridge={sameSourceInterop:true,privateConnection:true,directedSignal:true,disposed:true};
+        report.checks.managedBridge={sameSourceInterop:true,privateConnection:true,directedSignal:true,inFlightCancellation:true,disposed:true};
+        // The canceled consent request is rate-limited, even though its owner is gone.
+        await delay(1100);
     }
     for(const [iteration,phase] of ['consent-deny','consent-allow','consent-deny','consent-allow'].entries()){
         control('Phase',phase);
@@ -123,7 +125,8 @@ try{
         const status=control('Status');
         report.checks[phase+'-'+iteration]={result:result.stdout?.trim(),exitStatus:result.status,modalCount:status.modalCount,cursorVisible:status.visible,
             pressed:status.consentPressed,released:status.consentReleased,button:status.consentButton};
-        if(result.status!==0||result.stdout.trim()!==expected||status.modalCount!==0||!status.visible)throw new Error('consent_failed');
+        if(result.status!==0||result.stdout.trim()!==expected||status.modalCount!==0||!status.visible||
+            !status.consentPressed||!status.consentReleased)throw new Error('consent_failed');
         await delay(1100);
     }
     const markerState=control('Phase','markers');await delay(800);

@@ -29,5 +29,9 @@ await using(var transport=new LinuxTeachingBridgeTransport()) {
     using var canceled=new CancellationTokenSource();canceled.Cancel();
     try {await transport.CallAsync("Capabilities","",canceled.Token);return 1;}
     catch(OperationCanceledException) {}
+    // Cancel an actual in-flight GIO call waiting for the real consent dialog.
+    using var inFlight=new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
+    try {await transport.CallAsync("Connect","",inFlight.Token);return 1;}
+    catch(OperationCanceledException) {}
 }
 Console.WriteLine("managed teaching transport checks passed");return 0;
