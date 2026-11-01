@@ -42,28 +42,32 @@ test('localized homepages include genuine previews, guide, and current download'
   } finally { await rm(out, { recursive: true, force: true }); }
 });
 
-test('hero offers three localized published attachment downloads and supporting links', async () => {
+test('hero offers localized published platform downloads and supporting links', async () => {
   const out = await mkdtemp(join(tmpdir(), 'opencam-downloads-'));
   try {
     await buildSite({ repositoryRoot: resolve(import.meta.dirname, '../..'), outputRoot: out });
     for (const [lang, labels] of [
-      ['zh-TW', ['下載 Windows 免安裝版', '下載 Windows 安裝版', '下載 macOS 版']],
-      ['en-US', ['Download Windows portable', 'Download Windows installer', 'Download macOS']],
+      ['zh-TW', ['下載 Windows 免安裝版', '下載 Windows 安裝版', '下載 macOS 版', '下載 Ubuntu 版（Beta）']],
+      ['en-US', ['Download Windows portable', 'Download Windows installer', 'Download macOS', 'Download Ubuntu (Beta)']],
     ]) {
       const html = await readFile(join(out, lang, 'index.html'), 'utf8');
       const actions = html.match(/<div class="hero-actions">([\s\S]*?)<\/div>/)?.[1];
       assert(actions, 'Download actions must be present');
       const links = [...actions.matchAll(/<a\b[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)];
-      assert.equal(links.length, 3);
+      assert.equal(links.length, 4);
       assert.deepEqual(links.map(m => m[1]), [
         `https://github.com/kaoshou/OpenCam/releases/download/v${downloadVersion}/OpenCam_v${downloadVersion}_Windows_x64_Portable.zip`,
         `https://github.com/kaoshou/OpenCam/releases/download/v${downloadVersion}/OpenCam_v${downloadVersion}_Windows_x64_Setup.exe`,
         `https://github.com/kaoshou/OpenCam/releases/download/v${downloadVersion}/OpenCam_v${downloadVersion}_macOS_arm64.dmg`,
+        `https://github.com/kaoshou/OpenCam/releases/download/v${downloadVersion}/OpenCam_v${downloadVersion}_Linux_x64_Beta.deb`,
       ]);
       assert.deepEqual(links.map(m => m[2]), labels);
       const notes = html.match(/<div class="download-notes">([\s\S]*?)<\/div>/)?.[1];
       assert(notes, 'Architecture and supporting links must stay below downloads');
       assert.match(notes, /x64/);assert.match(notes, /Apple Silicon/);
+      assert.match(notes, /Ubuntu 24\.04/);assert.match(notes, /25\.04/);
+      assert.match(notes, /CPU/);assert.match(notes, /X11/);assert.match(notes, /Wayland/);
+      assert.match(notes, /OpenCam_v1\.2\.1_Linux_x64_Beta\.tar\.gz/);
       assert.match(notes, /href="https:\/\/github\.com\/kaoshou\/OpenCam\/releases"/);
       assert.match(notes, new RegExp(`href="/OpenCam/${lang}/guide/"`));
     }

@@ -7,11 +7,17 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 
-test('both website languages explain Linux Beta desktop support and limitations', () => {
+test('Ubuntu Beta guidance stays below hero downloads without a separate promotional section', () => {
   for(const lang of ['zh-TW','en-US']) {
     const html=renderHome(lang);
     assert.match(html,/id="linux-beta"/);
-    assert.match(html,/Linux Beta/);
+    const hero=html.split('</section>')[0];
+    const notes=hero.match(/<div class="download-notes">([\s\S]*?)<\/div>/)?.[1];
+    assert.ok(notes);
+    assert.match(notes,/Ubuntu 24\.04/);
+    assert.match(notes,/Beta/);
+    assert.doesNotMatch(html,/<section[^>]*id="linux-beta"/);
+    assert.doesNotMatch(html,/<h2>Ubuntu 也能使用 OpenCam|<h2>OpenCam for Ubuntu/);
     assert.match(html,/Ubuntu 24\.04/);
     assert.match(html,/25\.04/);
     assert.match(html,/X11/);
@@ -36,5 +42,13 @@ test('verified Linux download flag exposes only published versioned Beta filenam
     assert.match(html,/href="https:\/\/github.com\/kaoshou\/OpenCam\/releases\/download\/v1\.2\.1\/OpenCam_v1\.2\.1_Linux_x64_Beta\.deb"/);
     assert.match(html,/OpenCam_v1\.2\.1_Linux_x64_Beta\.tar\.gz/);
     assert.doesNotMatch(html,/releases\/download\/v9\.9\.9/);
+  }
+  await writeFile(join(root,'website/downloads.json'),JSON.stringify({version:'1.2.1'}));
+  const unpublished=await import(pathToFileURL(join(root,'website/src/content.mjs')).href+'?without-linux');
+  for(const lang of ['zh-TW','en-US']) {
+    const html=unpublished.renderHome(lang);
+    assert.doesNotMatch(html,/href="[^"]+_Linux_[^"]+"/);
+    assert.match(html,/OpenCam_v1\.2\.1_Windows_x64_Portable\.zip/);
+    assert.match(html,/OpenCam_v1\.2\.1_macOS_arm64\.dmg/);
   }
 });

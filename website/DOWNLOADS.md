@@ -1,8 +1,10 @@
 # Homepage downloads
 
 The homepages provide three direct attachment links: Windows x64 portable ZIP,
-Windows x64 installer EXE and macOS Apple Silicon arm64 DMG. The original GitHub
-Releases listing and localized guide remain text links below the buttons.
+Windows x64 installer EXE and macOS Apple Silicon arm64 DMG. When verified Linux
+Beta assets are available, a fourth “Download Ubuntu (Beta)” button downloads the
+deb installer. The GitHub Releases listing, localized guide and Ubuntu Beta archive
+remain text links below the buttons, alongside platform requirements.
 
 `downloads.json` pins the **published** download version independently of the
 development `VERSION`. The homepage's current-version label uses this published
@@ -25,8 +27,9 @@ GitHub serves the files, so browser download preferences still apply.
 
 ## Linux Beta
 
-The separate Linux Beta section explains Ubuntu 24.04 / 25.04 x64, X11 versus
-Wayland capability limits and CPU encoding. It does not imply full desktop parity.
+The notes directly below the top download buttons explain Ubuntu 24.04 / 25.04
+x64, X11 versus Wayland capability limits and CPU encoding. There is no separate
+Ubuntu promotional section. These notes do not imply full desktop parity.
 Set `linuxBetaVersion` in `downloads.json` to the published `version` only after
 verifying `OpenCam_v<version>_Linux_x64_Beta.deb`,
 `OpenCam_v<version>_Linux_x64_Beta.tar.gz`,
