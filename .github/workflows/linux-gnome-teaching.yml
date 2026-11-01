@@ -20,6 +20,9 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
       - name: Check package, geometry and real-frame verifier contracts
         run: node --test scripts/linux/gnome-teaching*.test.mjs
       - uses: actions/download-artifact@v4
@@ -44,11 +47,18 @@ jobs:
           cc -std=gnu11 -O2 -Wall -Wextra -Werror tests/native/linux-teaching-bridge-tests.c src/ScreenRecorder.Platform.Linux/Native/teaching-bridge.c -o "$RUNNER_TEMP/teaching-bridge-tests" $(pkg-config --cflags --libs gio-2.0) -pthread > "$RUNNER_TEMP/teaching-evidence/native-build.log" 2>&1
           cc -std=gnu11 -O2 -shared -fPIC -Wall -Wextra -Werror src/ScreenRecorder.Platform.Linux/Native/teaching-bridge.c -o "$RUNNER_TEMP/libOpenCamLinuxTeaching.so" $(pkg-config --cflags --libs gio-2.0) -pthread >> "$RUNNER_TEMP/teaching-evidence/native-build.log" 2>&1
           dbus-run-session -- "$RUNNER_TEMP/teaching-bridge-tests" > "$RUNNER_TEMP/teaching-evidence/native-lifecycle.log" 2>&1
+      - name: Publish isolated managed interop acceptance probe
+        env:
+          AVALONIA_TELEMETRY_OPTOUT: '1'
+        run: |
+          dotnet publish tests/ScreenRecorder.LinuxTeachingProbe/ScreenRecorder.LinuxTeachingProbe.csproj -c Release -r linux-x64 --self-contained true -o "$RUNNER_TEMP/managed-teaching" > "$RUNNER_TEMP/teaching-evidence/managed-build.log" 2>&1
+          cp "$RUNNER_TEMP/libOpenCamLinuxTeaching.so" "$RUNNER_TEMP/managed-teaching/"
       - name: Record real compositor actors and verify cursor restoration
         env:
           OPENCAM_DISPOSABLE_CI_DESKTOP: '1'
           LD_LIBRARY_PATH: ${{ runner.temp }}/app/obs-runtime/lib
           OPENCAM_TEACHING_BRIDGE_TEST: ${{ runner.temp }}/teaching-bridge-tests
+          OPENCAM_TEACHING_MANAGED_TEST: ${{ runner.temp }}/managed-teaching/ScreenRecorder.LinuxTeachingProbe
         run: |
           timeout 180 dbus-run-session -- xvfb-run -a -s '-screen 0 1280x800x24' bash scripts/linux/test-gnome-teaching.sh "$RUNNER_TEMP/app" "$RUNNER_TEMP/teaching-evidence"
       - uses: actions/upload-artifact@v4

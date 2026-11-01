@@ -9,6 +9,16 @@ const equalPeer=(a,b)=>a?.uid===b?.uid&&a?.pid===b?.pid&&a?.executable===b?.exec
 export class PeerAuthorization {
     #uid;#now;#lookup;#confirm;#pending=null;#approved=null;#disposed=false;#nextPrompt=0;
     constructor({uid,now,lookup,confirm}){this.#uid=uid;this.#now=now;this.#lookup=lookup;this.#confirm=confirm;}
+    async check(owner){
+        const approved=this.#approved;
+        if(this.#disposed||!approved||approved.owner!==owner)return false;
+        try{
+            const peer=await this.#lookup(owner);
+            if(!this.#disposed&&this.#approved===approved&&validPeer(peer,this.#uid)&&equalPeer(approved.peer,peer))return true;
+        }catch{/* A missing/disconnected process is not renewed authorization. */}
+        if(this.#approved===approved)this.#approved=null;
+        return false;
+    }
     async request(owner){
         if(this.#disposed||this.#pending||!validOwner(owner))return false;
         const pending={owner,cancel:null};this.#pending=pending;

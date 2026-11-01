@@ -46,3 +46,10 @@ test('denial is not cached as permission and prompt rate is bounded',async()=>{
     assert.equal(await f.auth.request(':1.3'),false);assert.equal(asked,1);
     f.advance(1000);assert.equal(await f.auth.request(':1.3'),false);assert.equal(asked,2);
 });
+test('privileged calls recheck consent without silently creating a new prompt',async()=>{
+    let executable=peer.executable;const f=await fixture({lookup:async()=>({...peer,executable})});
+    assert.equal(await f.auth.check(':1.2'),false);assert.equal(f.prompts,0);
+    assert.equal(await f.auth.request(':1.2'),true);assert.equal(await f.auth.check(':1.2'),true);
+    assert.equal(await f.auth.check(':1.3'),false);assert.equal(f.prompts,1);
+    executable='/usr/bin/other';assert.equal(await f.auth.check(':1.2'),false);assert.equal(f.prompts,1);
+});
