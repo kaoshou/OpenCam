@@ -19,6 +19,12 @@ def request(action, **fields):
     return result.unpack()[0]
 
 try:
+    if sys.argv[2].startswith("consent-"):
+        result = bus.call_sync("org.gnome.Shell", "/io/github/kaoshou/OpenCam/TeachingFixture",
+                               "io.github.kaoshou.OpenCam.TeachingFixture", "Consent", None,
+                               GLib.VariantType.new("(b)"), Gio.DBusCallFlags.NONE, 15000, None)
+        print("allowed" if result.unpack()[0] else "denied", flush=True)
+        sys.exit(0)
     if not request("begin", source=json.loads(sys.argv[1]), options=dict(style="WarmIvory", size="Standard")):
         sys.exit(1)
     print("ready", flush=True)

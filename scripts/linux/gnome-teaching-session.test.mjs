@@ -98,3 +98,11 @@ test('invalid direct begin calls never reach authorization or renderer startup',
         assert.equal(await f.session.begin(peer,token,screen,options),false);
     assert.equal(requested,0);assert.equal(f.started,0);
 });
+test('all owned cleanup operations are attempted even if an earlier native release throws',async()=>{
+    const file=new URL('../../linux/gnome-extension/cleanup.js',import.meta.url);
+    await assert.doesNotReject(access(file),'All-resource cleanup is missing');
+    const {disposeAll}=await import(file),released=[];
+    assert.equal(disposeAll([()=>{released.push('cursor');throw new Error('native');},()=>released.push('input'),()=>released.push('actor')]),false);
+    assert.deepEqual(released,['cursor','input','actor']);
+    assert.equal(disposeAll([()=>{}]),true);
+});

@@ -7,6 +7,7 @@ import Meta from 'gi://Meta';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {pointerGeometry,pointerPlacement} from './geometry.js';
+import {disposeAll} from './cleanup.js';
 
 // Owns only its actor and balanced cursor/unfocus operations. Local compositor
 // calls only: no timers, IPC, input injection or captured media in this module.
@@ -24,8 +25,12 @@ export function createPointer({style,size,artworkDirectory,bounds}) {
     const seat=Clutter.get_default_backend().get_default_seat();
     let hidden=false,signal=0,destroyed=false;
     function restore() {
-        if(signal){tracker.disconnect(signal);signal=0;}
-        if(hidden){hidden=false;tracker.set_pointer_visible(true);seat.uninhibit_unfocus();}
+        const ownedSignal=signal,ownedHidden=hidden;signal=0;hidden=false;
+        if(!disposeAll([
+            ()=>{if(ownedSignal)tracker.disconnect(ownedSignal);},
+            ()=>{if(ownedHidden)tracker.set_pointer_visible(true);},
+            ()=>{if(ownedHidden)seat.uninhibit_unfocus();},
+        ]))throw new Error('cursor_cleanup_unconfirmed');
     }
     function hide() {
         if(hidden)return;
@@ -49,7 +54,7 @@ export function createPointer({style,size,artworkDirectory,bounds}) {
         destroy() {
             if(destroyed)return;
             destroyed=true;
-            try{restore();}finally{actor.destroy();}
+            if(!disposeAll([restore,()=>actor.destroy()]))throw new Error('cursor_cleanup_unconfirmed');
         },
     };
 }
