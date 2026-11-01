@@ -24,7 +24,8 @@ export default class TeachingFixture extends Extension {
             try{
                 if(this._phase!=='inert'){
                     const positions=[[180,150],[240,150],[300,150]];
-                    const [x,y]=positions[Math.floor(this._ticks++/25)%positions.length];
+                    let [x,y]=positions[Math.floor(this._ticks++/25)%positions.length];
+                    if(this._phase==='outside')x+=Main.layoutManager.monitors[1].x;
                     this._device.notify_absolute_motion(GLib.get_monotonic_time(),x,y);
                     const [px,py]=global.get_pointer();this._pointer?.showAt(px,py);
                 }
@@ -38,12 +39,12 @@ export default class TeachingFixture extends Extension {
             markers:this._markers??[],ticks:this._ticks});
     }
     Phase(phase) {
-        if(!['baseline','pointer','stroke','cleanup','markers','inert'].includes(phase))throw new Error('invalid_phase');
+        if(!['baseline','pointer','stroke','outside','cleanup','markers','inert'].includes(phase))throw new Error('invalid_phase');
         Main.overview.hide();
         this._pointer?.destroy();this._pointer=null;
         for(const actor of this._actors)actor.destroy();this._actors=[];this._markers=[];
         this._phase=phase;
-        if(phase==='pointer'||phase==='stroke'){
+        if(['pointer','stroke','outside'].includes(phase)){
             this._pointer=createPointer({style:'WarmIvory',size:'Standard',artworkDirectory:`${this.path}/artwork`,bounds:Main.layoutManager.monitors[0]});
             if(phase==='stroke'){
                 const stroke=new St.Widget({reactive:false,x:80,y:250,width:400,height:8,style:'background-color: rgb(240,40,40);'});

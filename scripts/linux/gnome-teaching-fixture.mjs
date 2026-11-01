@@ -81,7 +81,7 @@ async function record(selection,phase,disable=false){
     if(!out.closed)await new Promise(resolve=>out.once('close',resolve));
     if(error||status!==0||!ready||!stopped||!grant||grant.sourceId!==selection.sourceId)throw new Error(error||'capture_failed');
     runMedia(['-v','error','-i',file,'-f','null','-']);
-    const frames=runMedia(['-v','error','-i',file,'-vf','fps=5','-pix_fmt','rgb24','-f','rawvideo','-']);
+    const frames=runMedia(['-v','error','-i',file,'-pix_fmt','rgb24','-f','rawvideo','-']);
     report.checks[`${phase}${disable?'-disable':''}`]={bytes,disabled,grewAfterDisable:disable?disabled&&bytes>beforeDisable:false,
         ...inspectPointerFrames(frames,{width:selection.width,height:selection.height,art,artWidth:140,artHeight:120,
             hotspotX:16,hotspotY:16,positions:[[180,150],[240,150],[300,150]]})};
@@ -112,6 +112,8 @@ try{
     selection=await record(selection,'baseline');
     selection=await record(selection,'pointer');
     selection=await record(selection,'stroke');
+    selection=await record(selection,'outside');
+    if(!control('Status').visible||report.checks.outside.positions.length)throw new Error('outside_recovery_failed');
     selection=await record(selection,'cleanup');
     if(!control('Status').visible)throw new Error('cursor_not_restored');
     await record(selection,'pointer',true);
@@ -126,7 +128,7 @@ try{
 }catch(error){
     const safe=['extension_unavailable','fixture_protocol','pointer_operation_failed','media_decode','selection_failed','capture_timeout',
         'diagnostic_limit','native_capture_failed','capture_failed','inert_or_monitor_check','preview_invalid','marker_not_captured',
-        'monitor_mapping_ambiguous','cursor_not_restored','native_cursor_not_verified','pointer_replacement_failed','stroke_not_captured','disable_recovery_failed'];
+        'monitor_mapping_ambiguous','cursor_not_restored','native_cursor_not_verified','pointer_replacement_failed','stroke_not_captured','disable_recovery_failed','outside_recovery_failed'];
     report.code=safe.includes(error.message)?error.message:'fixture_failed';
 }
 fs.writeFileSync(path.join(evidence,'teaching-result.json'),JSON.stringify(report,null,2));

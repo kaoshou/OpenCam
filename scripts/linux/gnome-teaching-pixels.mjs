@@ -8,7 +8,7 @@ export function inspectPointerFrames(frames,{width,height,art,artWidth,artHeight
     const found=new Set();
     for(let offset=0;offset<frames.length;offset+=stride){
         for(let i=offset;i<offset+stride;i+=3){
-            const [r,g,b]=frames.subarray(i,i+3);
+            const r=frames[i],g=frames[i+1],b=frames[i+2];
             if(r>180&&g<65&&b>180)magentaPixels++;
             if(r>170&&g<90&&b<100)redPixels++;
         }
