@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Linux GNOME teaching feasibility
+on:
+  push:
+    branches: ['codex/linux-app-test-20261030']
+    paths: ['.github/workflows/linux-gnome-teaching.yml', 'linux/gnome-extension/**', 'scripts/linux/*gnome-teaching*']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: linux-gnome-teaching-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  gnome-teaching:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Check package, geometry and real-frame verifier contracts
+        run: node --test scripts/linux/gnome-teaching.test.mjs
+      - uses: actions/download-artifact@v4
+        with:
+          name: OpenCam-v1.2.0-Ubuntu24.04-x64-Test-10e239f98d44cbabac3708e08c857ee8fcbb9787
+          run-id: 41228953165
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/verified-package
+      - name: Verify and unpack unchanged recording runtime
+        working-directory: ${{ runner.temp }}/verified-package
+        run: |
+          sha256sum -c SHA256SUMS.txt
+          mkdir "$RUNNER_TEMP/app"
+          tar -xzf OpenCam_v1.2.0_Ubuntu24.04_x64_Test_10e239f.tar.gz -C "$RUNNER_TEMP/app"
+          mkdir "$RUNNER_TEMP/teaching-evidence"
+      - name: Install disposable GNOME desktop dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gnome-shell gnome-session-bin xdg-desktop-portal-gnome xdg-desktop-portal-gtk pipewire wireplumber dbus-x11 xvfb xauth libx264-164 libxcb-xinput0 libwayland-egl1 pulseaudio-utils at-spi2-core python3-pyatspi python3-gi python3-cairo gir1.2-gtk-4.0
+      - name: Record real compositor actors and verify cursor restoration
+        env:
+          OPENCAM_DISPOSABLE_CI_DESKTOP: '1'
+          LD_LIBRARY_PATH: ${{ runner.temp }}/app/obs-runtime/lib
+        run: |
+          timeout 180 dbus-run-session -- xvfb-run -a -s '-screen 0 1280x800x24' bash scripts/linux/test-gnome-teaching.sh "$RUNNER_TEMP/app" "$RUNNER_TEMP/teaching-evidence"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: GNOME-teaching-feasibility-${{ github.sha }}
+          path: ${{ runner.temp }}/teaching-evidence

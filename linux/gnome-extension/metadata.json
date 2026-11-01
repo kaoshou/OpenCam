@@ -1,0 +1,9 @@
+{
+  "uuid": "teaching-tools@kaoshou.github.io",
+  "name": "OpenCam Teaching Tools",
+  "description": "Optional OpenCam desktop integration. Feasibility build; not enabled in the application.",
+  "shell-version": ["46"],
+  "url": "https://github.com/kaoshou/OpenCam",
+  "version": 1,
+  "version-name": "1.2.0-beta"
+}
