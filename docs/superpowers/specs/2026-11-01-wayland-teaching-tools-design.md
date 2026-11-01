@@ -2,10 +2,10 @@
 
 ## Status and intent
 
-Design for user approval, 2026-11-01. The user accepted an optional GNOME
+Design approved by the user, 2026-11-01. The user accepted an optional GNOME
 desktop extension as the first Wayland teaching-tools target. This document
-details that approach; it does not claim that the extension has been built or
-validated. Product base: `07c2d82aed56a6faac2abb94d32e473c71a08698`, Linux
+details that approach; implementation evidence is tracked separately in
+`docs/testing/wayland-teaching-tools-20261101.md`. Product base: `07c2d82aed56a6faac2abb94d32e473c71a08698`, Linux
 development branch `codex/linux-app-test-20261030`, version 1.2.0 Beta.
 
 Provide a visible teaching pointer and desktop drawing on Ubuntu 24.04 GNOME
