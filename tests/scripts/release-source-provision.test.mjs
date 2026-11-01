@@ -7,6 +7,16 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 
+test('current release has its own source-delivery review policy before packaging', async()=>{
+  const version=(await readFile(new URL('../../VERSION',import.meta.url),'utf8')).trim();
+  const policy=JSON.parse(await readFile(new URL(`../../docs/releases/v${version}-source-coverage.json`,import.meta.url),'utf8'));
+  assert.equal(policy.version,version);
+  assert.equal(policy.status,'policy-approved');
+  assert.ok(policy.reviewedBy);
+  assert.equal(policy.deliveryManifest,'SOURCE-COVERAGE.json');
+  assert.ok(policy.checks.length>0);
+});
+
 test('pending source coverage blocks binary publication instead of silently accepting provenance links', async()=>{
   await assert.rejects(checkReleaseSources({status:'pending'}), /source.*pending/i);
 });

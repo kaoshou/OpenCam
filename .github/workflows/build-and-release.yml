@@ -46,7 +46,13 @@ jobs:
     - name: Restore and test .NET solution
       run: |
         dotnet restore ScreenRecorder.sln
-        dotnet test ScreenRecorder.sln -c Release --no-restore -m:1 /nodeReuse:false --logger trx --results-directory test-results
+        dotnet build ScreenRecorder.sln -c Release --no-restore -m:1 /nodeReuse:false
+        cc -Wall -Wextra -Werror tests/native/linux-spawn-tests.c src/ScreenRecorder.Platform.Linux/Native/spawn.c -o "$RUNNER_TEMP/opencam-linux-spawn-tests"
+        "$RUNNER_TEMP/opencam-linux-spawn-tests"
+        test_output=tests/ScreenRecorder.Media.Tests/bin/Release/net8.0
+        cc -shared -fPIC -O2 -Wall -Wextra -Werror src/ScreenRecorder.Platform.Linux/Native/spawn.c -o "$test_output/libOpenCamLinuxSpawn.so"
+        cp "$test_output/libOpenCamLinuxSpawn.so" "$test_output/project-recording-probe/"
+        dotnet test ScreenRecorder.sln -c Release --no-build --no-restore -m:1 /nodeReuse:false --logger trx --results-directory test-results
     - name: Preserve test evidence
       if: always()
       uses: actions/upload-artifact@v4

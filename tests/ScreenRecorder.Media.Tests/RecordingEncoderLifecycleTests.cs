@@ -16,6 +16,7 @@ using ScreenRecorder.Media.Probe;
 using ScreenRecorder.Media.Remux;
 using ScreenRecorder.Platform.macOS;
 using ScreenRecorder.Recorder.Services;
+using ScreenRecorder.Testing;
 
 namespace ScreenRecorder.Media.Tests;
 
@@ -300,9 +301,11 @@ public partial class RecordingEncoderLifecycleTests
             var storage = new StorageService();
             var display = new FixedDisplay();
             var probe = new MediaFileProbe();
+            IFFmpegPlatformProvider provider = windowsProvider
+                ? new ScreenRecorder.Platform.Windows.WindowsFFmpegProvider() : new MacOsFFmpegProvider(display);
             await using var recorder = new RecordingOrchestrator(new RecordingStateMachine(), storage,
                 new JsonRecordingSessionStore(), new DiskSpaceMonitor(storage), new StreamCopyRemuxer(), probe,
-                display, windowsProvider ? new ScreenRecorder.Platform.Windows.WindowsFFmpegProvider() : new MacOsFFmpegProvider(display))
+                display, provider, engineFactory: new SyntheticRecordingEngineFactory(provider))
                 { UseSyntheticCaptureSource = true };
             var config = new RecordingConfiguration { OutputDirectory = root, AudioSource = AudioSourceType.None,
                 EncoderType = HardwareEncoderType.SoftwareCpu, Fps = 30 };

@@ -12,15 +12,18 @@ using ScreenRecorder.Media.Remux;
 using ScreenRecorder.Platform.macOS;
 using ScreenRecorder.Platform.Windows;
 using ScreenRecorder.Recorder.Services;
+using ScreenRecorder.Testing;
 
 try
 {
     if (args.Length != 2 || args[0] is not ("create" or "append")) return 2;
     var storage = new StorageService();
     var displays = new FixtureDisplay();
+    IFFmpegPlatformProvider provider = OperatingSystem.IsWindows()
+        ? new WindowsFFmpegProvider() : new MacOsFFmpegProvider(displays);
     await using var recorder = new RecordingOrchestrator(new RecordingStateMachine(), storage,
         new JsonRecordingSessionStore(), new DiskSpaceMonitor(storage), new StreamCopyRemuxer(), new MediaFileProbe(),
-        displays, OperatingSystem.IsWindows() ? new WindowsFFmpegProvider() : new MacOsFFmpegProvider(displays))
+        displays, provider, engineFactory: new SyntheticRecordingEngineFactory(provider))
         { UseSyntheticCaptureSource = true };
     await using var project = new ProjectRecordingCoordinator(recorder, new JsonProjectStore(), new ProjectSourceProbe());
     var opened = args[0] == "create" ? await project.CreateAsync(args[1], "Cross-process integration") : await project.OpenAsync(args[1]);

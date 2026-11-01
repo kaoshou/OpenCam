@@ -14,7 +14,7 @@ public sealed class ProjectMainEntryTests
         try
         {
             Assert.Equal(20, vm.SelectedFps);
-            Assert.Equal(new[] { 5, 10, 20, 30, 40 }, vm.FpsOptions);
+            Assert.Equal(OperatingSystem.IsLinux() ? new[] { 5, 10, 20, 30 } : new[] { 5, 10, 20, 30, 40 }, vm.FpsOptions);
             foreach (var fps in vm.FpsOptions)
             {
                 vm.SelectedFps = fps;
@@ -55,7 +55,9 @@ public sealed class ProjectMainEntryTests
     {
         var vm = new MainViewModel(forScreenshot: true) { SelectedFps = 24, RecordMicrophone = true };
         var config = vm.BuildProjectConfiguration();
-        Assert.Equal(24, config.Fps);
+        // Linux CPU capture normalizes unsupported rates; Windows/macOS retain 24.
+        Assert.Equal(OperatingSystem.IsLinux() ? 20 : 24, config.Fps);
+        Assert.Equal(OperatingSystem.IsLinux() ? 20 : 24, vm.SelectedFps);
         Assert.Equal(AudioSourceType.MicrophoneOnly, config.AudioSource);
         Assert.Equal(vm.OutputDirectory, config.OutputDirectory);
         vm.Cleanup();

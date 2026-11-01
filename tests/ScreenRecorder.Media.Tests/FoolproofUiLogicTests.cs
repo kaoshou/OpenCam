@@ -435,13 +435,18 @@ public class FoolproofUiLogicTests
     }
 
     [Avalonia.Headless.XUnit.AvaloniaFact]
-    public void CursorEffect_ShouldInitializeWithAllOptionsAndLocalize()
+    public void CursorEffect_ShouldInitializeWithSupportedOptionsAndLocalize()
     {
         Assert.IsType<ProjectLayoutApp>(Avalonia.Application.Current);
         var vm = new MainViewModel(forScreenshot: true);
 
-        // 驗收：5 種模式皆存在且預設為 Default
-        Assert.Equal(5, vm.AvailableCursorEffects.Count);
+        // Preserve the full Windows/macOS menu; Linux exposes only supported effects.
+        Assert.Equal(OperatingSystem.IsLinux()
+            ? ScreenRecorder.Platform.Linux.LinuxX11InputPolicy.IsX11
+                ? new[] { CursorEffectMode.Default, CursorEffectMode.PresentationStick, CursorEffectMode.Hidden }
+                : new[] { CursorEffectMode.Default, CursorEffectMode.Hidden }
+            : new[] { CursorEffectMode.Default, CursorEffectMode.PresentationStick, CursorEffectMode.HighlightHalo,
+                CursorEffectMode.HaloWithClickRipple, CursorEffectMode.Hidden }, vm.AvailableCursorEffects.Select(x => x.Mode));
         Assert.NotNull(vm.SelectedCursorEffect);
         Assert.Equal(ScreenRecorder.Core.Enums.CursorEffectMode.Default, vm.SelectedCursorEffect.Mode);
 
@@ -449,13 +454,15 @@ public class FoolproofUiLogicTests
         vm.Strings.CurrentLanguage = ScreenRecorder.Core.Localization.AppLanguage.EnUs;
         var enHidden = vm.AvailableCursorEffects.First(e => e.Mode == ScreenRecorder.Core.Enums.CursorEffectMode.Hidden);
         Assert.Equal("Hide Cursor", enHidden.DisplayName);
-        Assert.Equal("Presentation stick", vm.AvailableCursorEffects.Single(e => e.Mode == ScreenRecorder.Core.Enums.CursorEffectMode.PresentationStick).DisplayName);
+        if (!OperatingSystem.IsLinux() || ScreenRecorder.Platform.Linux.LinuxX11InputPolicy.IsX11)
+            Assert.Equal("Presentation stick", vm.AvailableCursorEffects.Single(e => e.Mode == CursorEffectMode.PresentationStick).DisplayName);
 
         // 切換回繁體中文
         vm.Strings.CurrentLanguage = ScreenRecorder.Core.Localization.AppLanguage.ZhTw;
         var zhHidden = vm.AvailableCursorEffects.First(e => e.Mode == ScreenRecorder.Core.Enums.CursorEffectMode.Hidden);
         Assert.Equal("隱藏滑鼠游標", zhHidden.DisplayName);
-        Assert.Equal("虛擬教鞭", vm.AvailableCursorEffects.Single(e => e.Mode == ScreenRecorder.Core.Enums.CursorEffectMode.PresentationStick).DisplayName);
+        if (!OperatingSystem.IsLinux() || ScreenRecorder.Platform.Linux.LinuxX11InputPolicy.IsX11)
+            Assert.Equal("虛擬教鞭", vm.AvailableCursorEffects.Single(e => e.Mode == CursorEffectMode.PresentationStick).DisplayName);
     }
 
     [Fact]

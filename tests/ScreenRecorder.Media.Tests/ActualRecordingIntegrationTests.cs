@@ -14,6 +14,7 @@ using ScreenRecorder.Media.Remux;
 using ScreenRecorder.Core.Interfaces;
 using ScreenRecorder.Recorder.Services;
 using ScreenRecorder.Platform.macOS;
+using ScreenRecorder.Testing;
 using Xunit;
 
 namespace ScreenRecorder.Media.Tests;
@@ -113,7 +114,8 @@ public class ActualRecordingIntegrationTests : IDisposable
             new StreamCopyRemuxer(),
             new MediaFileProbe(),
             displayService,
-            new MacOsFFmpegProvider(displayService))
+            new MacOsFFmpegProvider(displayService),
+            engineFactory: new SyntheticRecordingEngineFactory(new MacOsFFmpegProvider(displayService)))
         {
             UseSyntheticCaptureSource = true
         };
@@ -149,7 +151,8 @@ public class ActualRecordingIntegrationTests : IDisposable
             new StreamCopyRemuxer(),
             new MediaFileProbe(),
             displayService,
-            new MacOsFFmpegProvider(displayService))
+            new MacOsFFmpegProvider(displayService),
+            engineFactory: new SyntheticRecordingEngineFactory(new MacOsFFmpegProvider(displayService)))
         {
             UseSyntheticCaptureSource = true
         };
@@ -191,7 +194,8 @@ public class ActualRecordingIntegrationTests : IDisposable
             new StreamCopyRemuxer(),
             new MediaFileProbe(),
             displayService,
-            new MacOsFFmpegProvider(displayService))
+            new MacOsFFmpegProvider(displayService),
+            engineFactory: new SyntheticRecordingEngineFactory(new MacOsFFmpegProvider(displayService)))
         {
             UseSyntheticCaptureSource = true
         };
@@ -222,7 +226,8 @@ public class ActualRecordingIntegrationTests : IDisposable
             new StreamCopyRemuxer(),
             new InvalidMediaProbe(),
             displayService,
-            new MacOsFFmpegProvider(displayService))
+            new MacOsFFmpegProvider(displayService),
+            engineFactory: new SyntheticRecordingEngineFactory(new MacOsFFmpegProvider(displayService)))
         {
             UseSyntheticCaptureSource = true
         };
@@ -252,7 +257,8 @@ public class ActualRecordingIntegrationTests : IDisposable
             new FailingRemuxer(),
             new MediaFileProbe(),
             displayService,
-            new MacOsFFmpegProvider(displayService))
+            new MacOsFFmpegProvider(displayService),
+            engineFactory: new SyntheticRecordingEngineFactory(new MacOsFFmpegProvider(displayService)))
         {
             UseSyntheticCaptureSource = true
         };
@@ -287,7 +293,8 @@ public class ActualRecordingIntegrationTests : IDisposable
             diskMonitor,
             remuxer,
             probe,
-            displayService, new ScreenRecorder.Platform.Windows.WindowsFFmpegProvider())
+            displayService, new ScreenRecorder.Platform.Windows.WindowsFFmpegProvider(),
+            engineFactory: new SyntheticRecordingEngineFactory(new ScreenRecorder.Platform.Windows.WindowsFFmpegProvider()))
         {
             UseSyntheticCaptureSource = true
         };
@@ -356,7 +363,8 @@ public class ActualRecordingIntegrationTests : IDisposable
             remuxer,
             probe,
             displayService,
-            new MacOsFFmpegProvider(displayService))
+            new MacOsFFmpegProvider(displayService),
+            engineFactory: new SyntheticRecordingEngineFactory(new MacOsFFmpegProvider(displayService)))
         {
             UseSyntheticCaptureSource = true
         };
@@ -503,7 +511,8 @@ public class ActualRecordingIntegrationTests : IDisposable
             remuxer,
             probe,
             displayService,
-            new MacOsFFmpegProvider(displayService))
+            new MacOsFFmpegProvider(displayService),
+            engineFactory: new SyntheticRecordingEngineFactory(new MacOsFFmpegProvider(displayService)))
         {
             UseSyntheticCaptureSource = true
         };
@@ -562,7 +571,8 @@ public class ActualRecordingIntegrationTests : IDisposable
             new StreamCopyRemuxer(),
             new MediaFileProbe(),
             displayService,
-            new MacOsFFmpegProvider(displayService))
+            new MacOsFFmpegProvider(displayService),
+            engineFactory: new SyntheticRecordingEngineFactory(new MacOsFFmpegProvider(displayService)))
         {
             UseSyntheticCaptureSource = true
         };
@@ -630,7 +640,8 @@ public class ActualRecordingIntegrationTests : IDisposable
             diskMonitor,
             remuxer,
             probe,
-            displayService, new ScreenRecorder.Platform.Windows.WindowsFFmpegProvider())
+            displayService, new ScreenRecorder.Platform.Windows.WindowsFFmpegProvider(),
+            engineFactory: new SyntheticRecordingEngineFactory(new ScreenRecorder.Platform.Windows.WindowsFFmpegProvider()))
         {
             UseSyntheticCaptureSource = true
         };
@@ -677,7 +688,8 @@ public class ActualRecordingIntegrationTests : IDisposable
             diskMonitor,
             remuxer,
             probe,
-            displayService, new ScreenRecorder.Platform.Windows.WindowsFFmpegProvider())
+            displayService, new ScreenRecorder.Platform.Windows.WindowsFFmpegProvider(),
+            engineFactory: new SyntheticRecordingEngineFactory(new ScreenRecorder.Platform.Windows.WindowsFFmpegProvider()))
         {
             UseSyntheticCaptureSource = true
         };
@@ -727,7 +739,8 @@ public class ActualRecordingIntegrationTests : IDisposable
             remuxer,
             probe,
             displayService,
-            new ScreenRecorder.Platform.Windows.WindowsFFmpegProvider())
+            new ScreenRecorder.Platform.Windows.WindowsFFmpegProvider(),
+            engineFactory: new SyntheticRecordingEngineFactory(new ScreenRecorder.Platform.Windows.WindowsFFmpegProvider()))
         {
             UseSyntheticCaptureSource = true
         };
@@ -780,7 +793,9 @@ public class ActualRecordingIntegrationTests : IDisposable
             probe,
             displayService,
             new ScreenRecorder.Platform.Windows.WindowsFFmpegProvider(),
-            systemAudioLoopbackCapture: loopbackCapture)
+            systemAudioLoopbackCapture: loopbackCapture,
+            engineFactory: new SyntheticRecordingEngineFactory(new ScreenRecorder.Platform.Windows.WindowsFFmpegProvider(),
+                systemAudioLoopbackCapture: loopbackCapture))
         {
             UseSyntheticCaptureSource = true
         };
@@ -889,7 +904,9 @@ public class ActualRecordingIntegrationTests : IDisposable
             new StreamCopyRemuxer(),
             new MediaFileProbe(),
             displayService,
-            new MacOsFFmpegProvider(displayService), captureLease: captureLease)
+            new MacOsFFmpegProvider(displayService),
+            engineFactory: new SyntheticRecordingEngineFactory(new MacOsFFmpegProvider(displayService)),
+            captureLease: captureLease)
         {
             UseSyntheticCaptureSource = true
         };

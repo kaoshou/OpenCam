@@ -37,22 +37,43 @@ public class TeachingPointerUiTests
     }
 
     [AvaloniaTheory]
-    [InlineData(AppLanguage.ZhTw)]
-    [InlineData(AppLanguage.EnUs)]
-    [InlineData(AppLanguage.JaJp)]
-    public void TeachingPointerIsSecondWithoutRenumberingStoredModes(AppLanguage language)
+    [InlineData(AppLanguage.ZhTw, false)]
+    [InlineData(AppLanguage.EnUs, false)]
+    [InlineData(AppLanguage.JaJp, false)]
+    [InlineData(AppLanguage.ZhTw, true)]
+    [InlineData(AppLanguage.EnUs, true)]
+    [InlineData(AppLanguage.JaJp, true)]
+    public void TeachingPointerMenuRespectsDesktopAndPreservesModeAcrossLanguages(AppLanguage language, bool wayland)
     {
-        var vm=new MainViewModel(forScreenshot:true); var old=vm.Strings.CurrentLanguage;
+        // The assembly disables parallelization; restore process-wide session hints.
+        var previousSession=Environment.GetEnvironmentVariable("XDG_SESSION_TYPE");
+        var previousDisplay=Environment.GetEnvironmentVariable("WAYLAND_DISPLAY");
+        MainViewModel? vm=null;
+        var strings=ScreenRecorder.UI.Localization.LanguageManager.Instance;
+        var old=strings.CurrentLanguage;
         try
         {
+            Environment.SetEnvironmentVariable("XDG_SESSION_TYPE",wayland?"wayland":"x11");
+            Environment.SetEnvironmentVariable("WAYLAND_DISPLAY",wayland?"wayland-test":null);
+            vm=new MainViewModel(forScreenshot:true);
             vm.Strings.CurrentLanguage=language;
-            Assert.Equal(new[]{CursorEffectMode.Default,CursorEffectMode.PresentationStick,CursorEffectMode.HighlightHalo,
-                CursorEffectMode.HaloWithClickRipple,CursorEffectMode.Hidden},vm.AvailableCursorEffects.Select(x=>x.Mode));
+            Assert.Equal(OperatingSystem.IsLinux()
+                ? wayland ? new[]{CursorEffectMode.Default,CursorEffectMode.Hidden}
+                    : new[]{CursorEffectMode.Default,CursorEffectMode.PresentationStick,CursorEffectMode.Hidden}
+                : new[]{CursorEffectMode.Default,CursorEffectMode.PresentationStick,CursorEffectMode.HighlightHalo,
+                    CursorEffectMode.HaloWithClickRipple,CursorEffectMode.Hidden},vm.AvailableCursorEffects.Select(x=>x.Mode));
             vm.SelectedCursorEffect=vm.AvailableCursorEffects[1];
             vm.Strings.CurrentLanguage=language==AppLanguage.JaJp?AppLanguage.EnUs:AppLanguage.JaJp;
-            Assert.Equal(CursorEffectMode.PresentationStick,vm.SelectedCursorEffect!.Mode);
+            Assert.Equal(OperatingSystem.IsLinux()&&wayland?CursorEffectMode.Hidden:CursorEffectMode.PresentationStick,
+                vm.SelectedCursorEffect!.Mode);
         }
-        finally {vm.Strings.CurrentLanguage=old;vm.Cleanup();}
+        finally
+        {
+            vm?.Cleanup();
+            Environment.SetEnvironmentVariable("XDG_SESSION_TYPE",previousSession);
+            Environment.SetEnvironmentVariable("WAYLAND_DISPLAY",previousDisplay);
+            strings.CurrentLanguage=old;
+        }
     }
 
     [AvaloniaFact]
@@ -67,9 +88,14 @@ public class TeachingPointerUiTests
             var size=window.FindControl<ComboBox>("TeachingPointerSizePicker");
             Assert.NotNull(style);Assert.NotNull(size);
             Assert.False(style.IsEffectivelyVisible);
-            vm.SelectedCursorEffect=vm.AvailableCursorEffects.Single(x=>x.Mode==CursorEffectMode.PresentationStick);
+            var supportsStick=!OperatingSystem.IsLinux()||ScreenRecorder.Platform.Linux.LinuxX11InputPolicy.IsX11;
+            if(supportsStick)
+                vm.SelectedCursorEffect=vm.AvailableCursorEffects.Single(x=>x.Mode==CursorEffectMode.PresentationStick);
+            else
+                Assert.DoesNotContain(vm.AvailableCursorEffects,x=>x.Mode==CursorEffectMode.PresentationStick);
             window.UpdateLayout();
-            Assert.True(style.IsEffectivelyVisible);
+            Assert.Equal(supportsStick,style.IsEffectivelyVisible);
+            Assert.Equal(supportsStick,size.IsEffectivelyVisible);
             Assert.Equal(4,style.ItemCount);Assert.Equal(3,size.ItemCount);
             vm.IsRecording=true;window.UpdateLayout();
             Assert.False(style.IsEnabled);Assert.False(size.IsEnabled);
@@ -94,7 +120,13 @@ public class TeachingPointerUiTests
             Assert.All(vm.AvailableTeachingPointerStyles,x=>Assert.NotNull(x.Thumbnail));
             var options=new TeachingPointerOptions(TeachingPointerStyle.HighContrast,TeachingPointerSize.Large);
             vm.ApplyNewSettings(new UserSettings{PresentationPointer=options});
-            vm.SelectedCursorEffect=vm.AvailableCursorEffects.Single(x=>x.Mode==CursorEffectMode.PresentationStick);
+            if(!OperatingSystem.IsLinux()||ScreenRecorder.Platform.Linux.LinuxX11InputPolicy.IsX11)
+                vm.SelectedCursorEffect=vm.AvailableCursorEffects.Single(x=>x.Mode==CursorEffectMode.PresentationStick);
+            else
+            {
+                Assert.DoesNotContain(vm.AvailableCursorEffects,x=>x.Mode==CursorEffectMode.PresentationStick);
+                Assert.Equal(CursorEffectMode.Default,vm.BuildProjectConfiguration().CursorEffect);
+            }
             vm.Strings.CurrentLanguage=AppLanguage.JaJp;
             Assert.Equal(options,vm.BuildProjectConfiguration().PresentationPointer);
             Assert.Equal("高コントラスト・ゴールド",vm.SelectedPresentationPointerStyle!.DisplayName);
@@ -126,14 +158,21 @@ public class TeachingPointerUiTests
         try
         {
             vm.Strings.CurrentLanguage=language;
-            vm.SelectedCursorEffect=vm.AvailableCursorEffects.Single(x=>x.Mode==CursorEffectMode.PresentationStick);
+            var supportsStick=!OperatingSystem.IsLinux()||ScreenRecorder.Platform.Linux.LinuxX11InputPolicy.IsX11;
+            if(supportsStick)
+                vm.SelectedCursorEffect=vm.AvailableCursorEffects.Single(x=>x.Mode==CursorEffectMode.PresentationStick);
+            else
+                Assert.DoesNotContain(vm.AvailableCursorEffects,x=>x.Mode==CursorEffectMode.PresentationStick);
             window.Show();window.UpdateLayout();
             foreach(var name in new[]{"TeachingPointerStylePicker","TeachingPointerSizePicker"})
             {
                 var picker=window.FindControl<ComboBox>(name)!;
-                Assert.True(picker.IsEffectivelyVisible);
-                Assert.True(picker.Bounds.Width>150);
-                Assert.True(picker.Bounds.Height>=28);
+                Assert.Equal(supportsStick,picker.IsEffectivelyVisible);
+                if(supportsStick)
+                {
+                    Assert.True(picker.Bounds.Width>150);
+                    Assert.True(picker.Bounds.Height>=28);
+                }
                 Assert.NotNull(picker.SelectedItem);
             }
             var artifact=Environment.GetEnvironmentVariable("OPENCAM_TEACHING_UI_ARTIFACT");

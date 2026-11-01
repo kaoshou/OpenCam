@@ -1,0 +1,13 @@
+{
+  "version": "1.2.1",
+  "status": "policy-approved",
+  "reviewedBy": "OpenCam 2026-11-02 v1.2.1 pinned recipe and source inventory review",
+  "deliveryManifest": "SOURCE-COVERAGE.json",
+  "checks": [
+    "Windows/macOS OBS source locks and FFmpeg source pins, build recipes and VPL patch are unchanged from v1.2.0.",
+    "Modified OpenCam helpers, managed code and packaging recipes are supplied by the matching release commit source archive.",
+    "Linux Beta packaging separately delivers exact OpenCam, OBS and FFmpeg source archives, compiled Ubuntu headers, package versions and license notices with SHA-256 checksums.",
+    "Actual Windows/macOS corresponding-source archives and SHA-256 values must pass the release delivery verifier before publication; Linux Beta archives must pass the Linux asset checksum gate.",
+    "This records technical source inventory and delivery checks, not legal certification or physical-device acceptance."
+  ]
+}

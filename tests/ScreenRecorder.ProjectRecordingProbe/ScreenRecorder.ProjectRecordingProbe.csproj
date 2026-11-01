@@ -4,4 +4,7 @@
     <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="../../src/ScreenRecorder.Recorder/ScreenRecorder.Recorder.csproj" /></ItemGroup>
+  <ItemGroup>
+    <Compile Include="../ScreenRecorder.Media.Tests/SyntheticRecordingEngineFactory.cs" Link="SyntheticRecordingEngineFactory.cs" />
+  </ItemGroup>
 </Project>

@@ -50,14 +50,21 @@ public class EncoderStatusTests
     {
         Assert.IsType<ProjectLayoutApp>(Avalonia.Application.Current);
         var vm = new MainViewModel(forScreenshot: true);
-        vm.AvailableEncoders.Add(new MainViewModel.EncoderOption(HardwareEncoderType.IntelQsv, "QSV"));
+        if (OperatingSystem.IsLinux())
+            Assert.Equal(new[] { HardwareEncoderType.SoftwareCpu }, vm.AvailableEncoders.Select(x => x.Type));
+        else
+        {
+            Assert.Contains(vm.AvailableEncoders, x => x.Type == HardwareEncoderType.Auto);
+            vm.AvailableEncoders.Add(new MainViewModel.EncoderOption(HardwareEncoderType.IntelQsv, "QSV"));
+        }
         vm.ApplyEncoderTelemetry(new() { SessionId = "one", State = RecordingState.Recording,
             EncoderSelection = new(HardwareEncoderType.SoftwareCpu, EncoderFallbackReason.HardwareStartupFailed) });
         Assert.Contains("libx264", vm.ActualEncoderText);
-        Assert.Equal(HardwareEncoderType.Auto, vm.SelectedEncoder!.Type);
+        Assert.Equal(OperatingSystem.IsLinux() ? HardwareEncoderType.SoftwareCpu : HardwareEncoderType.Auto, vm.SelectedEncoder!.Type);
         vm.ApplyEncoderTelemetry(new() { SessionId = "one", State = RecordingState.Paused,
             EncoderSelection = new(HardwareEncoderType.SoftwareCpu, EncoderFallbackReason.HardwareStartupFailed) });
         Assert.Contains("libx264", vm.ActualEncoderText);
+        Assert.Equal(OperatingSystem.IsLinux() ? HardwareEncoderType.SoftwareCpu : HardwareEncoderType.Auto, vm.SelectedEncoder!.Type);
         var previous = vm.Strings.CurrentLanguage;
         try
         {
@@ -66,7 +73,7 @@ public class EncoderStatusTests
             vm.Strings.CurrentLanguage = AppLanguage.ZhTw;
             Assert.StartsWith("實際編碼器：", vm.ActualEncoderText);
         }
-        finally { vm.Strings.CurrentLanguage = previous; }
+        finally { vm.Strings.CurrentLanguage = previous; vm.Cleanup(); }
     }
 
     [Fact]
