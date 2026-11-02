@@ -26,6 +26,27 @@ test('Ubuntu Beta guidance stays below hero downloads without a separate promoti
   }
 });
 
+test('localized Ubuntu guidance distinguishes the primary target from an end-of-life compatibility record', () => {
+  for (const lang of ['zh-TW', 'en-US']) {
+    const html = renderHome(lang);
+    const note = html.match(/<p[^>]*id="linux-beta"[^>]*>([\s\S]*?)<\/p>/)?.[1];
+    assert.ok(note, `${lang}: lifecycle guidance must remain next to the downloads`);
+    assert.match(note, /Ubuntu 24\.04 LTS x64/);
+    assert.match(note, /主要測試目標|primary test target/);
+    assert.match(note, /Ubuntu 25\.04/);
+    assert.match(note, /ICU 76/);
+    assert.match(note, /2026-01-15/);
+    assert.match(note, /停止安全更新|no longer receives security updates/);
+    assert.match(note, /不建議新安裝或作為正式工作環境|not recommended for new installations or production use/);
+    assert.match(note, /其他 Ubuntu 版本.*另行確認|Other Ubuntu versions.*separate compatibility validation/);
+    assert.match(note, /X11/);
+    assert.match(note, /Wayland/);
+    assert.match(note, /GNOME/);
+    assert.match(note, /短錄並回放|short recording and replay/);
+    assert.doesNotMatch(note, /Ubuntu 24\.04\s*(?:／|\/)\s*25\.04/);
+  }
+});
+
 test('verified Linux download flag exposes only published versioned Beta filenames', async t => {
   const root=await mkdtemp(join(tmpdir(),'opencam-linux-downloads-'));
   t.after(()=>rm(root,{recursive:true,force:true}));

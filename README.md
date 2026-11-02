@@ -9,7 +9,7 @@ OpenCam 是 Windows、macOS 與 Linux（Beta）桌面螢幕錄影工具，讓你
 
 ## v1.2.1 更新重點
 
-- **新增 Linux Beta**：提供 Ubuntu 24.04／25.04 x64 安裝包，支援 X11 錄影、Wayland 選擇螢幕授權，以及專案剪輯與匯出。
+- **新增 Linux Beta**：提供 x64 安裝包，以 Ubuntu 24.04 LTS 為主要測試目標，提供 X11 錄影、Wayland 選擇螢幕授權，以及專案剪輯與匯出；功能與驗證限制見下方。
 - **錄前確認修正**：音訊初始化失敗後保留正確的操作版本資訊，讓介面能接受失敗結果並提供重試。
 
 [v1.2.1 更新說明及 Linux Beta 限制](docs/releases/v1.2.1.md)
@@ -46,7 +46,7 @@ OpenCam 是 Windows、macOS 與 Linux（Beta）桌面螢幕錄影工具，讓你
 | --- | --- | --- |
 | Windows | Windows 10／11，x64 | Setup 安裝版、Portable 免安裝版 |
 | macOS | macOS 13 以上，Apple Silicon／arm64 | DMG；不適用 Intel Mac |
-| Linux **Beta** | Ubuntu 24.04／25.04，x64 | `.deb` 安裝版、`.tar.gz` 免安裝版；功能限制見下方 |
+| Linux **Beta** | 主要測試目標：Ubuntu 24.04 LTS，x64 | `.deb` 安裝版、`.tar.gz` 免安裝版；功能與驗證限制見下方 |
 
 到 [最新 Release](https://github.com/kaoshou/OpenCam/releases/latest) 下載。套件包含 .NET Runtime 與媒體工具。Windows 錄影所需的 Microsoft Visual C++ 執行階段隨套件附上，不需另外安裝或尋找 DLL。
 
@@ -55,7 +55,9 @@ OpenCam 是 Windows、macOS 與 Linux（Beta）桌面螢幕錄影工具，讓你
 - **macOS**：打開 `OpenCam_v1.2.1_macOS_arm64.dmg`，將 OpenCam 拖入「應用程式」。首次使用時，在「系統設定 → 隱私權與安全性」允許螢幕／系統音訊錄製及麥克風權限；變更權限後可重新啟動程式。
 - **Linux Beta**：下載 `OpenCam_v1.2.1_Linux_x64_Beta.deb`，在檔案所在目錄執行 `sudo apt install ./OpenCam_v1.2.1_Linux_x64_Beta.deb`，完成後從應用程式選單開啟「OpenCam」。相依套件由 APT 處理，需要網路；不要以 root 執行 OpenCam。套件 ID 仍為 `opencam-beta`，方便既有測試版升級。
 
-Linux Beta 使用 OBS／libobs 與 CPU 編碼。X11 提供教鞭、螢幕註記及全域快捷鍵；Wayland 需先在系統視窗選擇螢幕並授權錄影，目前不提供教鞭、桌面註記及全域快捷鍵。不同硬體、縮放、音訊與 GNOME 版本仍需實機驗證，請先短錄並回放確認。
+Linux Beta 目前以 Ubuntu 24.04 LTS x64 為主要測試目標。v1.2.1 曾針對 Ubuntu 25.04 進行 ICU 76 相依套件相容性處理，但該作業系統已於 2026-01-15 終止支援，不再提供一般套件與安全更新，不建議新安裝或作為正式工作環境。其他 Ubuntu 版本的相容性仍須另行確認，包含尚未完成安裝與錄影驗證的 Ubuntu 26.04 LTS。[Ubuntu 官方終止支援公告](https://lists.ubuntu.com/archives/ubuntu-announce/2026-January/000320.html)
+
+Linux Beta 使用 OBS／libobs 與 CPU 編碼。X11 提供教鞭、螢幕註記及全域快捷鍵；Wayland 需先在系統視窗選擇螢幕並授權錄影，目前不提供教鞭、桌面註記及全域快捷鍵。不同硬體、縮放、音訊與 GNOME 版本仍需實機驗證；重要錄影前請先短錄並回放，確認畫面、聲音與輸出結果。
 - 此版未提供 Windows 發行者簽章或 Apple Developer ID 公證，首次開啟可能出現安全性提示。請先確認來自本專案官方 Releases；macOS 可參閱 [Apple 的安全開啟說明](https://support.apple.com/zh-tw/102445)。不要停用系統防護；若提示檔案損毀或惡意內容，請停止開啟並回報。
 
 ## 開始使用
@@ -118,8 +120,7 @@ OpenCam is a desktop screen recorder for Windows, macOS and Linux (Beta). Record
 
 ### What's new in v1.2.1
 
-- **Linux Beta:** Ubuntu 24.04 / 25.04 x64 packages, with X11 and authorized Wayland recording, project editing and export.
-- **Simpler installation:** APT resolves dependencies; launch **OpenCam** from the application menu. Ubuntu 25.04 can use its own ICU package.
+- **Linux Beta:** x64 packages with Ubuntu 24.04 LTS as the primary test target, offering X11 and authorized Wayland recording, project editing and export; feature and validation limits are listed below.
 - **Audio-preflight recovery:** retain the operation revision on initialization failure so the UI accepts the failure and allows retry.
 
 [v1.2.1 release notes and Linux Beta limitations](docs/releases/v1.2.1.md)
@@ -155,7 +156,7 @@ OpenCam is a desktop screen recorder for Windows, macOS and Linux (Beta). Record
 | --- | --- | --- |
 | Windows | Windows 10/11, x64 | Setup installer or Portable ZIP |
 | macOS | macOS 13+, Apple Silicon/arm64 | DMG; not for Intel Macs |
-| Linux **Beta** | Ubuntu 24.04 / 25.04, x64 | `.deb` installer or `.tar.gz` archive; limitations below |
+| Linux **Beta** | Primary test target: Ubuntu 24.04 LTS, x64 | `.deb` installer or `.tar.gz` archive; feature and validation limits below |
 
 Download from the [latest Release](https://github.com/kaoshou/OpenCam/releases/latest). Packages include .NET Runtime and media tools. The required Windows Microsoft Visual C++ recording runtime is bundled app-locally; no separate runtime installation or DLL download is needed.
 
@@ -164,7 +165,9 @@ Download from the [latest Release](https://github.com/kaoshou/OpenCam/releases/l
 - **macOS**: Open `OpenCam_v1.2.1_macOS_arm64.dmg` and drag OpenCam into Applications. Allow screen/system-audio recording and microphone access in System Settings → Privacy & Security. Restart OpenCam after changing permissions if needed.
 - **Linux Beta**: install `OpenCam_v1.2.1_Linux_x64_Beta.deb` with `sudo apt install ./OpenCam_v1.2.1_Linux_x64_Beta.deb`, then open **OpenCam** from the application menu. APT resolves dependencies and requires network access. Never run OpenCam as root. The package ID remains `opencam-beta` for upgrades.
 
-Linux Beta uses OBS/libobs and CPU encoding. X11 offers teaching pointers, annotations and global shortcuts. Wayland records a screen selected through system consent; teaching pointers, desktop annotations and global shortcuts are not included yet. Hardware, audio, scaling and GNOME versions still need real-device validation. Make a short recording and replay before longer work.
+Linux Beta currently targets Ubuntu 24.04 LTS x64 for primary testing. v1.2.1 included ICU 76 dependency compatibility work for Ubuntu 25.04, but that operating system reached end of life on 2026-01-15 and no longer receives regular package or security updates. It is not recommended for new installations or production use. Other Ubuntu versions require separate compatibility validation, including Ubuntu 26.04 LTS, for which OpenCam installation and recording validation has not been completed. [Official Ubuntu end-of-life announcement](https://lists.ubuntu.com/archives/ubuntu-announce/2026-January/000320.html)
+
+Linux Beta uses OBS/libobs and CPU encoding. X11 offers teaching pointers, annotations and global shortcuts. Wayland records a screen selected through system consent; teaching pointers, desktop annotations and global shortcuts are not included yet. Hardware, audio, scaling and GNOME versions still need real-device validation. Before important work, make a short recording and replay it to check the picture, sound and exported output.
 - This version does not provide Windows publisher signing or Apple Developer ID notarization, so first launch may show a security warning. Confirm the download came from this project's official Releases; see [Apple's safe-opening guidance](https://support.apple.com/en-us/102445) on macOS. Do not disable system protection. Stop and report warnings about damaged files or malware.
 
 ### Getting started

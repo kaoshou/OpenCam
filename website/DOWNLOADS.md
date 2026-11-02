@@ -27,9 +27,24 @@ GitHub serves the files, so browser download preferences still apply.
 
 ## Linux Beta
 
-The notes directly below the top download buttons explain Ubuntu 24.04 / 25.04
-x64, X11 versus Wayland capability limits and CPU encoding. There is no separate
-Ubuntu promotional section. These notes do not imply full desktop parity.
+The notes directly below the top download buttons identify Ubuntu 24.04 LTS x64
+as the primary test target, explain X11 versus Wayland capability limits, system
+screen-sharing consent and CPU encoding, and retain the need for GNOME/hardware
+real-device validation and a short recording/replay before important work. There
+is no separate Ubuntu promotional section. These notes do not imply full desktop
+parity or that a successful cross-platform build validates every Linux desktop.
+
+Keep Ubuntu 25.04's ICU 76 dependency work as a historical compatibility record,
+not as a recommended operating system. Ubuntu 25.04 reached end of life on
+2026-01-15 and no longer receives regular package or security updates; it is not
+recommended for new installations or production use. Other Ubuntu versions need
+separate compatibility validation. Do not list Ubuntu 26.04 LTS as validated for
+OpenCam merely because the operating system is officially supported. Preserve
+completed test records without presenting them as current OS security support.
+Apply the same distinction in Traditional Chinese and English copy.
+Sources: [Ubuntu 25.04 end-of-life announcement](https://lists.ubuntu.com/archives/ubuntu-announce/2026-January/000320.html)
+and [Ubuntu release lifecycle](https://ubuntu.com/about).
+
 Set `linuxBetaVersion` in `downloads.json` to the published `version` only after
 verifying `OpenCam_v<version>_Linux_x64_Beta.deb`,
 `OpenCam_v<version>_Linux_x64_Beta.tar.gz`,
