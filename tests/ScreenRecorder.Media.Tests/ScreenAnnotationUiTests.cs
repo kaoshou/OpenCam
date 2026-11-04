@@ -16,6 +16,26 @@ namespace ScreenRecorder.Media.Tests;
 
 public class ScreenAnnotationUiTests
 {
+    [AvaloniaFact]
+    public void ConfiguredShortcutHintsRefreshWithoutReplacingButtonsOrMarks()
+    {
+        var shortcuts = new Dictionary<string, string> { ["pen"] = "Ctrl + Shift + F6", ["finish"] = "F7", ["togglePen"] = "F8", ["toggleToolbar"] = "F9" };
+        var doc = new AnnotationDocument(800, 600);
+        using var toolbar = new AnnotationToolbar(doc, _ => { }, () => { }, (_, _) => { }, e => throw e,
+            hide: () => { }, shortcutText: id => shortcuts.GetValueOrDefault(id));
+        toolbar.ShowToolbar(); toolbar.UpdateLayout();
+        var buttons = toolbar.GetVisualDescendants().OfType<Button>().ToArray();
+        var pen = buttons.Single(b => ToolTip.GetTip(b)?.ToString()?.StartsWith(LanguageManager.Instance["AnnotationsPen"]) == true);
+        Assert.Contains("Ctrl + Shift + F6", ToolTip.GetTip(pen)?.ToString());
+        Assert.Contains("Ctrl + Shift + F6", AutomationProperties.GetName(pen));
+        doc.Begin(new(10, 10), true); doc.Move(new(20, 20)); doc.End();
+        shortcuts["pen"] = "Ctrl + F5";
+        toolbar.SetMode(false); toolbar.Hide(); toolbar.ShowToolbar();
+        Assert.Contains("Ctrl + F5", ToolTip.GetTip(pen)?.ToString());
+        Assert.DoesNotContain("Shift", ToolTip.GetTip(pen)?.ToString());
+        Assert.Equal(buttons, toolbar.GetVisualDescendants().OfType<Button>().ToArray());
+        Assert.Single(doc.Marks);
+    }
     private static readonly CaptureRegion Region=new(-1000,20,800,600);
     [Fact] public void ControllerIsLazyAndDisabledFeatureNeverCreatesHost()
     {

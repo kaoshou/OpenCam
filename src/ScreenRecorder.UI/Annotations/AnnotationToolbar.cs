@@ -21,6 +21,8 @@ internal sealed class AnnotationToolbar:Window,IDisposable
     private readonly Action? _minimize;
     private readonly Action? _hide;
     private readonly Func<bool>? _canHide;
+    private readonly Func<string,string?>? _shortcutText;
+    private readonly Dictionary<Button,string> _shortcutButtons=[];
     private readonly StackPanel _root=new(){Spacing=8};
     private bool _drawing,_compact;
     private double _expandedHeight,_compactHeight;
@@ -34,9 +36,9 @@ internal sealed class AnnotationToolbar:Window,IDisposable
     private readonly Dictionary<uint,Button> _colorButtons=[];
     private readonly Dictionary<double,Button> _widthButtons=[];
     private LanguageManager Strings=>LanguageManager.Instance;
-    public AnnotationToolbar(AnnotationDocument document,Action<bool> mode,Action close,Action<uint,double> style,Action<Exception> failure,Action? minimize=null,Action? hide=null,Func<bool>? canHide=null,Func<Key,KeyModifiers,bool>? finishShortcut=null)
+    public AnnotationToolbar(AnnotationDocument document,Action<bool> mode,Action close,Action<uint,double> style,Action<Exception> failure,Action? minimize=null,Action? hide=null,Func<bool>? canHide=null,Func<Key,KeyModifiers,bool>? finishShortcut=null,Func<string,string?>? shortcutText=null)
     {
-        _document=document;_mode=mode;_close=close;_style=style;_failure=failure;_minimize=minimize;_hide=hide;_canHide=canHide;
+        _document=document;_mode=mode;_close=close;_style=style;_failure=failure;_minimize=minimize;_hide=hide;_canHide=canHide;_shortcutText=shortcutText;
         Width=480;MinWidth=480;MaxWidth=480;SizeToContent=SizeToContent.Manual;CanResize=false;SystemDecorations=SystemDecorations.None;
         ShowInTaskbar=false;Topmost=true;ShowActivated=false;Background=Brushes.Transparent;
         TransparencyLevelHint=[WindowTransparencyLevel.Transparent];
@@ -49,6 +51,7 @@ internal sealed class AnnotationToolbar:Window,IDisposable
     public void SetMode(bool drawing){_drawing=drawing;UpdateToolSelection();}
     public void ShowToolbar()
     {
+        RefreshShortcutHints();
         RestoreContentHeight();
         Show();
         RestoreContentHeight();
@@ -83,7 +86,9 @@ internal sealed class AnnotationToolbar:Window,IDisposable
             Background=Brush.Parse(selected?"#DBEAFE":"#F8FAFC"),BorderBrush=Brush.Parse(selected?"#3B82F6":"#E2E8F0"),BorderThickness=new(1),
             Foreground=Brush.Parse("#1E293B"),Content=path is null?new TextBlock{Text=label,VerticalAlignment=VerticalAlignment.Center,FontSize=12}:
                 CreateIcon(path)};
-        ToolTip.SetTip(b,label);ToolTip.SetShowOnDisabled(b,true);AutomationProperties.SetName(b,label);b.Click+=(_,_)=>Run(action);return b;
+        ToolTip.SetTip(b,label);ToolTip.SetShowOnDisabled(b,true);AutomationProperties.SetName(b,label);b.Click+=(_,_)=>Run(action);
+        if(_shortcutText is not null)_shortcutButtons[b]=key;
+        return b;
     }
     private static Canvas CreateIcon(string path)
     {
@@ -111,6 +116,7 @@ internal sealed class AnnotationToolbar:Window,IDisposable
         _root.Children.Clear();
         _colorButtons.Clear();_widthButtons.Clear();
         _toolButtons.Clear();_operate=null;_hideButton=null;
+        _shortcutButtons.Clear();
         var header=new Grid{ColumnDefinitions=new("*,Auto,Auto,Auto,Auto")};
         var title=new TextBlock{Text="⠿  "+Strings["AnnotationsTitle"]+" · "+Strings[_drawing?"AnnotationsDrawing":"AnnotationsOperating"],
             FontSize=12,FontWeight=FontWeight.SemiBold,Foreground=Brush.Parse("#334155"),VerticalAlignment=VerticalAlignment.Center};
@@ -152,7 +158,30 @@ internal sealed class AnnotationToolbar:Window,IDisposable
             ToolTip.SetTip(b,Strings["AnnotationsWidth"]+" "+width);ToolTip.SetShowOnDisabled(b,true);AutomationProperties.SetName(b,Strings["AnnotationsWidth"]+" "+width);_widthButtons[width]=b;appearance.Children.Add(b);
         }
         appearance.Children.Add(Button("AnnotationsClear",null,_document.Clear));_root.Children.Add(appearance);UpdateAppearanceSelection();
-        _help=new TextBlock{Text=Strings["AnnotationsEsc"],FontSize=11,Foreground=Brush.Parse("#64748B"),TextWrapping=TextWrapping.Wrap};_root.Children.Add(_help);UpdateCompact();
+        _help=new TextBlock{Text=Strings["AnnotationsEsc"],FontSize=11,Foreground=Brush.Parse("#64748B"),TextWrapping=TextWrapping.Wrap};_root.Children.Add(_help);RefreshShortcutHints();UpdateCompact();
+    }
+    private void RefreshShortcutHints()
+    {
+        if(_shortcutText is null)return;
+        foreach(var (button,key) in _shortcutButtons)
+        {
+            var id=key switch {
+                "AnnotationsOperate"=>"togglePen", "AnnotationsHide"=>"toggleToolbar",
+                "AnnotationsPen"=>"pen", "AnnotationsLine"=>"line",
+                "AnnotationsRectangle"=>"rectangle", "AnnotationsEllipse"=>"ellipse", _=>null };
+            if(id is null)continue;
+            var shortcut=_shortcutText(id);
+            var label=Strings[key]+(string.IsNullOrWhiteSpace(shortcut)?"":" · "+shortcut);
+            ToolTip.SetTip(button,label);AutomationProperties.SetName(button,label);
+        }
+        if(_help is TextBlock help)
+        {
+            var finish=_shortcutText("finish");
+            var toggle=_shortcutText("togglePen");
+            help.Text=Strings["AnnotationsEsc"]+
+                (string.IsNullOrWhiteSpace(toggle)?"":"\n"+Strings["AnnotationsHotkeyTogglePen"]+": "+toggle)+
+                (string.IsNullOrWhiteSpace(finish)?"":"\n"+Strings["AnnotationsHotkeyFinish"]+": "+finish);
+        }
     }
     private void UpdateCompact()
     {
@@ -166,6 +195,7 @@ internal sealed class AnnotationToolbar:Window,IDisposable
     }
     private void UpdateToolSelection()
     {
+        RefreshShortcutHints();
         if(_title is not null)_title.Text="⠿  "+Strings["AnnotationsTitle"]+" · "+Strings[_drawing?"AnnotationsDrawing":"AnnotationsOperating"];
         if(_hideButton is not null)_hideButton.IsVisible=_canHide?.Invoke()??true;
         if(_operate is not null)SetSelected(_operate,!_drawing);

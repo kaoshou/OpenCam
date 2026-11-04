@@ -7,6 +7,56 @@ namespace ScreenRecorder.Media.Tests;
 
 public sealed class ProjectPreviewPresenterTests
 {
+    [Fact]
+    public async Task PlaybackDefersBackgroundWaveformsAndThumbnailsUntilStopped()
+    {
+        var client = new ManyClipClient(); var vm = new ProjectWorkspaceViewModel(client);
+        await vm.RefreshAsync(); await vm.TogglePlaybackAsync();
+        Assert.True(vm.IsPlayingPreview);
+        await vm.PollWaveformAsync(); await vm.PollThumbnailAsync();
+        Assert.Empty(client.WaveRequests); Assert.Equal(0, client.FrameRequests);
+        await vm.StopPreviewAsync(); await vm.PollWaveformAsync(); await vm.PollThumbnailAsync();
+        Assert.Single(client.WaveRequests); Assert.Equal(1, client.FrameRequests);
+    }
+    [Fact]
+    public async Task BackgroundMediaWaitsUntilScrubbingEnds()
+    {
+        var client = new ManyClipClient(); var vm = new ProjectWorkspaceViewModel(client);
+        await vm.RefreshAsync(); vm.BeginPreviewScrub();
+        await vm.PollWaveformAsync(); await vm.PollThumbnailAsync();
+        Assert.Empty(client.WaveRequests); Assert.Equal(0, client.FrameRequests);
+        await vm.EndPreviewScrubAsync();
+        await vm.PollWaveformAsync(); await vm.PollThumbnailAsync();
+        Assert.Single(client.WaveRequests); Assert.Equal(1, client.FrameRequests);
+    }
+
+    [Fact]
+    public async Task LateVisibleWaveformStillLoadsWhenCacheIsFullWithoutOffscreenChurn()
+    {
+        var client = new ManyClipClient(); var vm = new ProjectWorkspaceViewModel(client);
+        await vm.RefreshAsync();
+        for (var i = 0; i < 256; i++) await vm.PollWaveformAsync();
+        Assert.Equal(256, vm.Waveforms.Count);
+        vm.SetVisibleThumbnailClips([vm.Clips[290].Id]);
+        await vm.PollWaveformAsync();
+        Assert.Contains(vm.Clips[290].Id, vm.Waveforms.Keys);
+        Assert.Equal(256, vm.Waveforms.Count);
+        var requests = client.WaveRequests.Count;
+        for (var i = 0; i < 5; i++) await vm.PollWaveformAsync();
+        Assert.Equal(requests, client.WaveRequests.Count);
+    }
+
+    [Fact]
+    public async Task VisibleWaveformsAreLoadedBeforeOffscreenClips()
+    {
+        var client = new ManyClipClient(); var vm = new ProjectWorkspaceViewModel(client);
+        await vm.RefreshAsync();
+        vm.SetVisibleThumbnailClips([vm.Clips[90].Id]);
+        await vm.PollWaveformAsync(); // Inspector selection remains first.
+        await vm.PollWaveformAsync();
+        Assert.Equal(new[] { vm.Clips[0].Id, vm.Clips[90].Id }, client.WaveRequests);
+        Assert.Equal(0, vm.PlayheadTicks);
+    }
     [Theory]
     [InlineData(false)] [InlineData(true)]
     public async Task QualitySwitchPreservesPausedAndPlayingPosition(bool playing)
@@ -85,18 +135,31 @@ public sealed class ProjectPreviewPresenterTests
 
     private sealed class ManyClipClient : IProjectClient
     {
-        private readonly ProjectClip[] clips = Enumerable.Range(0, 100).Select(i => new ProjectClip {
+        public List<Guid> WaveRequests { get; } = [];
+        public int FrameRequests;
+        private readonly ProjectClip[] clips = Enumerable.Range(0, 300).Select(i => new ProjectClip {
             Id = Guid.NewGuid(), Name = $"Clip {i}", InPts = 0, OutPts = 1000 }).ToArray();
         private readonly ProjectSnapshot state = new(Guid.NewGuid(), "Long project", "/test", 0, 0,
-            ProjectMode.Ready, 100, false, false) { ServerInstanceId = Guid.NewGuid() };
+            ProjectMode.Ready, 300, false, false) { ServerInstanceId = Guid.NewGuid() };
         public Task<ProjectReply> SendAsync(string command, ProjectRequest request, CancellationToken ct = default)
         {
+            if (command is "PlayProjectPreview" or "StopProjectPreview")
+                return Task.FromResult(new ProjectReply(true, null, state) {
+                    Playback = new(Guid.NewGuid(), request.TimelineTicks, command == "PlayProjectPreview", null) });
+            if (command == "GetProjectFrame") FrameRequests++;
+            if (command == "GetProjectWaveform")
+            {
+                WaveRequests.Add(request.ClipId);
+                return Task.FromResult(new ProjectReply(true, null, state) {
+                    Waveform = new(request.ClipId, state.Revision, new(true, false, 100, [new(-1, 1, .5f)])) });
+            }
             var timeline = clips.Select((clip, i) => new ProjectTimelineClip(clip.Id,
                 i * TimeSpan.TicksPerSecond, (i + 1) * TimeSpan.TicksPerSecond)).ToArray();
             return Task.FromResult(command == "GetProjectFrame"
                 ? new ProjectReply(true, null, state) { Frame = new(0, request.TimelineTicks,
                     clips[(int)(request.TimelineTicks / TimeSpan.TicksPerSecond)].Id, new byte[ProjectFrameReply.ByteCount]) }
-                : new ProjectReply(true, null, state, clips) { TimelineClips = timeline });
+                : new ProjectReply(true, null, state, clips.Skip(request.Offset).Take(request.Limit).ToArray()) {
+                    TimelineClips = timeline.Skip(request.Offset).Take(request.Limit).ToArray() });
         }
     }
 

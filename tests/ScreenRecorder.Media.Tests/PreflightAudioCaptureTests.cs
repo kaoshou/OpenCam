@@ -239,8 +239,16 @@ public class PreflightAudioCaptureTests(Xunit.Abstractions.ITestOutputHelper out
         {
             await capture.StartAsync(new() { AudioSource = AudioSourceType.SystemOnly }, null, deadline.Token);
             // The encoded pipeline's real tone measurement takes precedence
-            // over the stub device observer's arbitrary .2 reading.
-            Assert.InRange(capture.ReadSystemAudio(DateTimeOffset.UtcNow).Rms, .06, .065);
+            // over the stub device observer's arbitrary .2 reading. Startup is
+            // acknowledged by out_time_us, not by astats metadata. Wait for the
+            // real measurement instead of racing its asynchronous stderr parser.
+            var level = capture.ReadSystemAudio(DateTimeOffset.UtcNow);
+            while (level.Rms == .2)
+            {
+                await Task.Delay(10, deadline.Token);
+                level = capture.ReadSystemAudio(DateTimeOffset.UtcNow);
+            }
+            Assert.InRange(level.Rms, .06, .065);
             await capture.StopAsync(deadline.Token);
             var reads = system.Reads;
             Assert.Equal(PreflightSourceState.Waiting, capture.ReadSystemAudio(DateTimeOffset.UtcNow).State);

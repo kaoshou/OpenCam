@@ -20,7 +20,7 @@ public partial class MainWindow
         {
             if(_annotations is null)
             {
-                _annotations=new(region=>new AnnotationOverlayHost(this,region,vm.ScreenAnnotationColor,vm.ScreenAnnotationWidth,vm.SaveScreenAnnotationStyle,()=>vm.IsAnnotationHotkeyRegistered,finishShortcut:vm.MatchesAnnotationFinish));
+                _annotations=new(region=>new AnnotationOverlayHost(this,region,vm.ScreenAnnotationColor,vm.ScreenAnnotationWidth,vm.SaveScreenAnnotationStyle,()=>vm.IsAnnotationHotkeyRegistered,finishShortcut:vm.MatchesAnnotationFinish,shortcutText:vm.GetAnnotationShortcutText));
                 _annotations.Failed+=(_,_)=>vm.ScreenAnnotationNotice=vm.Strings["AnnotationsUnavailable"];
             }
             vm.ScreenAnnotationNotice=null;
@@ -33,7 +33,7 @@ public partial class MainWindow
         if(DataContext is not MainViewModel {CanOpenScreenAnnotations:true} vm)return;
         if(_annotations is null)
         {
-            _annotations=new(region=>new AnnotationOverlayHost(this,region,vm.ScreenAnnotationColor,vm.ScreenAnnotationWidth,vm.SaveScreenAnnotationStyle,()=>vm.IsAnnotationHotkeyRegistered,finishShortcut:vm.MatchesAnnotationFinish));
+            _annotations=new(region=>new AnnotationOverlayHost(this,region,vm.ScreenAnnotationColor,vm.ScreenAnnotationWidth,vm.SaveScreenAnnotationStyle,()=>vm.IsAnnotationHotkeyRegistered,finishShortcut:vm.MatchesAnnotationFinish,shortcutText:vm.GetAnnotationShortcutText));
             _annotations.Failed+=(_,_)=>vm.ScreenAnnotationNotice=vm.Strings["AnnotationsUnavailable"];
         }
         UpdateAnnotations();

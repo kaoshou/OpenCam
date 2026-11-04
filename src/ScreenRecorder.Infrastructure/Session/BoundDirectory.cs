@@ -110,10 +110,10 @@ public sealed class BoundDirectory : IDisposable
             throw new InvalidDataException("Expected a single file name.");
     }
 
-    public FileStream Read(string name)
+    public FileStream Read(string name, bool shareWrite = false)
     {
         Leaf(name);
-        if (OperatingSystem.IsWindows()) return RecoverySourceFile.Open(Path.Combine(PathName, name));
+        if (OperatingSystem.IsWindows()) return RecoverySourceFile.Open(Path.Combine(PathName, name), shareWrite);
         var fd = openat(Handle, name, NoFollowFlags, 0);
         if (fd < 0)
         {

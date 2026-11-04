@@ -38,7 +38,7 @@ public partial class ProjectWorkspaceView : Window
     }
     private bool _closed, _closing;
     private EditorLayout? _layout;
-    private Avalonia.Media.Imaging.WriteableBitmap? _previewBitmap;
+    private readonly PreviewBitmapBuffer _previewPixels = new();
     public ProjectWorkspaceView()
     {
         InitializeComponent();
@@ -93,11 +93,12 @@ public partial class ProjectWorkspaceView : Window
         DataContext = vm;
         _main = main;
         var timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        timer.Tick += async (_, _) => { await vm.PollRecordingAsync(); await vm.PollWaveformAsync();
-            if (IsVisible && ClipPane.IsVisible && vm.PreviewFrame is not null)
+        timer.Tick += async (_, _) => { if (!IsVisible) return;
+            vm.SetVisibleThumbnailClips(ClipPane.IsVisible ? ClipList.GetRealizedContainers()
+                .Select(c => c.DataContext).OfType<ScreenRecorder.Core.Projects.ProjectClip>().Select(c => c.Id) : []);
+            await vm.PollRecordingAsync(); await vm.PollWaveformAsync();
+            if (ClipPane.IsVisible && vm.PreviewFrame is not null)
             {
-                vm.SetVisibleThumbnailClips(ClipList.GetRealizedContainers()
-                    .Select(c => c.DataContext).OfType<ScreenRecorder.Core.Projects.ProjectClip>().Select(c => c.Id));
                 await vm.PollThumbnailAsync();
             } };
         Opened += async (_, _) => { timer.Start(); await vm.RefreshBookmarksAsync(); };
@@ -108,24 +109,16 @@ public partial class ProjectWorkspaceView : Window
         Opened += (_, _) => previewTimer.Start();
         Closed += (_, _) => {
             previewTimer.Stop(); vm.PropertyChanged -= OnPreviewChanged;
-            PreviewImage.Source = null; _previewBitmap?.Dispose(); _previewBitmap = null;
+            PreviewImage.Source = null; _previewPixels.Clear();
         };
     }
     private void OnPreviewChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName != nameof(ProjectWorkspaceViewModel.PreviewFrame)) return;
         if (Model.PreviewFrame is not { HasValidPixels: true } frame)
-        { PreviewImage.Source = null; _previewBitmap?.Dispose(); _previewBitmap = null; return; }
-        var bytes = frame.Rgba!;
-        var bitmap = new Avalonia.Media.Imaging.WriteableBitmap(new(frame.PixelWidth, frame.PixelHeight), new(96, 96),
-            Avalonia.Platform.PixelFormat.Rgba8888, Avalonia.Platform.AlphaFormat.Opaque);
-        using (var locked = bitmap.Lock())
-            for (var y = 0; y < frame.PixelHeight; y++)
-                System.Runtime.InteropServices.Marshal.Copy(bytes, y * frame.PixelWidth * 4, locked.Address + y * locked.RowBytes, frame.PixelWidth * 4);
-        var previous = _previewBitmap;
-        _previewBitmap = bitmap;
-        PreviewImage.Source = bitmap;
-        previous?.Dispose();
+        { PreviewImage.Source = null; _previewPixels.Clear(); return; }
+        PreviewImage.Source = _previewPixels.Update(frame);
+        PreviewImage.InvalidateVisual(); // The same bitmap object now contains the latest frame.
         UpdatePreviewViewport();
     }
     private ProjectWorkspaceViewModel Model => (ProjectWorkspaceViewModel)DataContext!;

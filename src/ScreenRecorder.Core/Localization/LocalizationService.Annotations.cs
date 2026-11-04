@@ -51,5 +51,6 @@ public partial class LocalizationService
             ("AnnotationsColorBlue","藍色","Blue","青"),("AnnotationsColorBlack","黑色","Black","黒"),
             ("AnnotationsColorWhite","白色","White","白")})
         {ZhTwDictionary[row.Key]=row.Zh;EnUsDictionary[row.Key]=row.En;JaJpDictionary[row.Key]=row.Ja;}
+        AddSupportStrings();
     }
 }

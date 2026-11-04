@@ -21,7 +21,7 @@ internal sealed class AnnotationOverlayHost:IAnnotationHost
     private static PixelPoint? _lastToolbarPosition;
     public AnnotationDocument Document{get;}
     public event EventHandler? Closed;
-    public AnnotationOverlayHost(Window owner,CaptureRegion region,uint color,double width,Action<uint,double> saveStyle,Func<bool>? shortcutAvailable=null,Func<Window,bool,bool>? setInteractive=null,Func<Key,KeyModifiers,bool>? finishShortcut=null)
+    public AnnotationOverlayHost(Window owner,CaptureRegion region,uint color,double width,Action<uint,double> saveStyle,Func<bool>? shortcutAvailable=null,Func<Window,bool,bool>? setInteractive=null,Func<Key,KeyModifiers,bool>? finishShortcut=null,Func<string,string?>? shortcutText=null)
     {
         var screen=owner.Screens.ScreenFromPoint(new(region.X,region.Y))??throw new InvalidOperationException("Annotation display unavailable");
         var bounds=screen.Bounds;
@@ -34,10 +34,10 @@ internal sealed class AnnotationOverlayHost:IAnnotationHost
             CanResize=false,Topmost=true,ShowActivated=false,Background=Brushes.Transparent,
             TransparencyLevelHint=[WindowTransparencyLevel.Transparent],Content=_canvas,Width=region.Width/_scale,Height=region.Height/_scale,
             Position=_origin,WindowStartupLocation=WindowStartupLocation.Manual};
-        _toolbar=new(Document,SetMode,Dispose,saveStyle,Fail,()=>{SetMode(false);owner.WindowState=WindowState.Minimized;},ToggleToolbar,_shortcutAvailable,finishShortcut){WindowStartupLocation=WindowStartupLocation.Manual};
+        _toolbar=new(Document,SetMode,Dispose,saveStyle,Fail,()=>{SetMode(false);owner.WindowState=WindowState.Minimized;},ToggleToolbar,_shortcutAvailable,finishShortcut,shortcutText){WindowStartupLocation=WindowStartupLocation.Manual};
         var x=_lastToolbarPosition?.X??region.X+16;var y=_lastToolbarPosition?.Y??region.Y+16;
         _toolbar.Position=new(Math.Clamp(x,bounds.X,Math.Max(bounds.X,bounds.Right-(int)Math.Ceiling(_toolbar.Width*_scale))),
-            Math.Clamp(y,bounds.Y,Math.Max(bounds.Y,bounds.Bottom-(int)Math.Ceiling(190*_scale))));
+            Math.Clamp(y,bounds.Y,Math.Max(bounds.Y,bounds.Bottom-(int)Math.Ceiling(_toolbar.Height*_scale))));
         _toolbar.Closed+=(_,_)=>Dispose();_overlay.Closed+=(_,_)=>Dispose();
         Document.Changed+=OnDocumentChanged;
         _overlay.KeyDown+=(_,e)=>{if((finishShortcut??((k,m)=>k==Key.Escape&&m==KeyModifiers.None))(e.Key,e.KeyModifiers)){Guard(FinishDrawing);e.Handled=true;}};

@@ -2,6 +2,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:ScreenRecorder.UI.ViewModels"
+        xmlns:views="using:ScreenRecorder.UI.Views"
         x:Class="ScreenRecorder.UI.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
         Title="{Binding Strings[SettingsTitle]}"
@@ -391,6 +392,8 @@
                             </StackPanel>
                         </Grid>
                     </Border>
+
+                    <views:SupportPanel />
 
                     <!-- 核心可靠性架構說明卡片 -->
                     <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="16,13" BoxShadow="0 2 8 #0F172A05">

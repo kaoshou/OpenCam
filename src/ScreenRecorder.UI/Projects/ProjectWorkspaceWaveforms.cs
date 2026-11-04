@@ -27,13 +27,18 @@ public sealed partial class ProjectWorkspaceViewModel
 
     public async Task PollWaveformAsync()
     {
-        if (!CanEdit || State.ProjectId is null || _waveforms.Count >= 256 ||
+        if (IsPlayingPreview || IsScrubbingPreview || !CanEdit || State.ProjectId is null ||
             Interlocked.CompareExchange(ref _pollingWaveform, 1, 0) != 0) return;
         try
         {
             var snapshot = State;
             bool Missing(ProjectClip c) => !_waveforms.ContainsKey(c.Id) && !_waveformFailures.Contains(c.Id);
-            var clip = SelectedClip is { } selected && Missing(selected) ? selected : Clips.FirstOrDefault(Missing);
+            var visible = _visibleThumbnailClips.ToHashSet();
+            var clip = SelectedClip is { } selected && Missing(selected) ? selected :
+                Clips.FirstOrDefault(c => visible.Contains(c.Id) && Missing(c));
+            // Once full, only bring requested/visible clips in. Do not continuously
+            // decode offscreen entries merely to evict them again on the next tick.
+            clip ??= _waveforms.Count < 256 ? Clips.FirstOrDefault(Missing) : null;
             if (clip is null) return;
             var reply = await client.SendAsync("GetProjectWaveform", new() {
                 ProjectId = snapshot.ProjectId, ExpectedRevision = snapshot.Revision, ClipId = clip.Id });
@@ -49,6 +54,11 @@ public sealed partial class ProjectWorkspaceViewModel
                 data.Buckets.Any(b => !float.IsFinite(b.Minimum) || !float.IsFinite(b.Maximum) ||
                     !float.IsFinite(b.Rms) || b.Minimum > b.Maximum || b.Rms < 0))
             { FailWaveform(clip.Id); return; }
+            if (_waveforms.Count >= 256)
+            {
+                var evict = _waveforms.Keys.First(id => id != SelectedClip?.Id && !visible.Contains(id));
+                _waveforms.Remove(evict);
+            }
             _waveforms[clip.Id] = data;
             OnPropertyChanged(nameof(Waveforms));
         }

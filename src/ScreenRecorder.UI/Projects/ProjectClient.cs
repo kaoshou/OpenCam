@@ -38,6 +38,7 @@ public sealed class ProjectClient(Func<string, ProjectRequest, CancellationToken
 
     private async Task<ProjectReply?> SendOnceAsync(string command, ProjectRequest request, CancellationToken ct)
     {
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
         try
         {
             if (command == "GetProjectFrame") return sendFrame is not null ? await sendFrame(request, ct) : null;
@@ -45,5 +46,6 @@ public sealed class ProjectClient(Func<string, ProjectRequest, CancellationToken
             return response.DataJson is null ? null : JsonSerializer.Deserialize<ProjectReply>(response.DataJson);
         }
         catch (Exception ex) when (ex is IOException or JsonException or OperationCanceledException) { return null; }
+        finally { EditorRequestMetrics.Shared.Record(command, System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds); }
     }
 }

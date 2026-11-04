@@ -21,7 +21,7 @@ internal static class RecoverySourceFile
     }
     // Validate the opened object, not only its name. Keep this handle until the
     // private snapshot is finished, so a later rename cannot redirect the copy.
-    public static FileStream Open(string path)
+    public static FileStream Open(string path, bool shareWrite = false)
     {
         SafeFileHandle handle;
         if (OperatingSystem.IsMacOS())
@@ -37,7 +37,7 @@ internal static class RecoverySourceFile
         }
         else if (OperatingSystem.IsWindows())
         {
-            handle = CreateFile(path, 0x80000000, 1, IntPtr.Zero, 3, 0x00200000, IntPtr.Zero);
+            handle = CreateFile(path, 0x80000000, shareWrite ? 3u : 1u, IntPtr.Zero, 3, 0x00200000, IntPtr.Zero);
             if (handle.IsInvalid && Marshal.GetLastWin32Error() is 2 or 3)
             { handle.Dispose(); throw new FileNotFoundException("Session file does not exist.", path); }
             if (handle.IsInvalid || !GetFileInformationByHandle(handle, out var info) ||

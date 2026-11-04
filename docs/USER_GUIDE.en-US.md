@@ -385,6 +385,14 @@ From 0.2.0 onward, OpenCam's project-owned source code is licensed under [AGPL-3
 
 ## 8. Result, Working File, Settings, and Log Locations
 
+### Support and diagnostics
+
+Open **Settings → About → Support and diagnostics** to open the log folder, copy environment info, or export a diagnostic ZIP. **Check for updates** only opens the official releases page in your browser; it does not download, install, or change your current version.
+
+Environment info includes the version, package platform, operating system, runtime and editor IPC round-trip timing aggregates from this application session. These timings are not video frame rates or capture performance. Copying environment info does not copy log contents. Diagnostic exports additionally include app logs from the last four days, up to 2 MiB each; oversized, linked or unreadable logs are omitted, with a collection summary inside the archive. Choose a new `.zip` filename; existing files are never overwritten.
+
+Recordings, audio, subtitles, projects and settings files are not collected, and nothing is uploaded automatically. **Logs may still contain paths, device names and other private information. Review the archive before sharing it.**
+
 ### Default Output Locations
 
 | Platform | Default location |

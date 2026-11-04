@@ -16,6 +16,9 @@ public partial class MainViewModel
     private readonly HashSet<int> _annotationHotkeys=[];
     private bool _annotationBindingsRequestedForRecording;
     public string ScreenAnnotationsTooltip=>Strings["AnnotationsCaptured"]+(IsAnnotationHotkeyRegistered?"\n"+FormatHotkey(_annotationShortcuts["toggleToolbar"].Modifiers,_annotationShortcuts["toggleToolbar"].Key):"");
+    public string? GetAnnotationShortcutText(string id) =>
+        (id == "finish" || IsAnnotationHotkeyRegistered) && _annotationShortcuts.TryGetValue(id, out var shortcut)
+            ? FormatHotkey(shortcut.Modifiers, shortcut.Key) : null;
     public bool MatchesAnnotationFinish(Avalonia.Input.Key key,Avalonia.Input.KeyModifiers modifiers) =>
         _annotationShortcuts.TryGetValue("finish",out var shortcut) && MatchesHotkey(key,modifiers,shortcut.Modifiers,shortcut.Key);
     private bool RegisterAnnotationHotkey(UserSettings? settings)
