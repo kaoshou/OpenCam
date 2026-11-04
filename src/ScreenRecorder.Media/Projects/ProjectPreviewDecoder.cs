@@ -13,6 +13,8 @@ public sealed class ProjectPreviewSettings(ProjectPreviewSize size)
 {
     public ProjectPreviewSize Size { get; } = size;
     public PreviewAudioGate Audio { get; } = new();
+    public long? EndTicks { get; init; }
+    public Action<double,double,bool>? AudioLevel { get; init; }
     public Func<ProjectSource, CancellationToken, Task<PointerTrackCursor>>? OpenPointerCursor { get; init; }
 }
 public sealed class ProjectPreviewShutdownException(Exception cause)
@@ -45,6 +47,15 @@ public sealed class ProjectPreviewDecoder(Func<IProjectStreamingMediaProcess> pr
         Func<ProjectPreviewFrame, Task> publish, Action<long> position, IProjectAudioOutput audio, CancellationToken ct)
     {
         var plan = ProjectRenderPlan.Create(project);
+        var endTicks = settings.EndTicks ?? plan.DurationTicks;
+        if(startTicks < 0 || endTicks<=startTicks || endTicks>plan.DurationTicks) throw new ArgumentOutOfRangeException(nameof(settings.EndTicks));
+        var endSample = (long)((BigInteger)endTicks * 48000 / TimeSpan.TicksPerSecond);
+        var frameScale=(BigInteger)TimeSpan.TicksPerSecond*plan.Canvas.Fps.Denominator;
+        // Bounds must agree with the integer (ceiling-rounded) timestamps we publish.
+        var endFrame=settings.EndTicks is null ? plan.FrameCount :
+            checked((long)(((BigInteger)(endTicks-1)*plan.Canvas.Fps.Numerator)/frameScale+1));
+        var meter = new PreviewAudioMeter();
+        long lastMeterAt=0;
         var basePlan = ProjectPointerCompositor.IsRequired(plan) ? ProjectRenderPlan.Create(project with {
             PointerSettings = project.PointerSettings with { Style = ProjectPointerStyle.Hidden }
         }) : plan;
@@ -55,8 +66,7 @@ public sealed class ProjectPreviewDecoder(Func<IProjectStreamingMediaProcess> pr
         var token = life.Token;
         var firstFrame = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var startSample = Ceiling(startTicks, 48000, TimeSpan.TicksPerSecond);
-        var startFrame = Ceiling(startTicks, plan.Canvas.Fps.Numerator,
-            checked(TimeSpan.TicksPerSecond * plan.Canvas.Fps.Denominator));
+        var startFrame=startTicks==0?0:checked((long)(((BigInteger)(startTicks-1)*plan.Canvas.Fps.Numerator)/frameScale+1));
         await audio.StartAsync(token);
         async Task<FileStream> Open(ProjectRenderClip clip)
         {
@@ -78,18 +88,21 @@ public sealed class ProjectPreviewDecoder(Func<IProjectStreamingMediaProcess> pr
             {
                 var clip = plan.Clips[i];
                 var frameNumber = Math.Max(startFrame, clip.StartFrame);
-                if (frameNumber >= clip.EndFrame) continue;
+                var clipEndFrame = Math.Min(clip.EndFrame,endFrame);
+                if (frameNumber >= clipEndFrame) continue;
                 await using var source = await Open(clip);
                 await process.RunStreamingAsync(ProjectMediaJob.PreviewVideo(basePlan, i, frameNumber - clip.StartFrame,
-                    settings.Size.Width, settings.Size.Height), source,
+                    settings.Size.Width, settings.Size.Height, clipEndFrame-frameNumber), source,
                     async (stream, cancel) =>
                     {
-                        while (frameNumber < clip.EndFrame)
+                        while (frameNumber < clipEndFrame)
                         {
                             var pixels = new byte[settings.Size.ByteCount];
                             await stream.ReadExactlyAsync(pixels, cancel);
                             firstFrame.TrySetResult();
-                            var due = Ceiling(frameNumber, checked(48000 * plan.Canvas.Fps.Denominator), plan.Canvas.Fps.Numerator);
+                            // A range may end between PCM samples. Never wait beyond the last
+                            // retained sample for its final in-range video frame.
+                            var due = Math.Min(endSample,Ceiling(frameNumber, checked(48000 * plan.Canvas.Fps.Denominator), plan.Canvas.Fps.Numerator));
                             var deadline = DateTime.UtcNow.AddSeconds(30);
                             while (audio.PositionSamples < 0 || audio.PositionSamples + startSample < due)
                             {
@@ -111,21 +124,22 @@ public sealed class ProjectPreviewDecoder(Func<IProjectStreamingMediaProcess> pr
         async Task Audio()
         {
             // Tiny trailing ranges can own audio samples but no output video frame.
-            if (startFrame < plan.FrameCount) await firstFrame.Task.WaitAsync(token);
+            if (startFrame < Math.Min(plan.FrameCount,endFrame)) await firstFrame.Task.WaitAsync(token);
             var process = processFactory();
             long submitted = 0;
             for (var i = 0; i < plan.Clips.Length; i++)
             {
                 var clip = plan.Clips[i];
                 var sample = Math.Max(startSample, clip.StartAudioSample);
-                if (sample >= clip.EndAudioSample) continue;
+                var clipEndSample=Math.Min(clip.EndAudioSample,endSample);
+                if (sample >= clipEndSample) continue;
                 await using var source = await Open(clip);
-                await process.RunStreamingAsync(ProjectMediaJob.PreviewAudio(plan, i, sample - clip.StartAudioSample), source,
+                await process.RunStreamingAsync(ProjectMediaJob.PreviewAudio(plan, i, sample - clip.StartAudioSample,clipEndSample-sample), source,
                     async (stream, cancel) =>
                     {
                         var block = new byte[8192];
                         var gated = new byte[8192];
-                        var remaining = checked((clip.EndAudioSample - sample) * 8);
+                        var remaining = checked((clipEndSample - sample) * 8);
                         while (remaining > 0)
                         {
                             var count = (int)Math.Min(block.Length, remaining);
@@ -136,6 +150,13 @@ public sealed class ProjectPreviewDecoder(Func<IProjectStreamingMediaProcess> pr
                             {
                                 if (DateTime.UtcNow > deadline) throw new IOException("Preview audio clock stopped.");
                                 await Task.Delay(5, cancel);
+                            }
+                            if(settings.AudioLevel is not null)
+                            {
+                                meter.Observe(block.AsSpan(0,count));
+                                var now=Environment.TickCount64;
+                                if(now-lastMeterAt>=100 && meter.SnapshotAndReset() is { } level)
+                                { lastMeterAt=now; settings.AudioLevel(level.Peak,level.Rms,level.Overload); }
                             }
                             settings.Audio.Copy(block.AsSpan(0, count), gated.AsSpan(0, count));
                             await audio.WriteAsync(gated.AsMemory(0, count), cancel);
@@ -159,11 +180,11 @@ public sealed class ProjectPreviewDecoder(Func<IProjectStreamingMediaProcess> pr
             {
                 token.ThrowIfCancellationRequested();
                 if (audio.PositionSamples >= 0)
-                    position(Math.Clamp(Ceiling(audio.PositionSamples + startSample, TimeSpan.TicksPerSecond, 48000), startTicks, plan.DurationTicks));
+                    position(Math.Clamp(Ceiling(audio.PositionSamples + startSample, TimeSpan.TicksPerSecond, 48000), startTicks, endTicks));
                 await Task.Delay(20, token);
             }
             await Task.WhenAll(video, sound);
-            position(plan.DurationTicks);
+            position(endTicks);
         }
         finally
         {

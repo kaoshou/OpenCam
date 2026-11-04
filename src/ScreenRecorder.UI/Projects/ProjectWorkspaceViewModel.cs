@@ -49,7 +49,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     public bool CanMoveEarlier => CanEditTimeline && CanEditSelection && GroupStart(Clips.IndexOf(SelectedClip!)) > 0;
     public bool CanMoveLater => CanEditTimeline && CanEditSelection && GroupEnd(Clips.IndexOf(SelectedClip!)) < Clips.Count - 1;
     public string SaveStatus => State.ProjectId is null ? "" : Strings[StatusUnconfirmed ? "ProjectUnconfirmed" : IsBusy ? "ProjectSaving" :
-        Error is not null ? "ProjectSaveFailed" : State.DraftError is not null ? "ProjectDraftSaveFailed" : State.IsDirty || HasPropertyDraft || HasPointerDraft ? "ProjectUnsaved" : "ProjectSaved"];
+        _projectSaveFailed ? "ProjectSaveFailed" : State.DraftError is not null ? "ProjectDraftSaveFailed" : State.IsDirty || HasPropertyDraft || HasPointerDraft ? "ProjectUnsaved" : "ProjectSaved"];
     public string ModeText => Strings["ProjectMode" + State.Mode];
     public string StartText => Strings[State.Mode == ProjectMode.Paused ? "ProjectContinue" : "ProjectRecord"];
     public string ClipCountText => $"{Clips.Count} / {State.ClipCount}";
@@ -65,6 +65,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     partial void OnStatusUnconfirmedChanged(bool value) => NotifyState();
     private void NotifyState()
     {
+        foreach(var name in new[]{nameof(CurrentExportStatusText),nameof(SelectedClipAudioText),nameof(PreviousFrameHint),nameof(NextFrameHint),nameof(PlaybackHint),nameof(MarkInHint),nameof(MarkOutHint),nameof(EditorKeyboardHelpText)}) OnPropertyChanged(name);
         NotifyPointers();
         foreach (var property in new[] { nameof(CanEdit), nameof(CanRecord), nameof(CanPause), nameof(CanFinish), nameof(CanClose),
             nameof(CanUndo), nameof(CanRedo), nameof(SaveStatus), nameof(ModeText), nameof(StartText), nameof(ClipCountText), nameof(IsExporting),
@@ -98,6 +99,9 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
             SelectedClip = null;
             PublishTimeline([]);
         }
+        if(reply.State.Export is { } export && _seenExportId!=export.ExportId)
+        { _seenExportId=export.ExportId; _exportOwner=(reply.State.ProjectId,reply.State.ServerInstanceId); }
+        if(reply.State.ProjectId!=State.ProjectId) _projectSaveFailed=false;
         State = reply.State;
         NotifySubtitles();
         StatusUnconfirmed = false;
@@ -220,6 +224,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
             // on every telemetry tick. Real transitions and lost status still
             // update the UI through ApplyReply / StatusUnconfirmed below.
             var previous = State;
+            var previousError = Error;
             var reply = await client.SendAsync("GetProjectStatus", new());
             // A safety stop or newly saved segment needs a consistent clip list
             // before editing can be enabled. Lock before publishing that state.
@@ -228,6 +233,8 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
             ApplyReply(reply);
             if (!StatusUnconfirmed && (State.Mode != previous.Mode || State.Revision != previous.Revision))
                 await LoadClipsAsync();
+            if(reply.Success && !reply.Unconfirmed && Error is null && State.ProjectId==previous.ProjectId &&
+                State.ServerInstanceId==previous.ServerInstanceId && previousError is not null) Error=previousError;
         }
         catch (Exception ex) { Error = ex.Message; StatusUnconfirmed = true; }
         finally { IsBusy = false; _gate.Release(); }
@@ -263,6 +270,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
             if (precondition is not null && !precondition())
             { Error = Strings["ProjectExportTargetChanged"]; return; }
             IsBusy = true;
+            var resolvingSave=command=="SaveProject" || command=="GetProjectStatus" && _pendingRequest is {Command:"SaveProject"};
             var reply = await SendAsync(command, request ?? new());
             if (command == "GetProjectStatus" && _pendingOperation != Guid.Empty && !reply.OperationKnown)
             {
@@ -272,6 +280,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
                     reply = await client.SendAsync(pending.Command, pending.Request);
                 else reply = reply with { Unconfirmed = true, Success = false };
             }
+            if(resolvingSave)_projectSaveFailed=!reply.Success || reply.Unconfirmed;
             ApplyReply(reply, keepInspector && reply.Success, mediaUnchanged && reply.Success);
             if (!StatusUnconfirmed)
             {

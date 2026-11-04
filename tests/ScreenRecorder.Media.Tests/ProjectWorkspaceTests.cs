@@ -74,6 +74,7 @@ public sealed class ProjectWorkspaceTests
         await vm.RefreshAsync();
         Assert.False(vm.StatusUnconfirmed);
         Assert.True(vm.CanEdit);
+        Assert.Equal(vm.Strings["ProjectSaved"],vm.SaveStatus);
     }
 
     [Fact]

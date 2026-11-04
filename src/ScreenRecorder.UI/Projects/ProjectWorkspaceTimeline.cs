@@ -58,15 +58,18 @@ public sealed partial class ProjectWorkspaceViewModel
                 _failedPreviewTicks = null;
                 OnPropertyChanged(nameof(PreviewStatus));
                 NotifyTimeline();
+                RequestPreviewRefresh();
                 return;
             }
-            ClearPreview();
+            _rangePlayback=null;
+            ClearPreview(keepFrame: true);
             if (IsPlayingPreview)
             {
                 var intent = ++_playbackIntent;
                 if (value < DurationTicks) _ = StartPreviewAsync(value, intent);
                 else _ = StopPreviewAsync();
             }
+            else RequestPreviewRefresh();
         }
         NotifyTimeline();
     }
@@ -74,6 +77,8 @@ public sealed partial class ProjectWorkspaceViewModel
     partial void OnRangeEndTicksChanged(long? value) => NotifyTimeline();
     private void NotifyTimeline()
     {
+        OnPropertyChanged(nameof(SelectionRangeText));
+        CheckRangePlayback();
         NotifyBookmarkUi();
         OnPropertyChanged(nameof(CanSplit));
         OnPropertyChanged(nameof(CanDeleteRange));

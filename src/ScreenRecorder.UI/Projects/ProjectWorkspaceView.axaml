@@ -293,7 +293,7 @@
                     BorderThickness="1" CornerRadius="10" Padding="6,4">
             <WrapPanel Orientation="Horizontal">
               <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,10,2">
-                <Button Classes="previewControl" Content="{Binding PlaybackButtonText}" Command="{Binding TogglePlaybackCommand}" IsEnabled="{Binding CanPreview}"/>
+                <Button Classes="previewControl" Content="{Binding PlaybackButtonText}" Command="{Binding TogglePlaybackCommand}" IsEnabled="{Binding CanPreview}" ToolTip.Tip="{Binding PlaybackHint}" AutomationProperties.Name="{Binding PlaybackHint}"/>
                 <TextBlock Text="{Binding TimelineTimeText}" FontSize="11" FontFamily="monospace" VerticalAlignment="Center"/>
               </StackPanel>
               <ComboBox Classes="previewControl" x:Name="PreviewQualityPicker" SelectedIndex="1" SelectionChanged="OnPreviewQualityChanged" MinWidth="82" Margin="0,2,5,2"
@@ -342,6 +342,10 @@
               </Button>
             </WrapPanel>
             </Border>
+            <Grid ColumnDefinitions="80,*" Margin="0,2">
+              <ProgressBar Minimum="0" Maximum="100" Value="{Binding PreviewMixPeak}" MinWidth="0" Width="80" MaxWidth="80" Height="6" HorizontalAlignment="Left" VerticalAlignment="Center" AutomationProperties.Name="{Binding Strings[EditorMeterTitle]}"/>
+              <TextBlock Grid.Column="1" Text="{Binding PreviewMixText}" Margin="8,0,0,0" FontSize="11" TextWrapping="Wrap"/>
+            </Grid>
             <TextBlock Text="{Binding PreviewStatus}" FontSize="11" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource ProjectMutedBrush}"/>
             <TextBlock Text="{Binding SubtitleSyncWarning}" IsVisible="{Binding State.SubtitlesNeedSyncConfirmation}"
                        FontSize="11" Foreground="#B45309" TextWrapping="Wrap"/>
@@ -356,6 +360,7 @@
           <TextBox Text="{Binding ClipName}" IsEnabled="{Binding CanEditProperties}" MaxLength="200"/>
           <StackPanel Spacing="8" IsEnabled="{Binding CanEditProperties}">
             <TextBlock Text="{Binding Strings[ProjectAudioProperties]}" FontWeight="SemiBold" Margin="0,10,0,2"/>
+            <TextBlock Text="{Binding SelectedClipAudioText}" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource ProjectMutedBrush}"/>
             <Grid ColumnDefinitions="*,Auto">
               <TextBlock Text="{Binding Strings[ProjectVolume]}" FontSize="12" VerticalAlignment="Center"/>
               <TextBlock Grid.Column="1" Text="{Binding ClipVolumePercent, StringFormat={}{0:0}%}" FontSize="12"/>
@@ -417,7 +422,7 @@
         <Style Selector="Button"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="8,6"/><Setter Property="MinHeight" Value="32"/><Setter Property="Margin" Value="1,2"/></Style>
         <Style Selector="Border.toolDivider"><Setter Property="Width" Value="1"/><Setter Property="Height" Value="18"/><Setter Property="Margin" Value="7,8"/><Setter Property="Background" Value="{DynamicResource ProjectStrokeBrush}"/></Style>
       </Border.Styles>
-      <Grid RowDefinitions="Auto,*">
+      <Grid RowDefinitions="Auto,Auto,*">
         <WrapPanel Orientation="Horizontal">
           <Button x:Name="ClipsToggle" Click="OnToggleClips" AutomationProperties.Name="{Binding Strings[ProjectClipsShort]}"><editor:EditorToolContent Icon="clips" Text="{Binding Strings[ProjectClipsShort]}"/></Button>
           <Button x:Name="PropertiesToggle" Click="OnToggleProperties" AutomationProperties.Name="{Binding Strings[ProjectPropertiesShort]}"><editor:EditorToolContent Icon="properties" Text="{Binding Strings[ProjectPropertiesShort]}"/></Button>
@@ -426,17 +431,30 @@
           <Button Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}" AutomationProperties.Name="{Binding Strings[ProjectRedo]}"><editor:EditorToolContent Icon="redo" Text="{Binding Strings[ProjectRedo]}"/></Button>
           <Border Classes="toolDivider"/>
           <Button Command="{Binding SplitAtPlayheadCommand}" IsEnabled="{Binding CanSplit}" AutomationProperties.Name="{Binding Strings[ProjectSplit]}"><editor:EditorToolContent Icon="split" Text="{Binding Strings[ProjectSplit]}"/></Button>
-          <Button Command="{Binding MarkRangeStartCommand}" IsEnabled="{Binding CanEditTimeline}" AutomationProperties.Name="{Binding Strings[ProjectRangeStart]}"><editor:EditorToolContent Icon="start" Text="{Binding Strings[ProjectRangeStart]}"/></Button>
-          <Button Command="{Binding MarkRangeEndCommand}" IsEnabled="{Binding CanEditTimeline}" AutomationProperties.Name="{Binding Strings[ProjectRangeEnd]}"><editor:EditorToolContent Icon="end" Text="{Binding Strings[ProjectRangeEnd]}"/></Button>
+          <Button Command="{Binding MarkRangeStartCommand}" IsEnabled="{Binding CanEditTimeline}" ToolTip.Tip="{Binding MarkInHint}" AutomationProperties.Name="{Binding MarkInHint}"><editor:EditorToolContent Icon="start" Text="{Binding Strings[ProjectRangeStart]}"/></Button>
+          <Button Command="{Binding MarkRangeEndCommand}" IsEnabled="{Binding CanEditTimeline}" ToolTip.Tip="{Binding MarkOutHint}" AutomationProperties.Name="{Binding MarkOutHint}"><editor:EditorToolContent Icon="end" Text="{Binding Strings[ProjectRangeEnd]}"/></Button>
           <Button Command="{Binding DeleteRangeCommand}" IsEnabled="{Binding CanDeleteRange}" AutomationProperties.Name="{Binding Strings[ProjectDeleteRange]}"><editor:EditorToolContent Icon="delete" Text="{Binding Strings[ProjectDeleteRange]}"/></Button>
           <Border Classes="toolDivider"/>
           <Button Click="OnFitTimeline" AutomationProperties.Name="{Binding Strings[ProjectFitTimeline]}"><editor:EditorToolContent Icon="fit" Text="{Binding Strings[ProjectFitTimeline]}"/></Button>
         </WrapPanel>
-        <editor:ProjectTimelineControl x:Name="TimelineControl" Grid.Row="1" ToolTip.Tip="{Binding Strings[ProjectTimelineHelp]}"/>
+        <WrapPanel Grid.Row="1" Orientation="Horizontal">
+          <Button Command="{Binding PreviousFrameCommand}" IsEnabled="{Binding CanEditTimeline}" ToolTip.Tip="{Binding PreviousFrameHint}" AutomationProperties.Name="{Binding PreviousFrameHint}"><editor:EditorToolContent Icon="frame-previous" Text="{Binding Strings[EditorPreviousFrame]}"/></Button>
+          <Button Command="{Binding NextFrameCommand}" IsEnabled="{Binding CanEditTimeline}" ToolTip.Tip="{Binding NextFrameHint}" AutomationProperties.Name="{Binding NextFrameHint}"><editor:EditorToolContent Icon="frame-next" Text="{Binding Strings[EditorNextFrame]}"/></Button>
+          <Border Classes="toolDivider"/>
+          <Button Command="{Binding PreviewRangeCommand}" IsEnabled="{Binding CanPreviewRange}" ToolTip.Tip="{Binding SelectionRangeText}" AutomationProperties.Name="{Binding Strings[EditorPreviewRange]}"><editor:EditorToolContent Icon="play-selection" Text="{Binding Strings[EditorPreviewRange]}"/></Button>
+          <ToggleButton IsChecked="{Binding RepeatPreviewRange}" MinHeight="32" Padding="8,6" Margin="4,2,8,2" ToolTip.Tip="{Binding Strings[EditorRepeatRange]}" AutomationProperties.Name="{Binding Strings[EditorRepeatRange]}"><editor:EditorToolContent Icon="refresh" Text="{Binding Strings[EditorRepeatRange]}"/></ToggleButton>
+          <ToggleButton IsChecked="{Binding TimelineSnapping}" MinHeight="32" Padding="8,6" Margin="0,2,8,2" ToolTip.Tip="{Binding Strings[EditorSnapHint]}" AutomationProperties.Name="{Binding Strings[EditorSnapping]}"><editor:EditorToolContent Icon="check" Text="{Binding Strings[EditorSnapping]}"/></ToggleButton>
+          <Button AutomationProperties.Name="{Binding Strings[EditorKeyboardHelp]}" ToolTip.Tip="{Binding Strings[EditorKeyboardHelp]}">
+            <editor:EditorToolContent Icon="keyboard" Text="{Binding Strings[EditorKeyboardHelp]}"/>
+            <Button.Flyout><Flyout><TextBlock Text="{Binding EditorKeyboardHelpText}" TextWrapping="Wrap" MaxWidth="380"/></Flyout></Button.Flyout>
+          </Button>
+          <TextBlock Text="{Binding SelectionRangeText}" FontSize="11" Margin="8,0" VerticalAlignment="Center" Foreground="{DynamicResource ProjectMutedBrush}"/>
+        </WrapPanel>
+        <editor:ProjectTimelineControl x:Name="TimelineControl" Grid.Row="2" ToolTip.Tip="{Binding Strings[ProjectTimelineHelp]}"/>
       </Grid>
     </Border>
     <Grid x:Name="EditorFooter" Grid.Row="5" ColumnDefinitions="*,Auto" Margin="16,4">
-      <TextBlock Text="{Binding ExportStatusText}" IsVisible="{Binding !HasEditorError}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding ExportStatusText}"/>
+      <TextBlock Text="{Binding CurrentExportStatusText}" IsVisible="{Binding !HasEditorError}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding CurrentExportStatusText}"/>
       <TextBlock Text="{Binding Error}" Foreground="{DynamicResource ProjectErrorBrush}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Error}"/>
     </Grid>
   </Grid>

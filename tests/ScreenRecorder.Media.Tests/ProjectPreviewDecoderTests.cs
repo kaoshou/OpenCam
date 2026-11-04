@@ -80,6 +80,14 @@ public sealed class ProjectPreviewDecoderTests
             Assert.Contains(seen, f => f.ClipId == second.Id);
             Assert.All(seen, f => { Assert.InRange(f.TimelineTicks, 2000000, 9669999); Assert.Equal(64 * 36 * 4, f.Rgba.Length); });
             Assert.Equal(9670000, position);
+            seen.Clear();
+            await decoder.PlayConfiguredAsync(project,2_000_000,new(new(64,36)){EndTicks=6_500_000},
+                (_,_)=>Task.FromResult(File.OpenRead(path)),frame=>{seen.Add(frame);return Task.CompletedTask;},
+                ticks=>position=ticks,timeout.Token);
+            Assert.Equal(14,seen.Count);
+            Assert.Contains(seen,f=>f.ClipId==first.Id);Assert.Contains(seen,f=>f.ClipId==second.Id);
+            Assert.All(seen,f=>Assert.InRange(f.TimelineTicks,2_000_000,6_499_999));
+            Assert.Equal(6_500_000,position);
             Assert.Equal(source.Sha256, Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(path))).ToLowerInvariant());
         }
         finally { root.Delete(true); }

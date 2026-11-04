@@ -32,6 +32,7 @@ public sealed record ProjectRequest
     public Guid? PlaybackGeneration { get; init; }
     public ProjectPreviewQuality PreviewQuality { get; init; } = ProjectPreviewQuality.P720;
     public bool PreviewMuted { get; init; }
+    public long? PreviewEndTicks { get; init; }
     public bool RestoreDraft { get; init; }
     public bool AutoExportOnStop { get; init; } = true;
     public ProjectClipEdit? Edit { get; init; }
@@ -83,7 +84,9 @@ public sealed record ProjectReply(bool Success, string? Error, ProjectSnapshot S
 public sealed record ProjectPlaybackState(Guid Generation, long TimelineTicks, bool Playing, string? Error)
 {
     public bool Muted { get; init; }
+    public ProjectPreviewAudioLevel? AudioLevel { get; init; }
 }
+public sealed record ProjectPreviewAudioLevel(double Peak,double Rms,bool Overload);
 
 /// <summary>Fixed-size RGBA still, sent exclusively over authenticated media IPC.</summary>
 public sealed record ProjectFrameReply(long Revision, long TimelineTicks, Guid ClipId, byte[]? Rgba, string? Error = null)

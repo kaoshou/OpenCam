@@ -106,9 +106,22 @@ public partial class ProjectWorkspaceView : Window
         var previewTimer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
         previewTimer.Tick += async (_, _) => { if (IsVisible) await vm.PollPreviewAsync(); };
         vm.PropertyChanged += OnPreviewChanged;
+        var previewPosted = false;
+        void RequestPreview(object? sender, EventArgs e)
+        {
+            if (previewPosted || !IsVisible || _closed) return;
+            previewPosted = true;
+            Avalonia.Threading.Dispatcher.UIThread.Post(async () => {
+                previewPosted = false;
+                if (!IsVisible || _closed) return;
+                try { await vm.DrainPreviewRequestsAsync(); }
+                catch (Exception ex) { Serilog.Log.Warning(ex, "Editor preview scheduling failed"); }
+            });
+        }
+        vm.PreviewRequested += RequestPreview;
         Opened += (_, _) => previewTimer.Start();
         Closed += (_, _) => {
-            previewTimer.Stop(); vm.PropertyChanged -= OnPreviewChanged;
+            previewTimer.Stop(); vm.PropertyChanged -= OnPreviewChanged; vm.PreviewRequested -= RequestPreview;
             PreviewImage.Source = null; _previewPixels.Clear();
         };
     }
@@ -208,10 +221,25 @@ public partial class ProjectWorkspaceView : Window
     }
     protected override void OnKeyDown(KeyEventArgs e)
     {
+        if (e.Handled) return;
         if (e.Key == Key.Escape && _dragClip is not null) { CancelClipDrag(); e.Handled = true; return; }
         ShowPreviewControls();
         if (e.Key == Key.Escape && IsPreviewFullscreen) { SetPreviewFullscreen(false); e.Handled = true; return; }
-        var action = ResolveShortcut(e.Key, e.KeyModifiers, FocusManager?.GetFocusedElement() is TextBox, OperatingSystem.IsMacOS());
+        var action = ResolveShortcut(e.Key, e.KeyModifiers, EditorKeyboardCommands.OwnsInput(FocusManager?.GetFocusedElement()), OperatingSystem.IsMacOS());
+        if (action is "playPause" or "framePrevious" or "frameNext" or "secondPrevious" or "secondNext" or "markIn" or "markOut")
+        {
+            e.Handled=true;
+            switch(action) {
+                case "playPause": _=Model.TogglePlaybackAsync(); break;
+                case "framePrevious": _=Model.StepPreviewFrameAsync(-1); break;
+                case "frameNext": _=Model.StepPreviewFrameAsync(1); break;
+                case "secondPrevious": _=Model.SeekRelativeAsync(-TimeSpan.TicksPerSecond); break;
+                case "secondNext": _=Model.SeekRelativeAsync(TimeSpan.TicksPerSecond); break;
+                case "markIn": Model.MarkRangeStart(); break;
+                case "markOut": Model.MarkRangeEnd(); break;
+            }
+            return;
+        }
         if (action == "save")
         { e.Handled = true; if (!Model.IsBusy) _ = Model.SaveAsync(); return; }
         // Text inputs own their own text undo. Project undo only applies outside them.
@@ -225,12 +253,5 @@ public partial class ProjectWorkspaceView : Window
     }
 
     internal static string? ResolveShortcut(Key key, KeyModifiers modifiers, bool textInput, bool mac)
-    {
-        var command = mac ? KeyModifiers.Meta : KeyModifiers.Control;
-        if ((modifiers & command) == 0) return null;
-        if (key == Key.S) return "save";
-        if (textInput) return null;
-        if (key == Key.Y && !mac || key == Key.Z && (modifiers & KeyModifiers.Shift) != 0) return "redo";
-        return key == Key.Z ? "undo" : null;
-    }
+        => EditorKeyboardCommands.Resolve(key,modifiers,textInput,mac);
 }

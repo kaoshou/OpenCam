@@ -12,11 +12,16 @@ namespace ScreenRecorder.Media.Tests;
 public sealed class ProjectPreviewSoundTests
 {
     [DesktopPreviewTheory]
-    [InlineData(false, 0)]
-    [InlineData(true, 0)]
-    [InlineData(false, 1)]
-    [InlineData(false, 2)]
-    public async Task ActualDecodedSoundReachesOutputAndDeviceFailureIsNotHidden(bool outputFails, int muteMode)
+    [InlineData(false, 0, 0)]
+    [InlineData(true, 0, 0)]
+    [InlineData(false, 1, 0)]
+    [InlineData(false, 2, 0)]
+    [InlineData(false, 0, 2500000)]
+    [InlineData(false, 1, 2500000)]
+    [InlineData(false, 0, 333668)]
+    [InlineData(false, 0, 333334)]
+    [InlineData(false, 0, 666667)]
+    public async Task ActualDecodedSoundReachesOutputAndDeviceFailureIsNotHidden(bool outputFails, int muteMode, long endTicks)
     {
         var root = Directory.CreateTempSubdirectory("OpenCam-preview-sound-");
         try
@@ -30,19 +35,22 @@ public sealed class ProjectPreviewSoundTests
             Assert.Equal("aac", info.AudioCodec);
             var id = Guid.NewGuid();
             var project = new RecordingProject { ProjectId = Guid.NewGuid(), Name = "Sound", Sessions = ["s"],
-                Canvas = new(64, 36, new(30, 1)), Sources = [new() { Id = id, SessionId = "s", RelativePath = "sources/a.mkv",
+                Canvas = new(64, 36, endTicks==333668?new(30000,1001):new(30, 1)), Sources = [new() { Id = id, SessionId = "s", RelativePath = "sources/a.mkv",
                     FileSize = source.Length, Sha256 = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(path))).ToLowerInvariant(),
                     Width = info.Width, Height = info.Height, VideoCodec = info.VideoCodec, AudioCodec = info.AudioCodec, Timing = info.Timing }],
                 Clips = [new() { Id = Guid.NewGuid(), SourceId = id, Name = "Clip", InPts = 100, OutPts = 800 }] };
             var backend = ProjectMediaBackend.Create(OperatingSystem.IsWindows() ? OSPlatform.Windows : OSPlatform.OSX, ffmpeg, "")!;
             var output = new MeasuringOutput(outputFails);
-            var settings = new ProjectPreviewSettings(new(64,36));
+            double measuredPeak=0;
+            var settings = new ProjectPreviewSettings(new(64,36)) { EndTicks=endTicks==0?null:endTicks,
+                AudioLevel=(peak,_,_)=>measuredPeak=Math.Max(measuredPeak,peak) };
             settings.Audio.Muted = muteMode == 1;
             if (muteMode == 2) output.OnWrite = position => settings.Audio.Muted = position is >= 8192 and < 16384;
             var decoder = new ProjectPreviewDecoder(backend.CreateStreamingProcess, () => output);
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-            Task Play() => decoder.PlayConfiguredAsync(project, 0, settings, (_, _) => Task.FromResult(File.OpenRead(path)),
-                _ => Task.CompletedTask, _ => { }, timeout.Token);
+            var frames=new List<ProjectPreviewFrame>();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(endTicks==333668?3:15));
+            Task Play() => decoder.PlayConfiguredAsync(project, endTicks==666667?333334:0, settings, (_, _) => Task.FromResult(File.OpenRead(path)),
+                frame => {frames.Add(frame);return Task.CompletedTask;}, _ => { }, timeout.Token);
             if (outputFails)
             {
                 var error = await Assert.ThrowsAsync<IOException>(Play);
@@ -59,7 +67,10 @@ public sealed class ProjectPreviewSoundTests
                     Assert.True(output.BlockPeaks.First() > .01f);
                     Assert.True(output.BlockPeaks.Last() > .01f);
                 }
-                Assert.Equal(33600, output.PositionSamples);
+                Assert.Equal(endTicks switch {0=>33600,333668=>1601,333334=>1600,666667=>1599,_=>12000}, output.PositionSamples);
+                if(endTicks>0)Assert.All(frames,frame=>Assert.True(frame.TimelineTicks<endTicks));
+                if(endTicks is 333334 or 666667)Assert.Single(frames);
+                Assert.InRange(measuredPeak,.01,1); // Also measured before preview-output mute.
             }
             Assert.False(project.Clips[0].Muted); Assert.Equal(1, project.Clips[0].Volume);
             Assert.Equal(project.Sources[0].Sha256, Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(path))).ToLowerInvariant());

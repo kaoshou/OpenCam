@@ -17,6 +17,11 @@ public sealed class ProjectTimelineControl : Control
     private IPointer? _pointer;
     private Guid? _movingClip, _beforeClip;
     private long _gestureRevision;
+    private Guid? _gestureProject, _gestureServer;
+    private ProjectTimelineClip? _trimSpan;
+    private bool _trimStart;
+    private long _trimDelta;
+    private bool _bypassSnap;
     private double _downX, _zoom = 1, _offset;
     private bool _seeking, _dragging;
     private double TrackWidth => Math.Max(1, Bounds.Width - 32);
@@ -84,7 +89,8 @@ public sealed class ProjectTimelineControl : Control
     }
     private void Changed(object? sender, PropertyChangedEventArgs e)
     {
-        if (_model?.CanEditTimeline != true || _model.State.Revision != _gestureRevision) CancelGesture();
+        if (_model?.CanEditTimeline != true || _model.State.Revision != _gestureRevision ||
+            _model.State.ProjectId != _gestureProject || _model.State.ServerInstanceId != _gestureServer) CancelGesture();
         _offset = Math.Clamp(_offset, 0, Math.Max(0, (_model?.DurationTicks ?? 0) - VisibleTicks));
         InvalidateVisual();
     }
@@ -120,6 +126,11 @@ public sealed class ProjectTimelineControl : Control
             var fill = new SolidColorBrush(Color.Parse(selected ? (dark ? "#27436B" : "#E3EDFF") : (dark ? "#343D49" : "#EFF3F8")));
             var outline = selected ? new Pen(new SolidColorBrush(Color.Parse("#5A8DEE")), 2) : stroke;
             context.DrawRectangle(fill, outline, rectangle, 6, 6);
+            if (selected && right-left > 24)
+            {
+                context.FillRectangle(Brushes.CornflowerBlue, new Rect(left+3, VideoTrackBounds.Top+8, 4, VideoTrackBounds.Height-16));
+                context.FillRectangle(Brushes.CornflowerBlue, new Rect(right-7, VideoTrackBounds.Top+8, 4, VideoTrackBounds.Height-16));
+            }
             using (context.PushClip(rectangle))
             {
                 Text(context, clip.Name, left + 12, 65, ink, Math.Max(1, right-left-24), 14);
@@ -185,6 +196,13 @@ public sealed class ProjectTimelineControl : Control
             var x = X(target);
             context.DrawLine(new Pen(Brushes.Orange, 3), new(x, 48), new(x, 134));
         }
+        if (_trimSpan is { } trim)
+        {
+            var time = (_trimStart ? trim.StartTicks : trim.EndTicks) + _trimDelta;
+            context.DrawLine(new Pen(Brushes.Orange,3),new(X(time),48),new(X(time),VideoTrackBounds.Bottom));
+            Text(context, $"{TimeSpan.FromTicks(time):mm\\:ss\\.fff}  Δ {_trimDelta/(double)TimeSpan.TicksPerSecond:+0.000;-0.000;0} s",
+                20, Math.Max(0,Bounds.Height-20), ink, Math.Max(1,Bounds.Width-40),11);
+        }
     }
     private void DrawRangeMarker(DrawingContext context, double x, string label, bool start, bool dark)
     {
@@ -210,19 +228,25 @@ public sealed class ProjectTimelineControl : Control
         Focus();
         var point = e.GetPosition(this);
         _gestureRevision = vm.State.Revision;
+        _gestureProject = vm.State.ProjectId; _gestureServer = vm.State.ServerInstanceId;
+        _bypassSnap = (e.KeyModifiers & KeyModifiers.Alt) != 0;
         _downX = point.X;
         if (point.Y < 44)
         {
             var bookmark = vm.Bookmarks.FirstOrDefault(b => b.TimelineTicks is long t && Math.Abs(X(t) - point.X) < 6);
             if (bookmark is not null) { vm.SelectedBookmark = bookmark; if (bookmark.TimelineTicks is long tick) vm.Seek(tick); e.Handled = true; return; }
-            _seeking = true; vm.BeginPreviewScrub(); vm.Seek(Ticks(point.X));
+            _seeking = true; vm.BeginPreviewScrub(); vm.Seek(SnappedTicks(point.X));
         }
         else if (point.Y >= VideoTrackBounds.Top && point.Y <= VideoTrackBounds.Bottom)
         {
             var span = vm.TimelineClips.FirstOrDefault(c => Ticks(point.X) >= c.StartTicks && Ticks(point.X) < c.EndTicks);
             if (span is null) return;
+            var wasSelected = vm.SelectedClip?.Id == span.ClipId;
             vm.SelectedClip = vm.Clips.First(c => c.Id == span.ClipId);
-            _movingClip = span.ClipId;
+            if (wasSelected && X(span.EndTicks)-X(span.StartTicks)>24 &&
+                (Math.Abs(point.X-X(span.StartTicks)) <= 8 || Math.Abs(point.X-X(span.EndTicks)) <= 8))
+            { _trimSpan=span; _trimStart=Math.Abs(point.X-X(span.StartTicks))<=8; _trimDelta=0; }
+            else _movingClip = span.ClipId;
         }
         else return;
         _pointer = e.Pointer;
@@ -246,6 +270,7 @@ public sealed class ProjectTimelineControl : Control
             }
         }
         if (_pointer != e.Pointer) return;
+        _bypassSnap = (e.KeyModifiers & KeyModifiers.Alt) != 0;
         UpdateGesture(e.GetPosition(this));
     }
     protected override void OnPointerExited(PointerEventArgs e)
@@ -262,7 +287,13 @@ public sealed class ProjectTimelineControl : Control
     {
         if (_pointer is null || _model is not { CanEditTimeline: true } vm) return;
         var x = point.X;
-        if (_seeking) vm.Seek(Ticks(x));
+        if (_seeking) vm.Seek(SnappedTicks(x));
+        if (_trimSpan is { } trim)
+        {
+            var time = Math.Clamp(SnappedTicks(x), trim.StartTicks+(_trimStart?0:1),trim.EndTicks-(_trimStart?1:0));
+            _trimDelta = time-(_trimStart?trim.StartTicks:trim.EndTicks);
+            InvalidateVisual(); return;
+        }
         if (_movingClip is not null)
         {
             _dragging = Math.Abs(x - _downX) > 5;
@@ -279,16 +310,28 @@ public sealed class ProjectTimelineControl : Control
             InvalidateVisual();
         }
     }
+    private long SnappedTicks(double x) => _model!.SnapTimelinePosition(Ticks(x),
+        (long)Math.Min(long.MaxValue,VisibleTicks/TrackWidth*8),_bypassSnap);
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         base.OnPointerReleased(e);
         if (_pointer != e.Pointer) return;
         var point = e.GetPosition(this);
+        _bypassSnap = (e.KeyModifiers & KeyModifiers.Alt) != 0;
         if (_seeking) { UpdateGesture(point); CancelGesture(); return; }
         if (point.X < 16 || point.X > Bounds.Width - 16 || point.Y < VideoTrackBounds.Top ||
             point.Y > Math.Min(VideoTrackBounds.Bottom, Bounds.Height))
         { CancelGesture(); return; }
         UpdateGesture(point);
+        if (_trimSpan is { } trim)
+        {
+            var delta = _trimDelta; var start = _trimStart;
+            var valid = _model?.CanEditTimeline == true && _model.State.Revision == _gestureRevision &&
+                _model.State.ProjectId == _gestureProject && _model.State.ServerInstanceId == _gestureServer;
+            CancelGesture();
+            if (valid && delta != 0) _ = _model!.TrimEdgeAsync(trim.ClipId,start,delta);
+            return;
+        }
         var moving = _movingClip; var before = _beforeClip;
         var commit = _dragging && _model?.CanEditTimeline == true && _model.State.Revision == _gestureRevision;
         var clicked = !_dragging && !_seeking ? _movingClip : null;
@@ -324,6 +367,7 @@ public sealed class ProjectTimelineControl : Control
         var seeking = _seeking;
         var pointer = _pointer; _pointer = null;
         _movingClip = null; _beforeClip = null; _dragging = false; _seeking = false;
+        _trimSpan = null; _trimDelta = 0;
         if (seeking && _model is { } vm) _ = vm.EndPreviewScrubAsync();
         pointer?.Capture(null); InvalidateVisual();
     }

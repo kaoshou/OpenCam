@@ -52,5 +52,6 @@ public partial class LocalizationService
             ("AnnotationsColorWhite","白色","White","白")})
         {ZhTwDictionary[row.Key]=row.Zh;EnUsDictionary[row.Key]=row.En;JaJpDictionary[row.Key]=row.Ja;}
         AddSupportStrings();
+        AddEditorWorkflowStrings();
     }
 }

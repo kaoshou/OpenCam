@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 using ScreenRecorder.Infrastructure.IPC;
+using ScreenRecorder.Core.Projects;
 
 namespace ScreenRecorder.UI.Projects;
 
@@ -13,6 +14,7 @@ public sealed partial class ProjectWorkspaceViewModel
     private bool _scrubbing, _resumeAfterScrub;
     private Task<bool>? _scrubStop;
     private long _scrubPlaybackIntent;
+    private ProjectPreviewQuality? _frameQuality;
     public bool IsScrubbingPreview => _scrubbing;
 
     public void BeginPreviewScrub()
@@ -32,18 +34,21 @@ public sealed partial class ProjectWorkspaceViewModel
         var stopped = await (_scrubStop ?? Task.FromResult(true));
         if (sequence != _scrubSequence || !_scrubbing) return;
         _scrubbing = false;
+        ++_previewEpoch;
+        _previewNeedsRefresh = true;
         var resume = stopped && _resumeAfterScrub && _playbackIntent == _scrubPlaybackIntent && CanEditTimeline;
         _resumeAfterScrub = false;
         _scrubStop = null;
         _failedPreviewTicks = null;
         if (PlayheadTicks >= DurationTicks) { ClearPreview(); return; }
         if (resume) await StartPreviewAsync(PlayheadTicks, ++_playbackIntent);
+        else RequestPreviewRefresh();
         OnPropertyChanged(nameof(PreviewStatus));
     }
     public ProjectFrameReply? PreviewFrame { get; private set; }
     public string PreviewStatus => _previewPointerUnavailable ? Strings["ProjectPointerPreviewUnavailable"] :
-        IsChangingPreviewQuality ? Strings["PreviewChangingQuality"] : IsPlayingPreview ? Strings["ProjectPreviewPlaying"] : DurationTicks == 0 ? Strings["ProjectFrameEmpty"] : Strings[_failedPreviewTicks == PlayheadTicks
-        ? "ProjectFrameUnavailable" : PreviewFrame is null ? "ProjectFrameLoading" : "ProjectStillPreview"];
+        IsChangingPreviewQuality ? Strings["PreviewChangingQuality"] : IsPlayingPreview ? Strings[_rangePlayback is null?"ProjectPreviewPlaying":"EditorRangePlaying"] : DurationTicks == 0 ? Strings["ProjectFrameEmpty"] : Strings[_failedPreviewTicks == PlayheadTicks
+        ? "ProjectFrameUnavailable" : PreviewFrame is null || _previewNeedsRefresh ? "ProjectFrameLoading" : "ProjectStillPreview"];
 
     private void ClearPreview(bool keepFrame = false)
     {
@@ -64,19 +69,21 @@ public sealed partial class ProjectWorkspaceViewModel
     {
         if (IsPlayingPreview) { await PollPlaybackAsync(); return; }
         if (!CanEdit || State.ProjectId is null || DurationTicks == 0 ||
-            (!_previewNeedsRefresh && PreviewFrame?.TimelineTicks == PlayheadTicks) || _failedPreviewTicks == PlayheadTicks ||
+            (!_previewNeedsRefresh && PreviewFrame?.TimelineTicks == PlayheadTicks &&
+             _frameQuality == (_scrubbing ? ProjectPreviewQuality.P360 : PreviewQuality)) || _failedPreviewTicks == PlayheadTicks ||
             Interlocked.CompareExchange(ref _pollingPreview, 1, 0) != 0) return;
         var state = State;
         var ticks = PlayheadTicks;
         var qualityRequest = _qualityRequest;
         var epoch = _previewEpoch;
         var intent = _playbackIntent;
+        var quality = _scrubbing ? ProjectPreviewQuality.P360 : PreviewQuality;
         try
         {
             // Timeline end has no frame. Do not display a source frame outside the retained interval.
             if (ticks >= DurationTicks) { _failedPreviewTicks = ticks; return; }
             var reply = await client.SendAsync("GetProjectFrame", new() { ProjectId = state.ProjectId,
-                ExpectedRevision = state.Revision, TimelineTicks = ticks, PreviewQuality = PreviewQuality });
+                ExpectedRevision = state.Revision, TimelineTicks = ticks, PreviewQuality = quality });
             if (!CanEdit || State.ProjectId != state.ProjectId || State.Revision != state.Revision ||
                 State.ServerInstanceId != state.ServerInstanceId || (PlayheadTicks != ticks && !_scrubbing) ||
                 qualityRequest != _qualityRequest || epoch != _previewEpoch || intent != _playbackIntent || IsPlayingPreview) return;
@@ -97,20 +104,22 @@ public sealed partial class ProjectWorkspaceViewModel
             { _failedPreviewTicks = ticks; return; }
             if (frame.Rgba is null) return;
             PreviewFrame = frame;
+            _frameQuality = quality;
             _previewNeedsRefresh = false;
             _previewPointerUnavailable = frame.PointerUnavailable;
             OnPropertyChanged(nameof(PreviewFrame));
             OnPropertyChanged(nameof(PreviewResolutionText));
         }
-        catch
+        catch (Exception ex)
         {
+            Serilog.Log.Debug(ex, "Editor still preview failed");
             if (State.ProjectId == state.ProjectId && State.Revision == state.Revision &&
                 State.ServerInstanceId == state.ServerInstanceId && PlayheadTicks == ticks) _failedPreviewTicks = ticks;
         }
         finally
         {
             OnPropertyChanged(nameof(PreviewStatus));
-            Interlocked.Exchange(ref _pollingPreview, 0);
+            PreviewSlotReleased();
         }
     }
 }

@@ -19,14 +19,16 @@ public sealed partial class ProjectWorkspaceViewModel
         OnPropertyChanged(nameof(IsPlayingPreview));
         OnPropertyChanged(nameof(CanPreview));
         OnPropertyChanged(nameof(PlaybackButtonText));
+        OnPropertyChanged(nameof(PlaybackHint));
         OnPropertyChanged(nameof(PreviewStatus));
+        OnPropertyChanged(nameof(PreviewMixText));
     }
 
     [RelayCommand]
     public async Task TogglePlaybackAsync()
     {
         if (IsPlayingPreview || IsChangingPreviewQuality) await StopPreviewAsync();
-        else if (CanPreview) await StartPreviewAsync(PlayheadTicks >= DurationTicks ? 0 : PlayheadTicks, ++_playbackIntent);
+        else if (CanPreview) { _rangePlayback=null; await StartPreviewAsync(PlayheadTicks >= DurationTicks ? 0 : PlayheadTicks, ++_playbackIntent); }
     }
 
     private async Task StartPreviewAsync(long ticks, long intent)
@@ -44,7 +46,7 @@ public sealed partial class ProjectWorkspaceViewModel
             var state = State;
             var reply = await client.SendAsync("PlayProjectPreview", new() { ProjectId = state.ProjectId,
                 ExpectedRevision = state.Revision, TimelineTicks = ticks, OperationId = Guid.NewGuid(), PreviewQuality = PreviewQuality,
-                PreviewMuted = PreviewMuted });
+                PreviewMuted = PreviewMuted, PreviewEndTicks=_rangePlayback?.End });
             if (intent != _playbackIntent) return; // Next queued command replaces or stops this generation.
             if (!reply.Success || reply.Unconfirmed || reply.Playback is null)
             { Error = reply.Error ?? "Preview status is unconfirmed."; StatusUnconfirmed = reply.Unconfirmed; return; }
@@ -60,6 +62,7 @@ public sealed partial class ProjectWorkspaceViewModel
 
     public async Task<bool> StopPreviewAsync()
     {
+        _rangePlayback=null; UpdatePreviewLevel(null);
         ++_playbackIntent;
         await _playbackGate.WaitAsync();
         try { return await StopPreviewCoreAsync(); }
@@ -104,6 +107,7 @@ public sealed partial class ProjectWorkspaceViewModel
                 reply.State.ProjectId != state.ProjectId || reply.State.Revision != state.Revision || reply.State.ServerInstanceId != state.ServerInstanceId)
             { Error = reply.Error ?? "Preview connection lost."; await StopPreviewAsync(); return; }
             var playback = reply.Playback;
+            UpdatePreviewLevel(playback.Playing?playback.AudioLevel:null);
             _clockUpdate = true;
             try { PlayheadTicks = Math.Clamp(playback.TimelineTicks, 0, DurationTicks); }
             finally { _clockUpdate = false; }
@@ -112,7 +116,8 @@ public sealed partial class ProjectWorkspaceViewModel
             { PreviewFrame = frame; _previewPointerUnavailable = frame.PointerUnavailable;
               OnPropertyChanged(nameof(PreviewFrame)); OnPropertyChanged(nameof(PreviewResolutionText)); }
             IsPlayingPreview = playback.Playing;
-            if (!playback.Playing) { _playbackGeneration = null; if (playback.Error is not null) Error = playback.Error; }
+            if (!playback.Playing) { _playbackGeneration = null; if (playback.Error is not null) Error = playback.Error;
+                await RepeatRangeIfNeededAsync(intent,playback); }
         }
         catch (Exception ex) { Error = ex.Message; await StopPreviewAsync(); }
         finally { NotifyPlayback(); Interlocked.Exchange(ref _pollingPreview, 0); }

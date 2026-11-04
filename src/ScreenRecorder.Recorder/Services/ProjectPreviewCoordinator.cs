@@ -27,6 +27,7 @@ public sealed class ProjectPreviewCoordinator : IAsyncDisposable
     private long _leaseUntil;
     private Exception? _failure;
     private ProjectPreviewSettings? _settings;
+    private long _audioLevelAt;
     public ProjectPlaybackState State { get { lock (_sync) return _state; } }
 
     public ProjectPreviewCoordinator(ProjectRecordingCoordinator coordinator, ProjectPlayback play, TimeSpan? leaseDuration = null)
@@ -38,7 +39,7 @@ public sealed class ProjectPreviewCoordinator : IAsyncDisposable
         coordinator.AttachPreviewStop(StopAsync);
     }
 
-    public async Task<ProjectPlaybackState> PlayAsync(Guid projectId, long revision, long ticks, ProjectPreviewQuality quality = ProjectPreviewQuality.P720, bool muted = false)
+    public async Task<ProjectPlaybackState> PlayAsync(Guid projectId, long revision, long ticks, ProjectPreviewQuality quality = ProjectPreviewQuality.P720, bool muted = false, long? endTicks = null)
     {
         await StopAsync();
         var project = _coordinator.Current;
@@ -46,8 +47,16 @@ public sealed class ProjectPreviewCoordinator : IAsyncDisposable
             _coordinator.Mode is not (ProjectMode.Ready or ProjectMode.Paused) ||
             _coordinator.ExportStatus?.State == RecordingExportState.Running || ProjectTimeline.Build(project).Locate(ticks) is null)
             throw new InvalidOperationException("Preview snapshot or position is unavailable.");
+        if(endTicks is long end && (end<=ticks || end>ProjectTimeline.Build(project).DurationTicks))
+            throw new InvalidDataException("Preview range is invalid.");
         var generation = Guid.NewGuid();
         var settings = new ProjectPreviewSettings(ProjectPreviewFormat.Resolve(project.Canvas, quality)) {
+            EndTicks=endTicks,
+            AudioLevel=(peak,rms,overload)=> {
+                var now=Environment.TickCount64;
+                lock(_sync) if(_state.Generation==generation && _state.Playing && now-_audioLevelAt>=100)
+                { _audioLevelAt=now; _state=_state with { AudioLevel=new(peak,rms,overload) }; }
+            },
             OpenPointerCursor = (source, ct) => _coordinator.OpenPointerCursorAsync(projectId, revision, source.Id, ct)
         };
         settings.Audio.Muted = muted;
@@ -59,6 +68,7 @@ public sealed class ProjectPreviewCoordinator : IAsyncDisposable
         {
             _state = new(generation, ticks, true, null) { Muted = muted };
             _settings = settings;
+            _audioLevelAt=0;
             _frame = null;
             _leaseUntil = Environment.TickCount64 + (long)_leaseDuration.TotalMilliseconds;
         }
@@ -107,7 +117,7 @@ public sealed class ProjectPreviewCoordinator : IAsyncDisposable
             {
                 life.Cancel();
                 await watchdog;
-                lock (_sync) _state = _state with { Playing = false };
+                lock (_sync) _state = _state with { Playing = false, AudioLevel=null };
             }
         });
         lock (_sync) return _state;
@@ -119,7 +129,7 @@ public sealed class ProjectPreviewCoordinator : IAsyncDisposable
         {
             if (_state.Generation != generation) throw new InvalidOperationException("Obsolete preview generation.");
             _leaseUntil = Environment.TickCount64 + (long)_leaseDuration.TotalMilliseconds;
-            return (_state, _frame);
+            return (_state with { AudioLevel=Environment.TickCount64-_audioLevelAt>500?null:_state.AudioLevel }, _frame);
         }
     }
 

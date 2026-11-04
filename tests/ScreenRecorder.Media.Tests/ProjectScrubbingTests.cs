@@ -13,6 +13,58 @@ namespace ScreenRecorder.Media.Tests;
 
 public sealed class ProjectScrubbingTests
 {
+    [AvaloniaTheory]
+    [InlineData(false)] [InlineData(true)]
+    public async Task TrimHandleCommitsOnceOrEscapeCancelsWithoutEditing(bool cancel)
+    {
+        var client=new ScrubClient();var vm=new ProjectWorkspaceViewModel(client);await vm.RefreshAsync();
+        vm.SelectedClip=client.Clip;
+        var timeline=new ProjectTimelineControl{DataContext=vm};var window=new Window{Content=timeline,Width=1000,Height=260};
+        try{
+            window.Show();window.UpdateLayout();
+            window.MouseDown(new(980,75),MouseButton.Left);window.MouseMove(new(700,75));
+            Assert.Empty(client.Edits);
+            if(cancel)window.KeyPressQwerty(PhysicalKey.Escape,RawInputModifiers.None);
+            window.MouseUp(new(700,75),MouseButton.Left);
+            if(cancel)Assert.Empty(client.Edits);
+            else {var edit=Assert.IsType<ProjectClipEdit.TrimEdge>(Assert.Single(client.Edits));Assert.False(edit.Start);Assert.True(edit.DeltaTicks<0);}
+        }finally{window.Close();}
+    }
+
+    [Fact]
+    public async Task ImmediateRefreshDrainsOnlyLatestPositionWithoutOverlappingRequests()
+    {
+        var client = new ScrubClient(); var vm = new ProjectWorkspaceViewModel(client);
+        await vm.RefreshAsync();
+        var signals = 0; vm.PreviewRequested += (_, _) => signals++;
+        vm.Seek(1_000_000); var drain = vm.DrainPreviewRequestsAsync();
+        vm.Seek(2_000_000); vm.Seek(6_000_000);
+        await vm.DrainPreviewRequestsAsync();
+        Assert.Equal(1_000_000, client.FrameTicks);
+        var next = new TaskCompletionSource<ProjectReply>();
+        var old = client.Pending; client.Pending = next;
+        old.SetResult(new(true, null, client.State) { Frame = new(0, 1_000_000, client.Clip.Id, new byte[ProjectFrameReply.ByteCount]) });
+        Assert.Equal(6_000_000, client.FrameTicks);
+        client.Complete(); await drain;
+        Assert.Equal(6_000_000, vm.PreviewFrame!.TimelineTicks);
+        Assert.True(signals >= 3);
+    }
+
+    [Fact]
+    public async Task ScrubUsesLightQualityAndSettledPositionRefetchesSameTicks()
+    {
+        var client = new ScrubClient(); var vm = new ProjectWorkspaceViewModel(client);
+        await vm.RefreshAsync();
+        vm.BeginPreviewScrub(); vm.Seek(2_000_000);
+        var poll = vm.PollPreviewAsync(); client.Complete(); await poll;
+        Assert.Equal(ProjectPreviewQuality.P360, client.FrameQuality);
+        await vm.EndPreviewScrubAsync();
+        client.Pending = new(); poll = vm.PollPreviewAsync();
+        Assert.False(poll.IsCompleted);
+        Assert.Equal(ProjectPreviewQuality.P720, client.FrameQuality);
+        client.Complete(); await poll;
+    }
+
     [Fact]
     public async Task FrameStillInFlightAtReleaseCannotReplaceFinalPositionOrNewProject()
     {
@@ -117,14 +169,17 @@ public sealed class ProjectScrubbingTests
             { ServerInstanceId = Guid.NewGuid() };
         public TaskCompletionSource<ProjectReply> Pending = new();
         public long FrameTicks, PlayTicks;
+        public ProjectPreviewQuality FrameQuality;
         public int Plays, Stops;
+        public List<ProjectClipEdit> Edits=[];
         public TaskCompletionSource<ProjectReply>? HeldStop;
         private readonly Guid generation = Guid.NewGuid();
         public void Complete() => Pending.SetResult(new(true, null, State) {
             Frame = new(0, FrameTicks, Clip.Id, new byte[ProjectFrameReply.ByteCount]) });
         public Task<ProjectReply> SendAsync(string command, ProjectRequest request, CancellationToken ct = default)
         {
-            if (command == "GetProjectFrame") { FrameTicks = request.TimelineTicks; return Pending.Task; }
+            if(command=="ApplyProjectEdit" && request.Edit is { } edit)Edits.Add(edit);
+            if (command == "GetProjectFrame") { FrameTicks = request.TimelineTicks; FrameQuality = request.PreviewQuality; return Pending.Task; }
             if (command == "PlayProjectPreview") { Plays++; PlayTicks = request.TimelineTicks;
                 return Task.FromResult(new ProjectReply(true, null, State) { Playback = new(generation, PlayTicks, true, null) }); }
             if (command == "StopProjectPreview") { Stops++;

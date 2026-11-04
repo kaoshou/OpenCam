@@ -49,6 +49,6 @@ public sealed partial class ProjectWorkspaceViewModel
             OnPropertyChanged(nameof(Thumbnails));
         }
         catch { /* Derived images never change project save state. */ }
-        finally { Interlocked.Exchange(ref _pollingPreview, 0); }
+        finally { PreviewSlotReleased(); }
     }
 }

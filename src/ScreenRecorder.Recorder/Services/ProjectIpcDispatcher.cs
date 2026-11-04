@@ -125,7 +125,7 @@ public sealed class ProjectIpcDispatcher(ProjectRecordingCoordinator coordinator
                 if (frames is not null) await frames.SuspendAsync();
                 if (waveforms is not null) await waveforms.SuspendAsync();
                 return Reply(new(true, null, Snapshot()) { Playback = await preview.PlayAsync(request.ProjectId!.Value,
-                    request.ExpectedRevision, request.TimelineTicks, request.PreviewQuality, request.PreviewMuted) });
+                    request.ExpectedRevision, request.TimelineTicks, request.PreviewQuality, request.PreviewMuted,request.PreviewEndTicks) });
             }
             if (_operations.Count >= 20000) throw new InvalidOperationException("Save and restart OpenCam before issuing more project commands.");
             if (waveforms is not null && message.MessageType is

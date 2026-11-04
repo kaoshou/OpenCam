@@ -20,12 +20,13 @@ public sealed partial class ProjectMediaJob
     }
 
     /// <summary>Same composition as export, streamed as fixed-sized RGBA output frames.</summary>
-    public static ProjectMediaJob PreviewVideo(ProjectRenderPlan plan, int index, long skipFrames, int width = 512, int height = 288)
+    public static ProjectMediaJob PreviewVideo(ProjectRenderPlan plan, int index, long skipFrames, int width = 512, int height = 288, long? maximumFrames = null)
     {
         if (width <= 0 || height <= 0 || (long)width * height * 4 > MaximumFrameBytes)
             throw new ArgumentOutOfRangeException(nameof(width));
         var export = ComposeClipVideo(plan, index, skipFrames, true);
         var count = plan.Clips[index].EndFrame - plan.Clips[index].StartFrame - skipFrames;
+        if (maximumFrames is long max) count = Math.Min(count,max);
         if (skipFrames < 0 || count <= 0) throw new ArgumentOutOfRangeException(nameof(skipFrames));
         var args = export._exportArguments!;
         var filterIndex = Array.IndexOf(args, "-filter_complex");
@@ -40,14 +41,15 @@ public sealed partial class ProjectMediaJob
     }
 
     /// <summary>Seeking slices already-placed PCM, preserving original fade position and silence.</summary>
-    public static ProjectMediaJob PreviewAudio(ProjectRenderPlan plan, int index, long skipSamples)
+    public static ProjectMediaJob PreviewAudio(ProjectRenderPlan plan, int index, long skipSamples, long? maximumSamples = null)
     {
         var export = RenderClipAudio(plan, index);
         var count = plan.Clips[index].EndAudioSample - plan.Clips[index].StartAudioSample - skipSamples;
+        if (maximumSamples is long max) count=Math.Min(count,max);
         if (skipSamples < 0 || count <= 0) throw new ArgumentOutOfRangeException(nameof(skipSamples));
         var args = export._exportArguments!.ToArray();
         var filterIndex = Array.IndexOf(args, "-filter_complex") + 1;
-        args[filterIndex] += FormattableString.Invariant($";[a]atrim=start_sample={skipSamples},asetpts=PTS-STARTPTS[preview-a]");
+        args[filterIndex] += FormattableString.Invariant($";[a]atrim=start_sample={skipSamples}:end_sample={checked(skipSamples+count)},asetpts=PTS-STARTPTS[preview-a]");
         args[Array.IndexOf(args, "-map") + 1] = "[preview-a]";
         return new(export.SourcePts, export.TimeBase, 0, 0) { IsLongRunning = true,
             OutputLimit = checked(count * 8), ExactLength = checked(count * 8), _exportArguments = args };
