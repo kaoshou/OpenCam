@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { renderGuide, rewriteGuideHref } from '../src/guide.mjs';
 import { buildSite } from '../build.mjs';
+import { downloadVersion } from '../src/content.mjs';
 
 const repositoryRoot = resolve(import.meta.dirname, '../..');
 
@@ -26,7 +27,9 @@ test('guide screenshot links resolve to the same published assets as home', () =
 });
 
 test('project documentation reports only current, evidence-backed behavior', async () => {
-  const version = (await readFile(join(repositoryRoot, 'VERSION'), 'utf8')).trim();
+  // Public documentation describes the verified release, even while the
+  // application VERSION has advanced for unreleased development builds.
+  const version = downloadVersion;
   const files = [
     'ARCHITECTURE.md',
     'ROADMAP.md',
