@@ -16,6 +16,16 @@ namespace ScreenRecorder.Media.Tests;
 
 public class ScreenAnnotationUiTests
 {
+    [Fact]
+    public void WindowsOperatePolicyPassesClicksThroughInkAndDrawingRestoresInput()
+    {
+        // Preserve the renderer's NOREDIRECTIONBITMAP and unrelated application flags.
+        const long rendererFlags=0x00200008;
+        var operate=AnnotationNativeWindow.WindowsInputStyles(rendererFlags,false);
+        Assert.Equal(0x082800a8L,operate); // LAYERED + TRANSPARENT + NOACTIVATE + TOOLWINDOW.
+        Assert.Equal(operate,AnnotationNativeWindow.WindowsInputStyles(operate,false));
+        Assert.Equal(0x00200088L,AnnotationNativeWindow.WindowsInputStyles(operate,true));
+    }
     [AvaloniaFact]
     public void ConfiguredShortcutHintsRefreshWithoutReplacingButtonsOrMarks()
     {
@@ -291,7 +301,7 @@ public class ScreenAnnotationUiTests
             toolbar.GetVisualDescendants().OfType<Button>().Single(b=>AutomationProperties.GetName(b)==LanguageManager.Instance["AnnotationsPen"]).RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
             Assert.True(overlay.IsVisible);
             toolbar.GetVisualDescendants().OfType<Button>().Single(b=>AutomationProperties.GetName(b)==LanguageManager.Instance["AnnotationsOperate"]).RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
-            Assert.False(overlay.IsVisible);Assert.True(toolbar.IsVisible);
+            Assert.True(overlay.IsVisible);Assert.True(toolbar.IsVisible);
             toolbar.GetVisualDescendants().OfType<Button>().Single(b=>AutomationProperties.GetName(b)==LanguageManager.Instance["AnnotationsPen"]).RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
             host.Document.Begin(new(10,10),true);host.Document.Move(new(30,30));host.Document.End();
             host.TogglePen();Assert.Single(host.Document.Marks);host.TogglePen();Assert.Single(host.Document.Marks);
@@ -299,8 +309,41 @@ public class ScreenAnnotationUiTests
             Assert.True(overlay.IsVisible);Assert.Single(host.Document.Marks);
             host.SetPaused(true);Assert.False(overlay.IsVisible);host.SetPaused(false);
             Assert.True(overlay.IsVisible);Assert.Single(host.Document.Marks);
-            host.Document.Clear();Assert.False(overlay.IsVisible);
+            host.Document.Clear();Assert.True(overlay.IsVisible);
             host.Document.Undo();Assert.True(overlay.IsVisible);Assert.Single(host.Document.Marks);
+        }
+        finally{host.Dispose();owner.Close();}
+    }
+    [AvaloniaFact]
+    public void ClearInOperateModeDoesNotRemapTheSurfaceWhenSelectingEraser()
+    {
+        var owner=new Window{Width=400,Height=300};owner.Show();owner.UpdateLayout();
+        var screen=owner.Screens.ScreenFromWindow(owner)!;
+        using var host=new AnnotationOverlayHost(owner,new(screen.Bounds.X+20,screen.Bounds.Y+20,200,150),0xffe63946,4,(_,_)=>{},()=>true,(_,_)=>true);
+        try
+        {
+            host.Show();host.TogglePen();
+            var overlay=(Window)typeof(AnnotationOverlayHost).GetField("_overlay",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.GetValue(host)!;
+            var toolbar=(Window)typeof(AnnotationOverlayHost).GetField("_toolbar",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.GetValue(host)!;
+            var shown=0;overlay.Opened+=(_,_)=>shown++;
+            byte[]? Frame()
+            {
+                if(Environment.GetEnvironmentVariable("OPENCAM_REAL_UI_RENDER")!="1")return null;
+                overlay.UpdateLayout();AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+                using var bitmap=overlay.CaptureRenderedFrame();Assert.NotNull(bitmap);
+                using var png=new MemoryStream();bitmap.Save(png);return png.ToArray();
+            }
+            var empty=Frame();
+            host.Document.Begin(new(10,10),true);host.Document.Move(new(30,30));host.Document.End();
+            if(empty is not null)Assert.False(empty.SequenceEqual(Frame()!));
+            host.TogglePen();Assert.True(overlay.IsVisible);Assert.Single(host.Document.Marks);
+            toolbar.GetVisualDescendants().OfType<Button>().Single(b=>AutomationProperties.GetName(b)==LanguageManager.Instance["AnnotationsClear"]).RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+            Assert.Empty(host.Document.Marks);Assert.True(overlay.IsVisible);
+            toolbar.GetVisualDescendants().OfType<Button>().Single(b=>AutomationProperties.GetName(b)==LanguageManager.Instance["AnnotationsRemove"]).RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+            Assert.Empty(host.Document.Marks);Assert.Equal(0,shown);
+            if(empty is not null)Assert.Equal(empty,Frame());
+            // Clear remains undoable; choosing a tool must not restore the cleared marks.
+            host.Document.Undo();Assert.Single(host.Document.Marks);
         }
         finally{host.Dispose();owner.Close();}
     }

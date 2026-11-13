@@ -34,6 +34,7 @@ internal sealed class AnnotationOverlayHost:IAnnotationHost
             CanResize=false,Topmost=true,ShowActivated=false,Background=Brushes.Transparent,
             TransparencyLevelHint=[WindowTransparencyLevel.Transparent],Content=_canvas,Width=region.Width/_scale,Height=region.Height/_scale,
             Position=_origin,WindowStartupLocation=WindowStartupLocation.Manual};
+        AnnotationNativeWindow.ConfigureOverlay(_overlay,()=>_canvas.Interactive);
         _toolbar=new(Document,SetMode,Dispose,saveStyle,Fail,()=>{SetMode(false);owner.WindowState=WindowState.Minimized;},ToggleToolbar,_shortcutAvailable,finishShortcut,shortcutText){WindowStartupLocation=WindowStartupLocation.Manual};
         var x=_lastToolbarPosition?.X??region.X+16;var y=_lastToolbarPosition?.Y??region.Y+16;
         _toolbar.Position=new(Math.Clamp(x,bounds.X,Math.Max(bounds.X,bounds.Right-(int)Math.Ceiling(_toolbar.Width*_scale))),
@@ -72,11 +73,11 @@ internal sealed class AnnotationOverlayHost:IAnnotationHost
     {
         if(_closed||_paused)return;
         _canvas.CancelGesture();
+        _canvas.Interactive=drawing;
         if(drawing&&!_overlay.IsVisible){_overlay.Show();_overlay.Position=_origin;}
         if(!_setInteractive(_overlay,drawing))throw new InvalidOperationException("Cannot switch native annotation input policy");
-        _canvas.Interactive=drawing;_toolbar.SetMode(drawing);
+        _toolbar.SetMode(drawing);
         if(drawing){_overlay.Activate();_canvas.Focus();}
-        else if(Document.Marks.IsEmpty)_overlay.Hide();
         AnnotationNativeWindow.ConfigureToolbar(_toolbar);
         AnnotationNativeWindow.RaiseExistingPointer();
     }
@@ -107,7 +108,10 @@ internal sealed class AnnotationOverlayHost:IAnnotationHost
         if(_closed||!_shown||_paused||_canvas.Interactive)return;
         Guard(()=>
         {
-            if(Document.Marks.IsEmpty){if(_overlay.IsVisible)_overlay.Hide();return;}
+            // Keep an already mapped surface alive when clearing. Hiding immediately
+            // after InvalidateVisual prevents the empty frame from reaching the
+            // compositor, so the next Show can briefly expose the old ink buffer.
+            if(Document.Marks.IsEmpty)return;
             if(_overlay.IsVisible)return;
             _overlay.Show();_overlay.Position=_origin;
             if(!_setInteractive(_overlay,false))throw new InvalidOperationException("Cannot release annotation input");
