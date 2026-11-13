@@ -9,7 +9,7 @@ OpenCam 是 Windows、macOS 與 Linux（Beta）桌面螢幕錄影工具，讓你
 
 ## v1.3.0 更新重點
 
-- **更精確的剪輯**：逐格定位、片段邊界與重點吸附，拖曳選取片段的左右手把向內修剪；放開才套用，可取消及復原。
+- **更精確的剪輯**：逐格定位、片段邊界與重點吸附；透過分割、刪除整理片段，支援復原與重做。
 - **範圍播放與音量表**：使用 I／O 標記範圍、播放選取範圍及循環試聽，查看效果調整後的預覽混音音量；既有混音不能拆成獨立來源。
 - **預覽操作改善**：快速拖曳時合併過期請求，拖曳期間降低預覽畫質、放開後恢復所選畫質；不改變匯出品質。
 - **狀態與問題回報更清楚**：區分儲存、預覽與最近輸出狀態；「設定 → 關於本程式 → 支援與診斷」提供日誌資料夾、環境資訊與診斷 ZIP。
@@ -131,7 +131,7 @@ OpenCam is a desktop screen recorder for Windows, macOS and Linux (Beta). Record
 
 ### What's new in v1.3.0
 
-- **Precise editing**: frame stepping, snapping to clip edges/bookmarks and inward trimming with selected clip handles. Release to apply, cancel or undo without modifying source media.
+- **Precise editing**: frame stepping and snapping to clip edges/bookmarks; split and delete unwanted clips, with undo and redo while preserving source media.
 - **Range playback and mix levels**: mark a range with I/O, play or repeat it, and view actual post-effect preview mix levels. Already mixed inputs cannot be separated.
 - **Preview scheduling**: coalesce obsolete requests while scrubbing, lower preview quality during dragging and restore the selected quality on release. Export quality is unchanged.
 - **Clearer status and support**: distinguish saving, preview errors and latest exports. Settings → About → Support and diagnostics offers logs, environment information and diagnostic ZIP export.

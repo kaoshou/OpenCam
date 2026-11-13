@@ -15,7 +15,7 @@ public partial class RecordingEncoderLifecycleTests
     [Avalonia.Headless.XUnit.AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task ProjectIpc_SelectedTrimHandleCommitsOnceAndUndoRestoresSourceRanges(bool rightEdge)
+    public async Task ProjectIpc_SelectedClipEdgeDragPreservesRangesAndSourceMedia(bool rightEdge)
     {
         await using var scope = new RecordingScope();
         await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
@@ -45,11 +45,9 @@ public partial class RecordingEncoderLifecycleTests
             Avalonia.Headless.HeadlessWindowExtensions.MouseMove(window, end);
             Avalonia.Headless.HeadlessWindowExtensions.MouseUp(window, end, Avalonia.Input.MouseButton.Left);
             await UntilAsync(() => !vm.IsBusy);
-            Assert.True(vm.DurationTicks<duration,$"duration={vm.DurationTicks}/{duration}, revision={coordinator.Current!.Revision}/{revision}, error={vm.Error}, start={start}, end={end}, width={timeline.Bounds.Width}, selected={vm.SelectedClip?.Id}, first={vm.Clips[0].Id}");
-            Assert.Equal(revision+1,coordinator.Current!.Revision);
+            Assert.Equal(duration, vm.DurationTicks);
+            Assert.Equal(revision,coordinator.Current!.Revision);
             Assert.All(coordinator.Current.Sources,s=>Assert.True(s.FileSize>0));
-            await vm.UndoAsync();
-            Assert.Equal(duration,vm.DurationTicks);
             Assert.All(vm.Clips, c => Assert.Equal(ranges[c.Id], (c.InPts, c.OutPts)));
             foreach(var item in sourceHashes)Assert.Equal(item.Value,Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
                 File.ReadAllBytes(Path.Combine(coordinator.ProjectDirectory!,item.Key)))));
@@ -63,7 +61,7 @@ public partial class RecordingEncoderLifecycleTests
     [InlineData("outside", false)]
     [InlineData("fit", true)]
     [InlineData("zoom", true)]
-    public async Task ProjectIpc_CanceledTimelineGestureDoesNotSave(string cancellation, bool trim)
+    public async Task ProjectIpc_CanceledTimelineGestureDoesNotSave(string cancellation, bool nearEdge)
     {
         await using var scope = new RecordingScope();
         await using var coordinator = new ProjectRecordingCoordinator(scope.Recorder, new JsonProjectStore(), new ProjectProbeStub());
@@ -78,8 +76,8 @@ public partial class RecordingEncoderLifecycleTests
         try
         {
             var revision = coordinator.Current!.Revision;
-            var initial = new Avalonia.Point(trim ? 18 : 200,82);
-            var target = new Avalonia.Point(trim ? 200 : timeline.Bounds.Width-20,82);
+            var initial = new Avalonia.Point(nearEdge ? 18 : 200,82);
+            var target = new Avalonia.Point(nearEdge ? 200 : timeline.Bounds.Width-20,82);
             Avalonia.Headless.HeadlessWindowExtensions.MouseDown(window, initial, Avalonia.Input.MouseButton.Left);
             Avalonia.Headless.HeadlessWindowExtensions.MouseMove(window, target);
             switch (cancellation)
@@ -217,12 +215,9 @@ public partial class RecordingEncoderLifecycleTests
             Avalonia.Headless.HeadlessWindowExtensions.MouseMove(window, new(18 + (width-32)/4,82));
             Avalonia.Headless.HeadlessWindowExtensions.MouseUp(window, new(18 + (width-32)/4,82), Avalonia.Input.MouseButton.Left);
             await UntilAsync(() => !vm.IsBusy);
-            Assert.True(coordinator.Current.Clips[0].InPts>0);
+            Assert.Equal(0, coordinator.Current.Clips[0].InPts);
             Assert.Equal(1000, coordinator.Current.Clips[0].OutPts);
-            Assert.Equal(revision + 2, coordinator.Current.Revision); // New explicit trim handle commits one edit.
-            await vm.UndoAsync();
-            Assert.Equal(0,coordinator.Current.Clips[0].InPts);
-            Assert.Equal(1000,coordinator.Current.Clips[0].OutPts);
+            Assert.Equal(revision + 1, coordinator.Current.Revision); // Edge dragging must not trim.
             revision = coordinator.Current.Revision;
             Avalonia.Headless.HeadlessWindowExtensions.MouseDown(window, new(18,82), Avalonia.Input.MouseButton.Left);
             Avalonia.Headless.HeadlessWindowExtensions.MouseMove(window, new(18 + (width-32)/4,82));

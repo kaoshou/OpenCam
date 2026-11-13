@@ -108,7 +108,7 @@ See the [README](../README.md) for Windows download and portable-use instruction
 
 ### Editing, preview and saving
 
-- Select clips in the left list or timeline and drag clips to reorder. Drag the selected timeline clip's edge handles inward to trim; release applies and Escape cancels. Handles do not extend outward to recover removed content; use undo/redo or existing properties. Seek and split at the playhead or delete a range/clip. Previously saved accidental trims are not automatically restored.
+- Select clips in the left list or timeline and drag clips to reorder. To remove content, position the playhead at the cut, choose Split, then select and delete unwanted clips. Undo and redo remain available, and original media is preserved.
 - Clip properties include name, volume (0–200%), mute, fades, crop, scale and position. Valid changes apply automatically after editing; use Save to save the project version. The pencil beside the title renames the project without moving its folder or original MKVs.
 - Preview supports play/pause, seeking, quality selection, a resizable area and fullscreen. Preview sound is on/off, with no separate volume slider; it does not change exported audio. Original-resolution preview is subject to a frame-memory limit. Preview quality does not change export settings.
 - Explicit Save commits the editing version. A recovery draft protects interrupted edits; it is not a saved version or an updated MP4. Switching/closing with unsaved changes offers Save, Discard or Cancel. Reopening a recoverable draft offers a restore decision.

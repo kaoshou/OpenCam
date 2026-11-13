@@ -270,7 +270,7 @@ public partial class LocalizationService
         ["ProjectWaveformLoading"] = "波形を読み込み中…",
         ["ProjectWaveformUnavailable"] = "波形を読み込めません",
         ["ProjectNoAudioTrack"] = "音声トラックなし",
-        ["ProjectTimelineHelp"] = "時間目盛りをドラッグして移動・プレビュー。クリップのドラッグは並べ替えです。開始、終了の順に範囲を設定します。ホイールで移動、Ctrl／⌘＋ホイールで拡大縮小。Esc でドラッグを取り消します。",
+        ["ProjectTimelineHelp"] = "時間目盛りをドラッグして移動・プレビュー、クリップをドラッグして並べ替えます。内容を削除するには、位置を指定して分割し、不要なクリップを削除します。開始、終了の順に範囲を設定します。ホイールで移動、Ctrl／⌘＋ホイールで拡大縮小。Esc でドラッグを取り消します。",
         ["ProjectMoveLater"] = "後へ移動",
         ["ProjectDeleteClip"] = "クリップを削除",
         ["ProjectClipName"] = "クリップ名",

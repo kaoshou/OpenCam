@@ -129,8 +129,6 @@ public sealed partial class ProjectWorkspaceViewModel
         ExecuteAsync("ApplyProjectEdit", new() { Edit = new ProjectClipEdit.RemoveRange(RangeStartTicks!.Value, RangeEndTicks!.Value) });
     public Task MoveClipAsync(Guid clipId, Guid? beforeId) => !CanEditTimeline || !Clips.Any(c => c.Id == clipId) ? Task.CompletedTask :
         ExecuteAsync("ApplyProjectEdit", new() { Edit = new ProjectClipEdit.Move(clipId, beforeId) });
-    public Task TrimEdgeAsync(Guid clipId, bool start, long deltaTicks) => !CanEditTimeline || !Clips.Any(c => c.Id == clipId) ? Task.CompletedTask :
-        ExecuteAsync("ApplyProjectEdit", new() { Edit = new ProjectClipEdit.TrimEdge(clipId, start, deltaTicks) });
     [RelayCommand] public Task GroupWithNextAsync()
     {
         if (!CanMoveLater) return Task.CompletedTask;

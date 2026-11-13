@@ -14,20 +14,25 @@ namespace ScreenRecorder.Media.Tests;
 public sealed class ProjectScrubbingTests
 {
     [AvaloniaTheory]
-    [InlineData(false)] [InlineData(true)]
-    public async Task TrimHandleCommitsOnceOrEscapeCancelsWithoutEditing(bool cancel)
+    [InlineData(false,false)] [InlineData(false,true)]
+    [InlineData(true,false)] [InlineData(true,true)]
+    public async Task DraggingEitherClipEdgeNeverTrims(bool leftEdge, bool cancel)
     {
         var client=new ScrubClient();var vm=new ProjectWorkspaceViewModel(client);await vm.RefreshAsync();
         vm.SelectedClip=client.Clip;
         var timeline=new ProjectTimelineControl{DataContext=vm};var window=new Window{Content=timeline,Width=1000,Height=260};
         try{
             window.Show();window.UpdateLayout();
-            window.MouseDown(new(980,75),MouseButton.Left);window.MouseMove(new(700,75));
+            var initial = new Point(leftEdge ? 18 : 980,75);
+            var target = new Point(leftEdge ? 300 : 700,75);
+            var duration = vm.DurationTicks;
+            window.MouseDown(initial,MouseButton.Left);window.MouseMove(target);
             Assert.Empty(client.Edits);
             if(cancel)window.KeyPressQwerty(PhysicalKey.Escape,RawInputModifiers.None);
-            window.MouseUp(new(700,75),MouseButton.Left);
-            if(cancel)Assert.Empty(client.Edits);
-            else {var edit=Assert.IsType<ProjectClipEdit.TrimEdge>(Assert.Single(client.Edits));Assert.False(edit.Start);Assert.True(edit.DeltaTicks<0);}
+            window.MouseUp(target,MouseButton.Left);
+            if(cancel) Assert.Empty(client.Edits);
+            else Assert.Equal(client.Clip.Id, Assert.IsType<ProjectClipEdit.Move>(Assert.Single(client.Edits)).ClipId);
+            Assert.Equal(duration, vm.DurationTicks);
         }finally{window.Close();}
     }
 
