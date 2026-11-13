@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Audit-oriented source delivery. This script does not make a legal compliance determination.
 import {readFile,writeFile,mkdir,copyFile,lstat,rm} from 'node:fs/promises';
-import {createReadStream,createWriteStream} from 'node:fs';
+import {createReadStream} from 'node:fs';
 import {createHash} from 'node:crypto';
-import {pipeline} from 'node:stream/promises';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {resolve,join} from 'node:path';
@@ -77,7 +76,9 @@ export async function collectSources(destination,{lock,sourceDirectories={},subm
     process.stderr.write(`Collect archive: ${archive.id}\n`);
     const target=join(payload,archive.filename);
     if(archiveDirectory){const source=join(resolve(archiveDirectory),archive.filename);if(!(await lstat(source)).isFile())throw new Error('Supplied archive is not a regular file');await copyFile(source,target);}
-    else {const response=await fetch(archive.url,{signal:AbortSignal.timeout(300000)});if(!response.ok)throw new Error(`Source archive HTTP ${response.status}: ${archive.id}`);await pipeline(response.body,createWriteStream(target,{flags:'wx'}));}
+    else await run('curl',['--fail','--location','--silent','--show-error','--retry','3',
+      '--connect-timeout','30','--max-time','240','--proto','=https','--proto-redir','=https',
+      '--http1.1','--output',target,archive.url],commandOptions);
     const actual=await hash(target);if(actual.sha256!==archive.sha256)throw new Error(`Source archive checksum mismatch: ${archive.id}`);
     report.archives.push({...archive,path:`sources/${archive.filename}`,...actual});
   }

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { createServer } from 'node:https';
 
 const moduleUrl = new URL('../../scripts/collect-obs-corresponding-sources.mjs', import.meta.url);
 async function api() { return import(moduleUrl); }
@@ -49,6 +50,31 @@ test('rejects corrupted or missing supplied archives', async t => {
   await assert.rejects(collectSources(join(f.dir,'bad'),{lock:f.lock,sourceDirectories:{fixture:f.repo},archiveDirectory:archives}),/checksum/i);
   await rm(join(archives,'srt.zip'));
   await assert.rejects(collectSources(join(f.dir,'missing'),{lock:f.lock,sourceDirectories:{fixture:f.repo},archiveDirectory:archives}),/ENOENT|missing/i);
+});
+
+for(const corrupt of [false,true]) test(`HTTPS archive download ${corrupt?'rejects changed bytes':'retains pinned bytes'}`,async t=>{
+  const f=await fixture(t),{collectSources}=await api();
+  const key=join(f.dir,'server.key'),cert=join(f.dir,'server.pem');
+  execFileSync('openssl',['req','-x509','-newkey','rsa:2048','-nodes','-keyout',key,'-out',cert,
+    '-days','1','-subj','/CN=localhost','-addext','subjectAltName=DNS:localhost'],{stdio:'ignore'});
+  const data=Buffer.from('pinned upstream archive bytes');
+  const server=createServer({key:await readFile(key),cert:await readFile(cert)},(_,response)=>{
+    response.writeHead(200,{'Connection':'close'});response.end(corrupt?'changed archive':data);
+  });
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  t.after(()=>new Promise(resolve=>server.close(resolve)));
+  const previousCa=process.env.CURL_CA_BUNDLE;
+  process.env.CURL_CA_BUNDLE=cert;
+  t.after(()=>{if(previousCa===undefined)delete process.env.CURL_CA_BUNDLE;else process.env.CURL_CA_BUNDLE=previousCa;});
+  f.lock.archives=[{id:'network',filename:'archive.tar.gz',url:`https://localhost:${server.address().port}/archive`,
+    sha256:createHash('sha256').update(data).digest('hex')}];
+  const out=join(f.dir,'out');
+  if(corrupt) await assert.rejects(collectSources(out,{lock:f.lock,sourceDirectories:{fixture:f.repo}}),/checksum/i);
+  else {
+    const report=await collectSources(out,{lock:f.lock,sourceDirectories:{fixture:f.repo}});
+    assert.deepEqual(await readFile(join(out,'sources/archive.tar.gz')),data);
+    assert.equal(report.archives[0].sha256,f.lock.archives[0].sha256);
+  }
 });
 
 test('rejects unsafe archive names and source identifiers before writing output', async t => {

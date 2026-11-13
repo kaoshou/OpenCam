@@ -1,10 +1,10 @@
 {
   "version": "1.3.0",
   "status": "policy-approved",
-  "reviewedBy": "OpenCam v1.3.0 source inventory and unchanged dependency recipe review 2026-11-13",
+  "reviewedBy": "OpenCam v1.3.0 source inventory and verified dependency recipe review 2026-11-13",
   "deliveryManifest": "SOURCE-COVERAGE.json",
   "checks": [
-    "OBS, Windows media and macOS media source locks and build recipes remain unchanged from v1.2.1; actual archives must still pass hash and recipe verification before publication.",
+    "OBS and macOS media source locks and build recipes remain unchanged from v1.2.1. Windows media uses official zlib 1.4 source and its published SHA-256; all other pinned inputs and the build recipe are unchanged. Actual archives must pass hash and recipe verification before publication.",
     "OpenCam modifications are supplied by the matching immutable release commit and GitHub source archive.",
     "The consolidated corresponding-source archive retains the original verified OBS, Windows media, macOS media and Linux source archives together with their provenance and checksum manifests.",
     "Linux source delivery and both Linux binaries must match the original Linux packaging checksum manifest before consolidation.",
