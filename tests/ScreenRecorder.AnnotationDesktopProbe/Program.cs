@@ -37,8 +37,13 @@ public sealed class ProbeApp:Application
                 WindowStartupLocation=WindowStartupLocation.Manual,SystemDecorations=SystemDecorations.None,Background=Brushes.White};
             var button=new Button{Background=Brushes.White,BorderThickness=new(0),HorizontalContentAlignment=Avalonia.Layout.HorizontalAlignment.Stretch,VerticalContentAlignment=Avalonia.Layout.VerticalAlignment.Stretch};
             button.Click+=(_,_)=>File.WriteAllText(file,(++count).ToString());target.Content=button;
+            Win32Properties.AddWndProcHookCallback(target,(nint h,uint message,nint w,nint l,ref bool handled)=>
+            {
+                if(message is 0x201 or 0x202)Console.WriteLine($"TARGET mouse message={message:x}, position={l:x}");
+                return 0;
+            });
             target.Show();target.UpdateLayout();
-            Dispatcher.UIThread.Post(async()=>{await Task.Delay(500);File.WriteAllText(file,"0");});return;
+            Dispatcher.UIThread.Post(async()=>{await Task.Delay(500);Console.WriteLine($"TARGET ready hwnd={target.TryGetPlatformHandle()!.Handle}, button={button.Bounds}, position={target.Position}");File.WriteAllText(file,"0");});return;
         }
         Dispatcher.UIThread.Post(async()=>
         {
@@ -67,7 +72,7 @@ public sealed class ProbeApp:Application
             int Count(){try{return int.Parse(File.ReadAllText(path));}catch(IOException){return -1;}}
             await Task.Delay(200);
             Console.WriteLine($"Baseline pixel={Native.Pixel(480,380):x}; foreground={Native.GetForegroundWindow()}; pointWindow={Native.WindowFromPoint(new(){X=480,Y=380})}");
-            Native.Click(new(480,380));await Until(()=>Count()==1,"Baseline independent target did not receive click");
+            await Native.Click(new(480,380));await Until(()=>Count()==1,"Baseline independent target did not receive click");
             Console.WriteLine("PASS: baseline SendInput reaches independent target button");
             owner.Show();var scale=owner.Screens.ScreenFromPoint(new(80,80))!.Scaling;
             host=new(owner,new(80,80,700,500),0xffe63946,8,(_,_)=>{},()=>true);
@@ -86,12 +91,12 @@ public sealed class ProbeApp:Application
                 Require((pixel&255)>180&&((pixel>>8)&255)<120,"Ink disappeared in Operate mode: "+pixel.ToString("x"));
                 foreach(var point in new[]{new PixelPoint(480,380),new PixelPoint(650,480)})
                 {
-                    var before=Count();Require(before>=0,"Target counter unavailable");Native.Click(point);
+                    var before=Count();Require(before>=0,"Target counter unavailable");await Native.Click(point);
                     await Until(()=>Count()==before+1,"Cross-process click did not reach target in Operate mode");
                 }
                 host.SelectTool(AnnotationTool.Pen);
                 var previous=Count();var marks=host.Document.Marks.Length;
-                Native.Click(new(650,480));
+                await Native.Click(new(650,480));
                 await Until(()=>host.Document.Marks.Length==marks+1,"Drawing did not receive native input after re-enabling");
                 Require(Count()==previous,"Drawing click leaked into underlying target");
             }
@@ -115,10 +120,13 @@ public sealed class ProbeApp:Application
         [StructLayout(LayoutKind.Sequential)]internal struct Point{public int X,Y;}
         [StructLayout(LayoutKind.Explicit,Size=40)]private struct Input{[FieldOffset(0)]public uint Type;[FieldOffset(8)]public Mouse Mouse;}
         [StructLayout(LayoutKind.Sequential)]private struct Mouse{public int X,Y;public uint Data,Flags,Time;public nuint Extra;}
-        internal static void Click(PixelPoint point)
+        internal static async Task Click(PixelPoint point)
         {
             Require(SetCursorPos(point.X,point.Y),"Cannot move test cursor");
-            Require(SendInput(2,[new(){Mouse=new(){Flags=2}},new(){Mouse=new(){Flags=4}}],40)==2,"SendInput was rejected");
+            await Task.Delay(75);
+            Require(SendInput(1,[new(){Mouse=new(){Flags=2}}],40)==1,"SendInput down was rejected");
+            await Task.Delay(75);
+            Require(SendInput(1,[new(){Mouse=new(){Flags=4}}],40)==1,"SendInput up was rejected");
         }
         internal static uint Pixel(int x,int y){var dc=GetDC(0);try{return GetPixel(dc,x,y);}finally{ReleaseDC(0,dc);}}
         [DllImport("user32.dll")][return:MarshalAs(UnmanagedType.Bool)]internal static extern bool SetCursorPos(int x,int y);
