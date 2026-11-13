@@ -33,11 +33,12 @@ public sealed class ProbeApp:Application
         if(args.Length>0&&args[0]=="target")
         {
             var count=0;var file=args[1];
-            var target=new Window{Title="OpenCam independent click target",Width=700,Height=500,Position=new(80,80),
+            var target=new Window{Title="OpenCam independent click target",Width=700,Height=500,Position=new(80,80),Topmost=true,
                 WindowStartupLocation=WindowStartupLocation.Manual,SystemDecorations=SystemDecorations.None,Background=Brushes.White};
             var button=new Button{Background=Brushes.White,BorderThickness=new(0),HorizontalContentAlignment=Avalonia.Layout.HorizontalAlignment.Stretch,VerticalContentAlignment=Avalonia.Layout.VerticalAlignment.Stretch};
             button.Click+=(_,_)=>File.WriteAllText(file,(++count).ToString());target.Content=button;
-            target.Show();File.WriteAllText(file,"0");return;
+            target.Show();target.UpdateLayout();
+            Dispatcher.UIThread.Post(async()=>{await Task.Delay(500);File.WriteAllText(file,"0");});return;
         }
         Dispatcher.UIThread.Post(async()=>
         {
@@ -64,6 +65,8 @@ public sealed class ProbeApp:Application
         {
             await Until(()=>File.Exists(path),"Target process did not open its window");
             int Count(){try{return int.Parse(File.ReadAllText(path));}catch(IOException){return -1;}}
+            await Task.Delay(200);
+            Console.WriteLine($"Baseline pixel={Native.Pixel(480,380):x}; foreground={Native.GetForegroundWindow()}; pointWindow={Native.WindowFromPoint(new(){X=480,Y=380})}");
             Native.Click(new(480,380));await Until(()=>Count()==1,"Baseline independent target did not receive click");
             Console.WriteLine("PASS: baseline SendInput reaches independent target button");
             owner.Show();var scale=owner.Screens.ScreenFromPoint(new(80,80))!.Scaling;
@@ -123,6 +126,8 @@ public sealed class ProbeApp:Application
         [DllImport("user32.dll",EntryPoint="GetClassLongPtrW")]internal static extern nint GetClassLongPtr(nint window,int index);
         [DllImport("user32.dll",EntryPoint="GetWindowLongPtrW")]internal static extern nint GetWindowLongPtr(nint window,int index);
         [DllImport("user32.dll")]private static extern uint SendInput(uint count,Input[] inputs,int size);
+        [DllImport("user32.dll")]internal static extern nint GetForegroundWindow();
+        [DllImport("user32.dll")]internal static extern nint WindowFromPoint(Point point);
         [DllImport("user32.dll")]private static extern nint GetDC(nint window);
         [DllImport("user32.dll")]private static extern int ReleaseDC(nint window,nint dc);
         [DllImport("gdi32.dll")]private static extern uint GetPixel(nint dc,int x,int y);
