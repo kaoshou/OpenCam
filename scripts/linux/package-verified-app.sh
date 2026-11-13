@@ -33,11 +33,7 @@ cp "$obs_source/deps/glad/include/EGL/eglplatform.h" "$package_directory/linux-n
 cp /usr/share/doc/libsimde-dev/copyright "$package_directory/linux-notices/obs-embedded/SIMDe-copyright.txt"
 cp /usr/share/doc/uthash-dev/copyright "$package_directory/linux-notices/obs-embedded/uthash-copyright.txt"
 cp "$ffmpeg_source/COPYING.GPLv2" "$ffmpeg_source/COPYING.GPLv3" "$ffmpeg_source/COPYING.LGPLv2.1" "$package_directory/linux-notices/"
-runtime_license=$(find "${NUGET_PACKAGES:-$HOME/.nuget/packages}/microsoft.netcore.app.runtime.linux-x64" -maxdepth 2 -iname LICENSE.TXT -print -quit)
-runtime_notices=$(find "${NUGET_PACKAGES:-$HOME/.nuget/packages}/microsoft.netcore.app.runtime.linux-x64" -maxdepth 2 -iname THIRD-PARTY-NOTICES.TXT -print -quit)
-test -n "$runtime_license" && test -n "$runtime_notices"
-cp "$runtime_license" "$package_directory/linux-notices/DOTNET-LICENSE.txt"
-cp "$runtime_notices" "$package_directory/linux-notices/DOTNET-THIRD-PARTY-NOTICES.txt"
+node scripts/linux/copy-runtime-notices.mjs "$package_directory/linux-notices" src/ScreenRecorder.UI/obj/native-only/project.assets.json
 printf 'OpenCam %s Linux Beta\nCommit: %s\nOBS: 72e86655715d9a25d69ce446aa4dd44ba58e10d2\nFFmpeg: 1041abdc962f4cc4f394aa8de9dc5236c0c3b9e7\nSource archives and build scripts accompany this package. OS libraries (including x264, PulseAudio, PipeWire, Mesa) are supplied by Ubuntu, not redistributed here.\n' "$OPENCAM_VERSION" "$tested_revision" > "$package_directory/SOURCE.txt"
 source_directory="$artifact_directory/corresponding-source"
 mkdir "$source_directory"

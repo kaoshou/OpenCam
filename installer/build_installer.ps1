@@ -25,10 +25,10 @@ if (Test-Path $PublishDir) {
 }
 
 # 2. 執行 dotnet publish
-Write-Host "[2/3] 正在發佈 (Self-contained) .NET 8 應用程式..." -ForegroundColor Yellow
+Write-Host "[2/3] 正在發佈 (Self-contained) .NET 10 應用程式..." -ForegroundColor Yellow
 $CsprojPath = Join-Path $ProjectRoot "src\ScreenRecorder.UI\ScreenRecorder.UI.csproj"
 
-# 發布為單一執行檔、無須依賴系統安裝 .NET 8，隱藏控制台視窗，且支援 x64
+# 發布為單一執行檔、無須依賴系統安裝 .NET 10，隱藏控制台視窗，且支援 x64
 dotnet publish $CsprojPath `
     -c Release `
     -r win-x64 `

@@ -108,7 +108,7 @@ public class Capturer
 
 Add-Type -TypeDefinition $code -ReferencedAssemblies System.Drawing
 
-$appPath = "c:\Work\螢幕錄影專案\src\ScreenRecorder.UI\bin\Release\net8.0\ScreenRecorder.UI.exe"
+$appPath = Join-Path $PSScriptRoot "src\ScreenRecorder.UI\bin\Release\net10.0\OpenCam.exe"
 $outDir = "c:\Work\螢幕錄影專案\docs\images"
 $settingsPath = Join-Path $env:LOCALAPPDATA "ScreenRecorder\user_settings.json"
 
