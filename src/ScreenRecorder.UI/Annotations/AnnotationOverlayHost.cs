@@ -10,8 +10,11 @@ namespace ScreenRecorder.UI.Annotations;
 
 internal sealed class AnnotationOverlayHost:IAnnotationHost
 {
-    private readonly Window _overlay;
-    private readonly AnnotationCanvas _canvas;
+    private Window _overlay;
+    private AnnotationCanvas _canvas;
+    private readonly PixelSize _size;
+    private readonly WindowsAnnotationPresentation? _presentation;
+    private readonly Func<Key,KeyModifiers,bool> _finishShortcut;
     private readonly AnnotationToolbar _toolbar;
     private readonly PixelPoint _origin;
     private readonly double _scale;
@@ -28,39 +31,47 @@ internal sealed class AnnotationOverlayHost:IAnnotationHost
         if(region.X<bounds.X||region.Y<bounds.Y||(long)region.X+region.Width>bounds.Right||(long)region.Y+region.Height>bounds.Bottom)
             throw new InvalidOperationException("Annotation region spans displays");
         _scale=screen.Scaling;_origin=new(region.X,region.Y);_shortcutAvailable=shortcutAvailable??(()=>false);_setInteractive=setInteractive??AnnotationNativeWindow.SetInteractive;
+        _size=new(region.Width,region.Height);_finishShortcut=finishShortcut??((k,m)=>k==Key.Escape&&m==KeyModifiers.None);
         Document=new(region.Width/_scale,region.Height/_scale){Color=color,StrokeWidth=width};
-        _canvas=new(Document);
-        _overlay=new Window{Title="OpenCam Annotations",SystemDecorations=SystemDecorations.None,ShowInTaskbar=false,
-            CanResize=false,Topmost=true,ShowActivated=false,Background=Brushes.Transparent,
-            TransparencyLevelHint=[WindowTransparencyLevel.Transparent],Content=_canvas,Width=region.Width/_scale,Height=region.Height/_scale,
-            Position=_origin,WindowStartupLocation=WindowStartupLocation.Manual};
-        AnnotationNativeWindow.ConfigureOverlay(_overlay,()=>_canvas.Interactive);
+        (_overlay,_canvas)=CreateDrawingSurface();
+        if(OperatingSystem.IsWindows()&&_overlay.TryGetPlatformHandle()?.HandleDescriptor=="HWND")_presentation=new();
         _toolbar=new(Document,SetMode,Dispose,saveStyle,Fail,()=>{SetMode(false);owner.WindowState=WindowState.Minimized;},ToggleToolbar,_shortcutAvailable,finishShortcut,shortcutText){WindowStartupLocation=WindowStartupLocation.Manual};
         var x=_lastToolbarPosition?.X??region.X+16;var y=_lastToolbarPosition?.Y??region.Y+16;
         _toolbar.Position=new(Math.Clamp(x,bounds.X,Math.Max(bounds.X,bounds.Right-(int)Math.Ceiling(_toolbar.Width*_scale))),
             Math.Clamp(y,bounds.Y,Math.Max(bounds.Y,bounds.Bottom-(int)Math.Ceiling(_toolbar.Height*_scale))));
-        _toolbar.Closed+=(_,_)=>Dispose();_overlay.Closed+=(_,_)=>Dispose();
+        _toolbar.Closed+=(_,_)=>Dispose();
         Document.Changed+=OnDocumentChanged;
-        _overlay.KeyDown+=(_,e)=>{if((finishShortcut??((k,m)=>k==Key.Escape&&m==KeyModifiers.None))(e.Key,e.KeyModifiers)){Guard(FinishDrawing);e.Handled=true;}};
-        _overlay.Activated+=(_,_)=>{AnnotationNativeWindow.ConfigureToolbar(_toolbar);AnnotationNativeWindow.RaiseExistingPointer();};
-        _canvas.PointerPressed+=(_,_)=>AnnotationNativeWindow.RaiseExistingPointer();
-        _canvas.PointerMoved+=(_,e)=>
+    }
+    private (Window,AnnotationCanvas) CreateDrawingSurface()
+    {
+        var canvas=new AnnotationCanvas(Document);
+        var overlay=new Window{Title="OpenCam Annotations",SystemDecorations=SystemDecorations.None,ShowInTaskbar=false,
+            CanResize=false,Topmost=true,ShowActivated=false,Background=Brushes.Transparent,
+            TransparencyLevelHint=[WindowTransparencyLevel.Transparent],Content=canvas,Width=_size.Width/_scale,Height=_size.Height/_scale,
+            Position=_origin,WindowStartupLocation=WindowStartupLocation.Manual};
+        AnnotationNativeWindow.ConfigureOverlay(overlay,()=>canvas.Interactive);
+        overlay.Closed+=(_,_)=>{if(ReferenceEquals(overlay,_overlay))Dispose();};
+        overlay.KeyDown+=(_,e)=>{if(_finishShortcut(e.Key,e.KeyModifiers)){Guard(FinishDrawing);e.Handled=true;}};
+        overlay.Activated+=(_,_)=>{AnnotationNativeWindow.ConfigureToolbar(_toolbar);AnnotationNativeWindow.RaiseExistingPointer();};
+        canvas.PointerPressed+=(_,_)=>AnnotationNativeWindow.RaiseExistingPointer();
+        canvas.PointerMoved+=(_,e)=>
         {
             // If a platform raises the drawing surface above the floating toolbar,
             // repair the order as the pointer approaches it, before the next click.
             // Never interrupt an in-progress stroke that owns pointer capture.
             if(!_toolbar.IsVisible||Document.IsDrawing)return;
-            var point=_overlay.PointToScreen(e.GetPosition(_overlay));
+            var point=overlay.PointToScreen(e.GetPosition(overlay));
             var origin=_toolbar.PointToScreen(default);
             var end=_toolbar.PointToScreen(new Point(_toolbar.ClientSize.Width,_toolbar.ClientSize.Height));
             if(point.X>=origin.X&&point.X<end.X&&point.Y>=origin.Y&&point.Y<end.Y)
                 AnnotationNativeWindow.ConfigureToolbar(_toolbar);
         };
+        return(overlay,canvas);
     }
     public void Show()
     {
         if(_closed)return;
-        _overlay.Show();_overlay.Position=_origin;
+        _overlay.Show();_overlay.Position=_origin;_overlay.UpdateLayout();
         // Create input policy before yielding to the event loop. Failure closes both windows.
         if(!_setInteractive(_overlay,false))throw new InvalidOperationException("Native annotation input policy unavailable");
         // No marks need compositing yet. Keeping the full-screen surface hidden
@@ -73,11 +84,20 @@ internal sealed class AnnotationOverlayHost:IAnnotationHost
     {
         if(_closed||_paused)return;
         _canvas.CancelGesture();
+        if(drawing&&_presentation is not null&&!_overlay.IsVisible)
+        {
+            // A fresh HWND has no retained pre-clear composition buffer to flash.
+            // The native presentation keeps current ink visible during the swap.
+            var oldWindow=_overlay;var oldCanvas=_canvas;
+            (_overlay,_canvas)=CreateDrawingSurface();
+            oldCanvas.Dispose();oldWindow.Close();
+        }
         _canvas.Interactive=drawing;
         if(drawing&&!_overlay.IsVisible){_overlay.Show();_overlay.Position=_origin;}
         if(!_setInteractive(_overlay,drawing))throw new InvalidOperationException("Cannot switch native annotation input policy");
         _toolbar.SetMode(drawing);
-        if(drawing){_overlay.Activate();_canvas.Focus();}
+        if(drawing){_overlay.Activate();_canvas.Focus();_presentation?.Hide();}
+        else if(_presentation is not null){_presentation.Update(_canvas,_size,_origin,_scale);_overlay.Hide();}
         AnnotationNativeWindow.ConfigureToolbar(_toolbar);
         AnnotationNativeWindow.RaiseExistingPointer();
     }
@@ -87,8 +107,14 @@ internal sealed class AnnotationOverlayHost:IAnnotationHost
         _canvas.Interactive=false;Document.Cancel();
         if(!_setInteractive(_overlay,false))throw new InvalidOperationException("Cannot release annotation input");
         _toolbar.SetMode(false);_paused=paused;
-        if(paused){_toolbar.Hide();_overlay.Hide();}
-        else{if(!Document.Marks.IsEmpty){_overlay.Show();_overlay.Position=_origin;}if(_toolbarHidden&&!_shortcutAvailable())_toolbarHidden=false;if(!_toolbarHidden){_toolbar.ShowToolbar();AnnotationNativeWindow.ConfigureToolbar(_toolbar);}}
+        if(paused){_toolbar.Hide();_overlay.Hide();_presentation?.Hide();}
+        else
+        {
+            if(_presentation is not null)_presentation.Update(_canvas,_size,_origin,_scale);
+            else if(!Document.Marks.IsEmpty){_overlay.Show();_overlay.Position=_origin;}
+            if(_toolbarHidden&&!_shortcutAvailable())_toolbarHidden=false;
+            if(!_toolbarHidden){_toolbar.ShowToolbar();AnnotationNativeWindow.ConfigureToolbar(_toolbar);}
+        }
     }
     public void ToggleToolbar()
     {
@@ -108,6 +134,11 @@ internal sealed class AnnotationOverlayHost:IAnnotationHost
         if(_closed||!_shown||_paused||_canvas.Interactive)return;
         Guard(()=>
         {
+            if(_presentation is not null)
+            {
+                _presentation.Update(_canvas,_size,_origin,_scale);
+                _overlay.Hide();AnnotationNativeWindow.ConfigureToolbar(_toolbar);AnnotationNativeWindow.RaiseExistingPointer();return;
+            }
             // Keep an already mapped surface alive when clearing. Hiding immediately
             // after InvalidateVisual prevents the empty frame from reaching the
             // compositor, so the next Show can briefly expose the old ink buffer.
@@ -126,6 +157,6 @@ internal sealed class AnnotationOverlayHost:IAnnotationHost
         if(_shown)_lastToolbarPosition=_toolbar.Position;
         Document.Changed-=OnDocumentChanged;
         _canvas.Dispose();
-        try{_toolbar.Dispose();}finally{try{_overlay.Close();}finally{Closed?.Invoke(this,EventArgs.Empty);Closed=null;}}
+        try{_toolbar.Dispose();}finally{try{_overlay.Close();}finally{_presentation?.Dispose();Closed?.Invoke(this,EventArgs.Empty);Closed=null;}}
     }
 }

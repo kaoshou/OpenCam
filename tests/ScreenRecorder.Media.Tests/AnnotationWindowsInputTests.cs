@@ -17,7 +17,7 @@ public sealed class AnnotationWindowsInputTests
             {
                 Assert.True(AnnotationNativeWindow.SetWindowsInteractive(window,false));
                 Assert.Equal(0x080000a0L,GetWindowLongPtr(window,-20).ToInt64()&0x080800a0);
-                Assert.False(IsWindowEnabled(window));
+                Assert.True(IsWindowEnabled(window)); // Native drawing window is hidden in Operate, never disabled.
                 Assert.True(AnnotationNativeWindow.SetWindowsInteractive(window,true));
                 Assert.True(IsWindowEnabled(window));
                 Assert.Equal(0x80L,GetWindowLongPtr(window,-20).ToInt64()&0x080800a0);

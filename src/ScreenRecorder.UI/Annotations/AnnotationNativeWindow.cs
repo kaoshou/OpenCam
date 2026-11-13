@@ -13,7 +13,7 @@ internal static class AnnotationNativeWindow
         if(!OperatingSystem.IsWindows())return;
         // Avalonia recomputes extended styles on window property changes. Keep
         // our input policy in that calculation, including after Show/Activate.
-        Win32Properties.AddWindowStylesCallback(window,(style,exStyle)=>(interactive()?style&~0x08000000u:style|0x08000000u,(uint)WindowsInputStyles(exStyle,interactive())));
+        Win32Properties.AddWindowStylesCallback(window,(style,exStyle)=>(style,(uint)WindowsInputStyles(exStyle,interactive())));
     }
     public static void ConfigureToolbar(Window window)
     {
@@ -60,26 +60,21 @@ internal static class AnnotationNativeWindow
     {
         const long transparent=0x20,noActivate=0x08000000,toolWindow=0x80;
         // Do not add LAYERED: Avalonia's CS_OWNDC class cannot use that style.
-        // Retain its composition surface; input is separately enabled below.
+        // Operate uses a separate input-free presentation window.
         return interactive?(flags&~transparent&~noActivate)|toolWindow:flags|transparent|noActivate|toolWindow;
     }
     internal static bool SetWindowsInteractive(nint window,bool interactive)
     {
         var next=WindowsInputStyles(GetWindowLongPtr(window,-20).ToInt64(),interactive);
         SetWindowLongPtr(window,-20,(nint)next);
-        // EnableWindow returns the previous disabled state, not success.
-        // Check the resulting state without changing rendering or window class.
-        EnableWindow(window,interactive);
         if(!SetWindowPos(window,0,0,0,0,0,0x1|0x2|0x4|0x10|0x20))return false;
         const long policy=0x080000a0;
-        return IsWindowEnabled(window)==interactive&&(GetWindowLongPtr(window,-20).ToInt64()&policy)==(next&policy);
+        return (GetWindowLongPtr(window,-20).ToInt64()&policy)==(next&policy);
     }
     [DllImport("user32.dll",EntryPoint="GetWindowLongPtrW",SetLastError=true)]private static extern nint GetWindowLongPtr(nint window,int index);
     [DllImport("user32.dll",EntryPoint="SetWindowLongPtrW",SetLastError=true)]private static extern nint SetWindowLongPtr(nint window,int index,nint value);
     [DllImport("user32.dll",EntryPoint="FindWindowW",CharSet=CharSet.Unicode)]private static extern nint FindWindow(string className,string title);
     [DllImport("user32.dll")][return:MarshalAs(UnmanagedType.Bool)]private static extern bool SetWindowPos(nint window,nint after,int x,int y,int width,int height,uint flags);
-    [DllImport("user32.dll")][return:MarshalAs(UnmanagedType.Bool)]private static extern bool EnableWindow(nint window,[MarshalAs(UnmanagedType.Bool)]bool enabled);
-    [DllImport("user32.dll")][return:MarshalAs(UnmanagedType.Bool)]private static extern bool IsWindowEnabled(nint window);
     [DllImport(ObjC,EntryPoint="sel_registerName")]private static extern nint Selector(string name);
     [DllImport(ObjC,EntryPoint="objc_msgSend")]private static extern void SendBool(nint receiver,nint selector,[MarshalAs(UnmanagedType.I1)]bool value);
     [DllImport(ObjC,EntryPoint="objc_msgSend")][return:MarshalAs(UnmanagedType.I1)]private static extern bool GetBool(nint receiver,nint selector);
