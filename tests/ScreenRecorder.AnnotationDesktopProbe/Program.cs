@@ -35,7 +35,7 @@ public sealed class ProbeApp:Application
             var count=0;var file=args[1];
             var target=new Window{Title="OpenCam independent click target",Width=700,Height=500,Position=new(80,80),Topmost=true,
                 WindowStartupLocation=WindowStartupLocation.Manual,SystemDecorations=SystemDecorations.None,Background=Brushes.White};
-            var button=new Button{Background=Brushes.White,BorderThickness=new(0),HorizontalContentAlignment=Avalonia.Layout.HorizontalAlignment.Stretch,VerticalContentAlignment=Avalonia.Layout.VerticalAlignment.Stretch};
+            var button=new Button{Background=Brushes.White,BorderThickness=new(0),HorizontalAlignment=Avalonia.Layout.HorizontalAlignment.Stretch,VerticalAlignment=Avalonia.Layout.VerticalAlignment.Stretch};
             button.Click+=(_,_)=>File.WriteAllText(file,(++count).ToString());target.Content=button;
             Win32Properties.AddWndProcHookCallback(target,(nint h,uint message,nint w,nint l,ref bool handled)=>
             {
@@ -43,7 +43,14 @@ public sealed class ProbeApp:Application
                 return 0;
             });
             target.Show();target.UpdateLayout();
-            Dispatcher.UIThread.Post(async()=>{await Task.Delay(500);Console.WriteLine($"TARGET ready hwnd={target.TryGetPlatformHandle()!.Handle}, button={button.Bounds}, position={target.Position}");File.WriteAllText(file,"0");});return;
+            var timer=new DispatcherTimer{Interval=TimeSpan.FromMilliseconds(50)};
+            timer.Tick+=(_,_)=>{if(File.Exists(file+".demote")){target.Topmost=false;File.Delete(file+".demote");}};timer.Start();
+            Dispatcher.UIThread.Post(async()=>
+            {
+                await Task.Delay(500);target.UpdateLayout();
+                Require(button.Bounds.Width>=target.ClientSize.Width-1&&button.Bounds.Height>=target.ClientSize.Height-1,"Target button does not fill its window");
+                Console.WriteLine($"TARGET ready hwnd={target.TryGetPlatformHandle()!.Handle}, button={button.Bounds}, position={target.Position}");File.WriteAllText(file,"0");
+            });return;
         }
         Dispatcher.UIThread.Post(async()=>
         {
@@ -69,11 +76,12 @@ public sealed class ProbeApp:Application
         try
         {
             await Until(()=>File.Exists(path),"Target process did not open its window");
-            int Count(){try{return int.Parse(File.ReadAllText(path));}catch(IOException){return -1;}}
+            int Count(){try{return int.TryParse(File.ReadAllText(path),out var value)?value:-1;}catch(IOException){return -1;}}
             await Task.Delay(200);
             Console.WriteLine($"Baseline pixel={Native.Pixel(480,380):x}; foreground={Native.GetForegroundWindow()}; pointWindow={Native.WindowFromPoint(new(){X=480,Y=380})}");
             await Native.Click(new(480,380));await Until(()=>Count()==1,"Baseline independent target did not receive click");
             Console.WriteLine("PASS: baseline SendInput reaches independent target button");
+            File.WriteAllText(path+".demote","");await Until(()=>!File.Exists(path+".demote"),"Target did not leave topmost state");
             owner.Show();var scale=owner.Screens.ScreenFromPoint(new(80,80))!.Scaling;
             host=new(owner,new(80,80,700,500),0xffe63946,8,(_,_)=>{},()=>true);
             host.Show();host.SelectTool(AnnotationTool.Pen);
@@ -93,6 +101,7 @@ public sealed class ProbeApp:Application
                 {
                     var before=Count();Require(before>=0,"Target counter unavailable");await Native.Click(point);
                     await Until(()=>Count()==before+1,"Cross-process click did not reach target in Operate mode");
+                    Require((Native.Pixel(480,380)&255)>180&&((Native.Pixel(480,380)>>8)&255)<120,"Ink disappeared after target activation");
                 }
                 host.SelectTool(AnnotationTool.Pen);
                 var previous=Count();var marks=host.Document.Marks.Length;
@@ -112,7 +121,7 @@ public sealed class ProbeApp:Application
         {
             host?.Dispose();owner.Close();
             if(!child.HasExited){child.Kill(true);await child.WaitForExitAsync();}
-            File.Delete(path);Native.SetCursorPos(saved.X,saved.Y);
+            File.Delete(path);File.Delete(path+".demote");Native.SetCursorPos(saved.X,saved.Y);
         }
     }
     private static class Native
