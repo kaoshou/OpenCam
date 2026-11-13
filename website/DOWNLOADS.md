@@ -17,8 +17,9 @@ When updating downloads:
    `OpenCam_v<version>_Windows_x64_Portable.zip`,
    `OpenCam_v<version>_Windows_x64_Setup.exe`,
    `OpenCam_v<version>_macOS_arm64.dmg`.
-3. Update `downloads.json`, and the explicit published-version expectations in
-   `tests/home.test.mjs`. Run the website suite/build and browser layout checks.
+3. Update `downloads.json` and the explicit published-version assertion in
+   `tests/home.test.mjs`. Preserve the published-versus-development version guards;
+   run the website suite/build and browser layout checks.
 4. Deploy the website only after confirming the public attachment URLs.
 
 There is no browser-side API call or automatic OS detection. All three platforms

@@ -67,7 +67,7 @@ test('hero offers localized published platform downloads and supporting links', 
       assert.match(notes, /x64/);assert.match(notes, /Apple Silicon/);
       assert.match(notes, /Ubuntu 24\.04/);assert.match(notes, /25\.04/);
       assert.match(notes, /CPU/);assert.match(notes, /X11/);assert.match(notes, /Wayland/);
-      assert.match(notes, /OpenCam_v1\.2\.1_Linux_x64_Beta\.tar\.gz/);
+      assert.match(notes, /OpenCam_v1\.3\.0_Linux_x64_Beta\.tar\.gz/);
       assert.match(notes, /href="https:\/\/github\.com\/kaoshou\/OpenCam\/releases"/);
       assert.match(notes, new RegExp(`href="/OpenCam/${lang}/guide/"`));
     }
