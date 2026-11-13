@@ -890,36 +890,7 @@ public partial class MainViewModel : ObservableObject
                 (request, ct) => _ipcClient.SendProjectFrameAsync(request, ct)), CheckProjectScreenPermission, EnsureRecorderProcessAsync);
 
         // 動態偵測所有實體顯示器
-        Strings.PropertyChanged += (s, e) =>
-        {
-            OnPropertyChanged(nameof(Strings));
-            OnPropertyChanged(nameof(CurrentTargetSummary));
-            OnPropertyChanged(nameof(CustomRegionDisplayText));
-            RefreshHotkeyTooltips();
-            OnPropertyChanged(nameof(StatusBadgeText));
-            OnPropertyChanged(nameof(SystemAudioLabel));
-            OnPropertyChanged(nameof(SystemAudioMeterStateText));
-            OnPropertyChanged(nameof(MicrophoneMeterStateText));
-            OnPropertyChanged(nameof(VersionLabelText));
-            OnPropertyChanged(nameof(VersionAndAboutText));
-            OnPropertyChanged(nameof(ActualEncoderText));
-            OnPropertyChanged(nameof(ActualCaptureText));
-            LoadMonitors();
-            RefreshEncoderDisplayNames();
-            RefreshCursorEffectDisplayNames();
-            RefreshTeachingPointerOptions();
-            if (!IsRecording && !IsPreparing)
-            {
-                if (RecoverableSessionCount > 0)
-                {
-                    StatusMessage = Strings.GetFormatted("StatusRecoverableDetected", RecoverableSessionCount);
-                }
-                else
-                {
-                    StatusMessage = Strings["StatusReady"];
-                }
-            }
-        };
+        Strings.PropertyChanged += OnLanguageChanged;
 
         // 動態偵測所有音訊輸入裝置
         LoadMonitors();
@@ -996,6 +967,30 @@ public partial class MainViewModel : ObservableObject
         }
         // Initialize the service before loading settings, including synchronously completed loads.
         if (!forScreenshot) LoadUserSettings();
+    }
+
+    private void OnLanguageChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+    {
+        OnPropertyChanged(nameof(Strings));
+        OnPropertyChanged(nameof(CurrentTargetSummary));
+        OnPropertyChanged(nameof(CustomRegionDisplayText));
+        RefreshHotkeyTooltips();
+        OnPropertyChanged(nameof(StatusBadgeText));
+        OnPropertyChanged(nameof(SystemAudioLabel));
+        OnPropertyChanged(nameof(SystemAudioMeterStateText));
+        OnPropertyChanged(nameof(MicrophoneMeterStateText));
+        OnPropertyChanged(nameof(VersionLabelText));
+        OnPropertyChanged(nameof(VersionAndAboutText));
+        OnPropertyChanged(nameof(ActualEncoderText));
+        OnPropertyChanged(nameof(ActualCaptureText));
+        LoadMonitors();
+        RefreshEncoderDisplayNames();
+        RefreshCursorEffectDisplayNames();
+        RefreshTeachingPointerOptions();
+        if (!IsRecording && !IsPreparing)
+            StatusMessage = RecoverableSessionCount > 0
+                ? Strings.GetFormatted("StatusRecoverableDetected", RecoverableSessionCount)
+                : Strings["StatusReady"];
     }
 
     private async void LoadUserSettings()
@@ -2274,6 +2269,7 @@ public partial class MainViewModel : ObservableObject
 
     public void Cleanup()
     {
+        Strings.PropertyChanged -= OnLanguageChanged;
         linuxSourceCancellation?.Cancel();
         _telemetryTimer.Stop();
         _telemetryTimer.Tick -= OnTelemetryTimerTick;

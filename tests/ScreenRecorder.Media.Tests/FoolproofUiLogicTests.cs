@@ -9,13 +9,20 @@ using Xunit;
 
 namespace ScreenRecorder.Media.Tests;
 
-public class FoolproofUiLogicTests
+public class FoolproofUiLogicTests : IDisposable
 {
     private static readonly byte[] IpcKey = AuthenticatedIpc.CreateKey();
+    private readonly List<MainViewModel> _models = [];
+    private readonly ScreenRecorder.Core.Localization.AppLanguage _previousLanguage = LanguageManager.Instance.CurrentLanguage;
+    private MainViewModel Track(MainViewModel model) { _models.Add(model); return model; }
+    public void Dispose()
+    {
+        foreach (var model in _models) model.Cleanup();
+    }
     [Fact]
     public void DocumentationScreenshot_UsesNeutralTemporaryProfile()
     {
-        var vm = new MainViewModel(forScreenshot: true);
+        var vm = Track(new MainViewModel(forScreenshot: true));
 
         Assert.True(vm.IsMonitorSelected);
         Assert.False(vm.IsCustomRegion);
@@ -38,26 +45,35 @@ public class FoolproofUiLogicTests
         Assert.Equal(-1, ScreenRecorder.UI.App.ScreenshotArgumentIndex(["--lang", "zh"]));
     }
 
-    [Fact]
-    public void DocumentationRecordingScreenshot_ShowsActiveAudioWaveforms()
+    [Avalonia.Headless.XUnit.AvaloniaTheory]
+    [InlineData(ScreenRecorder.Core.Localization.AppLanguage.ZhTw, "收音中")]
+    [InlineData(ScreenRecorder.Core.Localization.AppLanguage.EnUs, "Live")]
+    public void DocumentationRecordingScreenshot_ShowsActiveAudioWaveforms(ScreenRecorder.Core.Localization.AppLanguage language, string live)
     {
-        var vm = new MainViewModel(forScreenshot: true);
-
+        LanguageManager.Instance.CurrentLanguage = language;
+        var vm = Track(new MainViewModel(forScreenshot: true));
+        try
+        {
         vm.SetDocumentationRecordingAudioActivity();
 
         Assert.True(vm.RecordSystemAudio);
         Assert.True(vm.RecordMicrophone);
         Assert.Contains(vm.SystemWaveformBars, bar => bar.Height > 0);
         Assert.Contains(vm.MicrophoneWaveformBars, bar => bar.Height > 0);
-        Assert.Equal("收音中", vm.SystemAudioMeterStateText);
-        Assert.Equal("收音中", vm.MicrophoneMeterStateText);
-        vm.Cleanup();
+        Assert.Equal(live, vm.SystemAudioMeterStateText);
+        Assert.Equal(live, vm.MicrophoneMeterStateText);
+        }
+        finally
+        {
+            vm.Cleanup();
+            LanguageManager.Instance.CurrentLanguage = _previousLanguage;
+        }
     }
 
     [Fact]
     public void UnconfirmedStartup_AllowsStopButBlocksCloseAndSettings()
     {
-        var vm = new MainViewModel { IsPreparing = true };
+        var vm = Track(new MainViewModel(forScreenshot: true) { IsPreparing = true });
 
         vm.EnterUnconfirmedStartup();
 
@@ -72,7 +88,7 @@ public class FoolproofUiLogicTests
     [Fact]
     public void ForceQuitRequiresUnconfirmedStartupAndFailedNormalStop()
     {
-        var vm = new MainViewModel { IsPreparing = true };
+        var vm = Track(new MainViewModel(forScreenshot: true) { IsPreparing = true });
         vm.EnterUnconfirmedStartup();
 
         Assert.False(vm.CanForceQuitUnconfirmed);
@@ -90,7 +106,7 @@ public class FoolproofUiLogicTests
     [Fact]
     public void ConfirmedRecordingCannotAuthorizeForceQuit()
     {
-        var vm = new MainViewModel { IsRecording = true };
+        var vm = Track(new MainViewModel(forScreenshot: true) { IsRecording = true });
 
         Assert.False(vm.CanForceQuitUnconfirmed);
         Assert.False(vm.TryAuthorizeForceQuit());
@@ -356,7 +372,7 @@ public class FoolproofUiLogicTests
     [Fact]
     public void CustomRegion_CanConfigureOnlyWhenSelectedAndNotRecording()
     {
-        var vm = new MainViewModel(forScreenshot: true);
+        var vm = Track(new MainViewModel(forScreenshot: true));
 
         // Start from an explicit unselected state. The documented profile
         // intentionally defaults to the primary monitor.
@@ -380,7 +396,7 @@ public class FoolproofUiLogicTests
     [Fact]
     public void MonitorSelection_CanSelectOnlyWhenOptionCheckedAndNotRecording()
     {
-        var vm = new MainViewModel(forScreenshot: true);
+        var vm = Track(new MainViewModel(forScreenshot: true));
 
         vm.IsMonitorSelected = false;
 
@@ -401,7 +417,7 @@ public class FoolproofUiLogicTests
     [Fact]
     public void MicrophoneSelection_CanSelectOnlyWhenEnabledAndNotRecording()
     {
-        var vm = new MainViewModel(forScreenshot: true);
+        var vm = Track(new MainViewModel(forScreenshot: true));
 
         // 預設不錄麥克風
         vm.RecordMicrophone = false;
@@ -419,7 +435,7 @@ public class FoolproofUiLogicTests
     [Fact]
     public void UpdateCustomRegion_ShouldSanitizeDimensionsToEvenAndAutoSelectRegion()
     {
-        var vm = new MainViewModel(forScreenshot: true);
+        var vm = Track(new MainViewModel(forScreenshot: true));
 
 
         // 傳入可放入 CI 虛擬顯示器的奇數解析度，避免測試被正確的螢幕邊界裁切干擾。
@@ -438,8 +454,9 @@ public class FoolproofUiLogicTests
     public void CursorEffect_ShouldInitializeWithSupportedOptionsAndLocalize()
     {
         Assert.IsType<ProjectLayoutApp>(Avalonia.Application.Current);
-        var vm = new MainViewModel(forScreenshot: true);
-
+        var vm = Track(new MainViewModel(forScreenshot: true));
+        try
+        {
         // Preserve the full Windows/macOS menu; Linux exposes only supported effects.
         Assert.Equal(OperatingSystem.IsLinux()
             ? ScreenRecorder.Platform.Linux.LinuxX11InputPolicy.IsX11
@@ -463,12 +480,18 @@ public class FoolproofUiLogicTests
         Assert.Equal("隱藏滑鼠游標", zhHidden.DisplayName);
         if (!OperatingSystem.IsLinux() || ScreenRecorder.Platform.Linux.LinuxX11InputPolicy.IsX11)
             Assert.Equal("虛擬教鞭", vm.AvailableCursorEffects.Single(e => e.Mode == CursorEffectMode.PresentationStick).DisplayName);
+        }
+        finally
+        {
+            vm.Cleanup();
+            LanguageManager.Instance.CurrentLanguage = _previousLanguage;
+        }
     }
 
     [Fact]
     public async Task QueryTelemetry_OnConsecutiveFailures_ShouldStopAndPromptRecovery()
     {
-        var vm = new MainViewModel(forScreenshot: true);
+        var vm = Track(new MainViewModel(forScreenshot: true));
         vm.IsRecording = true;
 
         // 連續失敗門檻以次數為準；IPC timeout 與排程可能使實際時間不同。
@@ -508,11 +531,11 @@ public class FoolproofUiLogicTests
         await using var client = new NamedPipeIpcClient(pipeName, IpcKey);
         var readiness = await client.SendCommandAsync("GetTelemetry", new { }, timeoutMs: 1500);
         Assert.True(readiness.Success, readiness.ErrorMessage);
-        var vm = new MainViewModel(forScreenshot: true)
+        var vm = Track(new MainViewModel(forScreenshot: true)
         {
             IsRecording = true,
             StatusMessage = "recording"
-        };
+        });
         vm.SetIpcClientForTesting(client);
 
         await vm.QueryTelemetryAsync();
