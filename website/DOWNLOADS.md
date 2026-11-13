@@ -48,8 +48,26 @@ and [Ubuntu release lifecycle](https://ubuntu.com/about).
 Set `linuxBetaVersion` in `downloads.json` to the published `version` only after
 verifying `OpenCam_v<version>_Linux_x64_Beta.deb`,
 `OpenCam_v<version>_Linux_x64_Beta.tar.gz`,
-`OpenCam_v<version>_Linux_Beta_CorrespondingSource.tar.gz` and
-`OpenCam_v<version>_Linux_Beta_SHA256SUMS.txt` exist with verified hashes in that
+`OpenCam_v<version>_CorrespondingSource.tar.gz` and
+`OpenCam_v<version>_SHA256SUMS.txt` exist with verified hashes in that
 public Release. An absent flag intentionally hides direct Linux attachment links.
 Linux application-menu naming is OpenCam; Beta remains in build information and
 all Linux download filenames. Linux source/license delivery is not optional.
+
+## Compact v1.3.0 release assets
+
+Publish exactly five user binaries (Windows setup/portable, macOS DMG, Ubuntu
+Beta deb/archive), one `OpenCam_v<version>_CorrespondingSource.tar.gz` and one
+`OpenCam_v<version>_SHA256SUMS.txt`. The source bundle retains the original OBS,
+Windows media, macOS media and Linux corresponding-source archives, together
+with their provenance manifests, recipes, licenses and the original Linux
+checksum list. Component names mentioned in packaged notices are members of
+this bundle, not additional top-level downloads. Unpack it, then unpack the
+relevant component archive. GitHub's automatically generated OpenCam source
+downloads are supplementary and do not replace third-party source delivery.
+
+Validate all source inputs before consolidation and verify the resulting bundle
+and all five binaries against the common checksum list after upload. Do not
+upload logs or loose internal JSON/TXT using directory globs. Preserve historical
+release binary/source URLs; metadata cleanup requires byte-for-byte backups,
+reference inspection and verified replacement access first.

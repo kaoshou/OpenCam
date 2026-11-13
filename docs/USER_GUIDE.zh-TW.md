@@ -1,6 +1,6 @@
 # OpenCam 完整使用說明（繁體中文）
 
-> 本說明適用於 OpenCam v1.2.1，包含錄影、加入影片、剪輯與輸出；Linux 為 Beta。
+> 本說明適用於 OpenCam v1.3.0，包含錄影、加入影片、剪輯與輸出；Linux 為 Beta。v1.2.1 不含新增的精確剪輯與範圍播放控制；下載檔案請以官網目前公開版本為準。
 
 ## 螢幕註記
 
@@ -108,13 +108,23 @@ Windows 下載與免安裝使用步驟請見 [README](../README.md)。錄製內�
 
 ### 剪輯、預覽與儲存
 
-- 點選左側片段或時間軸片段進行選取；兩處均可拖曳排序，拖曳邊緣不會裁剪長度。用時間軸定位，再於播放頭分割，或刪除選取範圍／整個片段。可用復原／重做修正操作；先前已儲存的誤裁片段不會自動還原。
+- 點選左側片段或時間軸片段進行選取，可拖曳片段排序。選取後拖曳時間軸左右手把向內修剪，放開才套用，Esc 取消；手把不向外恢復已裁掉的內容，可用復原／重做或既有屬性調整。用時間軸定位後可分割或刪除範圍／片段。先前已儲存的誤裁片段不會自動還原。
 - 右側屬性可改片段名稱、音量（0–200%）、靜音、淡入／淡出、裁切、縮放與位置；有效修改會自動生效，另按「儲存」保存專案版本。標題旁鉛筆可改專案名稱；改名不移動資料夾或來源 MKV。
 - 預覽可播放／暫停、跳轉時間，選擇預覽畫質，調整預覽區大小及全螢幕。預覽聲音只有開／關，沒有獨立音量滑桿；此開關不改輸出聲音。原始畫質選項受影格記憶體限制，預覽畫質不改變輸出設定。
 - 按「儲存專案」才把剪輯當作已儲存版本。復原草稿是中斷保護，不等於已儲存，也不等於最新 MP4。切換／關閉流程遇到未儲存修改時可選儲存、捨棄或取消；重開遇到復原草稿時可選是否復原。
 - 手動輸出前依提示處理未儲存修改。若相同內容已有可驗證的輸出，可開啟既有結果、重新輸出或取消。輸出有進度及取消控制；取消／失敗不應刪除原始素材。
 
-以下為 v1.2.0 介面與示範資料，點選圖片可查看原尺寸。
+### 精確定位、範圍播放與音量表
+
+- 前／後一格按鈕依專案輸出 FPS 定位，不同來源 FPS 仍使用同一專案時間軸。
+- 邊界吸附可對齊片段邊界及重點標記；可關閉，或拖曳時按 Alt 暫時略過。
+- 剪輯視窗限定快捷鍵：Space 播放／暫停，←／→ 前後一格，Shift+←／→ 前後一秒，I／O 標記範圍。輸入框、數值欄、滑桿、選單及聚焦按鈕保留原本按鍵操作；這些不是全域快捷鍵。
+- 有效範圍可播放選取範圍或循環試聽；一般播放使用整條時間軸。定位、變更範圍、停止或離開會取消原本循環。吸附與循環選項重開視窗不記憶。
+- 預覽混音音量表反映音量、靜音及淡入淡出等效果後、預覽聲音開關前的實際音訊，不是喇叭硬體音量。等待資料不等於已確認無聲；已錄成一條混音的系統聲音與麥克風仍不能分開調整。
+- 快速拖曳時預覽使用 360p，放開後恢復所選畫質，不改變匯出品質或原始素材。
+- 底部最近輸出表示輸出的修訂版本，不代表單一片段輸出已包含整部影片；屬性區另顯示片段的聲音設定摘要。
+
+以下為 v1.2.0 介面與示範資料，點選圖片可查看原尺寸；新版操作請參考上方說明。
 
 [![錄影主畫面](images/preview_main_zhtw.png)](images/preview_main_zhtw.png)
 [![偏好設定](images/preview_settings_zhtw.png)](images/preview_settings_zhtw.png)
@@ -150,14 +160,14 @@ Windows 錄影所需的 Microsoft Visual C++ 執行階段隨套件提供；安�
 
 - Windows 10 或 Windows 11，x64。
 - 安裝版與免安裝版都已包含執行所需元件。
-- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v1.2.1_Windows_x64_Setup.exe` 或 `OpenCam_v1.2.1_Windows_x64_Portable.zip`。檔名會標示版本、Windows 及 x64 架構。
+- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v1.3.0_Windows_x64_Setup.exe` 或 `OpenCam_v1.3.0_Windows_x64_Portable.zip`。檔名會標示版本、Windows 及 x64 架構。
 - 系統音訊使用 Windows 音訊回送擷取；麥克風可在 OpenCam 中選擇。
 
 ### macOS
 
 - macOS 13 Ventura 或以上。
 - 官方版本目前支援 Apple Silicon（arm64）；尚未提供 Intel Mac（x64）版本。
-- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v1.2.1_macOS_arm64.dmg`；檔名中的 arm64 表示 Apple Silicon。
+- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v1.3.0_macOS_arm64.dmg`；檔名中的 arm64 表示 Apple Silicon。
 - 第一次啟動後，請到「系統設定 → 隱私權與安全性」允許 OpenCam 使用：
   - 螢幕與系統音訊錄製
   - 麥克風（需要錄製麥克風時）
@@ -166,11 +176,11 @@ Windows 錄影所需的 Microsoft Visual C++ 執行階段隨套件提供；安�
 
 ### Linux Beta
 
-- Ubuntu 24.04／25.04 x64。下載 `OpenCam_v1.2.1_Linux_x64_Beta.deb`，在檔案所在目錄執行 `sudo apt install ./OpenCam_v1.2.1_Linux_x64_Beta.deb`。
+- 主要測試目標為 Ubuntu 24.04 LTS x64。以下為既有版本檔名範例，請換成目前公開版本：`sudo apt install ./OpenCam_v1.3.0_Linux_x64_Beta.deb`。Ubuntu 25.04 曾進行相依性處理，但已於 2026-01-15 終止支援，不建議新安裝或作為正式工作環境。其他發行版尚未列為支援。
 - APT 會處理相依套件；安裝後從應用程式選單開啟「OpenCam」，不需手動執行腳本。請勿以 root 執行程式。既有測試版可直接升級，套件 ID 為 `opencam-beta`。
 - X11 支援螢幕／區域錄影、虛擬教鞭、螢幕註記及全域快捷鍵。Wayland 請先選擇螢幕，並在系統視窗授權錄影，再於縮圖選取所需範圍；舊桌面座標不會直接沿用。授權失效或來源改變時需重新選擇螢幕。
 - Wayland 目前不提供教鞭、桌面註記與全域快捷鍵。Linux 使用 CPU 編碼；其他發行版、不同硬體與縮放尚未完整驗證，請先短錄確認畫面、聲音與匯出。
-- 免安裝封存檔為 `OpenCam_v1.2.1_Linux_x64_Beta.tar.gz`，完整解壓後依內附說明操作。移除安裝版可用 `sudo apt remove opencam-beta`，不刪除個人專案與錄影。
+- 免安裝封存檔為 `OpenCam_v1.3.0_Linux_x64_Beta.tar.gz`，完整解壓後依內附說明操作。移除安裝版可用 `sudo apt remove opencam-beta`，不刪除個人專案與錄影。
 
 ## 2. 快速開始
 

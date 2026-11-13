@@ -1,6 +1,6 @@
 # OpenCam Complete User Guide (English)
 
-> This guide covers OpenCam v1.2.1: recording, video import, editing and export. Linux is Beta.
+> This guide covers OpenCam v1.3.0: recording, video import, editing and export. Linux is Beta. v1.2.1 does not include the new precision and range-playback controls. Use the website's currently published version for downloads.
 
 ## Screen annotations
 
@@ -108,13 +108,23 @@ See the [README](../README.md) for Windows download and portable-use instruction
 
 ### Editing, preview and saving
 
-- Select clips in the left list or timeline; dragging only reorders and never trims clip edges. Seek and explicitly split at the playhead or delete a selected range/whole clip. Undo/redo lets you revise edits; previously saved accidental trims are not restored automatically.
+- Select clips in the left list or timeline and drag clips to reorder. Drag the selected timeline clip's edge handles inward to trim; release applies and Escape cancels. Handles do not extend outward to recover removed content; use undo/redo or existing properties. Seek and split at the playhead or delete a range/clip. Previously saved accidental trims are not automatically restored.
 - Clip properties include name, volume (0–200%), mute, fades, crop, scale and position. Valid changes apply automatically after editing; use Save to save the project version. The pencil beside the title renames the project without moving its folder or original MKVs.
 - Preview supports play/pause, seeking, quality selection, a resizable area and fullscreen. Preview sound is on/off, with no separate volume slider; it does not change exported audio. Original-resolution preview is subject to a frame-memory limit. Preview quality does not change export settings.
 - Explicit Save commits the editing version. A recovery draft protects interrupted edits; it is not a saved version or an updated MP4. Switching/closing with unsaved changes offers Save, Discard or Cancel. Reopening a recoverable draft offers a restore decision.
 - Resolve unsaved changes when prompted before manual export. If the same content has a verified existing output, choose Open Existing, Export Again or Cancel. Export has progress and cancellation controls; cancellation/failure preserves source media.
 
-These illustrations show the v1.2.0 interface with demonstration data. Select an image to view full size.
+### Precision, range playback and mix levels
+
+- Previous/next frame follows project output FPS, including mixed-FPS sources.
+- Edge snapping targets clip boundaries and bookmarks. Toggle it off or hold Alt while dragging to bypass it.
+- Editor-local shortcuts: Space plays/pauses; Left/Right steps frames; Shift+Left/Right seeks seconds; I/O marks a range. Focused text/numeric inputs, sliders, menus and buttons retain their own keys. These are not global shortcuts.
+- Play selection and Repeat selection operate within a valid marked range; ordinary Play uses the whole timeline. Seeking, changing the range, stopping or leaving cancels the old loop. Snap/repeat preferences are not remembered after reopening.
+- Preview mix levels use actual post-effect audio before the preview sound switch, not speaker hardware volume. Waiting for samples is not confirmed silence. Already mixed microphone/system audio cannot be separated.
+- Fast scrubbing uses 360p while dragging and restores the selected quality on release. Export quality and original media are unchanged.
+- The footer's latest export identifies a revision, not a claim that a clip-only export contains the whole project. The inspector also summarizes the selected clip's audio settings.
+
+These illustrations show the v1.2.0 interface with demonstration data. Select an image to view full size; see above for newer controls.
 
 [![Recording home](images/preview_main_enus.png)](images/preview_main_enus.png)
 [![Preferences](images/preview_settings_enus.png)](images/preview_settings_enus.png)
@@ -138,14 +148,14 @@ Compatible H.264 is remuxed where possible; other supported sources convert to H
 
 - Windows 10 or Windows 11, x64.
 - Installer and portable packages include .NET and media tools. The required Microsoft Visual C++ recording runtime is included app-locally on Windows. Install normally or fully extract the portable ZIP; no separate codec/runtime installation is needed. If package files are missing, re-download the complete package rather than replacing individual DLLs.
-- Download `OpenCam_v1.2.1_Windows_x64_Setup.exe` or `OpenCam_v1.2.1_Windows_x64_Portable.zip` from [Releases](https://github.com/kaoshou/OpenCam/releases). Filenames identify the version, Windows platform, and x64 architecture.
+- Download `OpenCam_v1.3.0_Windows_x64_Setup.exe` or `OpenCam_v1.3.0_Windows_x64_Portable.zip` from [Releases](https://github.com/kaoshou/OpenCam/releases). Filenames identify the version, Windows platform, and x64 architecture.
 - System audio uses Windows loopback capture. A microphone can be selected in OpenCam.
 
 ### macOS
 
 - macOS 13 Ventura or later.
 - The official build currently supports Apple Silicon (arm64). An Intel Mac (x64) build is not currently provided.
-- Download `OpenCam_v1.2.1_macOS_arm64.dmg` from [Releases](https://github.com/kaoshou/OpenCam/releases); arm64 identifies Apple Silicon.
+- Download `OpenCam_v1.3.0_macOS_arm64.dmg` from [Releases](https://github.com/kaoshou/OpenCam/releases); arm64 identifies Apple Silicon.
 - After first launch, open **System Settings → Privacy & Security** and allow OpenCam to use:
   - Screen & System Audio Recording
   - Microphone, when microphone recording is needed
@@ -154,11 +164,11 @@ Compatible H.264 is remuxed where possible; other supported sources convert to H
 
 ### Linux Beta
 
-- Ubuntu 24.04 / 25.04 x64. Download `OpenCam_v1.2.1_Linux_x64_Beta.deb` and run `sudo apt install ./OpenCam_v1.2.1_Linux_x64_Beta.deb` from its directory.
+- Ubuntu 24.04 LTS x64 is the primary test target. Substitute the currently published version in this existing filename example: `sudo apt install ./OpenCam_v1.3.0_Linux_x64_Beta.deb`. Historical dependency work covered Ubuntu 25.04, but it reached end of life on 2026-01-15 and is not recommended for new installations or production use. Other distributions are not listed as supported.
 - APT resolves dependencies. Open **OpenCam** from the application menu; no manual script launch is needed. Never run the app as root. Existing Beta installations can upgrade using the same `opencam-beta` package ID.
 - X11 supports screen/region recording, teaching pointers, annotations and global shortcuts. On Wayland, select and explicitly authorize a screen in the system chooser; use its thumbnail for a source-local crop. Reauthorize if the source or grant changes.
 - Wayland teaching pointers, desktop annotations and global shortcuts are not included yet. Linux uses CPU encoding. Other distributions, hardware and scaling combinations are not fully validated; check a short recording and export first.
-- The extracted archive is `OpenCam_v1.2.1_Linux_x64_Beta.tar.gz`; retain all files and follow the bundled instructions. `sudo apt remove opencam-beta` uninstalls the package without deleting personal recordings or projects.
+- The extracted archive is `OpenCam_v1.3.0_Linux_x64_Beta.tar.gz`; retain all files and follow the bundled instructions. `sudo apt remove opencam-beta` uninstalls the package without deleting personal recordings or projects.
 
 ## 2. Quick Start
 

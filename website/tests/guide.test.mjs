@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { renderGuide, rewriteGuideHref } from '../src/guide.mjs';
 import { buildSite } from '../build.mjs';
-import { downloadVersion } from '../src/content.mjs';
+import { downloadVersion, productVersion } from '../src/content.mjs';
 
 const repositoryRoot = resolve(import.meta.dirname, '../..');
 
@@ -52,8 +52,11 @@ test('project documentation reports only current, evidence-backed behavior', asy
   assert.match(documents['MANUAL_TEST_CHECKLIST.md'], /OpenCam 版本[\s\S]*Commit[\s\S]*OS[^\n]*Build[\s\S]*PASS[\s\S]*FAIL[\s\S]*BLOCKED[\s\S]*(?:產出物|Artifact)[\s\S]*Log/i);
   assert.match(documents['README.md'], new RegExp(`v${version.replaceAll('.', '\\.')} 更新重點`));
   assert.match(documents['README.md'], new RegExp(`What's new in v${version.replaceAll('.', '\\.')}`, 'i'));
-  assert.match(documents['docs/USER_GUIDE.zh-TW.md'], new RegExp(`本說明適用於 OpenCam v${version.replaceAll('.', '\\.')}`));
-  assert.match(documents['docs/USER_GUIDE.en-US.md'], new RegExp(`guide covers OpenCam v${version.replaceAll('.', '\\.')}`, 'i'));
+  // Release-preparation guides describe this source build; download links still
+  // follow the separately verified published manifest (covered by home tests).
+  const guideVersion=productVersion.replaceAll('.', '\\.');
+  assert.match(documents['docs/USER_GUIDE.zh-TW.md'], new RegExp(`本說明適用於 OpenCam v${guideVersion}`));
+  assert.match(documents['docs/USER_GUIDE.en-US.md'], new RegExp(`guide covers OpenCam v${guideVersion}`, 'i'));
   assert.match(documents['ACCEPTANCE_REPORT.md'], /tests\/native\/OpenCamSystemAudioTests\.sh/);
   assert.match(documents['ACCEPTANCE_REPORT.md'], /scripts\/build-macos-icon\.sh/);
   assert.doesNotMatch(documents['ACCEPTANCE_REPORT.md'], /scripts\/test-macos-(?:native-audio-helper|icon-build)\.sh|--locked-mode/);
