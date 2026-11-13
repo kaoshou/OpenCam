@@ -22,6 +22,8 @@ test('packaging emits versioned platform/architecture names for GitHub Actions',
         'LINUX_ARCHIVE=OpenCam_v0.2.4_Linux_x64_Beta.tar.gz',
         'LINUX_SOURCES=OpenCam_v0.2.4_Linux_Beta_CorrespondingSource.tar.gz',
         'LINUX_CHECKSUMS=OpenCam_v0.2.4_Linux_Beta_SHA256SUMS.txt',
+        'RELEASE_SOURCES=OpenCam_v0.2.4_CorrespondingSource.tar.gz',
+        'RELEASE_CHECKSUMS=OpenCam_v0.2.4_SHA256SUMS.txt',
       ]],
       ['1.12.30\n', [
         'OPENCAM_VERSION=1.12.30',
@@ -32,6 +34,8 @@ test('packaging emits versioned platform/architecture names for GitHub Actions',
         'LINUX_ARCHIVE=OpenCam_v1.12.30_Linux_x64_Beta.tar.gz',
         'LINUX_SOURCES=OpenCam_v1.12.30_Linux_Beta_CorrespondingSource.tar.gz',
         'LINUX_CHECKSUMS=OpenCam_v1.12.30_Linux_Beta_SHA256SUMS.txt',
+        'RELEASE_SOURCES=OpenCam_v1.12.30_CorrespondingSource.tar.gz',
+        'RELEASE_CHECKSUMS=OpenCam_v1.12.30_SHA256SUMS.txt',
       ]],
     ]) {
       await writeFile(versionFile, version);

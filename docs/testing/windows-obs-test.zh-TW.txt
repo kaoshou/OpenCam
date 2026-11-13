@@ -1,4 +1,4 @@
-OpenCam 1.2.0 — Windows x64 NativeOnly 測試版（非正式 Release）
+OpenCam {{VERSION}} — Windows x64 NativeOnly 測試版（非正式 Release）
 
 完整解壓縮到新的資料夾，再執行 OpenCam.exe。不要覆蓋舊版本或修改 obs-runtime 內的檔案。
 此包只包含 libobs 新螢幕錄影核心，不包含舊 FFmpeg 螢幕錄影引擎或 OpenCam.ScreenCapture.exe。

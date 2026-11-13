@@ -155,7 +155,7 @@ jobs:
           Copy-Item "$env:OPENCAM_VALIDATION_FFMPEG\ffmpeg-notices" user-test-package -Recurse
           # Full source archives have their own Release download; keep user packages compact.
           Get-ChildItem user-test-package/ffmpeg-notices/sources -File -Filter '*.archive' | Remove-Item
-          Add-Content user-test-package/ffmpeg-notices/SOURCE-STATUS.txt "`nFull corresponding archives: Windows-Media-SOURCES.tar.gz on the matching OpenCam Release."
+          Add-Content user-test-package/ffmpeg-notices/SOURCE-STATUS.txt "`nFull corresponding archives: Windows-Media-SOURCES.tar.gz inside OpenCam_v$((Get-Content VERSION -Raw).Trim())_CorrespondingSource.tar.gz on the matching OpenCam Release."
           Copy-Item LICENSE user-test-package/LICENSE
           Copy-Item NOTICE.md user-test-package/NOTICE.md
           $version = (Get-Content VERSION -Raw).Trim()
@@ -169,7 +169,8 @@ jobs:
           node scripts/prepare-obs-user-test-package.mjs obs-results/runtime user-test-package $env:GITHUB_SHA $version --enable-user-test-only --native-only
           if ($LASTEXITCODE -ne 0) { throw 'Explicit user-test runtime staging failed.' }
           Add-Content user-test-package/THIRD-PARTY-NOTICES.md "`n## OBS recording core`nAdditional full notices and corresponding sources: obs-runtime/licenses/SOURCE-INFO.md and obs-runtime/licenses/inventory.json."
-          Copy-Item docs/testing/windows-obs-test.zh-TW.txt user-test-package/README-TEST.zh-TW.txt
+          node scripts/render-test-instructions.mjs docs/testing/windows-obs-test.zh-TW.txt user-test-package/README-TEST.zh-TW.txt
+          if ($LASTEXITCODE -ne 0) { throw 'Test instructions generation failed.' }
           node scripts/check-release-notices.mjs user-test-package $env:GITHUB_SHA $version
           if ($LASTEXITCODE -ne 0) { throw 'User-test source/license verification failed.' }
           foreach ($name in @('OpenCam.exe','ffmpeg.exe','ffprobe.exe','obs-runtime/OpenCam.ObsCapture.exe')) {
@@ -288,7 +289,7 @@ jobs:
       - name: Package and validate macOS application
         run: |
           find "$RUNNER_TEMP/publish/ffmpeg-notices/sources" -type f \( -name '*.tar.gz' -o -name '*.tar.xz' \) -delete
-          printf '\nFull corresponding archives: macOS-Media-SOURCES.tar.gz on the matching OpenCam Release.\n' > "$RUNNER_TEMP/publish/ffmpeg-notices/SOURCE-STATUS.txt"
+          printf '\nFull corresponding archives: macOS-Media-SOURCES.tar.gz inside OpenCam_v%s_CorrespondingSource.tar.gz on the matching OpenCam Release.\n' "$(cat VERSION)" > "$RUNNER_TEMP/publish/ffmpeg-notices/SOURCE-STATUS.txt"
           profile=--native-only-user-test
           if [ "${{ inputs.release_package }}" = true ]; then profile=--native-only-release; fi
           bash scripts/package-macos.sh "$RUNNER_TEMP/publish" "$RUNNER_TEMP/bundle/OpenCam.app" Release "$profile" "$RUNNER_TEMP/obs-runtime"

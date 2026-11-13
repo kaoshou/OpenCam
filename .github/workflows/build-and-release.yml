@@ -234,6 +234,12 @@ jobs:
         node scripts/assemble-release-sources.mjs release-assets/sources source-inputs/obs source-inputs/windows source-inputs/macos
         node scripts/check-release-source-provision.mjs release-assets/sources
 
+    - name: Assemble compact verified release delivery
+      run: |
+        node scripts/assemble-release-delivery.mjs release-assets/delivery release-assets/sources release-assets/linux release-assets/windows release-assets/macos
+        cd release-assets/delivery
+        sha256sum --check "$RELEASE_CHECKSUMS"
+
     - name: Create or Update GitHub Release
       shell: bash
       run: |
@@ -260,9 +266,7 @@ jobs:
           done
         }
 
-        upload_asset "release-assets/windows/installer/Output/$WINDOWS_SETUP"
-        upload_asset "release-assets/windows/$WINDOWS_PORTABLE"
-        upload_asset "release-assets/macos/$MACOS_DMG"
-        for linux_asset in release-assets/linux/*; do upload_asset "$linux_asset"; done
-        for source in release-assets/sources/*; do upload_asset "$source"; done
+        for release_asset in "$WINDOWS_SETUP" "$WINDOWS_PORTABLE" "$MACOS_DMG" "$LINUX_DEB" "$LINUX_ARCHIVE" "$RELEASE_SOURCES" "$RELEASE_CHECKSUMS"; do
+          upload_asset "release-assets/delivery/$release_asset"
+        done
         gh release edit "$RELEASE_TAG" --draft=false --latest
