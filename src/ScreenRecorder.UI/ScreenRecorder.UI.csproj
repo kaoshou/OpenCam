@@ -36,6 +36,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="ScreenRecorder.Media.Tests" />
     <InternalsVisibleTo Include="ScreenRecorder.LinuxDesktopProbe" />
+    <InternalsVisibleTo Include="ScreenRecorder.AnnotationDesktopProbe" />
   </ItemGroup>
 
 </Project>

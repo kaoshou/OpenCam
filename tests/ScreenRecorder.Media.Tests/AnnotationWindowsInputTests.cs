@@ -16,10 +16,10 @@ public sealed class AnnotationWindowsInputTests
             for(var i=0;i<10;i++)
             {
                 Assert.True(AnnotationNativeWindow.SetWindowsInteractive(window,false));
-                Assert.Equal(0x080800a0L,GetWindowLongPtr(window,-20).ToInt64()&0x080800a0);
-                Assert.True(GetLayeredWindowAttributes(window,out _,out var alpha,out var flags));
-                Assert.Equal(255,alpha);Assert.Equal(2u,flags);
+                Assert.Equal(0x080000a0L,GetWindowLongPtr(window,-20).ToInt64()&0x080800a0);
+                Assert.False(IsWindowEnabled(window));
                 Assert.True(AnnotationNativeWindow.SetWindowsInteractive(window,true));
+                Assert.True(IsWindowEnabled(window));
                 Assert.Equal(0x80L,GetWindowLongPtr(window,-20).ToInt64()&0x080800a0);
             }
         }
@@ -29,7 +29,7 @@ public sealed class AnnotationWindowsInputTests
     private static extern nint CreateWindowEx(uint exStyle,string className,string title,uint style,int x,int y,int width,int height,nint parent,nint menu,nint instance,nint parameter);
     [DllImport("user32.dll")][return:MarshalAs(UnmanagedType.Bool)]private static extern bool DestroyWindow(nint window);
     [DllImport("user32.dll",EntryPoint="GetWindowLongPtrW")]private static extern nint GetWindowLongPtr(nint window,int index);
-    [DllImport("user32.dll")][return:MarshalAs(UnmanagedType.Bool)]private static extern bool GetLayeredWindowAttributes(nint window,out uint color,out byte alpha,out uint flags);
+    [DllImport("user32.dll")][return:MarshalAs(UnmanagedType.Bool)]private static extern bool IsWindowEnabled(nint window);
 }
 
 internal sealed class WindowsAnnotationFactAttribute:FactAttribute

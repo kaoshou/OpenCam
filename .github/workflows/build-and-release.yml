@@ -86,6 +86,9 @@ jobs:
       uses: actions/setup-node@v7
       with:
         node-version: '22'
+    - name: Verify annotation input on the Windows desktop
+      timeout-minutes: 3
+      run: dotnet run --project tests/ScreenRecorder.AnnotationDesktopProbe/ScreenRecorder.AnnotationDesktopProbe.csproj -c Release
     - name: Install pinned FFmpeg test prerequisites
       shell: powershell
       run: |

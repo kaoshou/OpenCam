@@ -22,7 +22,7 @@ public class ScreenAnnotationUiTests
         // Preserve the renderer's NOREDIRECTIONBITMAP and unrelated application flags.
         const long rendererFlags=0x00200008;
         var operate=AnnotationNativeWindow.WindowsInputStyles(rendererFlags,false);
-        Assert.Equal(0x082800a8L,operate); // LAYERED + TRANSPARENT + NOACTIVATE + TOOLWINDOW.
+        Assert.Equal(0x082000a8L,operate); // Never add LAYERED to Avalonia's CS_OWNDC class.
         Assert.Equal(operate,AnnotationNativeWindow.WindowsInputStyles(operate,false));
         Assert.Equal(0x00200088L,AnnotationNativeWindow.WindowsInputStyles(operate,true));
     }

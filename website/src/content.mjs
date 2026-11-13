@@ -27,7 +27,7 @@ export const content = {
   'zh-TW': {
     eyebrow: 'Windows、macOS 錄影與剪輯工具 · 另提供 Linux Beta',
     heroTitle: '<span class="hero-line">把重要的畫面，</span><em class="hero-line">好好錄下來。</em>',
-    heroText: '錄影、剪輯、續錄，一次完成。整理片段、附加多語字幕，再輸出 MP4、GIF 或具章節與逐字稿搜尋的網頁播放器。原始 MKV 素材保留在專案中。',
+    heroText: `錄影、剪輯、續錄，一次完成。整理片段、附加多語字幕，再輸出 MP4、GIF 或具章節與逐字稿搜尋的網頁播放器。原始 MKV 素材保留在專案中。${downloadDisplayVersion} 升級至 .NET 10 LTS，程式包內附執行環境，無須另外安裝 .NET。`,
     windowsPortableLabel: '下載 Windows 免安裝版', windowsInstallerLabel: '下載 Windows 安裝版', macOSLabel: '下載 macOS 版', guideLabel: '閱讀使用說明',
     windowsDownloadNote: 'Windows 適用於 x64；免安裝版請完整解壓後執行。',
     macOSDownloadNote: 'macOS 需 15 以上版本及 Apple Silicon（M 系列）。',
@@ -80,7 +80,7 @@ export const content = {
   'en-US': {
     eyebrow: 'Recording and editing for Windows and macOS · Linux Beta available',
     heroTitle: '<span class="hero-line">Capture what matters.</span><em class="hero-line">Keep it safe.</em>',
-    heroText: 'Record, edit and continue in one place. Organize clips, attach multilingual subtitles and export MP4, GIF or a web player with chapters and transcript search. Keep original MKV media in your project.',
+    heroText: `Record, edit and continue in one place. Organize clips, attach multilingual subtitles and export MP4, GIF or a web player with chapters and transcript search. Keep original MKV media in your project. ${downloadDisplayVersion} upgrades to .NET 10 LTS with the runtime included; no separate .NET installation is needed.`,
     windowsPortableLabel: 'Download Windows portable', windowsInstallerLabel: 'Download Windows installer', macOSLabel: 'Download macOS', guideLabel: 'Read the user guide',
     windowsDownloadNote: 'Windows requires x64. Fully extract the portable ZIP before running.',
     macOSDownloadNote: 'Requires macOS 15 or later and Apple Silicon (M-series).',
