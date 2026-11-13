@@ -23,7 +23,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$EXPECTED_REVISION"
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.404'
       - uses: actions/setup-node@v7
         with:
           node-version: '22'

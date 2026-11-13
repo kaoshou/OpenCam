@@ -165,7 +165,7 @@ Windows 錄影所需的 Microsoft Visual C++ 執行階段隨套件提供；安�
 
 ### macOS
 
-- macOS 13 Ventura 或以上。
+- macOS 15 Sequoia 或以上。
 - 官方版本目前支援 Apple Silicon（arm64）；尚未提供 Intel Mac（x64）版本。
 - 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v1.3.0_macOS_arm64.dmg`；檔名中的 arm64 表示 Apple Silicon。
 - 第一次啟動後，請到「系統設定 → 隱私權與安全性」允許 OpenCam 使用：
@@ -285,7 +285,7 @@ Windows 與 macOS 均沿用既有錄影流程，即時顯示教鞭圖層並直�
 
 兩個音訊來源可以獨立開關，因此支援四種組合：無音訊、只有系統聲音、只有麥克風，以及兩者同時錄製。
 
-- **系統聲音**：錄製電腦播放的聲音。macOS 13 以上使用 ScreenCaptureKit。
+- **系統聲音**：錄製電腦播放的聲音。macOS 15 以上使用 ScreenCaptureKit。
 - **麥克風**：Windows 可在 OpenCam 中選擇裝置；macOS 使用系統預設輸入裝置。
 
 開始錄影後，音訊設定會先鎖定。若要改變系統聲音或麥克風開關，請先暫停，修改後再繼續；OpenCam 會從新的錄影片段套用設定。
@@ -512,7 +512,7 @@ OpenCam 啟動時會掃描目前儲存位置下的 `Sessions`。為避免把仍�
 
 ### macOS 沒有系統聲音或麥克風
 
-- 系統聲音需要 macOS 13 以上及「螢幕與系統音訊錄製」權限。
+- 系統聲音需要 macOS 15 以上及「螢幕與系統音訊錄製」權限。
 - 麥克風需要「麥克風」權限，且使用 macOS 當下的預設輸入裝置。
 - 若聲音斷續，先使用 20 FPS、標準畫質與自動編碼器降低系統負載，並確認預設輸入裝置連線穩定；若仍發生，保留日誌與測試影片以便診斷。
 

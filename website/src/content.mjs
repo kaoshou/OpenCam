@@ -73,7 +73,7 @@ export const content = {
     processText: '錄影片段以 MKV 保存在專案內，剪輯不覆寫原始素材。隨時儲存、重開及追加錄影，再依需求輸出 MP4、GIF 或網頁播放器。相容的完整片段可快速輸出；修剪與效果會依內容進行轉換，介面會顯示目前進度。',
     processSteps: ['錄製並保留 MKV', '儲存或繼續編輯', '下次開啟並續錄', '輸出 MP4、GIF 或網頁'],
     platformsTitle: '選擇你的平台', windowsTitle: 'Windows', windowsText: 'Windows 10／11 · x64',
-    macTitle: 'macOS', macText: 'macOS 13 以上 · Apple Silicon（arm64）',
+    macTitle: 'macOS', macText: 'macOS 15 以上 · Apple Silicon（arm64）',
     guideTitle: '第一次使用？從這裡開始。', guideText: '完整說明錄影、剪輯、儲存與續錄、MP4／GIF／網頁輸出和修復救援。',
     previewNote: `圖片為 ${mainScreenshotDisplayVersion} 的介面示意，最新功能請參考使用說明。Windows 與 macOS 的裝置選項依平台顯示。`
   },
@@ -126,7 +126,7 @@ export const content = {
     processText: 'MKV recordings stay in your project while edits preserve the original media. Save, reopen and append recordings, then export MP4, GIF or a Web player. Compatible whole clips support fast export; trims and effects are converted as needed, with progress shown in the interface.',
     processSteps: ['Record and retain MKV', 'Save or edit', 'Reopen and append', 'Export MP4, GIF or Web'],
     platformsTitle: 'Choose your platform', windowsTitle: 'Windows', windowsText: 'Windows 10/11 · x64',
-    macTitle: 'macOS', macText: 'macOS 13 or later · Apple Silicon (arm64)',
+    macTitle: 'macOS', macText: 'macOS 15 or later · Apple Silicon (arm64)',
     guideTitle: 'New to OpenCam? Start here.', guideText: 'A complete guide to recording, editing, saving, resuming, MP4/GIF/Web export and Crash Recovery.',
     previewNote: `Illustrations show the ${mainScreenshotDisplayVersion} interface. See the user guide for current features. Device options follow the Windows or macOS platform.`
   }

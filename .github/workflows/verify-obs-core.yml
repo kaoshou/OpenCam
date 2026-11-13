@@ -94,15 +94,15 @@ jobs:
       - uses: actions/setup-dotnet@v4
         id: dotnet8
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.404'
       - name: Select exact installed SDK for this validation
         shell: pwsh
         env:
           VALIDATION_DOTNET_SDK: ${{ steps.dotnet8.outputs.dotnet-version }}
         run: |
-          if ($env:VALIDATION_DOTNET_SDK -notmatch '^8\.0\.\d+$') { throw 'Missing exact SDK 8 version.' }
-          if (Test-Path global.json) { throw 'Repository SDK policy changed; review validation SDK selection.' }
-          @{ sdk = @{ version = $env:VALIDATION_DOTNET_SDK; rollForward = 'disable'; allowPrerelease = $false } } | ConvertTo-Json -Depth 3 | Set-Content global.json -Encoding utf8
+          if ($env:VALIDATION_DOTNET_SDK -notmatch '^10\.0\.\d+$') { throw 'Missing exact SDK 10 version.' }
+          $policy = Get-Content global.json -Raw | ConvertFrom-Json
+          if ($policy.sdk.version -cne $env:VALIDATION_DOTNET_SDK -or $policy.sdk.rollForward -cne 'disable') { throw 'Repository SDK pin differs from installed validation SDK.' }
           if ((dotnet --version) -cne $env:VALIDATION_DOTNET_SDK) { throw 'Exact SDK selection failed.' }
       - name: Acquire official hash-pinned runtime and exact source revisions
         env:
@@ -141,7 +141,7 @@ jobs:
       - name: Run full Windows regression using the owned media tools
         shell: pwsh
         run: |
-          dotnet tool install dotnet-stack --version 8.0.547301 --tool-path "$env:RUNNER_TEMP/opencam-diagnostics"
+          dotnet tool install dotnet-stack --version 10.0.750501 --tool-path "$env:RUNNER_TEMP/opencam-diagnostics"
           if ($LASTEXITCODE -ne 0) { throw 'Diagnostic tool installation failed.' }
           $env:OPENCAM_TEST_STACK_TOOL = "$env:RUNNER_TEMP/opencam-diagnostics/dotnet-stack.exe"
           dotnet test ScreenRecorder.sln -c Release -m:1 /nodeReuse:false --logger trx --results-directory obs-results/full-managed
@@ -179,7 +179,7 @@ jobs:
           }
           dotnet build tests/ScreenRecorder.NativeOnlyProbe/ScreenRecorder.NativeOnlyProbe.csproj -c Release -p:OpenCamNativeOnlyTest=true -m:1 /nodeReuse:false
           if ($LASTEXITCODE -ne 0) { throw 'Native-only policy probe build failed.' }
-          dotnet tests/ScreenRecorder.NativeOnlyProbe/bin/native-only/Release/net8.0/ScreenRecorder.NativeOnlyProbe.dll user-test-package
+          dotnet tests/ScreenRecorder.NativeOnlyProbe/bin/native-only/Release/net10.0/ScreenRecorder.NativeOnlyProbe.dll user-test-package
           if ($LASTEXITCODE -ne 0) { throw 'Native-only assembly/runtime policy verification failed.' }
       - name: Verify actual packaged runtime through production loader and owned media output
         shell: pwsh
@@ -209,7 +209,7 @@ jobs:
           Copy-Item LICENSE installer/publish/LICENSE.txt
           node scripts/check-release-notices.mjs installer/publish $env:GITHUB_SHA $env:OPENCAM_VERSION --installer
           if ($LASTEXITCODE -ne 0) { throw 'Official notices failed.' }
-          dotnet tests/ScreenRecorder.NativeOnlyProbe/bin/native-only/Release/net8.0/ScreenRecorder.NativeOnlyProbe.dll installer/publish
+          dotnet tests/ScreenRecorder.NativeOnlyProbe/bin/native-only/Release/net10.0/ScreenRecorder.NativeOnlyProbe.dll installer/publish
           if ($LASTEXITCODE -ne 0) { throw 'Official native-only policy failed.' }
           Compress-Archive -Path installer/publish/* -DestinationPath $env:WINDOWS_PORTABLE
           & "C:\Program Files (x86)\Inno Setup 6\iscc.exe" "/DMyAppVersion=$env:OPENCAM_VERSION" installer/OpenCam.iss
@@ -266,7 +266,7 @@ jobs:
           node-version: '22'
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.404'
       - name: Acquire checksum-pinned Apple Silicon runtime and sources
         run: bash scripts/prepare-obs-macos-validation.sh "$RUNNER_TEMP/obs-inputs"
       - name: Build owned OBS helper and stage verified runtime
@@ -295,7 +295,7 @@ jobs:
           bash scripts/package-macos.sh "$RUNNER_TEMP/publish" "$RUNNER_TEMP/bundle/OpenCam.app" Release "$profile" "$RUNNER_TEMP/obs-runtime"
           node scripts/check-release-notices.mjs "$RUNNER_TEMP/bundle/OpenCam.app/Contents/Resources" "$GITHUB_SHA" "$(cat VERSION)"
           dotnet build tests/ScreenRecorder.NativeOnlyProbe/ScreenRecorder.NativeOnlyProbe.csproj -c Release -p:OpenCamNativeOnlyTest=true -m:1 /nodeReuse:false
-          PATH="$RUNNER_TEMP/bundle/OpenCam.app/Contents/MacOS:$PATH" dotnet tests/ScreenRecorder.NativeOnlyProbe/bin/native-only/Release/net8.0/ScreenRecorder.NativeOnlyProbe.dll "$RUNNER_TEMP/bundle/OpenCam.app/Contents/MacOS"
+          PATH="$RUNNER_TEMP/bundle/OpenCam.app/Contents/MacOS:$PATH" dotnet tests/ScreenRecorder.NativeOnlyProbe/bin/native-only/Release/net10.0/ScreenRecorder.NativeOnlyProbe.dll "$RUNNER_TEMP/bundle/OpenCam.app/Contents/MacOS"
           codesign --verify --deep --strict "$RUNNER_TEMP/bundle/OpenCam.app"
           name="OpenCam_v$(cat VERSION)_macOS_arm64_Test_${GITHUB_SHA:0:7}.zip"
           ditto -c -k --sequesterRsrc --keepParent "$RUNNER_TEMP/bundle/OpenCam.app" "$name"
@@ -356,7 +356,7 @@ jobs:
       - uses: actions/setup-dotnet@v4
         id: dotnet8
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.404'
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
@@ -374,9 +374,9 @@ jobs:
         env:
           VALIDATION_DOTNET_SDK: ${{ steps.dotnet8.outputs.dotnet-version }}
         run: |
-          if ($env:VALIDATION_DOTNET_SDK -notmatch '^8\.0\.\d+$') { throw 'Missing exact SDK 8 version.' }
-          if (Test-Path global.json) { throw 'Repository SDK policy changed; review validation SDK selection.' }
-          @{ sdk = @{ version = $env:VALIDATION_DOTNET_SDK; rollForward = 'disable'; allowPrerelease = $false } } | ConvertTo-Json -Depth 3 | Set-Content global.json -Encoding utf8
+          if ($env:VALIDATION_DOTNET_SDK -notmatch '^10\.0\.\d+$') { throw 'Missing exact SDK 10 version.' }
+          $policy = Get-Content global.json -Raw | ConvertFrom-Json
+          if ($policy.sdk.version -cne $env:VALIDATION_DOTNET_SDK -or $policy.sdk.rollForward -cne 'disable') { throw 'Repository SDK pin differs from installed validation SDK.' }
           if ((dotnet --version) -cne $env:VALIDATION_DOTNET_SDK) { throw 'Exact SDK selection failed.' }
       - name: Record bounded portable FFmpeg and SDK versions
         run: node scripts/collect-test-environment.mjs obs-managed-results/environment.json

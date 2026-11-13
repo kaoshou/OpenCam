@@ -38,7 +38,7 @@ test('Mac bundle verification rejects missing execute permission on the sole rec
   await copyFile(fileURLToPath(new URL('../../LICENSE',import.meta.url)),join(res,'LICENSE'));
   for(const name of ['NOTICE.md','OpenCam.icns'])await writeFile(join(res,name),'fixture');
   await writeFile(join(res,'SOURCE.txt'),'SPDX-License-Identifier: AGPL-3.0-or-later\nCorresponding source: https://github.com/kaoshou/OpenCam/tree/'+'a'.repeat(40));
-  await writeFile(join(app,'Contents/Info.plist'),'<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleIconFile</key><string>OpenCam.icns</string><key>LSMinimumSystemVersion</key><string>13.0</string><key>OpenCamNativeOnlyTest</key><true/></dict></plist>');
+  await writeFile(join(app,'Contents/Info.plist'),'<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleIconFile</key><string>OpenCam.icns</string><key>LSMinimumSystemVersion</key><string>15.0</string><key>OpenCamNativeOnlyTest</key><true/></dict></plist>');
   const result=spawnSync('bash',[verifier,app],{encoding:'utf8'});
   assert.notEqual(result.status,0);assert.match(result.stderr,/native-only recording helper is not executable/);
 });

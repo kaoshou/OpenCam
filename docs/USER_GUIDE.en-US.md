@@ -153,7 +153,7 @@ Compatible H.264 is remuxed where possible; other supported sources convert to H
 
 ### macOS
 
-- macOS 13 Ventura or later.
+- macOS 15 Sequoia or later.
 - The official build currently supports Apple Silicon (arm64). An Intel Mac (x64) build is not currently provided.
 - Download `OpenCam_v1.3.0_macOS_arm64.dmg` from [Releases](https://github.com/kaoshou/OpenCam/releases); arm64 identifies Apple Silicon.
 - After first launch, open **System Settings → Privacy & Security** and allow OpenCam to use:
@@ -273,7 +273,7 @@ Back up or move the whole project folder, including its `pointers` tracks. Missi
 
 The two audio sources can be switched independently, supporting four combinations: no audio, system audio only, microphone only, or both sources.
 
-- **System audio**: Records audio played by the computer. On macOS 13 or later, this uses ScreenCaptureKit.
+- **System audio**: Records audio played by the computer. On macOS 15 or later, this uses ScreenCaptureKit.
 - **Microphone**: Windows lets you select a device in OpenCam. macOS uses the system-default input device.
 
 Audio settings are initially locked after recording starts. To change system-audio or microphone recording, pause first, make the change, and resume. OpenCam applies the new setting to the next recording segment.
@@ -500,7 +500,7 @@ If no recoverable content appears, check the following in order:
 
 ### No System Audio or Microphone on macOS
 
-- System audio requires macOS 13 or later and Screen & System Audio Recording permission.
+- System audio requires macOS 15 or later and Screen & System Audio Recording permission.
 - The microphone requires Microphone permission and uses the current macOS default input device.
 - For intermittent audio, first reduce system load with 20 FPS, Standard quality, and Auto encoding, and confirm that the default input device has a stable connection. If it continues, preserve the logs and a short test video for diagnosis.
 

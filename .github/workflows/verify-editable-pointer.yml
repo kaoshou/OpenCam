@@ -31,17 +31,17 @@ jobs:
       - uses: actions/setup-dotnet@v4
         id: dotnet8
         with:
-          dotnet-version: '8.0.x'
-      - name: Select the installed SDK 8 for this validation run
+          dotnet-version: '10.0.404'
+      - name: Select the installed SDK 10 for this validation run
         shell: pwsh
         env:
           VALIDATION_DOTNET_SDK: ${{ steps.dotnet8.outputs.dotnet-version }}
         run: |
-          if ($env:VALIDATION_DOTNET_SDK -notmatch '^8\.0\.\d+$') { throw 'Setup did not identify an exact SDK 8 version.' }
-          if (Test-Path global.json) { throw 'Repository SDK policy changed; review the validation pin.' }
-          @{ sdk = @{ version = $env:VALIDATION_DOTNET_SDK; rollForward = 'disable'; allowPrerelease = $false } } | ConvertTo-Json -Depth 3 | Set-Content global.json -Encoding utf8
+          if ($env:VALIDATION_DOTNET_SDK -notmatch '^10\.0\.\d+$') { throw 'Setup did not identify an exact SDK 10 version.' }
+          $policy = Get-Content global.json -Raw | ConvertFrom-Json
+          if ($policy.sdk.version -cne $env:VALIDATION_DOTNET_SDK -or $policy.sdk.rollForward -cne 'disable') { throw 'SDK pin mismatch.' }
           $selected = dotnet --version
-          if ($LASTEXITCODE -ne 0 -or $selected -cne $env:VALIDATION_DOTNET_SDK) { throw 'Validation did not select the exact installed SDK 8.' }
+          if ($LASTEXITCODE -ne 0 -or $selected -cne $env:VALIDATION_DOTNET_SDK) { throw 'Validation did not select the exact installed SDK 10.' }
       - uses: actions/setup-node@v7
         with:
           node-version: '22'

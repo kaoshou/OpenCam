@@ -146,7 +146,7 @@ plist_buddy=/usr/libexec/PlistBuddy
 "$plist_buddy" -c 'Add :CFBundleSupportedPlatforms:0 string MacOSX' "$plist"
 "$plist_buddy" -c 'Add :NSMicrophoneUsageDescription string OpenCam needs microphone access to record audio.' "$plist"
 "$plist_buddy" -c 'Add :NSScreenCaptureUsageDescription string OpenCam needs screen capture access to record your screen.' "$plist"
-"$plist_buddy" -c 'Add :LSMinimumSystemVersion string 13.0' "$plist"
+"$plist_buddy" -c 'Add :LSMinimumSystemVersion string 15.0' "$plist"
 "$plist_buddy" -c 'Add :NSHighResolutionCapable bool true' "$plist"
 "$plist_buddy" -c "Add :OpenCamBuildConfiguration string $configuration" "$plist"
 

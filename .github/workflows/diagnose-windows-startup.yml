@@ -29,7 +29,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.404'
       - name: Build isolated pipe observer
         run: dotnet build tests/ScreenRecorder.TestChild/ScreenRecorder.TestChild.csproj -c Release
       - name: Compare asynchronous stream reads with dedicated readers
@@ -38,7 +38,7 @@ jobs:
           New-Item -ItemType Directory pipe-evidence | Out-Null
           dotnet --info | Set-Content pipe-evidence/runtime.txt
           foreach ($reader in @('async','dedicated')) {
-            $observation = dotnet tests/ScreenRecorder.TestChild/bin/Release/net8.0/ScreenRecorder.TestChild.dll pipe-pool-probe $reader
+            $observation = dotnet tests/ScreenRecorder.TestChild/bin/Release/net10.0/ScreenRecorder.TestChild.dll pipe-pool-probe $reader
             if ($LASTEXITCODE -ne 0) { throw 'Isolated pipe characterization failed.' }
             $observation | Set-Content "pipe-evidence/$reader.json"
           }
@@ -62,18 +62,18 @@ jobs:
       - uses: actions/setup-dotnet@v4
         id: sdk
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.404'
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
-      - name: Select installed .NET 8 SDK
+      - name: Select installed .NET 10 SDK
         shell: pwsh
         env:
           SELECTED_SDK: ${{ steps.sdk.outputs.dotnet-version }}
         run: |
-          if (Test-Path global.json) { throw 'Review changed repository SDK policy first.' }
-          if ($env:SELECTED_SDK -notmatch '^8\.0\.\d+$') { throw 'Missing exact SDK version.' }
-          @{ sdk = @{ version = $env:SELECTED_SDK; rollForward = 'disable' } } | ConvertTo-Json -Depth 3 | Set-Content global.json
+          if ($env:SELECTED_SDK -notmatch '^10\.0\.\d+$') { throw 'Missing exact SDK version.' }
+          $policy = Get-Content global.json -Raw | ConvertFrom-Json
+          if ($policy.sdk.version -cne $env:SELECTED_SDK -or $policy.sdk.rollForward -cne 'disable') { throw 'SDK pin mismatch.' }
           if ((dotnet --version) -cne $env:SELECTED_SDK) { throw 'SDK selection failed.' }
       - name: Download already verified owned tools
         if: matrix.media == 'owned'
@@ -99,7 +99,7 @@ jobs:
           DIAGNOSTIC_MIN_WORKERS: ${{ inputs.min_workers || '0' }}
         run: |
           node scripts/collect-test-environment.mjs startup-evidence/environment.json
-          dotnet tool install dotnet-stack --version 8.0.547301 --tool-path "$env:RUNNER_TEMP/opencam-diagnostics"
+          dotnet tool install dotnet-stack --version 10.0.750501 --tool-path "$env:RUNNER_TEMP/opencam-diagnostics"
           if ($LASTEXITCODE -ne 0) { throw 'Diagnostic tool installation failed.' }
           $env:OPENCAM_TEST_STACK_TOOL = "$env:RUNNER_TEMP/opencam-diagnostics/dotnet-stack.exe"
           dotnet restore ScreenRecorder.sln
@@ -107,14 +107,14 @@ jobs:
           dotnet build ScreenRecorder.sln -c Release --no-restore -m:1 /nodeReuse:false
           if ($LASTEXITCODE -ne 0) { throw 'Build failed.' }
           foreach ($reader in @('async','dedicated')) {
-            $observation = dotnet tests/ScreenRecorder.TestChild/bin/Release/net8.0/ScreenRecorder.TestChild.dll pipe-pool-probe $reader
+            $observation = dotnet tests/ScreenRecorder.TestChild/bin/Release/net10.0/ScreenRecorder.TestChild.dll pipe-pool-probe $reader
             if ($LASTEXITCODE -ne 0) { throw 'Isolated pipe characterization failed.' }
             $observation | Set-Content "startup-evidence/pipe-pool-$reader.json"
           }
           if ($env:DIAGNOSTIC_MIN_WORKERS -notin @('0','20')) { throw 'Invalid diagnostic worker setting.' }
           if ($env:DIAGNOSTIC_MIN_WORKERS -ne '0') {
             foreach ($project in @('ScreenRecorder.Core.Tests','ScreenRecorder.Media.Tests')) {
-              $config = "tests/$project/bin/Release/net8.0/$project.runtimeconfig.json"
+              $config = "tests/$project/bin/Release/net10.0/$project.runtimeconfig.json"
               $json = Get-Content -Raw $config | ConvertFrom-Json -AsHashtable
               if (!$json.runtimeOptions.ContainsKey('configProperties')) { $json.runtimeOptions.configProperties = @{} }
               $json.runtimeOptions.configProperties['System.Threading.ThreadPool.MinThreads'] = [int]$env:DIAGNOSTIC_MIN_WORKERS

@@ -47,7 +47,7 @@ icon_name="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$plist" 2>/de
 [[ "$icon_name" == "OpenCam.icns" ]] || fail "CFBundleIconFile must be OpenCam.icns"
 
 minimum_version="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$plist" 2>/dev/null || true)"
-[[ "$minimum_version" == "13.0" ]] || fail "LSMinimumSystemVersion must be 13.0"
+[[ "$minimum_version" == "15.0" ]] || fail "LSMinimumSystemVersion must be 15.0 for the supported .NET 10 release"
 
 if [[ "$native_only" == true ]]; then
   [[ ! -e "$macos/OpenCam.ScreenCapture" ]] || fail "native-only bundle contains the legacy screen helper"

@@ -28,7 +28,7 @@ jobs:
           node-version: '22'
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.404'
       - uses: actions/checkout@v4
         with:
           repository: obsproject/obs-studio
@@ -55,7 +55,9 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/opencam-linux/evidence"
           git rev-parse HEAD > "$RUNNER_TEMP/opencam-linux/evidence/revision.txt"
-          git diff e0c369e6495532cc0393c349dc428ffb8a00327e -- src/ScreenRecorder.Platform.Windows src/ScreenRecorder.Platform.macOS native/obs-capture scripts/build-obs-capture.sh scripts/build-obs-capture.ps1 scripts/assemble-obs-runtime.mjs > "$RUNNER_TEMP/opencam-linux/evidence/production-diff.txt"
+          # Only the approved net8 -> net10 project target migration is exempt.
+          # Native code, project references and capture builders remain protected.
+          git diff -I '^[[:space:]]*<TargetFramework>net(8|10)\.0</TargetFramework>[[:space:]]*$' e0c369e6495532cc0393c349dc428ffb8a00327e -- src/ScreenRecorder.Platform.Windows src/ScreenRecorder.Platform.macOS native/obs-capture scripts/build-obs-capture.sh scripts/build-obs-capture.ps1 scripts/assemble-obs-runtime.mjs > "$RUNNER_TEMP/opencam-linux/evidence/production-diff.txt"
           test ! -s "$RUNNER_TEMP/opencam-linux/evidence/production-diff.txt"
           node --test tests/scripts/linux-obs-inputs.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/input-tests.log" 2>&1
           node --test tests/scripts/linux-probe-protocol.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/protocol-tests.log" 2>&1
@@ -178,7 +180,7 @@ jobs:
           dotnet publish tests/ScreenRecorder.LinuxDesktopProbe -c Release -r linux-x64 --self-contained false -p:OpenCamNativeOnlyTest=true -m:1 -o "$RUNNER_TEMP/opencam-linux/Desktop Acceptance" > "$RUNNER_TEMP/opencam-linux/evidence/annotation-probe-build.log" 2>&1
           cp -a "$RUNNER_TEMP/opencam-linux/OpenCam Linux Test/." "$RUNNER_TEMP/opencam-linux/Desktop Acceptance/"
           dotnet build tests/ScreenRecorder.Media.Tests/ScreenRecorder.Media.Tests.csproj -c Release -m:1 > "$RUNNER_TEMP/opencam-linux/evidence/managed-tests-build.log" 2>&1
-          cp "$RUNNER_TEMP/opencam-linux/publish/libOpenCamLinuxSpawn.so" tests/ScreenRecorder.Media.Tests/bin/Release/net8.0/
+          cp "$RUNNER_TEMP/opencam-linux/publish/libOpenCamLinuxSpawn.so" tests/ScreenRecorder.Media.Tests/bin/Release/net10.0/
       - name: Actual Linux project recording editing export and relocated UI
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'

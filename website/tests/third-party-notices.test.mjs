@@ -68,7 +68,7 @@ test('collector fails closed when a runtime dependency changes without license r
   try {
     const options = await addThirdPartyFixture(dir);
     const assets = JSON.parse(await readFile(options.assetsPath, 'utf8'));
-    assets.targets['net8.0/osx-arm64']['New.Dependency/1.0.0'] = { type: 'package', runtime: { 'new.dll': {} } };
+    assets.targets['net10.0/osx-arm64']['New.Dependency/1.0.0'] = { type: 'package', runtime: { 'new.dll': {} } };
     await writeFile(options.assetsPath, JSON.stringify(assets));
     await assert.rejects(assembleThirdPartyNotices(dir, { rid: 'osx-arm64', ...options }), /Unreviewed third-party dependency/);
   } finally { await rm(dir, { recursive: true, force: true }); }

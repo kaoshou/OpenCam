@@ -20,7 +20,7 @@ export async function assembleThirdPartyNotices(destination, {
   if (!ffmpegDirectory) throw new Error('Missing FFmpeg notice directory');
   const catalog = JSON.parse(await readFile(join(repository, 'third-party/catalog.json'), 'utf8'));
   const assets = JSON.parse(await readFile(assetsPath, 'utf8'));
-  const target = assets.targets[`net8.0/${rid}`];
+  const target = assets.targets[`net10.0/${rid}`];
   if (!target) throw new Error(`Restore/publish assets for ${rid} before assembling notices`);
   const packages = Object.entries(target).filter(([name, item]) => item.type === 'package'
     && (item.runtime || item.native || item.runtimeTargets)
@@ -30,10 +30,12 @@ export async function assembleThirdPartyNotices(destination, {
   for (const name of packages) {
     if (!catalog.packages.includes(name)) throw new Error(`Unreviewed third-party dependency: ${name}`);
   }
-  const runtime = assets.project.frameworks.net8_0 ?? assets.project.frameworks['net8.0'];
-  const dependency = runtime.downloadDependencies?.find(d => d.name.toLowerCase() === `microsoft.netcore.app.runtime.${rid}`);
+  const runtime = assets.project.frameworks['net10.0'];
+  const dependency = runtime?.downloadDependencies?.find(d => d.name.toLowerCase() === `microsoft.netcore.app.runtime.${rid}`);
   const version = dependency?.version.match(/^\[([0-9.]+), \1\]$/)?.[1];
   if (!version) throw new Error('Cannot identify exact self-contained .NET runtime');
+  const expectedRuntime=(await readFile(join(root,'DOTNET_RUNTIME_VERSION'),'utf8')).trim();
+  if(version!==expectedRuntime)throw new Error('Publish runtime differs from the supported pinned runtime');
   const packageName = `microsoft.netcore.app.runtime.${rid}/${version}`;
   let runtimeDirectory;
   for (const folder of Object.keys(assets.packageFolders)) {

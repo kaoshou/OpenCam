@@ -26,10 +26,10 @@ jobs:
     steps:
     - name: Checkout Source Code
       uses: actions/checkout@v4
-    - name: Setup .NET 8
+    - name: Setup .NET 10
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '8.0.x'
+        dotnet-version: '10.0.404'
     - name: Setup Node.js 22
       uses: actions/setup-node@v7
       with:
@@ -49,7 +49,7 @@ jobs:
         dotnet build ScreenRecorder.sln -c Release --no-restore -m:1 /nodeReuse:false
         cc -Wall -Wextra -Werror tests/native/linux-spawn-tests.c src/ScreenRecorder.Platform.Linux/Native/spawn.c -o "$RUNNER_TEMP/opencam-linux-spawn-tests"
         "$RUNNER_TEMP/opencam-linux-spawn-tests"
-        test_output=tests/ScreenRecorder.Media.Tests/bin/Release/net8.0
+        test_output=tests/ScreenRecorder.Media.Tests/bin/Release/net10.0
         cc -shared -fPIC -O2 -Wall -Wextra -Werror src/ScreenRecorder.Platform.Linux/Native/spawn.c -o "$test_output/libOpenCamLinuxSpawn.so"
         cp "$test_output/libOpenCamLinuxSpawn.so" "$test_output/project-recording-probe/"
         dotnet test ScreenRecorder.sln -c Release --no-build --no-restore -m:1 /nodeReuse:false --logger trx --results-directory test-results
@@ -76,10 +76,10 @@ jobs:
     steps:
     - name: Checkout Source Code
       uses: actions/checkout@v4
-    - name: Setup .NET 8
+    - name: Setup .NET 10
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '8.0.x'
+        dotnet-version: '10.0.404'
     - name: Setup Node.js 22
       uses: actions/setup-node@v7
       with:
@@ -93,7 +93,7 @@ jobs:
       run: node scripts/collect-test-environment.mjs
     - name: Test Windows-compatible solution
       run: |
-        dotnet tool install dotnet-stack --version 8.0.547301 --tool-path "$env:RUNNER_TEMP\opencam-diagnostics"
+        dotnet tool install dotnet-stack --version 10.0.750501 --tool-path "$env:RUNNER_TEMP\opencam-diagnostics"
         if ($LASTEXITCODE -ne 0) { throw "Diagnostic tool installation failed" }
         $env:OPENCAM_TEST_STACK_TOOL = "$env:RUNNER_TEMP\opencam-diagnostics\dotnet-stack.exe"
         dotnet restore ScreenRecorder.sln
@@ -113,10 +113,10 @@ jobs:
     steps:
     - name: Checkout Source Code
       uses: actions/checkout@v4
-    - name: Setup .NET 8
+    - name: Setup .NET 10
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '8.0.x'
+        dotnet-version: '10.0.404'
     - name: Setup Node.js 22
       uses: actions/setup-node@v7
       with:

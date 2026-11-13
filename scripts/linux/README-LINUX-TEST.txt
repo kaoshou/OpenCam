@@ -1,7 +1,11 @@
 OpenCam — Linux x64 Beta
 Check SOURCE.txt and LINUX-TEST-INFO.json for the version and exact commit.
 
-Ubuntu 24.04 / 25.04 amd64 installation (network required for dependencies):
+Primary test target: Ubuntu 24.04 LTS amd64 (network required for dependencies).
+Ubuntu 25.04 dependency/install checks are historical compatibility records:
+that OS reached end of life on 2026-01-15 and no longer receives security
+updates. It is not recommended for new installations or production use.
+Installation:
   sudo apt install ./OpenCam_v*_Linux_x64_Beta.deb
 Use the actual downloaded filename, or select this package in your desktop's
 package installer if supported. After installation, open "OpenCam" in the

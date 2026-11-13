@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
@@ -38,12 +38,12 @@
 
   <Target Name="CopyProbeTestChild" AfterTargets="Build">
     <ItemGroup>
-      <ProbeTestChildFiles Include="$(MSBuildThisFileDirectory)../ScreenRecorder.TestChild/bin/$(Configuration)/net8.0/ScreenRecorder.TestChild.*" />
+      <ProbeTestChildFiles Include="$(MSBuildThisFileDirectory)../ScreenRecorder.TestChild/bin/$(Configuration)/net10.0/ScreenRecorder.TestChild.*" />
     </ItemGroup>
     <Copy SourceFiles="@(ProbeTestChildFiles)" DestinationFolder="$(OutDir)probe-child" />
   </Target>
   <Target Name="CopyProjectRecordingProbe" AfterTargets="Build">
-    <ItemGroup><ProjectRecordingProbeFiles Include="$(MSBuildThisFileDirectory)../ScreenRecorder.ProjectRecordingProbe/bin/$(Configuration)/net8.0/*" /></ItemGroup>
+    <ItemGroup><ProjectRecordingProbeFiles Include="$(MSBuildThisFileDirectory)../ScreenRecorder.ProjectRecordingProbe/bin/$(Configuration)/net10.0/*" /></ItemGroup>
     <Copy SourceFiles="@(ProjectRecordingProbeFiles)" DestinationFolder="$(OutDir)project-recording-probe" />
   </Target>
 </Project>

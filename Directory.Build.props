@@ -1,6 +1,8 @@
 <Project>
   <PropertyGroup>
     <OpenCamVersion>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)VERSION').Trim())</OpenCamVersion>
+    <RuntimeFrameworkVersion>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)DOTNET_RUNTIME_VERSION').Trim())</RuntimeFrameworkVersion>
+    <LangVersion>12.0</LangVersion>
     <Version>$(OpenCamVersion)</Version>
     <AssemblyVersion>$(OpenCamVersion).0</AssemblyVersion>
     <FileVersion>$(OpenCamVersion).0</FileVersion>

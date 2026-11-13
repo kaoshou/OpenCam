@@ -56,7 +56,7 @@ OpenCam 是 Windows、macOS 與 Linux（Beta）桌面螢幕錄影工具，讓你
 | 平台 | 系統需求 | 下載選項 |
 | --- | --- | --- |
 | Windows | Windows 10／11，x64 | Setup 安裝版、Portable 免安裝版 |
-| macOS | macOS 13 以上，Apple Silicon／arm64 | DMG；不適用 Intel Mac |
+| macOS | macOS 15 以上，Apple Silicon／arm64 | DMG；不適用 Intel Mac |
 | Linux **Beta** | 主要測試目標：Ubuntu 24.04 LTS，x64 | `.deb` 安裝版、`.tar.gz` 免安裝版；功能與驗證限制見下方 |
 
 到 [最新 Release](https://github.com/kaoshou/OpenCam/releases/latest) 下載。套件包含 .NET Runtime 與媒體工具。Windows 錄影所需的 Microsoft Visual C++ 執行階段隨套件附上，不需另外安裝或尋找 DLL。
@@ -177,7 +177,7 @@ Most users only need their platform's application package. `OpenCam_v1.3.0_Corre
 | Platform | Requirements | Downloads |
 | --- | --- | --- |
 | Windows | Windows 10/11, x64 | Setup installer or Portable ZIP |
-| macOS | macOS 13+, Apple Silicon/arm64 | DMG; not for Intel Macs |
+| macOS | macOS 15+, Apple Silicon/arm64 | DMG; not for Intel Macs |
 | Linux **Beta** | Primary test target: Ubuntu 24.04 LTS, x64 | `.deb` installer or `.tar.gz` archive; feature and validation limits below |
 
 Download from the [latest Release](https://github.com/kaoshou/OpenCam/releases/latest). Packages include .NET Runtime and media tools. The required Windows Microsoft Visual C++ recording runtime is bundled app-locally; no separate runtime installation or DLL download is needed.
