@@ -109,13 +109,36 @@ public sealed class ProbeApp:Application
                 await Until(()=>host.Document.Marks.Length==marks+1,"Drawing did not receive native input after re-enabling");
                 Require(Count()==previous,"Drawing click leaked into underlying target");
             }
-            host.TogglePen();host.Document.Clear();host.SelectTool(AnnotationTool.Remove);
+            host.TogglePen();
+            host.SetPaused(true);await Task.Delay(150);
+            Require(((Native.Pixel(480,380)>>8)&255)>180,"Paused annotation ink remained visible");
+            host.SetPaused(false);await Task.Delay(150);
+            Require(((Native.Pixel(480,380)>>8)&255)<120,"Resume lost retained annotation ink");
+            host.Document.Clear();await Task.Delay(150);
+            Require(((Native.Pixel(480,380)>>8)&255)>180,"Clear did not remove Operate presentation ink");
+            host.Document.Undo();await Task.Delay(150);
+            Require(((Native.Pixel(480,380)>>8)&255)<120,"Undo did not restore Operate presentation ink");
+            host.Document.Redo();await Task.Delay(150);
+            Require(((Native.Pixel(480,380)>>8)&255)>180,"Redo did not clear Operate presentation ink");
+            host.SelectTool(AnnotationTool.Remove);
             await Task.Delay(200);
             var cleared=Native.Pixel(480,380);
             Require((cleared&255)>220&&((cleared>>8)&255)>220&&((cleared>>16)&255)>220,"Cleared ink reappeared");
-            host.SetPaused(true);host.SetPaused(false);
             Require(!child.HasExited,"Independent target exited unexpectedly");
-            Console.WriteLine("PASS: actual Avalonia CS_OWNDC HWND, visible ink, independent-process SendInput at ink/blank, drawing input restored, clear/eraser and pause/resume");
+            host.Dispose();host=null;
+            Require(Native.FindWindow("STATIC","OpenCam Annotation Presentation")==0,"Native ink presentation window leaked after close");
+            // Exercise pixel/DIP conversion independently of the runner's fixed
+            // desktop DPI. This does not claim real multi-monitor DPI coverage.
+            var scaledDocument=new AnnotationDocument(700/1.5,500/1.5);
+            using(var canvas=new AnnotationCanvas(scaledDocument))
+            using(var presentation=new WindowsAnnotationPresentation())
+            {
+                canvas.Measure(new Avalonia.Size(700/1.5,500/1.5));canvas.Arrange(new Rect(0,0,700/1.5,500/1.5));
+                scaledDocument.Begin(new(360/1.5,300/1.5),true);scaledDocument.Move(new(440/1.5,300/1.5));scaledDocument.End();
+                presentation.Update(canvas,new(700,500),new(80,80),1.5);await Task.Delay(150);
+                Require(((Native.Pixel(480,380)>>8)&255)<120,"150% presentation pixel/DIP mapping shifted ink");
+            }
+            Console.WriteLine("PASS: actual Avalonia CS_OWNDC HWND, visible ink, independent-process SendInput at ink/blank, drawing input restored, clear/undo/redo/eraser, nonempty pause/resume and native-window disposal");
         }
         finally
         {
@@ -144,6 +167,7 @@ public sealed class ProbeApp:Application
         [DllImport("user32.dll",EntryPoint="GetWindowLongPtrW")]internal static extern nint GetWindowLongPtr(nint window,int index);
         [DllImport("user32.dll")]private static extern uint SendInput(uint count,Input[] inputs,int size);
         [DllImport("user32.dll")]internal static extern nint GetForegroundWindow();
+        [DllImport("user32.dll",EntryPoint="FindWindowW",CharSet=CharSet.Unicode)]internal static extern nint FindWindow(string className,string title);
         [DllImport("user32.dll")]internal static extern nint WindowFromPoint(Point point);
         [DllImport("user32.dll")]private static extern nint GetDC(nint window);
         [DllImport("user32.dll")]private static extern int ReleaseDC(nint window,nint dc);
