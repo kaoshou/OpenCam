@@ -2,12 +2,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 set -euo pipefail
 # Called only after application integration, relocation and media validation gates.
-[[ $# == 5 ]] || exit 2
+[[ $# == 6 ]] || exit 2
 package_directory=$1
 artifact_directory=$2
 obs_source=$3
 ffmpeg_source=$4
 tested_revision=$5
+publish_assets=$6
 artifact_names=$(node scripts/release-artifact-names.mjs)
 while IFS='=' read -r key value; do
   case "$key" in OPENCAM_VERSION|LINUX_DEB|LINUX_ARCHIVE|LINUX_SOURCES|LINUX_CHECKSUMS) printf -v "$key" '%s' "$value" ;; esac
@@ -33,7 +34,7 @@ cp "$obs_source/deps/glad/include/EGL/eglplatform.h" "$package_directory/linux-n
 cp /usr/share/doc/libsimde-dev/copyright "$package_directory/linux-notices/obs-embedded/SIMDe-copyright.txt"
 cp /usr/share/doc/uthash-dev/copyright "$package_directory/linux-notices/obs-embedded/uthash-copyright.txt"
 cp "$ffmpeg_source/COPYING.GPLv2" "$ffmpeg_source/COPYING.GPLv3" "$ffmpeg_source/COPYING.LGPLv2.1" "$package_directory/linux-notices/"
-node scripts/linux/copy-runtime-notices.mjs "$package_directory/linux-notices" src/ScreenRecorder.UI/obj/native-only/project.assets.json
+node scripts/linux/copy-runtime-notices.mjs "$package_directory/linux-notices" "$publish_assets"
 printf 'OpenCam %s Linux Beta\nCommit: %s\nOBS: 72e86655715d9a25d69ce446aa4dd44ba58e10d2\nFFmpeg: 1041abdc962f4cc4f394aa8de9dc5236c0c3b9e7\nSource archives and build scripts accompany this package. OS libraries (including x264, PulseAudio, PipeWire, Mesa) are supplied by Ubuntu, not redistributed here.\n' "$OPENCAM_VERSION" "$tested_revision" > "$package_directory/SOURCE.txt"
 source_directory="$artifact_directory/corresponding-source"
 mkdir "$source_directory"

@@ -71,6 +71,7 @@ jobs:
         node --test tests/ci/*.test.mjs
         node --test tests/scripts/release-delivery.test.mjs tests/scripts/test-instructions.test.mjs tests/scripts/release-source-assembly.test.mjs tests/scripts/release-source-provision.test.mjs
         node --test tests/scripts/third-party-notice-profile.test.mjs tests/scripts/linux-runtime-notices.test.mjs
+        node --test tests/scripts/obs-source-delivery.test.mjs
 
   verify-windows:
     runs-on: windows-latest

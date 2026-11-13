@@ -169,6 +169,7 @@ jobs:
           dotnet run --project tests/ScreenRecorder.BuildInfoProbe -m:1 > "$RUNNER_TEMP/opencam-linux/evidence/package-identity.log" 2>&1
           XDG_DATA_HOME="$RUNNER_TEMP/opencam-linux/new-user-data" dotnet run --project tests/ScreenRecorder.BuildInfoProbe --no-build -- --settings-probe > "$RUNNER_TEMP/opencam-linux/evidence/new-user-paths.log" 2>&1
           dotnet publish src/ScreenRecorder.UI/ScreenRecorder.UI.csproj -c Release -r linux-x64 --self-contained true -p:OpenCamNativeOnlyTest=true -p:PublishSingleFile=false -m:1 -o "$RUNNER_TEMP/opencam-linux/publish" > "$RUNNER_TEMP/opencam-linux/evidence/app-publish.log" 2>&1
+          cp src/ScreenRecorder.UI/obj/native-only/project.assets.json "$RUNNER_TEMP/opencam-linux/evidence/app-publish.assets.json"
           cc -shared -fPIC -O2 -Wall -Wextra -Werror src/ScreenRecorder.Platform.Linux/Native/spawn.c -o "$RUNNER_TEMP/opencam-linux/publish/libOpenCamLinuxSpawn.so"
           cc -O2 -Wall -Wextra -Werror src/ScreenRecorder.Platform.Linux/Native/playback.c -o "$RUNNER_TEMP/opencam-linux/publish/OpenCam.PulsePlayback" $(pkg-config --cflags --libs libpulse-simple)
           dotnet publish tests/ScreenRecorder.LinuxAppProbe/ScreenRecorder.LinuxAppProbe.csproj -c Release -r linux-x64 --self-contained false -p:OpenCamNativeOnlyTest=true -m:1 -o "$RUNNER_TEMP/opencam-linux/acceptance" > "$RUNNER_TEMP/opencam-linux/evidence/app-probe-build.log" 2>&1
@@ -272,7 +273,7 @@ jobs:
           mkdir "$package_directory/build-evidence"
           cp "$RUNNER_TEMP/opencam-linux/evidence/ffmpeg/config.mak" "$package_directory/build-evidence/ffmpeg-config.mak"
           cp "$RUNNER_TEMP/opencam-linux/evidence/elf-dependencies.txt" "$RUNNER_TEMP/opencam-linux/evidence/ubuntu-package-versions.txt" "$package_directory/build-evidence/"
-          bash scripts/linux/package-verified-app.sh "$package_directory" "$RUNNER_TEMP/opencam-linux/artifacts" "$GITHUB_WORKSPACE/.linux-inputs/obs" "$GITHUB_WORKSPACE/.linux-inputs/ffmpeg" "$GITHUB_SHA"
+          bash scripts/linux/package-verified-app.sh "$package_directory" "$RUNNER_TEMP/opencam-linux/artifacts" "$GITHUB_WORKSPACE/.linux-inputs/obs" "$GITHUB_WORKSPACE/.linux-inputs/ffmpeg" "$GITHUB_SHA" "$RUNNER_TEMP/opencam-linux/evidence/app-publish.assets.json"
       - name: Upload validated Linux Beta packages and corresponding sources
         uses: actions/upload-artifact@v4
         with:
