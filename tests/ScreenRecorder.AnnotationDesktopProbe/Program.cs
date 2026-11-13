@@ -35,7 +35,8 @@ public sealed class ProbeApp:Application
             var count=0;var file=args[1];
             var target=new Window{Title="OpenCam independent click target",Width=700,Height=500,Position=new(80,80),
                 WindowStartupLocation=WindowStartupLocation.Manual,SystemDecorations=SystemDecorations.None,Background=Brushes.White};
-            target.PointerPressed+=(_,_)=>File.WriteAllText(file,(++count).ToString());
+            var button=new Button{Background=Brushes.White,BorderThickness=new(0),HorizontalContentAlignment=Avalonia.Layout.HorizontalAlignment.Stretch,VerticalContentAlignment=Avalonia.Layout.VerticalAlignment.Stretch};
+            button.Click+=(_,_)=>File.WriteAllText(file,(++count).ToString());target.Content=button;
             target.Show();File.WriteAllText(file,"0");return;
         }
         Dispatcher.UIThread.Post(async()=>
@@ -63,6 +64,8 @@ public sealed class ProbeApp:Application
         {
             await Until(()=>File.Exists(path),"Target process did not open its window");
             int Count(){try{return int.Parse(File.ReadAllText(path));}catch(IOException){return -1;}}
+            Native.Click(new(480,380));await Until(()=>Count()==1,"Baseline independent target did not receive click");
+            Console.WriteLine("PASS: baseline SendInput reaches independent target button");
             owner.Show();var scale=owner.Screens.ScreenFromPoint(new(80,80))!.Scaling;
             host=new(owner,new(80,80,700,500),0xffe63946,8,(_,_)=>{},()=>true);
             host.Show();host.SelectTool(AnnotationTool.Pen);

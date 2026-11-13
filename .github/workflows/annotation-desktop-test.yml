@@ -1,0 +1,22 @@
+name: Windows annotation desktop regression
+on:
+  workflow_dispatch:
+  push:
+    branches: ['codex/v1.3.0-refresh-20261113']
+    paths:
+      - 'tests/ScreenRecorder.AnnotationDesktopProbe/**'
+      - 'src/ScreenRecorder.UI/Annotations/**'
+      - '.github/workflows/annotation-desktop-test.yml'
+permissions:
+  contents: read
+jobs:
+  desktop-input:
+    runs-on: windows-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.404'
+      - name: Test real annotation window and independent mouse target
+        run: dotnet run --project tests/ScreenRecorder.AnnotationDesktopProbe/ScreenRecorder.AnnotationDesktopProbe.csproj -c Release
