@@ -69,6 +69,7 @@ jobs:
         npm test --prefix website
         node --test tests/web-player/player.test.mjs
         node --test tests/ci/*.test.mjs
+        node --test tests/scripts/release-delivery.test.mjs tests/scripts/test-instructions.test.mjs tests/scripts/release-source-assembly.test.mjs tests/scripts/release-source-provision.test.mjs
 
   verify-windows:
     runs-on: windows-latest
