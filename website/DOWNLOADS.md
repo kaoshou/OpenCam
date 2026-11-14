@@ -55,7 +55,7 @@ public Release. An absent flag intentionally hides direct Linux attachment links
 Linux application-menu naming is OpenCam; Beta remains in build information and
 all Linux download filenames. Linux source/license delivery is not optional.
 
-## Compact v1.3.0 release assets
+## Compact release assets
 
 Publish exactly five user binaries (Windows setup/portable, macOS DMG, Ubuntu
 Beta deb/archive), one `OpenCam_v<version>_CorrespondingSource.tar.gz` and one
