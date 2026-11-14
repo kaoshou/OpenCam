@@ -30,7 +30,7 @@ public sealed partial class ProjectWorkspaceViewModel(IProjectClient client) : O
     public string ExportStatusText => State.Export is not { } export ? "" : export.State switch
     {
         RecordingExportState.Running => Strings["ProjectExportRunning"] + " · " +
-            Strings["ProjectExportPhase" + export.Phase] + $" {ExportProgress:0}%",
+            Strings["ProjectExportPhase" + export.Phase] + $" {ExportProgress:0.#}%",
         RecordingExportState.Succeeded => Strings["ProjectExportSucceeded"] + " " + export.FinalPath,
         RecordingExportState.Canceled => Strings["ProjectExportCanceled"],
         _ => Strings["ProjectExportFailed"] + " " + export.Error

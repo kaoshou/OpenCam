@@ -151,9 +151,16 @@ public partial class ProjectConcatExportTests
                 var export = await exporter.ExportAsync(owner, project, destination,
                     Guid.NewGuid(), progress, cancellation.Token);
                 Assert.True(export.Success, export.Error);
+                if(fault==1)
+                {
+                    Assert.True(progress.Values.Zip(progress.Values.Skip(1)).All(pair=>pair.First<=pair.Second),"Fallback rendering must not move progress backwards or freeze behind the monotonic UI gate");
+                    Assert.Contains(progress.Values,value=>value>.9&&value<1);
+                }
                 var expectedPhases = fault == 1
                     ? new[] { RecordingExportPhase.Inspecting, RecordingExportPhase.ConvertingAudio,
-                        RecordingExportPhase.Verifying, RecordingExportPhase.Rendering, RecordingExportPhase.Verifying }
+                        RecordingExportPhase.Verifying }.Concat(Enumerable.Range(0,count).SelectMany(_=>new[]{
+                            RecordingExportPhase.Inspecting,RecordingExportPhase.Rendering}))
+                        .Concat(new[]{RecordingExportPhase.Packaging,RecordingExportPhase.Verifying}).ToArray()
                     : new[] { RecordingExportPhase.Inspecting, RecordingExportPhase.ConvertingAudio,
                         RecordingExportPhase.Verifying };
                 Assert.True(expectedPhases.SequenceEqual(progress.Phases),
@@ -279,7 +286,8 @@ public partial class ProjectConcatExportTests
     private sealed class PhaseProgress(Action<double> changed) : IRecordingExportProgress
     {
         public List<RecordingExportPhase> Phases { get; } = [];
-        public void Report(double value) => changed(value);
+        public List<double> Values { get; } = [];
+        public void Report(double value) {Values.Add(value);changed(value);}
         public void ReportPhase(RecordingExportPhase phase) => Phases.Add(phase);
     }
 

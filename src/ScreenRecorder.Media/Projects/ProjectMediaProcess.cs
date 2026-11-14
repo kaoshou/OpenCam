@@ -100,7 +100,8 @@ public sealed partial class ProjectMediaJob
 
     internal string[] FileDescriptorArguments()
     {
-        if (_exportArguments is not null) return _exportArguments;
+        if (_exportArguments is not null) return _progress is null?_exportArguments:
+            ["-progress","pipe:2","-stats_period","0.25","-nostats",.._exportArguments];
         if (IsAudio)
         {
             var start = ((decimal)SourcePts * TimeBase.Numerator / TimeBase.Denominator).ToString(CultureInfo.InvariantCulture);

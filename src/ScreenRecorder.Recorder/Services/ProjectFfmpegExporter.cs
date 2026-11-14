@@ -49,7 +49,11 @@ public sealed partial class ProjectFfmpegExporter(IProjectMediaProcess process, 
                 ? await TryFastExportAsync(owner, snapshot, plan, directory, temporary, exportId, Create, owned, progress, ct)
                 : null;
             if (fast is not null) return fast;
-            ReportPhase(progress, RecordingExportPhase.Rendering);
+            // A failed fast-path verification may already have reported 90%.
+            // Allocate actual rendering work to the remaining range rather than
+            // letting the coordinator's monotonic gate hide all subsequent updates.
+            var renderStart=timing.LastProgress;
+            void ReportRender(double value)=>progress.Report(renderStart+(1-renderStart)*value);
             var drive = new DriveInfo(directory.CurrentPath);
             var estimated = checked(plan.AudioSampleCount * 16 + plan.DurationTicks / TimeSpan.TicksPerSecond * 2_000_000 + 64 * 1024 * 1024);
             if (drive.AvailableFreeSpace < estimated)
@@ -57,12 +61,19 @@ public sealed partial class ProjectFfmpegExporter(IProjectMediaProcess process, 
             await using (var video = Create(videoName))
             await using (var audio = Create(audioName))
             {
+                long completedFrames=0,completedSamples=0;
+                double Work(double frames,double samples)=>.72*frames/plan.FrameCount+.08*samples/Math.Max(1,plan.AudioSampleCount);
                 for (var index = 0; index < plan.Clips.Length; index++)
                 {
                     ct.ThrowIfCancellationRequested();
                     var clip = plan.Clips[index];
+                    ReportPhase(progress,RecordingExportPhase.Inspecting);
                     await using var source = ProjectPathPolicy.OpenSource(owner, clip.Source.RelativePath);
                     await ValidateSource(source, clip.Source, ct);
+                    ReportPhase(progress,RecordingExportPhase.Rendering);
+                    var frames=clip.EndFrame-clip.StartFrame;var samples=clip.EndAudioSample-clip.StartAudioSample;
+                    var videoProgress=new ExportFractionProgress(p=>ReportRender(Work(completedFrames+p*frames,completedSamples)));
+                    var audioProgress=new ExportFractionProgress(p=>ReportRender(Work(completedFrames,completedSamples+p*samples)));
                     async Task Append(ProjectMediaJob job, FileStream target)
                     {
                         await using (var part = Create(partName))
@@ -91,6 +102,7 @@ public sealed partial class ProjectFfmpegExporter(IProjectMediaProcess process, 
                                                 await decoded.ReadExactlyAsync(pixels, decodeToken);
                                                 await pointer.ApplyAsync(pixels, frame, plan.Canvas.Width, plan.Canvas.Height, ct: decodeToken);
                                                 await input.WriteAsync(pixels, decodeToken);
+                                                videoProgress.Report((double)(frame-clip.StartFrame+1)/frames);
                                             }
                                             if (await decoded.ReadAsync(new byte[1], decodeToken) != 0)
                                                 throw new InvalidDataException("Unexpected compositor frames.");
@@ -99,10 +111,11 @@ public sealed partial class ProjectFfmpegExporter(IProjectMediaProcess process, 
                             await using (var part = directory.Read(partName)) await part.CopyToAsync(video, ct);
                             directory.DeleteOwnedFile(partName); owned.Remove(partName);
                         }
-                        else await Append(ProjectMediaJob.EncodeClipVideo(basePlan, index, options: profile), video);
+                        else await Append(ProjectMediaJob.EncodeClipVideo(basePlan, index, options: profile).WithProgress(videoProgress,totalFrames:frames), video);
                     }
-                    if (clip.EndAudioSample > clip.StartAudioSample) await Append(ProjectMediaJob.RenderClipAudio(plan, index), audio);
-                    progress.Report(0.8 * (index + 1) / plan.Clips.Length);
+                    completedFrames+=frames;ReportRender(Work(completedFrames,completedSamples));
+                    if (samples>0)await Append(ProjectMediaJob.RenderClipAudio(plan,index).WithProgress(audioProgress,totalAudioSamples:samples),audio);
+                    completedSamples+=samples;ReportRender(Work(completedFrames,completedSamples));
                 }
                 video.Flush(true);
                 audio.Flush(true);
@@ -111,11 +124,13 @@ public sealed partial class ProjectFfmpegExporter(IProjectMediaProcess process, 
             await using (var audio = directory.Read(audioName))
             await using (var output = Create(temporary))
             {
+                ReportPhase(progress,RecordingExportPhase.Packaging);
                 await process.RunAsync(ProjectMediaJob.MuxEditedMp4(plan,
-                    checked(video.Length + audio.Length + 64 * 1024 * 1024)), [video, audio], output, ct);
+                    checked(video.Length + audio.Length + 64 * 1024 * 1024)).WithProgress(
+                        new ExportFractionProgress(p=>ReportRender(.8+.1*p)),totalFrames:plan.FrameCount), [video, audio], output, ct);
                 output.Flush(true);
             }
-            progress.Report(0.9);
+            ReportRender(0.9);
             ReportPhase(progress, RecordingExportPhase.Verifying);
             await using (var output = directory.Read(temporary))
                 await ProjectOutputVerifier.VerifyAsync(process, output, plan, ct);
@@ -152,4 +167,7 @@ public sealed partial class ProjectFfmpegExporter(IProjectMediaProcess process, 
 
     private static void ReportPhase(IProgress<double> progress, RecordingExportPhase phase)
         => (progress as IRecordingExportProgress)?.ReportPhase(phase);
+
+    private sealed class ExportFractionProgress(Action<double> report):IProgress<double>
+    {public void Report(double value)=>report(value);}
 }

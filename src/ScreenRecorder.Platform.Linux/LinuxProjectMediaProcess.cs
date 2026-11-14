@@ -109,7 +109,7 @@ public sealed class LinuxProjectMediaProcess : IProjectMediaProcess, IProjectStr
         var stdout = consume is null
             ? ReadBoundedAsync(output.Reader, destination is null ? checked((int)limit) : 0)
             : ConsumeAsync();
-        var stderr = ReadBoundedAsync(error.Reader, ProjectMediaJob.MaximumDiagnosticBytes);
+        var stderr = job.ReadDiagnosticAsync(error.Reader, ProjectMediaJob.MaximumDiagnosticBytes);
         var killed = false;
         var reaped = false;
         var overQuota = false;

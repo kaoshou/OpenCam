@@ -12,10 +12,12 @@ internal sealed class ProjectExportTimingProgress(IProgress<double> target, Guid
     private readonly Stopwatch _phaseTime = new();
     private RecordingExportPhase? _phase;
     private bool _completed;
+    public double LastProgress{get;private set;}
 
     public void Report(double value)
     {
         target.Report(value);
+        if(double.IsFinite(value))LastProgress=Math.Max(LastProgress,Math.Clamp(value,0,1));
         if (value >= 1) _completed = true;
     }
 

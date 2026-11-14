@@ -55,7 +55,7 @@ public sealed class WindowsProjectMediaProcess : IProjectMediaProcess, IProjectS
             if (!job.IsLongRunning) life.CancelAfter(TimeSpan.FromSeconds(15));
             var limit = job.OutputLimit > 0 ? job.OutputLimit : job.ExpectedOutputBytes;
             using var counted = new LimitedReadStream(child.Output, limit);
-            var errorTask = ReadBounded(child.Error, ProjectMediaJob.MaximumDiagnosticBytes, life.Token);
+            var errorTask = job.ReadDiagnosticAsync(child.Error, ProjectMediaJob.MaximumDiagnosticBytes, life.Token);
             using var bytes = new MemoryStream();
             var outputTask = consume is null
                 ? counted.CopyToAsync(bytes, life.Token) : consume(counted, life.Token);
@@ -95,19 +95,6 @@ public sealed class WindowsProjectMediaProcess : IProjectMediaProcess, IProjectS
             }
         }
         finally { gate.Release(); }
-    }
-
-    private static async Task<byte[]> ReadBounded(Stream stream, int limit, CancellationToken ct)
-    {
-        using var bytes = new MemoryStream();
-        var buffer = new byte[16384];
-        int n;
-        while ((n = await stream.ReadAsync(buffer, ct)) > 0)
-        {
-            if (bytes.Length + n > limit) throw new InvalidDataException("Media diagnostic limit exceeded.");
-            bytes.Write(buffer, 0, n);
-        }
-        return bytes.ToArray();
     }
 
     private sealed class LimitedReadStream(Stream inner, long limit) : Stream

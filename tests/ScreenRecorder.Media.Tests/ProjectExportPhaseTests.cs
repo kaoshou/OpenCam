@@ -27,10 +27,19 @@ public class ProjectExportPhaseTests
             labels.Add(vm.ExportStatusText);
             Assert.Contains("50%", vm.ExportStatusText);
         }
-        Assert.Equal(6, labels.Count);
+        Assert.Equal(7, labels.Count);
         Assert.Contains(labels, label => label.Contains("GIF"));
         Assert.Equal(4, (int)RecordingExportPhase.Verifying); // Existing IPC values stay stable.
         Assert.Equal(5, (int)RecordingExportPhase.VerifyingGif);
+    }
+    [Theory]
+    [InlineData(ScreenRecorder.Core.Localization.AppLanguage.ZhTw,"封裝 MP4")]
+    [InlineData(ScreenRecorder.Core.Localization.AppLanguage.EnUs,"Packaging MP4")]
+    [InlineData(ScreenRecorder.Core.Localization.AppLanguage.JaJp,"MP4 を作成中")]
+    public void PackagingPhaseHasLocalizedLabel(ScreenRecorder.Core.Localization.AppLanguage language,string expected)
+    {
+        var strings=new ScreenRecorder.Core.Localization.LocalizationService{CurrentLanguage=language};
+        Assert.Equal(expected,strings["ProjectExportPhasePackaging"]);
     }
     private sealed class ClosedClient : IProjectClient
     {

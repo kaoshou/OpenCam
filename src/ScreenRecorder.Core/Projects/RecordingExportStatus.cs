@@ -2,7 +2,7 @@
 namespace ScreenRecorder.Core.Projects;
 
 public enum RecordingExportState { Idle, Running, Succeeded, Failed, Canceled }
-public enum RecordingExportPhase { Inspecting, Copying, ConvertingAudio, Rendering, Verifying, VerifyingGif }
+public enum RecordingExportPhase { Inspecting, Copying, ConvertingAudio, Rendering, Verifying, VerifyingGif, Packaging }
 public interface IRecordingExportProgress : IProgress<double>
 {
     void ReportPhase(RecordingExportPhase phase);

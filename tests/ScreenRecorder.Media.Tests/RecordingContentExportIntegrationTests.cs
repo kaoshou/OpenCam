@@ -135,9 +135,9 @@ public sealed class RecordingContentExportIntegrationTests
             var destination = Directory.CreateDirectory(Path.Combine(root.FullName, "out")).FullName;
             var exporter = new ProjectFfmpegExporter(new MacProjectMediaProcess(FFmpegDiscovery.FindFFmpegExecutable()!));
             await Assert.ThrowsAnyAsync<IOException>(() => exporter.ExportAsync(owner, owner.Current,
-                destination, Guid.NewGuid(), new InlineProgress(progress =>
+                destination, Guid.NewGuid(), new InlinePhaseProgress(phase =>
                 {
-                    if (progress != .9) return;
+                    if (phase != RecordingExportPhase.Verifying) return;
                     // Simulate external interference with a completed, closed intermediate.
                     var intermediate = Directory.GetFiles(destination, "*.h264").Single();
                     File.Delete(intermediate);
@@ -313,6 +313,8 @@ public sealed class RecordingContentExportIntegrationTests
 
     private sealed class InlineProgress(Action<double> report) : IProgress<double>
     { public void Report(double value) => report(value); }
+    private sealed class InlinePhaseProgress(Action<RecordingExportPhase> report):IRecordingExportProgress
+    {public void Report(double value){}public void ReportPhase(RecordingExportPhase phase)=>report(phase);}
 
     internal static async Task<IProjectHandle> SingleClip(string root, bool audio = false)
     {

@@ -320,6 +320,7 @@ public partial class LocalizationService
         ["ProjectExportPhaseCopying"] = "MP4 に再パッケージ中（映像の再エンコードなし）",
         ["ProjectExportPhaseConvertingAudio"] = "音声を処理中（映像の再エンコードなし）",
         ["ProjectExportPhaseRendering"] = "映像を再エンコード中",
+        ["ProjectExportPhasePackaging"] = "MP4 を作成中",
         ["ProjectExportPhaseVerifying"] = "MP4 を検証中",
         ["ProjectExportPhaseVerifyingGif"] = "GIF を検証中",
         ["ProjectExportSucceeded"] = "検証して保存しました：",
