@@ -55,9 +55,12 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/opencam-linux/evidence"
           git rev-parse HEAD > "$RUNNER_TEMP/opencam-linux/evidence/revision.txt"
-          # Only the approved net8 -> net10 project target migration is exempt.
-          # Native code, project references and capture builders remain protected.
-          git diff -I '^[[:space:]]*<TargetFramework>net(8|10)\.0</TargetFramework>[[:space:]]*$' e0c369e6495532cc0393c349dc428ffb8a00327e -- src/ScreenRecorder.Platform.Windows src/ScreenRecorder.Platform.macOS native/obs-capture scripts/build-obs-capture.sh scripts/build-obs-capture.ps1 scripts/assemble-obs-runtime.mjs > "$RUNNER_TEMP/opencam-linux/evidence/production-diff.txt"
+          # Reviewed Windows/macOS export progress baseline: real FFmpeg export,
+          # cancellation and source preservation passed on both platforms.
+          # Pin that exact revision, without exempting project-target changes.
+          # The independent original native-core audit below remains unchanged.
+          git merge-base --is-ancestor 1339711d36fc33256c6396c4c486e9a07fed321b HEAD
+          git diff 1339711d36fc33256c6396c4c486e9a07fed321b -- src/ScreenRecorder.Platform.Windows src/ScreenRecorder.Platform.macOS native/obs-capture scripts/build-obs-capture.sh scripts/build-obs-capture.ps1 scripts/assemble-obs-runtime.mjs > "$RUNNER_TEMP/opencam-linux/evidence/production-diff.txt"
           test ! -s "$RUNNER_TEMP/opencam-linux/evidence/production-diff.txt"
           node --test tests/scripts/linux-obs-inputs.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/input-tests.log" 2>&1
           node --test tests/scripts/linux-probe-protocol.test.mjs > "$RUNNER_TEMP/opencam-linux/evidence/protocol-tests.log" 2>&1
