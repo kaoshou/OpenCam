@@ -1,6 +1,6 @@
 # OpenCam 完整使用說明（繁體中文）
 
-> 本說明適用於 OpenCam v1.3.0，包含錄影、加入影片、剪輯與輸出；Linux 為 Beta。v1.2.1 不含新增的精確剪輯與範圍播放控制；下載檔案請以官網目前公開版本為準。
+> 本說明適用於 OpenCam v1.3.1，沿用 v1.3.0 的錄影、加入影片、剪輯與輸出功能，並改善 MP4 匯出進度；Linux 為 Beta。v1.2.1 不含新增的精確剪輯與範圍播放控制；下載檔案請以官網目前公開版本為準。
 
 ## 螢幕註記
 
@@ -160,14 +160,14 @@ Windows 錄影所需的 Microsoft Visual C++ 執行階段隨套件提供；安�
 
 - Windows 10 或 Windows 11，x64。
 - 安裝版與免安裝版都已包含執行所需元件。
-- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v1.3.0_Windows_x64_Setup.exe` 或 `OpenCam_v1.3.0_Windows_x64_Portable.zip`。檔名會標示版本、Windows 及 x64 架構。
+- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v1.3.1_Windows_x64_Setup.exe` 或 `OpenCam_v1.3.1_Windows_x64_Portable.zip`。檔名會標示版本、Windows 及 x64 架構。
 - 系統音訊使用 Windows 音訊回送擷取；麥克風可在 OpenCam 中選擇。
 
 ### macOS
 
 - macOS 15 Sequoia 或以上。
 - 官方版本目前支援 Apple Silicon（arm64）；尚未提供 Intel Mac（x64）版本。
-- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v1.3.0_macOS_arm64.dmg`；檔名中的 arm64 表示 Apple Silicon。
+- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v1.3.1_macOS_arm64.dmg`；檔名中的 arm64 表示 Apple Silicon。
 - 第一次啟動後，請到「系統設定 → 隱私權與安全性」允許 OpenCam 使用：
   - 螢幕與系統音訊錄製
   - 麥克風（需要錄製麥克風時）
@@ -176,11 +176,11 @@ Windows 錄影所需的 Microsoft Visual C++ 執行階段隨套件提供；安�
 
 ### Linux Beta
 
-- 主要測試目標為 Ubuntu 24.04 LTS x64。以下為既有版本檔名範例，請換成目前公開版本：`sudo apt install ./OpenCam_v1.3.0_Linux_x64_Beta.deb`。Ubuntu 25.04 曾進行相依性處理，但已於 2026-01-15 終止支援，不建議新安裝或作為正式工作環境。其他發行版尚未列為支援。
+- 主要測試目標為 Ubuntu 24.04 LTS x64。以下為既有版本檔名範例，請換成目前公開版本：`sudo apt install ./OpenCam_v1.3.1_Linux_x64_Beta.deb`。Ubuntu 25.04 曾進行相依性處理，但已於 2026-01-15 終止支援，不建議新安裝或作為正式工作環境。其他發行版尚未列為支援。
 - APT 會處理相依套件；安裝後從應用程式選單開啟「OpenCam」，不需手動執行腳本。請勿以 root 執行程式。既有測試版可直接升級，套件 ID 為 `opencam-beta`。
 - X11 支援螢幕／區域錄影、虛擬教鞭、螢幕註記及全域快捷鍵。Wayland 請先選擇螢幕，並在系統視窗授權錄影，再於縮圖選取所需範圍；舊桌面座標不會直接沿用。授權失效或來源改變時需重新選擇螢幕。
 - Wayland 目前不提供教鞭、桌面註記與全域快捷鍵。Linux 使用 CPU 編碼；其他發行版、不同硬體與縮放尚未完整驗證，請先短錄確認畫面、聲音與匯出。
-- 免安裝封存檔為 `OpenCam_v1.3.0_Linux_x64_Beta.tar.gz`，完整解壓後依內附說明操作。移除安裝版可用 `sudo apt remove opencam-beta`，不刪除個人專案與錄影。
+- 免安裝封存檔為 `OpenCam_v1.3.1_Linux_x64_Beta.tar.gz`，完整解壓後依內附說明操作。移除安裝版可用 `sudo apt remove opencam-beta`，不刪除個人專案與錄影。
 
 ## 2. 快速開始
 
@@ -540,7 +540,7 @@ OpenCam 啟動時會掃描目前儲存位置下的 `Sessions`。為避免把仍�
 
 ### 僅調整音訊的快速輸出
 
-相容完整片段、保留目前設定與原始解析度，且只調整音量、靜音或音訊淡入淡出時，可保留影片編碼、僅處理音訊，適用 MP4 與網頁播放器。修剪、影像效果或壓縮仍依需要重新編碼；不是所有影片都能快速輸出，GIF 不適用此加速。檢查及校驗仍需時間。
+相容完整片段、保留目前設定與原始解析度，且只調整音量、靜音或音訊淡入淡出時，可保留影片編碼、僅處理音訊，適用 MP4 與網頁播放器。修剪、影像效果或壓縮仍依需要重新編碼；不是所有影片都能快速輸出，GIF 不適用此加速。檢查及校驗仍需時間。重新編碼期間會依實際處理影格更新百分比，之後分別顯示封裝 MP4 與驗證；通過驗證後才顯示完成。
 
 ### MP4 匯出品質
 

@@ -1,6 +1,6 @@
 # OpenCam Complete User Guide (English)
 
-> This guide covers OpenCam v1.3.0: recording, video import, editing and export. Linux is Beta. v1.2.1 does not include the new precision and range-playback controls. Use the website's currently published version for downloads.
+> This guide covers OpenCam v1.3.1: retaining v1.3.0 recording, video import, editing and export with improved MP4 export progress. Linux is Beta. v1.2.1 does not include the new precision and range-playback controls. Use the website's currently published version for downloads.
 
 ## Screen annotations
 
@@ -148,14 +148,14 @@ Compatible H.264 is remuxed where possible; other supported sources convert to H
 
 - Windows 10 or Windows 11, x64.
 - Installer and portable packages include .NET and media tools. The required Microsoft Visual C++ recording runtime is included app-locally on Windows. Install normally or fully extract the portable ZIP; no separate codec/runtime installation is needed. If package files are missing, re-download the complete package rather than replacing individual DLLs.
-- Download `OpenCam_v1.3.0_Windows_x64_Setup.exe` or `OpenCam_v1.3.0_Windows_x64_Portable.zip` from [Releases](https://github.com/kaoshou/OpenCam/releases). Filenames identify the version, Windows platform, and x64 architecture.
+- Download `OpenCam_v1.3.1_Windows_x64_Setup.exe` or `OpenCam_v1.3.1_Windows_x64_Portable.zip` from [Releases](https://github.com/kaoshou/OpenCam/releases). Filenames identify the version, Windows platform, and x64 architecture.
 - System audio uses Windows loopback capture. A microphone can be selected in OpenCam.
 
 ### macOS
 
 - macOS 15 Sequoia or later.
 - The official build currently supports Apple Silicon (arm64). An Intel Mac (x64) build is not currently provided.
-- Download `OpenCam_v1.3.0_macOS_arm64.dmg` from [Releases](https://github.com/kaoshou/OpenCam/releases); arm64 identifies Apple Silicon.
+- Download `OpenCam_v1.3.1_macOS_arm64.dmg` from [Releases](https://github.com/kaoshou/OpenCam/releases); arm64 identifies Apple Silicon.
 - After first launch, open **System Settings → Privacy & Security** and allow OpenCam to use:
   - Screen & System Audio Recording
   - Microphone, when microphone recording is needed
@@ -164,11 +164,11 @@ Compatible H.264 is remuxed where possible; other supported sources convert to H
 
 ### Linux Beta
 
-- Ubuntu 24.04 LTS x64 is the primary test target. Substitute the currently published version in this existing filename example: `sudo apt install ./OpenCam_v1.3.0_Linux_x64_Beta.deb`. Historical dependency work covered Ubuntu 25.04, but it reached end of life on 2026-01-15 and is not recommended for new installations or production use. Other distributions are not listed as supported.
+- Ubuntu 24.04 LTS x64 is the primary test target. Substitute the currently published version in this existing filename example: `sudo apt install ./OpenCam_v1.3.1_Linux_x64_Beta.deb`. Historical dependency work covered Ubuntu 25.04, but it reached end of life on 2026-01-15 and is not recommended for new installations or production use. Other distributions are not listed as supported.
 - APT resolves dependencies. Open **OpenCam** from the application menu; no manual script launch is needed. Never run the app as root. Existing Beta installations can upgrade using the same `opencam-beta` package ID.
 - X11 supports screen/region recording, teaching pointers, annotations and global shortcuts. On Wayland, select and explicitly authorize a screen in the system chooser; use its thumbnail for a source-local crop. Reauthorize if the source or grant changes.
 - Wayland teaching pointers, desktop annotations and global shortcuts are not included yet. Linux uses CPU encoding. Other distributions, hardware and scaling combinations are not fully validated; check a short recording and export first.
-- The extracted archive is `OpenCam_v1.3.0_Linux_x64_Beta.tar.gz`; retain all files and follow the bundled instructions. `sudo apt remove opencam-beta` uninstalls the package without deleting personal recordings or projects.
+- The extracted archive is `OpenCam_v1.3.1_Linux_x64_Beta.tar.gz`; retain all files and follow the bundled instructions. `sudo apt remove opencam-beta` uninstalls the package without deleting personal recordings or projects.
 
 ## 2. Quick Start
 
@@ -528,7 +528,7 @@ If no recoverable content appears, check the following in order:
 
 ### Faster audio-only export
 
-Eligible whole clips at Keep current settings and original resolution retain encoded video when only volume, mute or audio fades change, for MP4 and Web-player media. Trims, visual effects or compression render as needed. Not every video qualifies; GIF does not use this optimization. Inspection and validation still take time.
+Eligible whole clips at Keep current settings and original resolution retain encoded video when only volume, mute or audio fades change, for MP4 and Web-player media. Trims, visual effects or compression render as needed. Not every video qualifies; GIF does not use this optimization. Inspection and validation still take time. Re-encoding reports progress from actual processed frames, followed by distinct MP4 packaging and verification stages. Completion is shown only after verification.
 
 ### MP4 export quality
 

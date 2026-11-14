@@ -27,7 +27,7 @@ export const content = {
   'zh-TW': {
     eyebrow: 'Windows、macOS 錄影與剪輯工具 · 另提供 Linux Beta',
     heroTitle: '<span class="hero-line">把重要的畫面，</span><em class="hero-line">好好錄下來。</em>',
-    heroText: `錄影、剪輯、續錄，一次完成。整理片段、附加多語字幕，再輸出 MP4、GIF 或具章節與逐字稿搜尋的網頁播放器。原始 MKV 素材保留在專案中。${downloadDisplayVersion} 升級至 .NET 10 LTS，程式包內附執行環境，無須另外安裝 .NET。`,
+    heroText: `錄影、剪輯、續錄，一次完成。整理片段、附加多語字幕，再輸出 MP4、GIF 或具章節與逐字稿搜尋的網頁播放器。原始 MKV 素材保留在專案中。目前版本 ${downloadDisplayVersion} 內附 .NET 10 LTS 執行環境，無須另外安裝 .NET。`,
     windowsPortableLabel: '下載 Windows 免安裝版', windowsInstallerLabel: '下載 Windows 安裝版', macOSLabel: '下載 macOS 版', guideLabel: '閱讀使用說明',
     windowsDownloadNote: 'Windows 適用於 x64；免安裝版請完整解壓後執行。',
     macOSDownloadNote: 'macOS 需 15 以上版本及 Apple Silicon（M 系列）。',
@@ -70,7 +70,7 @@ export const content = {
       ['13', '螢幕註記', '錄影時使用畫筆、直線、箭頭、方框與圓圈標示重點，可調整顏色、粗細，並提供橡皮擦、復原與可自訂快捷鍵。註記直接錄入影片。']
     ],
     processEyebrow: '錄影與輸出', processTitle: '保留原始錄影，自由選擇輸出。',
-    processText: '錄影片段以 MKV 保存在專案內，剪輯不覆寫原始素材。隨時儲存、重開及追加錄影，再依需求輸出 MP4、GIF 或網頁播放器。相容的完整片段可快速輸出；修剪與效果會依內容進行轉換，介面會顯示目前進度。',
+    processText: '錄影片段以 MKV 保存在專案內，剪輯不覆寫原始素材。隨時儲存、重開及追加錄影，再依需求輸出 MP4、GIF 或網頁播放器。相容的完整片段可快速輸出；修剪與效果會依內容進行轉換，重新編碼依實際影格更新進度，並分別顯示封裝 MP4 與驗證階段。',
     processSteps: ['錄製並保留 MKV', '儲存或繼續編輯', '下次開啟並續錄', '輸出 MP4、GIF 或網頁'],
     platformsTitle: '選擇你的平台', windowsTitle: 'Windows', windowsText: 'Windows 10／11 · x64',
     macTitle: 'macOS', macText: 'macOS 15 以上 · Apple Silicon（arm64）',
@@ -80,7 +80,7 @@ export const content = {
   'en-US': {
     eyebrow: 'Recording and editing for Windows and macOS · Linux Beta available',
     heroTitle: '<span class="hero-line">Capture what matters.</span><em class="hero-line">Keep it safe.</em>',
-    heroText: `Record, edit and continue in one place. Organize clips, attach multilingual subtitles and export MP4, GIF or a web player with chapters and transcript search. Keep original MKV media in your project. ${downloadDisplayVersion} upgrades to .NET 10 LTS with the runtime included; no separate .NET installation is needed.`,
+    heroText: `Record, edit and continue in one place. Organize clips, attach multilingual subtitles and export MP4, GIF or a web player with chapters and transcript search. Keep original MKV media in your project. ${downloadDisplayVersion} includes the .NET 10 LTS runtime; no separate .NET installation is needed.`,
     windowsPortableLabel: 'Download Windows portable', windowsInstallerLabel: 'Download Windows installer', macOSLabel: 'Download macOS', guideLabel: 'Read the user guide',
     windowsDownloadNote: 'Windows requires x64. Fully extract the portable ZIP before running.',
     macOSDownloadNote: 'Requires macOS 15 or later and Apple Silicon (M-series).',
@@ -123,7 +123,7 @@ export const content = {
       ['13', 'Screen annotations', 'Mark up the screen while recording with a pen, lines, arrows, rectangles and ellipses. Adjust colors and line widths, erase marks, undo and customize shortcuts. Annotations are recorded into the video.']
     ],
     processEyebrow: 'Recording and export', processTitle: 'Keep originals. Choose how to share.',
-    processText: 'MKV recordings stay in your project while edits preserve the original media. Save, reopen and append recordings, then export MP4, GIF or a Web player. Compatible whole clips support fast export; trims and effects are converted as needed, with progress shown in the interface.',
+    processText: 'MKV recordings stay in your project while edits preserve the original media. Save, reopen and append recordings, then export MP4, GIF or a Web player. Compatible whole clips support fast export; trims and effects are converted as needed, with actual frame-based progress during re-encoding and distinct MP4 packaging and verification stages.',
     processSteps: ['Record and retain MKV', 'Save or edit', 'Reopen and append', 'Export MP4, GIF or Web'],
     platformsTitle: 'Choose your platform', windowsTitle: 'Windows', windowsText: 'Windows 10/11 · x64',
     macTitle: 'macOS', macText: 'macOS 15 or later · Apple Silicon (arm64)',
