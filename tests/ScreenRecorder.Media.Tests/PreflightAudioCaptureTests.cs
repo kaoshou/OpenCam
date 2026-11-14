@@ -121,8 +121,17 @@ public class PreflightAudioCaptureTests(Xunit.Abstractions.ITestOutputHelper out
         Assert.Null(capture.ErrorCode);
         // The real audio pipeline now supplies its own meter even if the
         // optional device observer is unavailable. Keep testing actual audio.
-        Assert.Equal(PreflightSourceState.Live, capture.ReadMicrophone(DateTimeOffset.UtcNow).State);
-        Assert.InRange(capture.ReadMicrophone(DateTimeOffset.UtcNow).Rms, .06, .065);
+        // Startup progress and filter-meter metadata are independent stderr
+        // records. Wait for an actual sample, not just startup acknowledgement.
+        var sample = capture.ReadMicrophone(DateTimeOffset.UtcNow);
+        while (sample.State != PreflightSourceState.Live)
+        {
+            Assert.Null(capture.ErrorCode);
+            await Task.Delay(10, deadline.Token);
+            sample = capture.ReadMicrophone(DateTimeOffset.UtcNow);
+        }
+        Assert.Equal(PreflightSourceState.Live, sample.State);
+        Assert.InRange(sample.Rms, .06, .065);
         await Task.Delay(200, deadline.Token);
         await capture.StopAsync(deadline.Token);
         Assert.Null(capture.ErrorCode);

@@ -31,7 +31,10 @@ public sealed class HeadlessDispatcherCleanupTests
     [Fact]
     public async Task LifecycleTraceObservesPendingWorkWithoutExecutingIt()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(ProjectLayoutApp));
+        // Use the same assembly session as AvaloniaFact. Each Dispatch still
+        // creates/disposes its application scope; this fixture does not own the
+        // shared dispatcher thread. StartNew in 11.2.5 can capture a null task.
+        var session = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(ProjectLayoutApp).Assembly);
         await session.Dispatch(() =>
         {
             var executed = false;
@@ -52,7 +55,7 @@ public sealed class HeadlessDispatcherCleanupTests
     [Fact]
     public async Task PendingTextLayoutFinishesBeforeHeadlessServicesAreDisposed()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(ProjectLayoutApp));
+        var session = HeadlessUnitTestSession.GetOrStartForAssembly(typeof(ProjectLayoutApp).Assembly);
         var measured = 0;
         await session.Dispatch(() =>
         {
