@@ -1,6 +1,6 @@
 # OpenCam 完整使用說明（繁體中文）
 
-> 本說明適用於 OpenCam v1.3.1，沿用 v1.3.0 的錄影、加入影片、剪輯與輸出功能，並改善 MP4 匯出進度；Linux 為 Beta。v1.2.1 不含新增的精確剪輯與範圍播放控制；下載檔案請以官網目前公開版本為準。
+> 本說明適用於 OpenCam v1.3.2，沿用 v1.3.0 的錄影、加入影片、剪輯與輸出功能，並支援選擇救援位置及加快部分完整片段的 MP4 匯出；Linux 為 Beta。v1.2.1 不含新增的精確剪輯與範圍播放控制；下載檔案請以官網目前公開版本為準。
 
 ## 螢幕註記
 
@@ -160,14 +160,14 @@ Windows 錄影所需的 Microsoft Visual C++ 執行階段隨套件提供；安�
 
 - Windows 10 或 Windows 11，x64。
 - 安裝版與免安裝版都已包含執行所需元件。
-- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v1.3.1_Windows_x64_Setup.exe` 或 `OpenCam_v1.3.1_Windows_x64_Portable.zip`。檔名會標示版本、Windows 及 x64 架構。
+- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v1.3.2_Windows_x64_Setup.exe` 或 `OpenCam_v1.3.2_Windows_x64_Portable.zip`。檔名會標示版本、Windows 及 x64 架構。
 - 系統音訊使用 Windows 音訊回送擷取；麥克風可在 OpenCam 中選擇。
 
 ### macOS
 
 - macOS 15 Sequoia 或以上。
 - 官方版本目前支援 Apple Silicon（arm64）；尚未提供 Intel Mac（x64）版本。
-- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v1.3.1_macOS_arm64.dmg`；檔名中的 arm64 表示 Apple Silicon。
+- 在 [Releases](https://github.com/kaoshou/OpenCam/releases) 下載 `OpenCam_v1.3.2_macOS_arm64.dmg`；檔名中的 arm64 表示 Apple Silicon。
 - 第一次啟動後，請到「系統設定 → 隱私權與安全性」允許 OpenCam 使用：
   - 螢幕與系統音訊錄製
   - 麥克風（需要錄製麥克風時）
@@ -176,11 +176,11 @@ Windows 錄影所需的 Microsoft Visual C++ 執行階段隨套件提供；安�
 
 ### Linux Beta
 
-- 主要測試目標為 Ubuntu 24.04 LTS x64。以下為既有版本檔名範例，請換成目前公開版本：`sudo apt install ./OpenCam_v1.3.1_Linux_x64_Beta.deb`。Ubuntu 25.04 曾進行相依性處理，但已於 2026-01-15 終止支援，不建議新安裝或作為正式工作環境。其他發行版尚未列為支援。
+- 主要測試目標為 Ubuntu 24.04 LTS x64。以下為既有版本檔名範例，請換成目前公開版本：`sudo apt install ./OpenCam_v1.3.2_Linux_x64_Beta.deb`。Ubuntu 25.04 曾進行相依性處理，但已於 2026-01-15 終止支援，不建議新安裝或作為正式工作環境。其他發行版尚未列為支援。
 - APT 會處理相依套件；安裝後從應用程式選單開啟「OpenCam」，不需手動執行腳本。請勿以 root 執行程式。既有測試版可直接升級，套件 ID 為 `opencam-beta`。
 - X11 支援螢幕／區域錄影、虛擬教鞭、螢幕註記及全域快捷鍵。Wayland 請先選擇螢幕，並在系統視窗授權錄影，再於縮圖選取所需範圍；舊桌面座標不會直接沿用。授權失效或來源改變時需重新選擇螢幕。
 - Wayland 目前不提供教鞭、桌面註記與全域快捷鍵。Linux 使用 CPU 編碼；其他發行版、不同硬體與縮放尚未完整驗證，請先短錄確認畫面、聲音與匯出。
-- 免安裝封存檔為 `OpenCam_v1.3.1_Linux_x64_Beta.tar.gz`，完整解壓後依內附說明操作。移除安裝版可用 `sudo apt remove opencam-beta`，不刪除個人專案與錄影。
+- 免安裝封存檔為 `OpenCam_v1.3.2_Linux_x64_Beta.tar.gz`，完整解壓後依內附說明操作。移除安裝版可用 `sudo apt remove opencam-beta`，不刪除個人專案與錄影。
 
 ## 2. 快速開始
 
@@ -305,7 +305,7 @@ Windows 與 macOS 均沿用既有錄影流程，即時顯示教鞭圖層並直�
 - **開啟資料夾**：若已有完成的錄影，會開啟儲存資料夾並盡可能選取最近的成品；否則直接開啟資料夾。
 - **變更**：選擇新的輸出資料夾，只能在閒置時使用。
 
-變更儲存位置也會改變 OpenCam 搜尋修復工作階段的位置。若要救援以前儲存在其他位置的錄影，請先把儲存位置切回原本的輸出根目錄。
+變更儲存位置也會改變 OpenCam 搜尋修復工作階段的位置。若要救援以前儲存在其他位置的錄影，請在「修復救援」選擇錄製專案或原儲存資料夾。
 
 ### 開始錄影時最小化
 
@@ -470,10 +470,8 @@ OpenCam 啟動時會掃描目前儲存位置下的 `Sessions`。為避免把仍�
 ### 使用修復救援
 
 1. 確定沒有任何錄影仍在執行。
-2. 若原錄影使用自訂儲存位置，先將 OpenCam 的儲存位置切回該資料夾。
-3. 等待 OpenCam 完成掃描；若找到內容，主畫面的「修復救援」會顯示可處理數量。
-4. 點選「修復救援」，並等待所有工作階段處理完畢。
-5. 救援成品會放在輸出根目錄，名稱為 `Recovered_<工作階段 ID>.mp4`；若檔名重複會自動加上序號。
+2. 點選「修復救援」。可選目前儲存位置、開啟錄製專案的 `project.opencam`，或直接選擇專案資料夾、原儲存位置、`Sessions` 資料夾或其中一個工作階段。選擇單一工作階段時只救援該次錄影。
+3. 等待救援完成。救援成品會放在輸出根目錄，名稱為 `Recovered_<工作階段 ID>.mp4`；若檔名重複會自動加上序號。
 
 救援會先檢查各 MKV 分段，跳過空白、損壞或無法讀取的項目，再嘗試串接所有有效內容。若完整串接失敗，OpenCam 會逐步移除損壞的尾端分段，盡可能救回前面連續可讀的部分，因此結果可能標示為「部分救回」並缺少最後一段內容。
 
@@ -489,7 +487,7 @@ OpenCam 啟動時會掃描目前儲存位置下的 `Sessions`。為避免把仍�
 2. 開啟 `<原儲存位置>/Sessions/`。
 3. 找到對應時間的工作階段資料夾。
 4. 將整個資料夾複製到另一個安全位置。保留 `segment_*.mkv`、`session.json`、`recording.log` 與其他檔案，不要先改名或覆寫原檔。
-5. 重新開啟 OpenCam，把儲存位置設回原輸出根目錄，等待超過 15 秒後再執行「修復救援」。
+5. 重新開啟 OpenCam，等待超過 15 秒後，在「修復救援」選擇原錄製專案或資料夾。
 
 最後一個 MKV 可能因異常中止而無法單獨播放，但不代表前面的分段都遺失。除非熟悉 FFmpeg 串接、時間戳與音訊軌一致性，否則建議先讓 OpenCam 自動救援，不要直接修改原始片段。
 

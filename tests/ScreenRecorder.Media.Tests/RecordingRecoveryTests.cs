@@ -23,8 +23,13 @@ public class RecordingRecoveryTests : IDisposable
         Directory.CreateDirectory(_testRoot);
     }
 
-    [Fact]
-    public async Task RecoveryService_ScanAndRecoverInterruptedSession_ShouldSucceed()
+    [Theory]
+    [InlineData("recordings root")]
+    [InlineData("project file")]
+    [InlineData("project folder")]
+    [InlineData("catalog")]
+    [InlineData("one session")]
+    public async Task RecoveryService_ScanAndRecoverInterruptedSession_ShouldSucceed(string selection)
     {
         var sessionStore = new JsonRecordingSessionStore();
         var storageService = new StorageService();
@@ -35,7 +40,14 @@ public class RecordingRecoveryTests : IDisposable
 
         // 1. 模擬一個因當機或強制結束而中斷的 Session
         var sessionId = "crash-session-001";
-        var sessionDir = storageService.CreateSessionDirectory(_testRoot, sessionId);
+        var projectFile = Path.Combine(_testRoot, "project.opencam");
+        var root = _testRoot;
+        if (selection.StartsWith("project", StringComparison.Ordinal))
+        {
+            File.WriteAllText(projectFile, "{}");
+            root = Directory.CreateDirectory(Path.Combine(root, "sessions")).FullName;
+        }
+        var sessionDir = storageService.CreateSessionDirectory(root, sessionId);
         var mkvPath = storageService.GetWorkingFilePath(sessionDir);
 
         // 生成 1 秒合法的 MKV 檔案代表崩潰前已寫入的資料
@@ -65,7 +77,13 @@ public class RecordingRecoveryTests : IDisposable
         await sessionStore.SaveSessionAsync(interruptedSession);
 
         // 2. 執行掃描
-        var recoverable = await recoveryService.ScanForRecoverableSessionsAsync(_testRoot);
+        var location = RecoveryLocation.FromSelection(selection switch {
+            "project file" => projectFile, "catalog" => Path.GetDirectoryName(sessionDir)!,
+            "one session" => sessionDir, _ => _testRoot });
+        Assert.Equal(root, location.Root);
+        Assert.True(location.Includes(sessionDir));
+        if (selection == "one session") Assert.False(location.Includes(Path.Combine(root, "Sessions", "sibling")));
+        var recoverable = await recoveryService.ScanForRecoverableSessionsAsync(location.Root);
         Assert.NotEmpty(recoverable);
         var target = recoverable.FirstOrDefault(s => s.Session.SessionId == sessionId);
         Assert.NotNull(target);

@@ -316,6 +316,23 @@ public partial class MainWindow : Window
         if (files.FirstOrDefault()?.TryGetLocalPath() is { } path) await vm.OpenRecordingProjectAsync(path);
     }
 
+    private async void OnRecoverProject(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm || !vm.CanRecoverSessions) return;
+        var files = await StorageProvider.OpenFilePickerAsync(new() {
+            Title = vm.Strings["RecoveryProject"], AllowMultiple = false,
+            FileTypeFilter = [new("OpenCam") { Patterns = ["project.opencam"] }] });
+        if (files.FirstOrDefault()?.TryGetLocalPath() is { } file) await vm.RecoverFromLocationAsync(file);
+    }
+
+    private async void OnRecoverFolder(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm || !vm.CanRecoverSessions) return;
+        var folders = await StorageProvider.OpenFolderPickerAsync(new() {
+            Title = vm.Strings["RecoveryFolder"], AllowMultiple = false });
+        if (folders.FirstOrDefault()?.TryGetLocalPath() is { } folder) await vm.RecoverFromLocationAsync(folder);
+    }
+
     private void OnIdentifyDisplaysClicked(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not MainViewModel vm || !vm.CanSelectMonitor)

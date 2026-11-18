@@ -1680,7 +1680,9 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand(CanExecute = nameof(CanRecoverSessions))]
-    public async Task RecoverSessionsAsync()
+    public Task RecoverSessionsAsync() => RecoverFromLocationAsync(null);
+
+    public async Task RecoverFromLocationAsync(string? selection)
     {
         if (!CanRecoverSessions)
         {
@@ -1691,11 +1693,13 @@ public partial class MainViewModel : ObservableObject
         StatusMessage = Strings["StatusRecovering"];
         try
         {
-            var sessions = await _recoveryService.ScanForRecoverableSessionsAsync(OutputDirectory);
+            var location = selection is null ? new RecoveryLocation(OutputDirectory) : RecoveryLocation.FromSelection(selection);
+            var candidates = await _recoveryService.ScanForRecoverableSessionsAsync(location.Root);
+            var sessions = candidates.Where(s => location.Includes(s.Session.WorkingDirectory)).ToList();
             if (sessions.Count == 0)
             {
                 StatusMessage = Strings["StatusNoRecoverable"];
-                RecoverableSessionCount = 0;
+                if (selection is null) RecoverableSessionCount = 0;
                 return;
             }
 
@@ -1728,8 +1732,8 @@ public partial class MainViewModel : ObservableObject
                 }
             }
 
-            var remaining = await _recoveryService.ScanForRecoverableSessionsAsync(OutputDirectory);
-            RecoverableSessionCount = remaining.Count;
+            if (location.Root == OutputDirectory)
+                RecoverableSessionCount = (await _recoveryService.ScanForRecoverableSessionsAsync(OutputDirectory)).Count;
             StatusMessage = ResolveRecoveryOutcome(recoveredCount, partialCount, failedCount) switch
             {
                 RecoveryOutcome.Success => Strings.GetFormatted(
@@ -1745,6 +1749,8 @@ public partial class MainViewModel : ObservableObject
                     failedCount),
                 _ => Strings["StatusNoRecoverable"]
             };
+            if (selection is not null && recoveredCount + partialCount > 0)
+                StatusMessage += " " + Strings.GetFormatted("RecoveryDestination", location.Root);
         }
         catch (Exception ex)
         {

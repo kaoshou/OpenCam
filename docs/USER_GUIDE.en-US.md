@@ -1,6 +1,6 @@
 # OpenCam Complete User Guide (English)
 
-> This guide covers OpenCam v1.3.1: retaining v1.3.0 recording, video import, editing and export with improved MP4 export progress. Linux is Beta. v1.2.1 does not include the new precision and range-playback controls. Use the website's currently published version for downloads.
+> This guide covers OpenCam v1.3.2: retaining v1.3.0 recording, video import, editing and export with direct recovery location selection and faster export of compatible whole clips with PCM audio. Linux is Beta. v1.2.1 does not include the new precision and range-playback controls. Use the website's currently published version for downloads.
 
 ## Screen annotations
 
@@ -148,14 +148,14 @@ Compatible H.264 is remuxed where possible; other supported sources convert to H
 
 - Windows 10 or Windows 11, x64.
 - Installer and portable packages include .NET and media tools. The required Microsoft Visual C++ recording runtime is included app-locally on Windows. Install normally or fully extract the portable ZIP; no separate codec/runtime installation is needed. If package files are missing, re-download the complete package rather than replacing individual DLLs.
-- Download `OpenCam_v1.3.1_Windows_x64_Setup.exe` or `OpenCam_v1.3.1_Windows_x64_Portable.zip` from [Releases](https://github.com/kaoshou/OpenCam/releases). Filenames identify the version, Windows platform, and x64 architecture.
+- Download `OpenCam_v1.3.2_Windows_x64_Setup.exe` or `OpenCam_v1.3.2_Windows_x64_Portable.zip` from [Releases](https://github.com/kaoshou/OpenCam/releases). Filenames identify the version, Windows platform, and x64 architecture.
 - System audio uses Windows loopback capture. A microphone can be selected in OpenCam.
 
 ### macOS
 
 - macOS 15 Sequoia or later.
 - The official build currently supports Apple Silicon (arm64). An Intel Mac (x64) build is not currently provided.
-- Download `OpenCam_v1.3.1_macOS_arm64.dmg` from [Releases](https://github.com/kaoshou/OpenCam/releases); arm64 identifies Apple Silicon.
+- Download `OpenCam_v1.3.2_macOS_arm64.dmg` from [Releases](https://github.com/kaoshou/OpenCam/releases); arm64 identifies Apple Silicon.
 - After first launch, open **System Settings → Privacy & Security** and allow OpenCam to use:
   - Screen & System Audio Recording
   - Microphone, when microphone recording is needed
@@ -164,11 +164,11 @@ Compatible H.264 is remuxed where possible; other supported sources convert to H
 
 ### Linux Beta
 
-- Ubuntu 24.04 LTS x64 is the primary test target. Substitute the currently published version in this existing filename example: `sudo apt install ./OpenCam_v1.3.1_Linux_x64_Beta.deb`. Historical dependency work covered Ubuntu 25.04, but it reached end of life on 2026-01-15 and is not recommended for new installations or production use. Other distributions are not listed as supported.
+- Ubuntu 24.04 LTS x64 is the primary test target. Substitute the currently published version in this existing filename example: `sudo apt install ./OpenCam_v1.3.2_Linux_x64_Beta.deb`. Historical dependency work covered Ubuntu 25.04, but it reached end of life on 2026-01-15 and is not recommended for new installations or production use. Other distributions are not listed as supported.
 - APT resolves dependencies. Open **OpenCam** from the application menu; no manual script launch is needed. Never run the app as root. Existing Beta installations can upgrade using the same `opencam-beta` package ID.
 - X11 supports screen/region recording, teaching pointers, annotations and global shortcuts. On Wayland, select and explicitly authorize a screen in the system chooser; use its thumbnail for a source-local crop. Reauthorize if the source or grant changes.
 - Wayland teaching pointers, desktop annotations and global shortcuts are not included yet. Linux uses CPU encoding. Other distributions, hardware and scaling combinations are not fully validated; check a short recording and export first.
-- The extracted archive is `OpenCam_v1.3.1_Linux_x64_Beta.tar.gz`; retain all files and follow the bundled instructions. `sudo apt remove opencam-beta` uninstalls the package without deleting personal recordings or projects.
+- The extracted archive is `OpenCam_v1.3.2_Linux_x64_Beta.tar.gz`; retain all files and follow the bundled instructions. `sudo apt remove opencam-beta` uninstalls the package without deleting personal recordings or projects.
 
 ## 2. Quick Start
 
@@ -293,7 +293,7 @@ The waveforms read only level values from the capture path. They do not store ex
 - **Open Folder**: If a completed recording exists, OpenCam opens the output folder and attempts to select the latest result; otherwise, it opens the folder itself.
 - **Change**: Selects a new output folder. This is available only while idle.
 
-Changing the output location also changes where OpenCam scans for recoverable sessions. To recover a recording previously stored elsewhere, first set the output location back to its original output root.
+Changing the output location also changes where OpenCam scans for recoverable sessions. To recover a recording previously stored elsewhere, choose the project or its original folder from Crash Recovery.
 
 ### Minimize When Recording Starts
 
@@ -458,10 +458,8 @@ At startup, OpenCam scans the `Sessions` directory under the current output loca
 ### Running Crash Recovery
 
 1. Confirm that no recording is still running.
-2. If the recording used a custom output location, set OpenCam back to that folder.
-3. Wait for the scan to finish. If recoverable data is found, the **Crash Recovery** control shows the number of sessions available.
-4. Select **Crash Recovery** and wait for all sessions to finish processing.
-5. Recovered results are written to the output root as `Recovered_<session ID>.mp4`, with a numeric suffix when needed.
+2. Open **Crash Recovery**. Choose the current recording location, select the recording project’s `project.opencam`, or pick its project folder, original output folder, `Sessions` directory or an individual session. Selecting one session recovers only that recording.
+3. Wait for recovery to finish. Recovered results are written to the output root as `Recovered_<session ID>.mp4`, with a numeric suffix when needed.
 
 Recovery probes the MKV segments, skips empty, damaged, or unreadable entries, and first attempts to join all valid content. If the complete join fails, OpenCam progressively removes damaged trailing segments to salvage the longest readable continuous prefix. A result may therefore be marked as a partial recovery and omit the final damaged content.
 
@@ -477,7 +475,7 @@ If OpenCam does not yet show a recoverable session, or if you want to make a bac
 2. Open `<original output location>/Sessions/`.
 3. Find the session directory corresponding to the recording time.
 4. Copy the entire directory to another safe location. Preserve `segment_*.mkv`, `session.json`, `recording.log`, and all other files without first renaming or overwriting the originals.
-5. Reopen OpenCam, restore the original output root, wait longer than 15 seconds, and then run **Crash Recovery**.
+5. Reopen OpenCam, wait longer than 15 seconds, then choose the original project or folder in **Crash Recovery**.
 
 The final MKV may be unplayable if it was interrupted before finalization; this does not mean the earlier segments are lost. Unless you are familiar with FFmpeg concatenation, timestamps, and audio-stream consistency, let OpenCam attempt automatic recovery before modifying any original segment.
 

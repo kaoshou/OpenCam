@@ -7,6 +7,13 @@
 
 OpenCam 是 Windows、macOS 與 Linux（Beta）桌面螢幕錄影工具，讓你錄影、剪輯，再繼續錄影。錄影片段與剪輯保存在可重開的專案中，需要時可輸出 MP4、GIF 或附帶章節與字幕的網頁播放器。
 
+## v1.3.2 更新重點
+
+- 修復救援可直接選擇錄製專案、資料夾或單一工作階段。
+- 合併影像相容且音訊同為指定 PCM 格式的完整片段時，可保留原始影像，加快 MP4 匯出。
+
+[v1.3.2 完整更新說明](docs/releases/v1.3.2.md)
+
 ## v1.3.1 更新重點
 
 - **MP4 匯出進度更清楚**：重新編碼時依實際處理影格持續更新百分比，改善長時間停在 0% 後突然完成的情況。
@@ -61,7 +68,7 @@ OpenCam 是 Windows、macOS 與 Linux（Beta）桌面螢幕錄影工具，讓你
 
 ## 下載與安裝
 
-一般使用者只需下載對應平台的程式包。`OpenCam_v1.3.1_CorrespondingSource.tar.gz` 是完整對應原始碼與第三方來源交付包，不是安裝檔；內含原有元件來源封裝、授權與驗證資料。`OpenCam_v1.3.1_SHA256SUMS.txt` 用於核對下載檔案，不需要安裝。GitHub 自動提供的 Source code 下載不取代第三方來源包。
+一般使用者只需下載對應平台的程式包。`OpenCam_v1.3.2_CorrespondingSource.tar.gz` 是完整對應原始碼與第三方來源交付包，不是安裝檔；內含原有元件來源封裝、授權與驗證資料。`OpenCam_v1.3.2_SHA256SUMS.txt` 用於核對下載檔案，不需要安裝。GitHub 自動提供的 Source code 下載不取代第三方來源包。
 
 | 平台 | 系統需求 | 下載選項 |
 | --- | --- | --- |
@@ -71,10 +78,10 @@ OpenCam 是 Windows、macOS 與 Linux（Beta）桌面螢幕錄影工具，讓你
 
 到 [最新 Release](https://github.com/kaoshou/OpenCam/releases/latest) 下載。套件包含 .NET Runtime 與媒體工具。Windows 錄影所需的 Microsoft Visual C++ 執行階段隨套件附上，不需另外安裝或尋找 DLL。
 
-- **Windows 安裝版**：執行 `OpenCam_v1.3.1_Windows_x64_Setup.exe`。
-- **Windows 免安裝版**：完整解壓 `OpenCam_v1.3.1_Windows_x64_Portable.zip`，保留同資料夾的所有檔案，再執行 `OpenCam.exe`。
-- **macOS**：打開 `OpenCam_v1.3.1_macOS_arm64.dmg`，將 OpenCam 拖入「應用程式」。首次使用時，在「系統設定 → 隱私權與安全性」允許螢幕／系統音訊錄製及麥克風權限；變更權限後可重新啟動程式。
-- **Linux Beta**：下載 `OpenCam_v1.3.1_Linux_x64_Beta.deb`，在檔案所在目錄執行 `sudo apt install ./OpenCam_v1.3.1_Linux_x64_Beta.deb`，完成後從應用程式選單開啟「OpenCam」。相依套件由 APT 處理，需要網路；不要以 root 執行 OpenCam。套件 ID 仍為 `opencam-beta`，方便既有測試版升級。
+- **Windows 安裝版**：執行 `OpenCam_v1.3.2_Windows_x64_Setup.exe`。
+- **Windows 免安裝版**：完整解壓 `OpenCam_v1.3.2_Windows_x64_Portable.zip`，保留同資料夾的所有檔案，再執行 `OpenCam.exe`。
+- **macOS**：打開 `OpenCam_v1.3.2_macOS_arm64.dmg`，將 OpenCam 拖入「應用程式」。首次使用時，在「系統設定 → 隱私權與安全性」允許螢幕／系統音訊錄製及麥克風權限；變更權限後可重新啟動程式。
+- **Linux Beta**：下載 `OpenCam_v1.3.2_Linux_x64_Beta.deb`，在檔案所在目錄執行 `sudo apt install ./OpenCam_v1.3.2_Linux_x64_Beta.deb`，完成後從應用程式選單開啟「OpenCam」。相依套件由 APT 處理，需要網路；不要以 root 執行 OpenCam。套件 ID 仍為 `opencam-beta`，方便既有測試版升級。
 
 Linux Beta 目前以 Ubuntu 24.04 LTS x64 為主要測試目標。v1.2.1 曾針對 Ubuntu 25.04 進行 ICU 76 相依套件相容性處理，但該作業系統已於 2026-01-15 終止支援，不再提供一般套件與安全更新，不建議新安裝或作為正式工作環境。其他 Ubuntu 版本的相容性仍須另行確認，包含尚未完成安裝與錄影驗證的 Ubuntu 26.04 LTS。[Ubuntu 官方終止支援公告](https://lists.ubuntu.com/archives/ubuntu-announce/2026-January/000320.html)
 
@@ -139,6 +146,13 @@ OpenCam 自有原始碼採 [GNU Affero General Public License v3.0 或後續版�
 
 OpenCam is a desktop screen recorder for Windows, macOS and Linux (Beta). Record, edit, and continue recording in a project you can save and reopen, then export MP4, GIF, or a Web player with chapters and captions.
 
+### What's new in v1.3.2
+
+- Recover directly from a recording project, folder or individual session.
+- Export compatible whole H.264 clips with matching PCM audio faster by preserving the encoded video.
+
+[Full v1.3.2 notes](docs/releases/v1.3.2.md)
+
 ### What's new in v1.3.1
 
 - **Clearer MP4 export progress**: report actual processed frames during re-encoding, addressing a prolonged 0% followed by sudden completion.
@@ -192,7 +206,7 @@ OpenCam is a desktop screen recorder for Windows, macOS and Linux (Beta). Record
 
 ### Download and install
 
-Most users only need their platform's application package. `OpenCam_v1.3.1_CorrespondingSource.tar.gz` contains corresponding sources, original component archives, license notices and verification metadata; it is not an installer. `OpenCam_v1.3.1_SHA256SUMS.txt` verifies downloads and does not need installation. GitHub's automatic Source code downloads do not replace third-party source delivery.
+Most users only need their platform's application package. `OpenCam_v1.3.2_CorrespondingSource.tar.gz` contains corresponding sources, original component archives, license notices and verification metadata; it is not an installer. `OpenCam_v1.3.2_SHA256SUMS.txt` verifies downloads and does not need installation. GitHub's automatic Source code downloads do not replace third-party source delivery.
 
 | Platform | Requirements | Downloads |
 | --- | --- | --- |
@@ -202,10 +216,10 @@ Most users only need their platform's application package. `OpenCam_v1.3.1_Corre
 
 Download from the [latest Release](https://github.com/kaoshou/OpenCam/releases/latest). Packages include .NET Runtime and media tools. The required Windows Microsoft Visual C++ recording runtime is bundled app-locally; no separate runtime installation or DLL download is needed.
 
-- **Windows installer**: Run `OpenCam_v1.3.1_Windows_x64_Setup.exe`.
-- **Windows portable**: Fully extract `OpenCam_v1.3.1_Windows_x64_Portable.zip`, keep all companion files together, then run `OpenCam.exe`.
-- **macOS**: Open `OpenCam_v1.3.1_macOS_arm64.dmg` and drag OpenCam into Applications. Allow screen/system-audio recording and microphone access in System Settings → Privacy & Security. Restart OpenCam after changing permissions if needed.
-- **Linux Beta**: install `OpenCam_v1.3.1_Linux_x64_Beta.deb` with `sudo apt install ./OpenCam_v1.3.1_Linux_x64_Beta.deb`, then open **OpenCam** from the application menu. APT resolves dependencies and requires network access. Never run OpenCam as root. The package ID remains `opencam-beta` for upgrades.
+- **Windows installer**: Run `OpenCam_v1.3.2_Windows_x64_Setup.exe`.
+- **Windows portable**: Fully extract `OpenCam_v1.3.2_Windows_x64_Portable.zip`, keep all companion files together, then run `OpenCam.exe`.
+- **macOS**: Open `OpenCam_v1.3.2_macOS_arm64.dmg` and drag OpenCam into Applications. Allow screen/system-audio recording and microphone access in System Settings → Privacy & Security. Restart OpenCam after changing permissions if needed.
+- **Linux Beta**: install `OpenCam_v1.3.2_Linux_x64_Beta.deb` with `sudo apt install ./OpenCam_v1.3.2_Linux_x64_Beta.deb`, then open **OpenCam** from the application menu. APT resolves dependencies and requires network access. Never run OpenCam as root. The package ID remains `opencam-beta` for upgrades.
 
 Linux Beta currently targets Ubuntu 24.04 LTS x64 for primary testing. v1.2.1 included ICU 76 dependency compatibility work for Ubuntu 25.04, but that operating system reached end of life on 2026-01-15 and no longer receives regular package or security updates. It is not recommended for new installations or production use. Other Ubuntu versions require separate compatibility validation, including Ubuntu 26.04 LTS, for which OpenCam installation and recording validation has not been completed. [Official Ubuntu end-of-life announcement](https://lists.ubuntu.com/archives/ubuntu-announce/2026-January/000320.html)
 

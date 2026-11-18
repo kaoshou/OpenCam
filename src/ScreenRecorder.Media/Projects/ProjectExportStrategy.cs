@@ -64,12 +64,16 @@ public static class ProjectExportPlanner
         }
         if (sources.Count > 128) return Render("Too many simultaneous concat handles");
         var first = sources[0];
+        // PCM is rendered independently per clip. Only the video enters the concat muxer.
+        bool normalizePcm = first.Audio?.Codec is "pcm_s16le" or "pcm_f32le" &&
+            sources.All(s => s.Audio?.Codec == first.Audio.Codec);
         foreach (var source in sources)
             if (!first.Video.CompatibleWith(source.Video) || (first.Audio is null) != (source.Audio is null) ||
                 Math.Abs((first.Video.StartSeconds - first.FormatStartSeconds) -
                     (source.Video.StartSeconds - source.FormatStartSeconds)) > .000001 ||
-                (first.Audio is not null && (first.Audio.Codec != "aac" || !first.Audio.CompatibleWith(source.Audio!))))
+                (!normalizePcm && first.Audio is not null && (first.Audio.Codec != "aac" || !first.Audio.CompatibleWith(source.Audio!))))
                 return Render("Segment stream parameters differ");
+        if (normalizePcm) return new(ProjectExportStrategy.ConcatConvertAudio, "Preserve compatible video; encode PCM audio once");
         if (audioEdited || first.Audio is not null && sources.Any(s => s.Audio!.StartSeconds != s.Video.StartSeconds ||
             Math.Abs(s.Audio.PacketCount * 1024d / s.Audio.SampleRate - (s.Video.EndSeconds - s.Video.StartSeconds)) > 1d / s.Audio.SampleRate))
             return new(ProjectExportStrategy.ConcatConvertAudio, "Preserve video; normalize AAC priming/padding once");

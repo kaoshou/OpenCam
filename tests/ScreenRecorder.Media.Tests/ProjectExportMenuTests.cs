@@ -95,6 +95,27 @@ public sealed class ProjectExportMenuTests
         else Assert.Equal((ScreenRecorder.Core.Projects.ProjectExportFormat.Gif, (Guid?)client.Clips[1].Id), Assert.Single(calls));
     }
 
+    [AvaloniaFact]
+    public void RecoveryMenuOffersCurrentLocationProjectAndFolder()
+    {
+        var vm = new MainViewModel(forScreenshot: true);
+        var window = new MainWindow { DataContext = vm };
+        try
+        {
+            window.Show();
+            var button = window.FindControl<Button>("RecoveryMenuButton")!;
+            var menu = Assert.IsType<MenuFlyout>(button.Flyout);
+            menu.ShowAt(button);
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            var items = menu.Items.Cast<MenuItem>().ToArray();
+            Assert.Equal(new[] { vm.Strings["RecoveryCurrent"], vm.Strings["RecoveryProject"], vm.Strings["RecoveryFolder"] },
+                items.Select(item => item.Header?.ToString()));
+            Assert.Same(vm.RecoverSessionsCommand, items[0].Command);
+            menu.Hide();
+        }
+        finally { window.Close(); vm.Cleanup(); }
+    }
+
     // Both entry points must expose GIF, not only the editor's export menu.
     [AvaloniaFact]
     public async Task OriginalAndEditorExportMenusOfferMp4ThenGifThenWeb()
@@ -106,7 +127,7 @@ public sealed class ProjectExportMenuTests
             main.Show(); editor.Show(); main.UpdateLayout(); editor.UpdateLayout();
             foreach (var window in new Window[] { main, editor })
             {
-                var button = Assert.Single(window.GetVisualDescendants().OfType<Button>(),b => b.Flyout is MenuFlyout);
+                var button = Assert.Single(window.GetVisualDescendants().OfType<Button>(),b => b.Flyout is MenuFlyout && b.Name != "RecoveryMenuButton");
                 var menu = (MenuFlyout)button.Flyout!;
                 menu.ShowAt(button);
                 Avalonia.Threading.Dispatcher.UIThread.RunJobs();
